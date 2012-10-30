@@ -1,0 +1,235 @@
+#include "cmPrefix.h"
+#include "cmGlobal.h"
+#include "cmKeyboard.h"
+#include <termios.h>
+//#include <stropts.h>
+#include <sys/ioctl.h>
+//#include <linux/kd.h>
+//#include <linux/keyboard.h>
+#include <unistd.h>
+
+struct termios new_settings;
+struct termios stored_settings;
+
+void set_keypress(void) 
+{
+  struct termios new_settings;
+
+  tcgetattr(0,&stored_settings);
+  new_settings             = stored_settings;
+  new_settings.c_lflag    &= (~ICANON);
+  new_settings.c_lflag    &= (~ECHO);
+  new_settings.c_cc[VTIME] = 0;
+
+  //int i;
+  //for(i=0; i<NCCS; ++i)
+  //  printf("%i ",new_settings.c_cc[i]);
+  //printf("\n");
+      
+
+  tcgetattr(0,&stored_settings);
+
+  new_settings.c_cc[VMIN] = 1;
+  tcsetattr(0,TCSANOW,&new_settings);
+
+}
+
+void reset_keypress(void) 
+{
+  tcsetattr(0,TCSANOW,&stored_settings);
+}
+
+#define CM_KB_TBL_CNT (10)
+
+unsigned _cmKbTbl[][CM_KB_TBL_CNT] = 
+{
+
+  //                           alt ctl code
+  { 3, 27, 91, 68,   0,   0,   0,  0, 0, kLeftArrowKId },
+  { 3, 27, 91, 67,   0,   0,   0,  0, 0, kRightArrowKId },
+  { 3, 27, 91, 65,   0,   0,   0,  0, 0, kUpArrowKId },
+  { 3, 27, 91, 66,   0,   0,   0,  0, 0, kDownArrowKId },
+  { 3, 27, 79, 72,   0,   0,   0,  0, 0, kHomeKId },
+  { 3, 27, 79, 70,   0,   0,   0,  0, 0, kEndKId },
+  { 4, 27, 91, 53, 126,   0,   0,  0, 0, kPgUpKId },
+  { 4, 27, 91, 54, 126,   0,   0,  0, 0, kPgDownKId },
+  { 4, 27, 91, 50, 126,   0,   0,  0, 0, kInsertKId },
+  { 4, 27, 91, 51, 126,   0,   0,  0, 0, kDeleteKId },
+  { 6, 27, 91, 49,  59,  53,  68,  0, 1, kLeftArrowKId },
+  { 6, 27, 91, 49,  59,  53,  67,  0, 1, kRightArrowKId },
+  { 6, 27, 91, 49,  59,  53,  65,  0, 1, kUpArrowKId },
+  { 6, 27, 91, 49,  59,  53,  66,  0, 1, kDownArrowKId },
+  { 6, 27, 91, 53,  59,  53, 126,  0, 1, kPgUpKId }, 
+  { 6, 27, 91, 54,  59,  53, 126,  0, 1, kPgDownKId },
+  { 4, 27, 91, 51,  59,  53, 126,  0, 1, kDeleteKId }, 
+  { 0,  0,  0,  0,   0,   0,   0,  0, 0, kInvalidKId }
+};
+
+void cmKeyPress( cmKbRecd* p )
+{
+  const int bufN = 16;
+  char      buf[bufN];
+  int       n,j, k;
+  int       rc;
+  char      c;
+
+  if( p != NULL )
+  {
+    p->code  = kInvalidKId;
+    p->ch    = 0;
+    p->ctlFl = false;
+    p->altFl = false;
+  }
+  
+  set_keypress();
+
+  // block for the first character
+  if((rc = read(0, &c, 1 )) == 1)
+    buf[0]=c;
+
+  // loop in non-blocking for successive characters
+  new_settings.c_cc[VMIN] = 0;
+  tcsetattr(0,TCSANOW,&new_settings);
+
+  for(n=1; n<bufN; ++n)
+    if(read(0,&c,1) == 1 )
+      buf[n] = c;
+    else
+      break;
+
+  new_settings.c_cc[VMIN] = 1;
+  tcsetattr(0,TCSANOW,&new_settings);
+
+  /*
+  for(j=0; j<n; ++j)
+    printf("{%c (%i)} ",buf[j],buf[j]);
+  printf(" :%i\f\n",n);
+  fflush(stdout);
+  */
+
+  if( p != NULL )
+  {
+    // translate the keypress
+    if( n == 1)
+    {
+      p->code  = kAsciiKId;
+      p->ch    = buf[0];
+      p->ctlFl = buf[0] <= 31;    
+    }
+    else
+    {
+      for(j=0; _cmKbTbl[j][0] != 0; ++j)
+        if( _cmKbTbl[j][0] == n )
+        {
+          for(k=1; k<=n; ++k)
+            if( _cmKbTbl[j][k] != buf[k-1] )
+              break;
+
+          // if the key was found
+          if( k==n+1 )
+          {
+            p->code  = _cmKbTbl[j][ CM_KB_TBL_CNT - 1 ];
+            p->ctlFl = _cmKbTbl[j][ CM_KB_TBL_CNT - 2 ];
+            break;
+          }
+        }
+    }
+  }
+  reset_keypress();
+}
+
+void cmKbTest()
+{
+  set_keypress();
+  
+  int c = 0;
+  int r; 
+  while( c != 'q' )
+  {
+
+    printf("0>"); fflush(stdout);
+    r = read(0, &c, 1 );
+    printf("0: %c (%i)\r\n",(char)c,c);
+
+
+    new_settings.c_cc[VMIN] = 0;
+    tcsetattr(0,TCSANOW,&new_settings);
+
+    if( r == 1 && c == 27 )
+    {
+      r = read(0, &c, 1 );
+      printf("1: %c (%i)\n",(char)c,c);
+
+      if( r == 1 && c == '[' )
+      {
+        r = read(0, &c, 1 );
+        printf("2: %c (%i)\n",(char)c,c);
+
+      }
+
+    }
+
+    new_settings.c_cc[VMIN] = 1;
+    tcsetattr(0,TCSANOW,&new_settings);
+
+  }
+
+  reset_keypress();
+}
+
+// Note: this technique does not work because the 
+void testKb2()
+{
+  set_keypress();
+
+  fd_set         rfds;
+  struct timeval tv;
+  int            retval;
+  int            c=0;
+    
+
+  while( c != 'q' )
+  {
+    int i = 0;
+
+    printf(">");
+
+    do
+    {
+      
+      /* Watch stdin (fd 0) to see when it has input. */
+      FD_ZERO(&rfds);
+      FD_SET(0, &rfds);
+
+      // don't wait
+      tv.tv_sec =  0;
+      tv.tv_usec = 0;
+
+      retval = select(1, &rfds, NULL, NULL, i==0 ? NULL : &tv);
+      // Don't rely on the value of tv now - it may have been overwritten by select
+
+      // if an error occurred
+      if (retval == -1)
+        perror("select()");
+      else 
+      {
+        // if data is waiting
+        if (retval)
+        {
+          c = getchar();
+          printf("%i %c (%i) ",i,(char)c,c);
+          ++i;
+
+        }
+        else
+        {
+          printf("\n");
+          break; // no data available
+        }
+      }
+
+    } while( 1 );
+  }
+
+  reset_keypress();
+}

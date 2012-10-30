@@ -1,0 +1,89 @@
+#include "cmPrefix.h"
+#include "cmGlobal.h"
+#include "cmRpt.h"
+
+cmRpt_t cmRptNull = { NULL, NULL, NULL };
+
+void _cmDefaultPrint( void* userPtr, const cmChar_t* text )
+{ 
+  if( text != NULL )
+    fputs(text,stdin);
+}
+
+void _cmDefaultError( void* userPtr, const cmChar_t* text )
+{  
+  if( text != NULL )
+    fputs(text,stderr);
+}
+
+void _cmOut( cmRptPrintFunc_t printFunc, void* userData, const cmChar_t* text )
+{
+  if( printFunc == NULL )
+    _cmDefaultPrint(userData,text);
+  else
+    printFunc(userData,text);
+}
+
+void _cmVOut( cmRptPrintFunc_t printFunc, void* userData, const cmChar_t* fmt, va_list vl )
+{
+  unsigned bufN = 511;
+ 
+  cmChar_t buf[bufN+1];
+  buf[0]=0;
+  if( fmt != NULL )
+    if( vsnprintf(buf,bufN,fmt,vl) > bufN )
+    _cmOut(printFunc,userData,"The following error message was truncated because the character buffer in cmRpt::_cmVOut() was too small.");
+
+  _cmOut(printFunc,userData,buf);
+}
+
+void cmRptSetup( cmRpt_t* rpt, cmRptPrintFunc_t printFunc, cmRptPrintFunc_t errorFunc, void* userPtr )
+{
+  rpt->printFuncPtr = printFunc==NULL ? _cmDefaultPrint : printFunc;
+  rpt->errorFuncPtr = errorFunc==NULL ? _cmDefaultError : errorFunc;
+  rpt->userPtr      = userPtr;
+}
+
+void cmRptPrint( cmRpt_t* rpt, const cmChar_t* text )
+{
+  cmRptPrintFunc_t pfp = rpt==NULL ? NULL : rpt->printFuncPtr;
+  void*            udp = rpt==NULL ? NULL : rpt->userPtr;
+  _cmOut(pfp,udp,text);
+}
+
+void cmRptVPrintf( cmRpt_t* rpt, const cmChar_t* fmt, va_list vl )
+{
+  cmRptPrintFunc_t pfp = rpt==NULL ? NULL : rpt->printFuncPtr;
+  void*            udp = rpt==NULL ? NULL : rpt->userPtr;
+  _cmVOut(pfp,udp,fmt,vl);  
+}
+
+void cmRptPrintf(  cmRpt_t* rpt, const cmChar_t* fmt, ... )
+{
+  va_list vl;
+  va_start(vl,fmt);
+  cmRptVPrintf(rpt,fmt,vl);
+  va_end(vl);
+}
+
+void cmRptError( cmRpt_t* rpt, const cmChar_t* text )
+{
+  cmRptPrintFunc_t pfp = rpt==NULL ? NULL : rpt->errorFuncPtr;
+  void*            udp = rpt==NULL ? NULL : rpt->userPtr;
+  _cmOut(pfp,udp,text);
+}
+
+void cmRptVErrorf( cmRpt_t* rpt, const cmChar_t* fmt, va_list vl )
+{
+  cmRptPrintFunc_t pfp = rpt==NULL ? NULL : rpt->errorFuncPtr;
+  void*            udp = rpt==NULL ? NULL : rpt->userPtr;
+  _cmVOut(pfp,udp,fmt,vl);
+}
+
+void cmRptErrorf(  cmRpt_t* rpt, const char* fmt, ... )
+{
+  va_list vl;
+  va_start(vl,fmt);
+  cmRptVErrorf(rpt,fmt,vl);
+  va_end(vl);
+}

@@ -1,0 +1,10 @@
+1) There is a problem with the way types are checked in cmDspInstInstallCb( ).
+If the type was set to kTypeDsvMask (all types (as in the input to the 'printer' DSP object) 
+this will include the kProxyDsvFl.
+
+In cmDsvCanConvert() a call to _vptr() is supposed to return a pointer to the actual value
+when the proxy flag is set.  This will crash because it will notice the proxy flag is
+set and attempt to follow a non-existent proxy pointer. 
+
+The cmDsvValue() system assumes that only one type flag is set.
+The DSP variable 

@@ -1,0 +1,233 @@
+#ifndef cmText_h
+#define cmText_h
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+  //{
+  //(
+  // The cmText API supports two basic tasks: the generation of
+  // formatted text into dynamic arrays and text to number parsing.
+  // 
+  //)
+
+  //(
+  enum
+  {
+    kOkTxRC = 0,
+    kNullTxRC,
+    kCvtErrTxRC,
+    kLHeapFailTxRC
+  };
+
+  typedef unsigned     cmTxRC_t;
+  typedef cmHandle_t   cmTextSysH_t;
+  
+  extern cmTextSysH_t  cmTextSysNullHandle;
+
+  cmTxRC_t cmTextSysInitialize(  cmCtx_t* ctx, cmTextSysH_t* hp );
+  cmTxRC_t cmTextSysFinalize( cmTextSysH_t* hp );
+  bool     cmTextSysIsValid( cmTextSysH_t h );
+
+  // Print the string into a static, global, but resizable, buffer.
+  // This string is only valid until the next call to cmTextSysPrintS().
+  // This function is not currently thread safe - calls from different
+  // threads can therefore overwrite one anothers buffered strings
+  // unexpectedly. 
+  cmChar_t*     cmTextSysVPrintfS( cmTextSysH_t h, const cmChar_t* fmt, va_list vl );
+  cmChar_t*     cmTextSysPrintfS(  cmTextSysH_t h, const cmChar_t* fmt, ... );
+
+
+  // Print the string into memory supplied by a linked heap.
+  // Strings returned from this function may be deallocated with a call to
+  // cmLhFree().
+  cmChar_t*     cmTextSysVPrintfH( cmLHeapH_t h, const cmChar_t* fmt, va_list vl );
+  cmChar_t*     cmTextSysPrintfH(  cmLHeapH_t h, const cmChar_t* fmt, ... );
+
+  // Print a string and store it in the internal text system heap.  
+  // The memory used by these strings will be automatically released
+  // whent he text system is destroyed.  The caller may optionally release
+  // a string via cmTextSysFreeStr().
+  cmChar_t*     cmTextSysVPrintf( cmTextSysH_t h, const cmChar_t* fmt, va_list vl );
+  cmChar_t*     cmTextSysPrintf(  cmTextSysH_t h, const cmChar_t* fmt, ... );
+  void          cmTextSysFreeStr( cmTextSysH_t h, const cmChar_t* s );
+
+  //
+  // Global interface:
+  //
+  // These functions are equivalent to the same-named functions above
+  // but use a globally allocated cmTextSysH_t handle.
+  cmTxRC_t cmTsInitialize( cmCtx_t* ctx );
+  cmTxRC_t cmTsFinalize();
+  bool     cmTsIsValid();
+
+  cmChar_t*     cmTsVPrintfS( const cmChar_t* fmt, va_list vl );
+  cmChar_t*     cmTsPrintfS(  const cmChar_t* fmt, ... );
+
+  cmChar_t*     cmTsVPrintfH( cmLHeapH_t h, const cmChar_t* fmt, va_list vl );
+  cmChar_t*     cmTsPrintfH(  cmLHeapH_t h, const cmChar_t* fmt, ... );
+
+  cmChar_t*     cmTsVPrintf( const cmChar_t* fmt, va_list vl );
+  cmChar_t*     cmTsPrintf(  const cmChar_t* fmt, ... );
+  void          cmTsFreeStr( const cmChar_t* s );
+
+  // Print a formatted string into s[].  s[] is reallocated as necessary to
+  // hold the string.  s must be freed by the caller via cmMemFree().
+  cmChar_t*     cmTsVPrintfP( cmChar_t* s, const cmChar_t* fmt, va_list vl );
+  cmChar_t*     cmTsPrintfP( cmChar_t* s, const cmChar_t* fmt, ... );
+
+
+  // Set err to NULL to ignore errors.
+  // 
+  cmTxRC_t   cmTextToInt(    const char* text, int*      ip, cmErr_t* err );
+  cmTxRC_t   cmTextToUInt(   const char* text, unsigned* up, cmErr_t* err );
+  cmTxRC_t   cmTextToFloat(  const char* text, float*    fp, cmErr_t* err );
+  cmTxRC_t   cmTextToDouble( const char* text, double*   dp, cmErr_t* err );
+  cmTxRC_t   cmTextToBool(   const char* text, bool*     bp, cmErr_t* err );
+
+  // In all cases s, s0 and s1 are expected to be non-NULL.  
+  // If any of the arguments were allowed to be NULL, then the natural
+  // return value would be NULL and this would lead to ambiguities 
+  // with the meaning of a NULL return value.
+
+  // Return ptr to next non-white or terminating 0 if EOS is encountered.
+  cmChar_t*       cmTextNextNonWhiteOrEos( cmChar_t* s );
+  const cmChar_t* cmTextNextNonWhiteOrEosC( const cmChar_t* s );
+
+  // Return ptr to next non-white char. or NULL if EOS is encountered.
+  cmChar_t*       cmTextNextNonWhite( cmChar_t* s );
+  const cmChar_t* cmTextNextNonWhiteC( const cmChar_t* s );
+
+  // Return ptr to prev non-white or s if BOS is encountered.
+  // If returned ptr == s0 then BOS was encountered.
+  cmChar_t*       cmTextPrevNonWhiteOrBos( cmChar_t* s0, const cmChar_t* s1 );
+  const cmChar_t* cmTextPrevNonWhiteOrBosC( const cmChar_t* s0, const cmChar_t* s1 );
+
+  // Return ptr to prev non-white char. or NULL if BOS is encountered.
+  cmChar_t*       cmTextPrevNonWhite( cmChar_t* s0, const cmChar_t* s1 );
+  const cmChar_t* cmTextPrevNonWhiteC( const cmChar_t* s0, const cmChar_t* s1 );
+
+
+  // Return ptr to next white or terminating 0 if EOS is encountered.
+  // ( *(return_ptr)==0 if EOS is encountered )
+  cmChar_t*       cmTextNextWhiteOrEos( cmChar_t* s );
+  const cmChar_t* cmTextNextWhiteOrEosC( const cmChar_t* s );
+  
+  // Return ptr to next white char. or NULL if EOS is encountered.
+  cmChar_t*       cmTextNextWhite( cmChar_t* s );
+  const cmChar_t* cmTextNextWhiteC( const cmChar_t* s );
+
+  // Return ptr to prev white or s if BOS is encountered.
+  // If returned ptr != s then *(returned_ptr-1) == '\n'
+  cmChar_t*       cmTextPrevWhiteOrBos( cmChar_t* s0, const cmChar_t* s1 );
+  const cmChar_t* cmTextPrevWhiteOrBosC( const cmChar_t* s0, const cmChar_t* s1 );
+
+
+  // Return ptr to prev white char. or NULL if BOS is encountered.
+  cmChar_t*       cmTextPrevWhite( cmChar_t* s0, const cmChar_t* s1 );
+  const cmChar_t* cmTextPrevWhiteC( const cmChar_t* s0, const cmChar_t* s1 );
+
+
+  // Backup to first char on line. 
+  // Return ptr to first char on line or first char in buffer.
+  // If return_ptr!=s0 then *(return_ptr-1) == '\n'.
+  cmChar_t*       cmTextBegOfLine( cmChar_t* s0, const cmChar_t* s1 );
+  const cmChar_t* cmTextBegOfLineC( const cmChar_t* s0, const cmChar_t* s1 );
+
+  // Move forward to last char on line.
+  // Return ptr to last char on line.
+  // If *return_ptr == 0 then the end of buffer was encountered prior 
+  // to the next '\n' otherwise *(return_ptr) == '\n'.
+  cmChar_t*       cmTextEndOfLine( cmChar_t* s );
+  const cmChar_t* cmTextEndOfLineC( const cmChar_t* s );
+
+  // Return a pointer to the last non-white character in the string
+  cmChar_t*       cmTextLastNonWhiteChar(  const cmChar_t* s );
+  const cmChar_t* cmTextLastNonWhiteCharC( const cmChar_t* s );
+  
+    
+
+
+  // Shrink the text by copying all char's beginning with t+tn to t.
+  // ex: 'abcd' s=a, t=b, tn=1 -> acd
+  //     'abcd' s=a, t=b, tn=2 -> ad
+  void      cmTextShrinkS( cmChar_t* s, const cmChar_t* t, unsigned tn );
+  void      cmTextShrinkSN(cmChar_t* s, unsigned sn, const cmChar_t* t, unsigned tn );
+
+  // Remove the last n characters from s by inserting a '\0' at s[ strlen(s)-n ].
+  void      cmTextClip(    cmChar_t* s, unsigned n );
+
+  // Expand s by copying all bytes past t to t+tn.
+  cmChar_t* cmTextExpandS( cmChar_t* s, const cmChar_t* t, unsigned tn );
+
+  // Replace t[tn] with u[un] in s[].
+  cmChar_t* cmTextReplaceSN( cmChar_t* s, const cmChar_t* t, unsigned tn, const cmChar_t* u, unsigned un );
+
+  // Replace t[tn] with u in s[].
+  cmChar_t* cmTextReplaceS( cmChar_t* s, const cmChar_t* t, unsigned tn, const cmChar_t* u );
+  
+  // Replace all occurrences of t[] with u[] in s[].
+  cmChar_t* cmTextReplaceAll( cmChar_t* s, const cmChar_t* t, const cmChar_t* u );
+
+  // Insert u[un] at before t in s[].
+  cmChar_t* cmTextInsertSN(  cmChar_t* s, const cmChar_t* t, const cmChar_t* u, unsigned un );
+
+  // Insert u[] at before t in s[].
+  cmChar_t* cmTextInsertS(  cmChar_t* s, const cmChar_t* t, const cmChar_t* u );
+
+  cmChar_t* cmTextAppend( cmChar_t* s, unsigned* sn, const cmChar_t* u, unsigned un );
+
+  cmChar_t* cmTextAppendSN( cmChar_t* s, const cmChar_t* u, unsigned un );
+
+  // append u[un] to s[] and append terminating zero.
+  cmChar_t* cmTextAppendSNZ( cmChar_t* s, const cmChar_t* u, unsigned un );
+
+  // both s[] and u[] are strz's
+  cmChar_t* cmTextAppendSS( cmChar_t* s, const cmChar_t* u );
+
+  // Append 'n' copies of 'c' to the end of s[].
+  cmChar_t* cmTextAppendChar( cmChar_t* s, cmChar_t c, unsigned n );
+
+  // Returns true if the string is all spaces.
+  bool cmTextIsEmpty( const cmChar_t* s );
+
+  // Returns NULL if string contains fewer than lineIdx lines.
+  // Note: first line == 1.
+  cmChar_t* cmTextLine( cmChar_t* s, unsigned line );
+  const cmChar_t* cmTextLineC( const cmChar_t* s, unsigned line );
+
+  // Reduce all consecutive white spaces to a single space.
+  cmChar_t* cmTextRemoveConsecutiveSpaces( cmChar_t* s );
+
+  // Columnize s[] by inserting EOL's at the first available
+  // space prior 'colCnt' columns. If no space exists then
+  // the words will be broken.  If length s[] is less than
+  // 'colCnt' then s[] is returned with no changes.
+  cmChar_t* cmTextColumize( cmChar_t* s,  unsigned colCnt );
+
+  // Indent the rows of s[] by inserting 'indent' spaces
+  // just after each '\n'.  If s[] contains no '\n' then
+  // s[] is returned with no changes.
+  cmChar_t* cmTextIndentRows( cmChar_t* s,  unsigned indent );
+
+  // Prefix all rows of s[] with p[].
+  cmChar_t* cmTextPrefixRows( cmChar_t* s, const cmChar_t* t );
+
+  // Remove leading white space from all rows of s.
+  cmChar_t* cmTextTrimRows( cmChar_t* s );
+
+
+
+  // Remove all white space prior to the first non-white space
+  // character.
+  cmChar_t* cmTextEatLeadingSpace( cmChar_t* s );
+
+  //)
+  //}
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

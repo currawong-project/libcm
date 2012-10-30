@@ -1,0 +1,1542 @@
+#include "cmGlobal.h"
+#include "cmFloatTypes.h"
+#include "cmRpt.h"
+#include "cmErr.h"
+#include "cmCtx.h"
+#include "cmMem.h"
+#include "cmMallocDebug.h"
+#include "cmLinkedHeap.h"
+#include "cmJson.h"
+#include "cmAudioFile.h"
+#include "cmMidi.h"
+#include "cmMidiFile.h"
+#include "cmTimeLine.h"
+
+// id's used to track the type of a serialized object
+enum
+{
+  kMsgTlId,
+  kObjTlId
+};
+
+
+// 
+typedef struct _cmTlMsg_str
+{
+  unsigned          typeId; // always set to kMsgTlId
+  cmTlUiMsgTypeId_t msgId;  //
+  double            srate;
+  unsigned          seqCnt;
+  unsigned          seqId;
+} _cmTlMsg_t;
+
+
+typedef struct _cmTlObj_str
+{
+  void*                mem;
+  unsigned             memByteCnt;
+  cmTlObj_t*           obj;   
+  struct _cmTlObj_str* prev;
+  struct _cmTlObj_str* next;
+} _cmTlObj_t;
+
+typedef struct 
+{
+  _cmTlObj_t*          first;
+  _cmTlObj_t*          last;
+} _cmTlSeq_t;
+
+typedef struct
+{
+  cmErr_t     err;
+  cmCtx_t     ctx;
+  cmLHeapH_t  lH;
+  double      srate;
+  unsigned    nextSeqId;
+  cmTlCb_t    cbFunc;
+  void*       cbArg;
+  unsigned    nextUId;
+  char*       tmpBuf;  
+  unsigned    seqCnt;
+  _cmTlSeq_t*  seq;    // seq[seqCnt]
+} _cmTl_t;
+
+typedef struct
+{
+  char label[8];
+  unsigned id;
+} _cmTlId_t;
+
+_cmTlId_t _cmTlIdArray[] =
+{
+  { "mf", kMidiFileTlId  },
+  { "me", kMidiEvtTlId   },
+  { "af", kAudioFileTlId },
+  { "ae", kAudioEvtTlId  },
+  { "mk", kMarkerTlId    },
+  { "",   cmInvalidId    }
+};
+
+cmTlH_t cmTimeLineNullHandle = cmSTATIC_NULL_HANDLE;
+
+_cmTl_t* _cmTlHandleToPtr( cmTlH_t h )
+{
+  _cmTl_t* p = (_cmTl_t*)h.h;
+  assert( p != NULL );
+  return p;
+}
+
+_cmTlId_t* _cmTlIdLabelToRecd( _cmTl_t* p, const cmChar_t* label )
+{
+  unsigned i;
+  if( label != NULL )
+    for(i=0; _cmTlIdArray[i].id != cmInvalidId; ++i)
+      if( strcmp(_cmTlIdArray[i].label,label) == 0 )
+        return _cmTlIdArray + i;
+  return NULL;
+}
+
+_cmTlId_t* _cmTlIdToRecd( _cmTl_t* p, unsigned id )
+{
+  unsigned i;
+  for(i=0; _cmTlIdArray[i].id != cmInvalidId; ++i)
+    if( _cmTlIdArray[i].id == id )
+      return _cmTlIdArray + i;
+  return NULL;
+}
+
+const cmChar_t* _cmTlIdToLabel( _cmTl_t* p, unsigned id )
+{
+  _cmTlId_t* rp;
+  if((rp = _cmTlIdToRecd(p,id)) != NULL )
+    return rp->label;
+  return "";
+}
+
+unsigned _cmTlIdLabelToId( _cmTl_t* p, const cmChar_t* label )
+{
+  _cmTlId_t* rp;
+  if((rp = _cmTlIdLabelToRecd(p,label)) != NULL )
+    return rp->id;
+  return cmInvalidId;
+}
+
+// cast a generic object to a midi file object
+cmTlMidiFile_t*  _cmTlMidiFileObjPtr(  _cmTl_t* p, cmTlObj_t* op, bool errFl )
+{ 
+  if( op->typeId != kMidiFileTlId )
+  {
+    if( errFl && p != NULL)
+      cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");
+    return NULL;
+  }
+
+  return (cmTlMidiFile_t*)op;
+}
+
+// cast a generic object to a midi event object
+cmTlMidiEvt_t*   _cmTlMidiEvtObjPtr(   _cmTl_t* p, cmTlObj_t* op, bool errFl )
+{ 
+  if( op->typeId != kMidiEvtTlId )
+  {
+    if( errFl && p != NULL )
+      cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");
+    return NULL;
+  }
+
+  return (cmTlMidiEvt_t*)op;
+}
+
+// case a generic object to an audio file object
+cmTlAudioFile_t* _cmTlAudioFileObjPtr( _cmTl_t* p, cmTlObj_t* op, bool errFl )
+{ 
+  if( op->typeId != kAudioFileTlId )
+  {
+    if( errFl && p != NULL)
+      cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");
+    return NULL;
+  }
+
+  return (cmTlAudioFile_t*)op;
+}
+
+// cast a generic object an audio event object to 
+cmTlAudioEvt_t*  _cmTlAudioEvtObjPtr(  _cmTl_t* p, cmTlObj_t* op, bool errFl )
+{ 
+  if( op->typeId != kAudioEvtTlId )
+  {
+    if( errFl && p != NULL)
+      cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");
+    return NULL;
+  }
+  return (cmTlAudioEvt_t*)op;
+}
+
+
+// cast a generic object to a marker object
+cmTlMarker_t*    _cmTlMarkerObjPtr(    _cmTl_t* p, cmTlObj_t* op, bool errFl )
+{ 
+  if( op->typeId != kMarkerTlId )
+  {
+    if( errFl && p != NULL)
+      cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");
+    return NULL;
+  }
+  return (cmTlMarker_t*)op;
+}
+
+cmTlMidiFile_t*  _cmTimeLineMidiFileObjPtr(  _cmTl_t* p, cmTlObj_t* op )
+{ return _cmTlMidiFileObjPtr(p,op,true);  }
+
+cmTlMidiEvt_t*   _cmTimeLineMidiEvtObjPtr(   _cmTl_t* p, cmTlObj_t* op )
+{ return _cmTlMidiEvtObjPtr(p,op,true); }
+
+cmTlAudioFile_t* _cmTimeLineAudioFileObjPtr( _cmTl_t* p, cmTlObj_t* op )
+{ return _cmTlAudioFileObjPtr(p,op,true);}
+
+cmTlAudioEvt_t*  _cmTimeLineAudioEvtObjPtr(  _cmTl_t* p, cmTlObj_t* op )
+{ return _cmTlAudioEvtObjPtr(p,op,true);}
+
+cmTlMarker_t*    _cmTimeLineMarkerObjPtr(    _cmTl_t* p, cmTlObj_t* op )
+{ return _cmTlMarkerObjPtr(p,op,true);}
+
+
+// Locate a record  which matches 'name' and (optionally) 'seqId'
+_cmTlObj_t* _cmTlFindRecd( _cmTl_t* p, unsigned seqId, const cmChar_t* name )
+{
+  if( name == NULL )
+    return NULL;
+
+  unsigned i;
+
+  for(i=0; i<p->seqCnt; ++i)
+    if( seqId==cmInvalidId || seqId == i )
+    {
+      _cmTlObj_t* op = p->seq[i].first;
+      while(op != NULL)
+      {
+        if( strcmp(op->obj->name,name) == 0 )
+          return op;
+
+        op = op->next;
+      }
+    }
+
+  return NULL;
+}
+
+// Returns true if 'op' is a child of 'ref'.
+bool _cmTlIsChild( _cmTlObj_t* ref, _cmTlObj_t* op )
+{
+  // if 'op' is not active then it can't be a child
+  if( op->obj == NULL )
+    return false;
+
+  // if 'ref' is NULL then match obj's which do not have a parent 
+  if( ref == NULL )
+    return op->obj->ref == NULL;
+
+  // if 'ref' is the parent of 'op'.
+  return op->obj->ref == ref->obj;
+}
+
+// calc the absolute start time of this object by adding the
+// time time offsets of all ancestors.
+int _cmTlStartTime( const cmTlObj_t* obj )
+{
+  assert( obj != NULL );
+
+  int t = 0;
+
+  do
+  {
+    t += obj->begSmpIdx;
+    obj=obj->ref;
+  }while( obj != NULL);
+
+
+  return t;
+}
+
+
+
+// Locate the closest record which is before 'np'.
+// When multiple records have the same distance to 'np' then the last one inserted
+// is taken as the closest. This way records with equal time  values will be
+// secondarily sequenced on their order of insertion.
+_cmTlObj_t* _cmTlFindRecdBefore( _cmTl_t* p, const _cmTlObj_t* np )
+{
+  assert( np->obj!=NULL && np->obj->seqId < p->seqCnt );
+
+  // calc the absolute time of this object
+  //int         absSmpIdx = _cmTlStartTime(np->obj);
+  int         rsi;
+  _cmTlObj_t* rp        = NULL;
+  _cmTlObj_t* op        = p->seq[np->obj->seqId].first;
+
+  //printf("type:%i %i\n",np->obj->typeId,absSmpIdx);
+
+  // for each object in the list ...
+  while( op != NULL )
+  {
+    int csi;
+
+    //if( op!=np && op->obj!=NULL && (csi = _cmTlStartTime(op->obj)) <= absSmpIdx )
+    if( (op!=np) && (op->obj!=NULL) && ((csi = op->obj->seqSmpIdx) <= np->obj->seqSmpIdx) ) 
+    {
+      if( rp == NULL || csi >= rsi )
+      {
+        rp  = op;
+        rsi = csi;
+      }
+    }
+    op = op->next;
+  }
+
+  return rp;
+}
+
+
+
+
+// Mark 'op' and all children of 'op' for deletion. 
+// Note that this function is recursive.
+cmTlRC_t _cmTlDeleteDependentRecds( _cmTl_t* p, _cmTlObj_t* op )
+{
+  assert( op->obj!=NULL && op->obj->seqId < p->seqCnt );
+
+  cmTlRC_t     rc     = kOkTlRC;
+  _cmTlObj_t*  dp     = p->seq[op->obj->seqId].first;
+
+  // mark all recd's that are children of 'op' for deletion
+  while( dp != NULL )
+  {
+    // if 'dp' is a child of 'op'.
+    if( _cmTlIsChild(op,dp) )
+      if(( rc = _cmTlDeleteDependentRecds(p,dp)) != kOkTlRC )
+        return rc;
+
+    dp = dp->next;
+  }
+  
+  // release any resources held by 'op'.
+  switch(op->obj->typeId)
+  {
+    case kMidiFileTlId:
+      {
+        cmTlMidiFile_t* mp = _cmTimeLineMidiFileObjPtr(p,op->obj);
+        cmMidiFileClose(&mp->h);
+      }
+      break;
+
+    case kMidiEvtTlId:
+      break;
+
+    case kAudioFileTlId:
+      {
+        cmTlAudioFile_t* ap = _cmTimeLineAudioFileObjPtr(p,op->obj);
+        cmAudioFileDelete(&ap->h);
+      }
+      break;
+
+    case kAudioEvtTlId:
+      break;
+
+    case kMarkerTlId:
+      break;
+
+    default:
+      return cmErrMsg(&p->err,kUnknownRecdTypeTlRC,"An unknown time line object type (%i) was encounterned during object deletion.",op->obj->typeId);
+
+  }
+
+  // mark 'op' as deleted by setting op->obj to NULL
+  op->obj = NULL; 
+
+  return kOkTlRC;
+}
+
+
+// Delete 'op' and all of its dependents. 
+cmTlRC_t _cmTlDeleteRecd( _cmTl_t* p, _cmTlObj_t* op )
+{
+  if( op == NULL )
+    return kOkTlRC;
+
+  assert( op->obj!=NULL && op->obj->seqId < p->seqCnt );
+  cmTlRC_t rc;
+
+  _cmTlSeq_t* s = p->seq + op->obj->seqId;
+
+  // mark this object and any objecs which are dependent on it for deletion
+  if((rc =_cmTlDeleteDependentRecds(p,op)) != kOkTlRC )
+    return rc;
+
+
+  // unlink and delete and records marked for deletion
+  op = s->first;
+
+  while( op )
+  {
+    _cmTlObj_t* tp = op->next;
+
+    // if this object is marked for deletion unlink it from this master list
+    if( op->obj == NULL )
+    {
+      if( op->next != NULL )
+        op->next->prev = op->prev;
+      else
+      {
+        assert( s->last == op );
+        s->last = op->prev;
+
+      }
+
+      if( op->prev != NULL )
+        op->prev->next = op->next;
+      else
+      {
+        assert( s->first == op );
+        s->first = op->next;      
+      }
+
+      // free the record
+      cmLhFreePtr(p->lH,(void**)&op->mem);
+      
+    }
+
+    op = tp;
+  }
+
+  return rc;
+}
+
+// Insert 'op' after 'bp'.
+// If 'bp' is NULL then 'op' is inserted as p->seq[op->seqId].first.
+void _cmTlInsertAfter( _cmTl_t* p, _cmTlObj_t* bp, _cmTlObj_t* op )
+{
+  assert( op->obj!=NULL && op->obj->seqId < p->seqCnt );
+  _cmTlSeq_t* s = p->seq + op->obj->seqId;
+
+  op->prev = bp; 
+
+  // if op is being inserted at the beginning of the list
+  if( bp == NULL )
+  {
+    op->next = s->first;
+
+    if( s->first != NULL )
+      s->first->prev = op;
+
+    s->first = op;
+
+  }
+  else // op is being inserted in the middle or end of the list
+  {
+    op->next = bp->next;
+
+    if( bp->next != NULL )
+      bp->next->prev = op;
+    else
+    {
+      // insertion at end
+      assert( bp == s->last );
+      s->last = op;
+    }
+    
+    bp->next = op;
+  }
+
+  if( s->last == NULL )
+    s->last = op;
+
+  if( s->first == NULL )
+    s->first = op;
+}
+
+// Allocate an object record
+cmTlRC_t _cmTlAllocRecd2( 
+  _cmTl_t*        p, 
+  const cmChar_t* nameStr,     // NULL, empty or unique name
+  _cmTlObj_t*     refPtr,      // parent object
+  int             begSmpIdx,   // start time  
+  unsigned        durSmpCnt,   // duration
+  unsigned        typeId,      // object type id
+  unsigned        seqId,       // owning seq
+  unsigned        recdByteCnt, // byte for type specific data to follow _cmTlObj_t data
+  _cmTlObj_t**    opp )        // return pointer
+{
+  *opp = NULL;
+
+  if( nameStr == NULL )
+    nameStr = "";
+
+  // get the length of the recd name field
+  unsigned nameByteCnt = strlen(nameStr)+1;
+
+  // verify that the name was not already used by another recd
+  if(  nameByteCnt>1 && _cmTlFindRecd(p,seqId,nameStr) != NULL )
+    return cmErrMsg(&p->err,kDuplNameTlRC,"The object identifier '%s' was already used.",nameStr);
+
+  assert( refPtr==NULL || refPtr->obj !=NULL );
+
+  if( refPtr != NULL && refPtr->obj->seqId != seqId )
+    return cmErrMsg(&p->err,kInvalidSeqIdTlRC,"The sequence id of the reference object (%i) does not match the sequence id (%i) of the new object (label:%s).",refPtr->obj->seqId,seqId,cmStringNullGuard(nameStr));
+
+  if( seqId >= p->seqCnt )
+  {    
+    // assume the sequence id's arrive in increasing order
+    assert( seqId == p->seqCnt );
+    assert( refPtr == NULL );
+    p->seqCnt = seqId+1;
+    p->seq    = cmMemResizePZ(_cmTlSeq_t,p->seq,p->seqCnt);
+  }
+
+  // calc the total size of the recd. memory layout: [name /0 _cmTlObj_t cmTlObj_t <type specific fields> ]
+  unsigned    byteCnt     = sizeof(unsigned) + sizeof(unsigned) + nameByteCnt + sizeof(_cmTlObj_t) + recdByteCnt;
+  void*       mem         = cmLHeapAllocZ( p->lH, byteCnt );
+  unsigned*   tidPtr      = (unsigned*)mem;
+  unsigned*   parentIdPtr = tidPtr + 1;
+  cmChar_t*   name        = (cmChar_t*)(parentIdPtr + 1);
+  _cmTlObj_t* op          = (_cmTlObj_t*)(name + nameByteCnt);
+  cmTlObj_t*  tp          = (cmTlObj_t*)(op+1);
+
+  // The entire object is contained in mem[]
+  // Memory Layout:
+  // kObjTlId parentId name[] \0 _cmTlObj_t cmTlObj_t [recdByteCnt - sizeof(cmTlObj_t)]
+
+  strcpy(name,nameStr);
+  
+  // the first element in the mem[] buffer must be kObjTlId - this allows
+  // mem[] to be used directly as the serialized version of the buffer.
+  *tidPtr        = kObjTlId; 
+  *parentIdPtr   = refPtr==NULL ? cmInvalidId : refPtr->obj->uid; 
+  tp->reserved   = op;
+  tp->seqId      = seqId;
+  tp->name       = name;
+  tp->uid        = p->nextUId++;
+  tp->typeId     = typeId;
+  tp->ref        = refPtr==NULL ? NULL : refPtr->obj;
+  tp->begSmpIdx  = refPtr==NULL ? 0    : begSmpIdx;
+  tp->durSmpCnt  = durSmpCnt;
+  tp->seqSmpIdx  = refPtr==NULL ? 0    : refPtr->obj->seqSmpIdx + begSmpIdx;
+  tp->flags      = 0;
+  tp->text       = NULL;
+
+  op->obj        = tp;
+  op->mem        = mem;
+  op->memByteCnt = byteCnt;
+  op->next       = NULL;
+  op->prev       = NULL;
+
+
+  //if( seqId == 4 )
+  //  printf("seq:%i id:%i type:%i accum:%i ref:%i offs:%i %f\n",seqId, tp->uid, tp->typeId, tp->seqSmpIdx, refPtr==NULL?-1:refPtr->obj->uid, begSmpIdx, begSmpIdx/(96000.0*60.0) );
+
+  _cmTlInsertAfter(p, _cmTlFindRecdBefore(p,op), op );
+
+
+  *opp = op;
+
+  return kOkTlRC;
+}
+
+cmTlRC_t _cmTlAllocRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar_t* refIdStr, int begSmpIdx, unsigned durSmpCnt, unsigned typeId, unsigned seqId, unsigned recdByteCnt, _cmTlObj_t** opp )
+{ 
+    // locate the obj recd that this recd is part of (the parent recd)
+  _cmTlObj_t* refPtr = _cmTlFindRecd(p,seqId,refIdStr);
+
+  // if this obj has a parent but it was not found
+  if( refPtr == NULL && refIdStr!=NULL && strlen(refIdStr)>0 )
+    return cmErrMsg(&p->err,kRefNotFoundTlRC,"Reference identifier '%s' not found for object '%s'.",refIdStr,cmStringNullGuard(nameStr));
+
+  return _cmTlAllocRecd2(p,nameStr,refPtr,begSmpIdx,durSmpCnt,typeId,seqId,recdByteCnt,opp); 
+}
+
+void _cmTlNotifyListener( _cmTl_t* p, cmTlUiMsgTypeId_t msgTypeId, _cmTlObj_t* op, unsigned seqId  )
+{
+  if( p->cbFunc == NULL )
+    return;
+
+  switch( msgTypeId )
+  {
+    case kInitMsgTlId:
+    case kFinalMsgTlId:
+    case kDoneMsgTlId:
+      {
+        _cmTlMsg_t m;
+        m.typeId = kMsgTlId;
+        m.msgId  = msgTypeId;
+        m.srate  = p->srate;
+        m.seqCnt = p->seqCnt;
+        m.seqId  = seqId;
+        p->cbFunc( p->cbArg, &m, sizeof(m) );
+      }
+      break;
+
+    case kInsertMsgTlId:
+      if( op != NULL )
+        p->cbFunc( p->cbArg, op->mem, op->memByteCnt );
+      break;
+
+    default:
+      { assert(0); }
+  }
+}
+
+cmTlRC_t _cmTlAllocAudioFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar_t* refIdStr, int begSmpIdx, unsigned seqId, const cmChar_t* fn )
+{
+  cmAudioFileH_t    afH = cmNullAudioFileH;
+  cmAudioFileInfo_t info;
+  cmRC_t            afRC        = cmOkRC;
+  cmTlRC_t          rc;
+  _cmTlObj_t*       op          = NULL;
+  unsigned          recdByteCnt = sizeof(cmTlAudioFile_t) + strlen(fn) + 1;
+
+  if( cmAudioFileIsValid( afH = cmAudioFileNewOpen(fn, &info, &afRC, p->err.rpt )) == false )
+    return cmErrMsg(&p->err,kAudioFileFailTlRC,"The time line audio file '%s' could not be opened.",cmStringNullGuard(fn));
+
+  if((rc = _cmTlAllocRecd(p,nameStr,refIdStr,begSmpIdx,info.frameCnt,kAudioFileTlId,seqId,recdByteCnt,&op)) != kOkTlRC )
+    goto errLabel;
+
+  assert(op != NULL && fn != NULL );
+
+  cmTlAudioFile_t* ap = _cmTimeLineAudioFileObjPtr(p,op->obj);
+  char*  cp = (char*)ap;
+
+  assert(ap != NULL );
+    
+  ap->h    = afH;
+  ap->info = info;
+  ap->fn   = cp + sizeof(cmTlAudioFile_t); 
+  strcpy(ap->fn,fn); // copy the file name into the extra memory
+
+  assert( ap->fn + strlen(fn) + 1 == cp + recdByteCnt );
+
+  op->obj->text = ap->fn;
+
+  // notify listeners that an new object was created by sending a kObjTlId msg
+  // notifiy any listeners that a midi file object was created
+  //_cmTlNotifyListener(p, kInsertMsgTlId, op );
+
+ errLabel:
+  if( rc != kOkTlRC )
+    cmAudioFileDelete(&afH);
+  
+  return rc;
+}
+
+
+cmTlRC_t _cmTlProcMidiFile( _cmTl_t* p,  _cmTlObj_t* op, cmMidiFileH_t mfH )
+ {
+  cmTlRC_t                 rc           = kOkTlRC;
+  cmTlMidiFile_t*          mfp          = _cmTimeLineMidiFileObjPtr(p,op->obj);
+  unsigned                 mn           = cmMidiFileMsgCount(mfH);
+  const cmMidiTrackMsg_t** mapp         = cmMidiFileMsgArray(mfH);
+  unsigned                 mi           = 0;
+  double                   accum = 0; 
+  _cmTlObj_t*              refOp        = op;
+  bool                     fl           = false;
+  unsigned                 dtick        = 0;
+  mfp->noteOnCnt = 0;
+  
+  // for each midi message
+  for(; mi<mn; ++mi)
+  {
+    _cmTlObj_t*             meop = NULL;
+    const cmMidiTrackMsg_t* mp   = mapp[mi];
+
+    dtick = mp->dtick;
+
+    if( fl )
+    {
+      dtick = 0;
+      fl =  mp->dtick == 0;        
+    }
+      
+
+    accum += dtick * p->srate / 1000000;
+
+    //int      begSmpIdx         = floor(accum_micros * p->srate / 1000000);
+    int      begSmpIdx         = floor( dtick * p->srate / 1000000 );
+    int      durSmpCnt         = 0;
+    unsigned midiTrkMsgByteCnt = cmMidiFilePackTrackMsgBufByteCount( mp );
+    unsigned recdByteCnt       = sizeof(cmTlMidiEvt_t) + midiTrkMsgByteCnt;
+
+    //if( mfp->obj.seqId==4 && mi<=25 )
+    //  printf("%s: bsi:%9i acc:%f smp acc:%f min %s\n", mp->status == kNoteOnMdId?"non":"   ", begSmpIdx, accum, accum / (p->srate * 60),cmStringNullGuard(mfp->obj.name));
+
+    // count the note-on messages
+    if( mp->status == kNoteOnMdId )
+    {
+      durSmpCnt = floor(mp->u.chMsgPtr->durTicks * p->srate  / 1000000 );
+      ++mfp->noteOnCnt;
+    }
+
+    // allocate the generic time-line object record
+    if((rc = _cmTlAllocRecd2(p, NULL, refOp, begSmpIdx, durSmpCnt, kMidiEvtTlId, mfp->obj.seqId, recdByteCnt, &meop)) != kOkTlRC )
+      goto errLabel;
+
+    assert( meop != NULL );
+    
+    cmTlMidiEvt_t* mep = _cmTimeLineMidiEvtObjPtr(p,meop->obj);
+    char*          cp  = (char*)mep;
+
+    assert( mep != NULL );
+
+    // Set the cmTlMidiEvt_t.msg cmMidiTrkMsg_t pointer to point to the
+    // extra memory allocated just past the cmTlMidiEvt_t recd.
+    mep->msg = (cmMidiTrackMsg_t*)(cp + sizeof(cmTlMidiEvt_t));
+    mep->midiFileObjId = mfp->obj.uid;
+
+    // Do not write MIDI objects that are part of a MIDI file. They will be automatically
+    // loaded when the time line is loaded and therefore do not need to be save 
+    // explicitely in the time line data.
+    meop->obj->flags = cmSetFlag(meop->obj->flags,kNoWriteTlFl);
+
+    // Pack the cmMidiTrackMsg_t record into the extra memory
+    cmMidiFilePackTrackMsg( mp, (char*)mep->msg, midiTrkMsgByteCnt );
+
+    // verify that the memory allocation was calculated correctly
+    assert( cp + recdByteCnt == ((char*)mep->msg) + midiTrkMsgByteCnt);
+
+    // notify any listeners that a new midi event was created by sending a kObjTlId msg.
+    //_cmTlNotifyListener(p, kInsertMsgTlId, meop );
+    
+    // this midi event is the ref. for the next midi evt
+    refOp = meop;
+  }
+
+ errLabel:
+  return rc;
+}
+
+cmTlRC_t _cmTlAllocMidiFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar_t* refIdStr, int begSmpIdx, unsigned seqId, const cmChar_t* fn )
+{
+  cmMidiFileH_t mfH = cmMidiFileNullHandle;
+  cmTlRC_t      rc  = kOkTlRC;
+  _cmTlObj_t*   op  = NULL;
+
+  // open the midi file
+  if( cmMidiFileOpen(fn, &mfH, &p->ctx ) != kOkMfRC )
+    return cmErrMsg(&p->err,kMidiFileFailTlRC,"The time line midi file '%s' could not be opened.",cmStringNullGuard(fn));
+
+  // force the first msg to occurr one quarter note into the file
+  cmMidiFileSetDelay(mfH, cmMidiFileTicksPerQN(mfH) );
+
+  unsigned durSmpCnt = floor(cmMidiFileDurSecs(mfH)*p->srate);
+
+  // convert the midi file from ticks to microseconds
+  cmMidiFileTickToMicros(mfH);
+
+  // assign note durations to all note-on msg's
+  cmMidiFileCalcNoteDurations(mfH);
+
+  unsigned recdByteCnt = sizeof(cmTlMidiFile_t) + strlen(fn) + 1;
+
+  // allocate the midi file time line object
+  if((rc = _cmTlAllocRecd(p,nameStr,refIdStr,begSmpIdx,durSmpCnt,kMidiFileTlId,seqId,recdByteCnt,&op)) != kOkTlRC )
+    goto errLabel;
+
+  assert( op != NULL && fn != NULL );
+
+  cmTlMidiFile_t* mp = _cmTimeLineMidiFileObjPtr(p,op->obj);
+  char*           cp = (char*)mp;
+
+  assert(mp != NULL );
+    
+  mp->h    = mfH;
+  mp->fn   = cp + sizeof(cmTlMidiFile_t);
+  strcpy(mp->fn,fn); // copy the filename into the extra memory
+
+  assert( mp->fn + strlen(mp->fn) + 1 == cp + recdByteCnt );
+
+  op->obj->text = mp->fn;
+
+  // notifiy any listeners that a midi file object was created
+  //_cmTlNotifyListener(p, kInsertMsgTlId, op );
+
+  // insert the events in the midi file as individual time line objects
+  if((rc = _cmTlProcMidiFile(p, op, mfH)) != kOkTlRC )
+    goto errLabel;
+
+  
+ errLabel:
+  if( rc != kOkTlRC )
+  {
+    cmMidiFileClose(&mfH);
+
+    _cmTlDeleteRecd(p, op);
+
+  }
+
+  return rc;
+}
+
+cmTlRC_t _cmTlAllocMarkerRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar_t* refIdStr, int begSmpIdx, unsigned durSmpCnt, unsigned seqId, const cmChar_t* text )
+{
+  cmTlRC_t      rc = kOkTlRC;
+  _cmTlObj_t*   op = NULL;
+  const cmChar_t* textStr = text==NULL ? "" : text;
+
+  // add memory at the end of the the cmTlMarker_t record to hold the text string.
+  unsigned recdByteCnt = sizeof(cmTlMarker_t) + strlen(textStr) + 1;
+
+  if((rc = _cmTlAllocRecd(p,nameStr,refIdStr,begSmpIdx,durSmpCnt,kMarkerTlId,seqId,recdByteCnt,&op)) != kOkTlRC )
+    goto errLabel;
+
+  assert(op != NULL);
+
+  cmTlMarker_t* mp = _cmTimeLineMarkerObjPtr(p,op->obj);
+
+  assert(mp != NULL );
+
+  // copy the marker text string into the memory just past the cmTlMarker_t recd.
+  cmChar_t* tp = (cmChar_t*)(mp + 1);
+  strcpy(tp,textStr);
+
+  mp->text = tp;
+  op->obj->text = tp;
+
+  // notify listeners
+  //_cmTlNotifyListener(p, kInsertMsgTlId, op );
+  
+ errLabel:
+  if( op != NULL && rc != kOkTlRC )
+    _cmTlDeleteRecd(p,op);
+
+  return rc;
+}
+
+cmTlRC_t _cmTlAllocAudioEvtRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar_t* refIdStr, int begSmpIdx, unsigned durSmpCnt, unsigned seqId, const cmChar_t* text )
+{
+  cmTlRC_t    rc          = kOkTlRC;
+  _cmTlObj_t* op          = NULL;
+  const cmChar_t* textStr = text==NULL ? "" : text;
+
+  unsigned    recdByteCnt = sizeof(cmTlAudioEvt_t) + strlen(textStr) + 1;
+
+  if((rc = _cmTlAllocRecd(p,nameStr,refIdStr,begSmpIdx,durSmpCnt,kAudioEvtTlId,seqId,recdByteCnt,&op)) != kOkTlRC )
+    goto errLabel;
+
+  assert(op != NULL);
+
+  cmTlAudioEvt_t* mp = _cmTimeLineAudioEvtObjPtr(p,op->obj);
+
+  assert(mp != NULL );
+
+  // copy the marker text string into the memory just past the cmTlAudioEvt_t recd.
+  cmChar_t* tp = (cmChar_t*)(mp + 1);
+  strcpy(tp,textStr);
+
+  mp->text = tp;
+  op->obj->text = tp;
+
+  // notify listeners
+  //_cmTlNotifyListener(p, kInsertMsgTlId, op );
+
+ errLabel:
+  if( op != NULL && rc != kOkTlRC )
+    _cmTlDeleteRecd(p,op);
+
+  return rc;
+}
+
+cmTlRC_t _cmTlAllocRecdFromJson(_cmTl_t* p,const cmChar_t* nameStr, const cmChar_t* typeIdStr,const cmChar_t* refIdStr, int begSmpIdx, unsigned durSmpCnt, unsigned seqId, const cmChar_t* textStr)
+{
+  cmTlRC_t   rc    = kOkTlRC;
+  unsigned   typeId = _cmTlIdLabelToId(p,typeIdStr);
+
+  switch( typeId )
+  {
+    case kAudioFileTlId: rc = _cmTlAllocAudioFileRecd(p,nameStr,refIdStr,begSmpIdx,          seqId,textStr); break;
+    case kMidiFileTlId:  rc = _cmTlAllocMidiFileRecd( p,nameStr,refIdStr,begSmpIdx,          seqId,textStr); break;
+    case kMarkerTlId:    rc = _cmTlAllocMarkerRecd(   p,nameStr,refIdStr,begSmpIdx,durSmpCnt,seqId,textStr); break;
+    case kAudioEvtTlId:  rc = _cmTlAllocAudioEvtRecd( p,nameStr,refIdStr,begSmpIdx,durSmpCnt,seqId,textStr); break;
+    default:
+      rc = cmErrMsg(&p->err,kParseFailTlRC,"'%s' is not a valid 'objArray' record type.",cmStringNullGuard(typeIdStr));
+  }
+
+  return rc;
+}
+
+cmTlRC_t _cmTimeLineFinalize( _cmTl_t* p )
+{  
+  cmTlRC_t rc = kOkTlRC;
+  unsigned i;
+
+  for(i=0; i<p->seqCnt; ++i)
+    while( p->seq[i].first != NULL )
+    {
+      if((rc = _cmTlDeleteRecd(p,p->seq[i].first)) != kOkTlRC )
+        goto errLabel;   
+    }
+
+  cmLHeapDestroy(&p->lH);
+
+  //_cmTlNotifyListener(p, kFinalMsgTlId, NULL );
+
+  cmMemPtrFree(&p->tmpBuf);
+
+  cmMemPtrFree(&p);
+
+
+  return kOkTlRC;
+
+ errLabel:
+  return cmErrMsg(&p->err,kFinalizeFailTlRC,"Finalize failed.");
+}
+
+cmTlRC_t cmTimeLineInitialize( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg )
+{
+  cmTlRC_t rc;
+
+  if((rc = cmTimeLineFinalize(hp)) != kOkTlRC )
+    return rc;
+
+  _cmTl_t* p = cmMemAllocZ( _cmTl_t, 1 );
+
+  cmErrSetup(&p->err,&ctx->rpt,"Time Line");
+  p->ctx    = *ctx;
+  p->cbFunc = cbFunc;
+  p->cbArg  = cbArg;
+
+  if(cmLHeapIsValid( p->lH = cmLHeapCreate( 8192, ctx )) == false )
+  {
+    rc = cmErrMsg(&p->err,kLHeapFailTlRC,"The linked heap allocation failed.");
+    goto errLabel;
+  }
+
+  hp->h = p;
+
+  return rc;
+
+ errLabel:
+  _cmTimeLineFinalize(p);
+  return rc;
+}
+
+cmTlRC_t   cmTimeLineInitializeFromFile( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg, const cmChar_t* fn )
+{
+  cmTlRC_t rc;
+  if((rc = cmTimeLineInitialize(ctx,hp,cbFunc,cbArg)) != kOkTlRC )
+    return rc;
+
+  //_cmTl_t* p = _cmTlHandleToPtr(*hp);
+  //_cmTlNotifyListener(p, kInitMsgTlId, NULL );
+
+  return  cmTimeLineReadJson(*hp,fn);
+}
+
+cmTlRC_t cmTimeLineFinalize( cmTlH_t* hp )
+{
+  cmTlRC_t rc;
+  if( hp == NULL || cmTimeLineIsValid(*hp) == false )
+    return kOkTlRC;
+
+  _cmTl_t* p = _cmTlHandleToPtr(*hp);
+
+
+  if((rc = _cmTimeLineFinalize(p)) != kOkTlRC )
+    return rc;
+
+  hp->h = NULL;
+
+  return rc;
+}
+
+bool cmTimeLineIsValid( cmTlH_t h )
+{ return h.h != NULL; }
+
+double cmTimeLineSampleRate( cmTlH_t h )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  return p->srate;
+}
+
+cmTlObj_t* cmTimeLineNextObj( cmTlH_t h, cmTlObj_t* tp, unsigned seqId )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  _cmTlObj_t* op;
+
+  assert( seqId < p->seqCnt );
+  if( seqId >= p->seqCnt )
+    return NULL;
+
+  // if tp is NULL then start at the begin of the obj list ...
+  if( tp == NULL )
+    op = p->seq[seqId].first;
+  else
+  {
+    // ... otherwise advance to the obj after tp
+    op = (_cmTlObj_t*)tp->reserved;
+    assert( op != NULL );
+    op = op->next;
+  }
+
+  // if the list is empty
+  if( op == NULL )
+    return NULL;
+  
+  // return the next object which matches seqId or
+  // the next object if seqId == cmInvalidId
+  for(; op != NULL; op = op->next)
+    if( (seqId == cmInvalidId) || (op->obj->seqId == seqId) )
+      return op->obj;
+
+  return NULL;
+}
+
+cmTlObj_t* cmTimeLineNextTypeObj( cmTlH_t h, cmTlObj_t* p, unsigned seqId, unsigned typeId )
+{
+  cmTlObj_t* tp = p;
+  while( (tp = cmTimeLineNextObj(h,tp,seqId)) != NULL )
+    if( typeId == cmInvalidId || tp->typeId == typeId )
+      return tp;
+
+  return NULL;
+}
+
+cmTlMidiFile_t*  cmTlNextMidiFileObjPtr(  cmTlH_t h, cmTlObj_t* op, unsigned seqId )
+{
+  if((op = cmTimeLineNextTypeObj(h, op, seqId, kMidiFileTlId )) == NULL )
+    return NULL;
+  return cmTimeLineMidiFileObjPtr(h,op);
+}
+
+cmTlAudioFile_t* cmTlNextAudioFileObjPtr( cmTlH_t h, cmTlObj_t* op, unsigned seqId )
+{
+  if((op = cmTimeLineNextTypeObj(h, op, seqId, kAudioFileTlId )) == NULL )
+    return NULL;
+  return cmTimeLineAudioFileObjPtr(h,op);
+}
+
+cmTlMidiEvt_t*   cmTlNextMidiEvtObjPtr(   cmTlH_t h, cmTlObj_t* op, unsigned seqId )
+{
+  if((op = cmTimeLineNextTypeObj(h, op, seqId, kMidiEvtTlId )) == NULL )
+    return NULL;
+  return cmTimeLineMidiEvtObjPtr(h,op);
+}
+
+cmTlAudioEvt_t*  cmTlNextAudioEvtObjPtr(  cmTlH_t h, cmTlObj_t* op, unsigned seqId )
+{
+  if((op = cmTimeLineNextTypeObj(h, op, seqId, kAudioEvtTlId )) == NULL )
+    return NULL;
+  return cmTimeLineAudioEvtObjPtr(h,op);
+}
+
+cmTlMarker_t*    cmTlNextMarkerObjPtr(    cmTlH_t h, cmTlObj_t* op, unsigned seqId )
+{
+  if((op = cmTimeLineNextTypeObj(h, op, seqId, kMarkerTlId )) == NULL )
+    return NULL;
+  return cmTimeLineMarkerObjPtr(h,op);
+}
+
+
+cmTlMidiFile_t*  cmTimeLineMidiFileObjPtr(  cmTlH_t h, cmTlObj_t* op )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  return _cmTimeLineMidiFileObjPtr(p,op);
+}
+cmTlAudioFile_t* cmTimeLineAudioFileObjPtr( cmTlH_t h, cmTlObj_t* op )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  return _cmTimeLineAudioFileObjPtr(p,op);
+}
+cmTlMidiEvt_t*   cmTimeLineMidiEvtObjPtr(   cmTlH_t h, cmTlObj_t* op )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  return _cmTimeLineMidiEvtObjPtr(p,op);
+}
+cmTlAudioEvt_t*  cmTimeLineAudioEvtObjPtr(  cmTlH_t h, cmTlObj_t* op )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  return _cmTimeLineAudioEvtObjPtr(p,op);
+}
+cmTlMarker_t*    cmTimeLineMarkerObjPtr(    cmTlH_t h, cmTlObj_t* op )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  return _cmTimeLineMarkerObjPtr(p,op);
+}
+
+cmTlMidiFile_t*  cmTlMidiFileObjPtr(  cmTlH_t h, cmTlObj_t* op )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  return _cmTlMidiFileObjPtr(p,op,false);
+}
+cmTlAudioFile_t* cmTlAudioFileObjPtr( cmTlH_t h, cmTlObj_t* op )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  return _cmTlAudioFileObjPtr(p,op,false);
+}
+cmTlMidiEvt_t*   cmTlMidiEvtObjPtr(   cmTlH_t h, cmTlObj_t* op )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  return _cmTlMidiEvtObjPtr(p,op,false);
+}
+cmTlAudioEvt_t*  cmTlAudioEvtObjPtr(  cmTlH_t h, cmTlObj_t* op )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  return _cmTlAudioEvtObjPtr(p,op,false);
+}
+cmTlMarker_t*    cmTlMarkerObjPtr(    cmTlH_t h, cmTlObj_t* op )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  return _cmTlMarkerObjPtr(p,op,false);
+}
+
+cmTlRC_t cmTimeLineInsert( cmTlH_t h, const cmChar_t* nameStr, unsigned typeId, 
+  const cmChar_t* fn, int begSmpIdx, unsigned durSmpCnt, const cmChar_t* refObjNameStr, unsigned seqId )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  
+  return _cmTlAllocRecdFromJson(p, nameStr, _cmTlIdToLabel(p,typeId), refObjNameStr, begSmpIdx, durSmpCnt, seqId, fn); 
+}
+
+cmTlObj_t* _cmTimeLineFindFile( _cmTl_t* p, const cmChar_t* fn, unsigned typeId )
+{
+  unsigned i;
+  for(i=0; i<p->seqCnt; ++i)
+  {
+    _cmTlObj_t* op = p->seq[i].first;
+    for(; op != NULL; op=op->next )
+      if( op->obj->typeId == typeId )
+      {
+        const cmChar_t* objFn = NULL;
+
+        switch( typeId )
+        {
+          case kAudioFileTlId:
+            objFn = ((cmTlAudioFile_t*)(op->obj))->fn;
+            break;
+
+          case kMidiFileTlId:
+            objFn = ((cmTlMidiFile_t*)(op->obj))->fn;
+            break;
+
+          default:
+            { assert(0); }
+        }
+        
+        if( strcmp(objFn,fn) == 0 )
+          return op->obj;
+
+      }
+  }
+
+  return NULL;
+}
+
+cmTlAudioFile_t* cmTimeLineFindAudioFile( cmTlH_t h, const cmChar_t* fn )
+{ 
+  _cmTl_t*   p = _cmTlHandleToPtr(h);
+  cmTlObj_t* op;
+  if((op = _cmTimeLineFindFile(p,fn,kAudioFileTlId)) != NULL )
+    return  _cmTlAudioFileObjPtr(p,op,true);
+  return NULL;
+}
+
+cmTlMidiFile_t* cmTimeLineFindMidiFile( cmTlH_t h, const cmChar_t* fn )
+{ 
+  _cmTl_t*   p = _cmTlHandleToPtr(h);
+  cmTlObj_t* op;
+  if((op = _cmTimeLineFindFile(p,fn,kMidiFileTlId)) != NULL )
+    return  _cmTlMidiFileObjPtr(p,op,true);
+  return NULL;
+}
+
+
+cmTlRC_t _cmTlParseErr( cmErr_t* err, const cmChar_t* errLabelPtr, unsigned idx, const cmChar_t* fn )
+{
+  cmTlRC_t rc;
+
+  if( errLabelPtr != NULL )
+    rc = cmErrMsg(err,kParseFailTlRC,"The required time line configuration field %s was not found in the record at index %i in '%s'.",cmStringNullGuard(errLabelPtr),idx,cmStringNullGuard(fn));
+  else
+    rc = cmErrMsg(err,kParseFailTlRC,"The time_line configuration parse failed on the record at index %i in '%s'.",idx,cmStringNullGuard(fn));
+
+  return rc;
+}
+    
+cmTlRC_t cmTimeLineReadJson(  cmTlH_t h, const cmChar_t* ifn )
+{
+  cmTlRC_t        rc  = kOkTlRC;
+  cmJsonH_t       jsH = cmJsonNullHandle;
+  cmJsonNode_t*   jnp;
+  const cmChar_t* errLabelPtr;
+  int i;
+
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+ 
+  // open the json file
+  if( cmJsonInitializeFromFile(&jsH, ifn, &p->ctx ) != kOkJsRC )
+    return cmErrMsg(&p->err,kJsonFailTlRC,"JSON file initialization failed.");
+
+  if((jnp = cmJsonFindValue(jsH,"time_line",cmJsonRoot(jsH),kObjectTId)) == NULL)
+  {
+    rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' object was not found in '%s'.",cmStringNullGuard(ifn));
+    goto errLabel;
+  }
+
+  if( cmJsonMemberValues(jnp,&errLabelPtr,
+      "srate",kRealTId,&p->srate,
+      "objArray",kArrayTId,&jnp,
+      NULL) != kOkJsRC )
+  {
+    rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' object header parse failed in '%s'.",cmStringNullGuard(ifn));
+    goto errLabel;
+  }
+
+  for(i=0; i<cmJsonChildCount(jnp); ++i)
+  {
+    const cmJsonNode_t* rp = cmJsonArrayElementC(jnp,i);
+    const cmChar_t* nameStr;
+    const cmChar_t* typeIdStr;
+    const cmChar_t* refIdStr;
+    int             begSmpIdx;
+    unsigned        durSmpCnt;
+    unsigned        seqId;
+    const cmChar_t* textStr;
+
+    if( cmJsonMemberValues(rp,&errLabelPtr,
+        "label",kStringTId,&nameStr,
+        "type", kStringTId,&typeIdStr,
+        "ref",  kStringTId,&refIdStr,
+        "offset",kIntTId,&begSmpIdx,
+        "smpCnt",kIntTId,&durSmpCnt,
+        "trackId",kIntTId,&seqId,
+        "textStr",kStringTId,&textStr,
+        NULL) != kOkJsRC )
+    {
+      rc = _cmTlParseErr(&p->err, errLabelPtr, i, ifn );
+      goto errLabel;
+    }
+
+
+    if((rc = _cmTlAllocRecdFromJson(p,nameStr,typeIdStr,refIdStr,begSmpIdx,durSmpCnt,seqId,textStr)) != kOkTlRC )
+      goto errLabel;
+    
+  }
+  
+
+ errLabel:
+  if( rc != kOkTlRC )
+    _cmTimeLineFinalize(p);
+
+  cmJsonFinalize(&jsH);
+  return rc;
+}
+
+unsigned cmTimeLineSeqCount( cmTlH_t h )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  return p->seqCnt;
+}
+
+cmTlRC_t cmTimeLineSeqNotify( cmTlH_t h, unsigned seqId )
+{
+  cmTlRC_t rc = kOkTlRC;
+  _cmTl_t* p  = _cmTlHandleToPtr(h);
+
+  assert( seqId < p->seqCnt );
+
+  _cmTlNotifyListener(p,kInitMsgTlId,NULL,seqId);
+
+  _cmTlObj_t* op = p->seq[seqId].first;
+  for(; op!=NULL; op=op->next)
+    if( op->obj->seqId == seqId )
+      _cmTlNotifyListener(p, kInsertMsgTlId, op, cmInvalidId );
+
+  _cmTlNotifyListener(p,kDoneMsgTlId,NULL,seqId);
+
+  return rc;
+}
+
+void _cmTimeLinePrintObj(_cmTl_t* p, _cmTlObj_t* op, cmRpt_t* rpt )
+{
+
+  cmRptPrintf(rpt,"%2i %5i %9i %9i %s %10s ",op->obj->seqId, op->obj->uid, op->obj->seqSmpIdx, op->obj->begSmpIdx, _cmTlIdToLabel(p,op->obj->typeId),op->obj->name);
+  switch(op->obj->typeId )
+  {
+    case kMidiFileTlId:
+      {
+        cmTlMidiFile_t* rp = _cmTimeLineMidiFileObjPtr(p,op->obj);
+        cmRptPrintf(rpt,"%s ", cmMidiFileName(rp->h));
+      }
+      break;
+
+    case kMidiEvtTlId:
+      {
+        cmTlMidiEvt_t* rp = _cmTimeLineMidiEvtObjPtr(p,op->obj);
+        if( op->obj->ref != NULL )
+          cmRptPrintf(rpt,"%s ",op->obj->ref->name);
+        cmRptPrintf(rpt,"%s ",cmMidiStatusToLabel(rp->msg->status));
+      }
+      break;
+
+    case kAudioFileTlId:
+      {
+        cmTlAudioFile_t* rp = _cmTimeLineAudioFileObjPtr(p,op->obj);
+        cmRptPrintf(rpt,"%s ", cmAudioFileName(rp->h));
+      }
+      break;
+
+    case kAudioEvtTlId:
+      {
+        cmTlAudioEvt_t* rp = _cmTimeLineAudioEvtObjPtr(p,op->obj);
+        cmRptPrintf(rpt,"%s",rp->text);
+      }
+      break;
+
+    case kMarkerTlId:
+      {
+        cmTlMarker_t* rp = _cmTimeLineMarkerObjPtr(p,op->obj);
+        cmRptPrintf(rpt,"%s ", rp->text );
+      }
+      break;
+  }
+  cmRptPrint(rpt,"\n");
+}
+
+cmTlRC_t _cmTimeLineWriteRecd( _cmTl_t* p, cmJsonH_t jsH, cmJsonNode_t* np, cmTlObj_t* obj )
+{
+  cmTlRC_t rc = kOkTlRC;
+
+  // if this recd is writable and has not been previously written
+  if( cmIsNotFlag(obj->flags,kNoWriteTlFl) && cmIsNotFlag(obj->flags,kReservedTlFl) )
+  {
+    const cmChar_t* refStr = NULL;
+
+    if( obj->ref != NULL )
+    {
+      refStr = obj->ref->name;
+
+      // if the ref obj was not previously written then write it (recursively) first
+      if( cmIsNotFlag(obj->ref->flags, kReservedTlFl) )
+        if((rc = _cmTimeLineWriteRecd(p,jsH,np,obj->ref)) != kOkTlRC )
+          return rc;
+    }
+
+    // create the time-line recd
+    if( cmJsonInsertPairs( jsH, cmJsonCreateObject(jsH,np),
+        "label",   kStringTId, obj->name,
+        "type",    kStringTId, _cmTlIdToLabel(p, obj->typeId ),
+        "ref",     kStringTId, refStr==NULL ? "" : refStr,
+        "offset",  kIntTId,    obj->begSmpIdx,
+        "smpCnt",  kIntTId,    obj->durSmpCnt,
+        "trackId", kIntTId,    obj->seqId,
+        "textStr", kStringTId, obj->text==NULL ? "" : obj->text,
+        NULL ) != kOkJsRC )
+    {
+      return cmErrMsg(&p->err,kJsonFailTlRC,"A time line insertion failed on label:%s type:%s text:%s.",cmStringNullGuard(obj->name),cmStringNullGuard(_cmTlIdToLabel(p, obj->typeId )), cmStringNullGuard(obj->text));
+    }
+
+    obj->flags = cmSetFlag(obj->flags, kReservedTlFl);
+  }
+
+  return rc;
+}
+
+cmTlRC_t cmTimeLineWrite( cmTlH_t h, const cmChar_t* fn )
+{
+  cmTlRC_t      rc  = kOkTlRC;
+  _cmTl_t*      p   = _cmTlHandleToPtr(h);
+  cmJsonH_t     jsH = cmJsonNullHandle;
+  cmJsonNode_t* np;
+
+  // initialize a JSON tree
+  if( cmJsonInitialize(&jsH,&p->ctx) != kOkJsRC )
+    return cmErrMsg(&p->err,kJsonFailTlRC,"JSON object initialization failed.");
+
+  // create the root object
+  if((np = cmJsonCreateObject(jsH,NULL)) == NULL )
+  {
+    rc = cmErrMsg(&p->err,kJsonFailTlRC,"Time line root object create failed while creating the time line file '%s.",cmStringNullGuard(fn));
+    goto errLabel;
+  }
+
+  // create the time-line object
+  if((np = cmJsonInsertPairObject(jsH, np, "time_line" )) == NULL )
+  {
+    rc = cmErrMsg(&p->err,kJsonFailTlRC,"'time_line' object created failed while creating the time line file '%s.",cmStringNullGuard(fn));
+    goto errLabel;
+  }
+
+  // write the sample rate 
+  if( cmJsonInsertPairReal(jsH, np, "srate", p->srate ) != kOkJsRC )
+  {
+    rc = cmErrMsg(&p->err,kJsonFailTlRC,"'sample rate' output failed while creating the time line file '%s.",cmStringNullGuard(fn));
+    goto errLabel;
+  }
+
+  // create the time-line object array
+  if((np = cmJsonInsertPairArray(jsH, np, "objArray")) == NULL )
+  {
+    rc = cmErrMsg(&p->err,kJsonFailTlRC,"'objArray' output failed while creating the time line file '%s.",cmStringNullGuard(fn));
+    goto errLabel;
+  }
+  
+
+  unsigned i;
+  // write each time-line object
+  for(i=0; i<p->seqCnt; ++i)
+  {
+    _cmTlObj_t* op = p->seq[i].first;
+    for(; op != NULL; op=op->next )
+      if((rc = _cmTimeLineWriteRecd(p,jsH,np,op->obj)) != kOkTlRC )
+        goto errLabel;
+  }  
+
+  if( cmJsonErrorCode(jsH) == kOkJsRC )
+    if( cmJsonWrite(jsH,NULL,fn) != kOkJsRC )
+    {
+      rc = cmErrMsg(&p->err,kJsonFailTlRC,"JSON write failed.");
+      goto errLabel;
+    }
+
+
+ errLabel:
+
+  if( cmJsonFinalize(&jsH) != kOkJsRC )
+  {
+    rc = cmErrMsg(&p->err,kJsonFailTlRC,"JSON finalize failed.");
+    goto errLabel;
+  }
+
+  return rc;
+}
+
+cmTlRC_t cmTimeLinePrint( cmTlH_t h, cmRpt_t* rpt )
+{
+  _cmTl_t*    p  = _cmTlHandleToPtr(h);
+  unsigned i;
+  for(i=0; i<p->seqCnt; ++i)
+  {
+    _cmTlObj_t* op = p->seq[i].first;
+    while(op != NULL)
+    {
+      _cmTimeLinePrintObj(p,op,rpt);
+      op = op->next;
+    }
+  }
+  return kOkTlRC;
+}
+
+cmTlRC_t cmTimeLinePrintFn( cmCtx_t* ctx, const cmChar_t* fn, cmRpt_t* rpt )
+{
+  cmTlRC_t rc;
+  cmTlH_t h = cmTimeLineNullHandle;
+
+  if((rc = cmTimeLineInitializeFromFile(ctx,&h,NULL,NULL,fn)) != kOkTlRC )
+    return rc;
+
+  cmTimeLinePrint(h,rpt);
+
+  return cmTimeLineFinalize(&h);
+}
+
+
+cmTlRC_t     cmTimeLineTest( cmCtx_t* ctx, const cmChar_t* jsFn )
+{
+  cmTlRC_t rc  = kOkTlRC;
+  cmTlH_t  tlH = cmTimeLineNullHandle;
+
+  if((rc = cmTimeLineInitialize(ctx,&tlH,NULL,NULL)) != kOkTlRC )
+    return rc;
+
+  if((rc = cmTimeLineReadJson(tlH,jsFn)) != kOkTlRC )
+    goto errLabel;
+
+  if((rc = cmTimeLineInsert(tlH,"Mark",kMarkerTlId,"My Marker",10,0,NULL,0)) != kOkTlRC )
+    goto errLabel;
+
+  cmTimeLinePrint(tlH, &ctx->rpt );
+
+ errLabel:
+  cmTimeLineFinalize(&tlH);
+
+  return rc;
+}
+
+cmTlRC_t  _cmTimeLineDecodeObj( const void* msg, unsigned msgByteCnt, cmTlUiMsg_t* r )
+{
+  cmTlRC_t    rc          = kOkTlRC;
+  unsigned*   typeIdPtr   = (unsigned*)msg;
+  unsigned*   parentIdPtr = typeIdPtr + 1;
+  const char* text        = (const char*)(parentIdPtr + 1);
+  _cmTlObj_t* op          = (_cmTlObj_t*)(text + strlen(text) + 1);
+  cmTlObj_t*  tp          = (cmTlObj_t*)(op + 1 );
+
+  r->msgId       = kInsertMsgTlId;
+  r->objId       = tp->uid;
+  r->parentObjId = *parentIdPtr;
+  r->seqId       = tp->seqId;
+  r->typeId      = tp->typeId;
+  r->begSmpIdx   = tp->begSmpIdx;
+  r->durSmpCnt   = tp->durSmpCnt;
+  r->label       = strlen(text)==0 ? NULL : text;
+  r->srate       = 0;
+  r->midiTrkMsg  = NULL;
+  r->textStr     = NULL;
+
+  switch( tp->typeId )
+  {
+    case kMidiFileTlId:
+      r->textStr = _cmTimeLineMidiFileObjPtr(NULL,tp)->fn;
+      break;
+
+    case kMidiEvtTlId:
+      {
+        cmTlMidiEvt_t* mep; 
+        if((mep = _cmTimeLineMidiEvtObjPtr(NULL,tp)) != NULL )
+        {
+          r->midiFileObjId = mep->midiFileObjId;
+          r->midiTrkMsg    = mep->msg;
+        }
+      }
+      break;
+
+    case kAudioFileTlId:
+      r->textStr = _cmTimeLineAudioFileObjPtr(NULL,tp)->fn;
+      break;
+
+    case kAudioEvtTlId:
+      break;
+
+    case kMarkerTlId:
+      r->textStr = _cmTimeLineMarkerObjPtr(NULL,tp)->text;
+      break;
+
+    default:
+      { assert(0); }
+  }
+
+  return rc;
+}
+
+cmTlRC_t cmTimeLineDecode( const void* msg, unsigned msgByteCnt, cmTlUiMsg_t* r )
+{
+  cmTlRC_t    rc = kOkTlRC;
+  _cmTlMsg_t* m  = (_cmTlMsg_t*)msg;
+
+  switch( m->typeId )
+  {
+    case kMsgTlId:
+      r->msgId = m->msgId;
+      r->srate = m->srate;
+      r->seqCnt= m->seqCnt;
+      r->seqId = m->seqId;
+      break;
+
+    case kObjTlId:
+      r->msgId = kInsertMsgTlId;
+      rc = _cmTimeLineDecodeObj(msg,msgByteCnt,r);
+      break;
+
+    default:
+      assert(0);
+  }
+
+  return rc;
+  
+}
