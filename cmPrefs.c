@@ -290,7 +290,7 @@ cmPrRC_t cmPrefsInitialize( cmPrH_t* hp, const cmChar_t* fn, cmPrefsOnChangeFunc
       goto errLabel;
     }
 
-    if( cmJsonCreateObject( p->jsH, NULL ) != kOkJsRC )
+    if( cmJsonCreateObject( p->jsH, NULL ) == NULL )
     {
       rc = cmErrMsg(&p->err,kJsonFailPrRC,"The JSON root object could not be created.");
       goto errLabel;
@@ -334,6 +334,12 @@ cmPrRC_t cmPrefsFinalize(   cmPrH_t* hp )
 
 bool cmPrefsIsValid( cmPrH_t h )
 { return h.h != NULL; }
+
+const cmChar_t* cmPrefsFileName( cmPrH_t h )
+{
+  cmPr_t* p = _cmPrefsHandleToPtr(h);
+  return p->fn;
+}
 
 cmPrRC_t cmPrefsRC( cmPrH_t h)
 { return cmErrLastRC(&_cmPrefsHandleToPtr(h)->err); }
@@ -665,7 +671,7 @@ const cmChar_t* cmPrefsStringDef( cmPrH_t h, const cmChar_t* pathStr, const cmCh
 }
 
 
-cmPrRC_t        cmPrefsScalarBool(   cmPrH_t h, const cmChar_t* pathStr, bool*            retValPtr )
+cmPrRC_t        cmPrefsBoolRc(   cmPrH_t h, const cmChar_t* pathStr, bool*            retValPtr )
 {
   unsigned id;
   if((id = cmPrefsId(h,pathStr,true)) == cmInvalidId )
@@ -675,7 +681,7 @@ cmPrRC_t        cmPrefsScalarBool(   cmPrH_t h, const cmChar_t* pathStr, bool*  
   return cmPrefsGetBool(h,id,retValPtr,&n); 
 }
 
-cmPrRC_t        cmPrefsScalarUInt(   cmPrH_t h, const cmChar_t* pathStr, unsigned*        retValPtr )
+cmPrRC_t        cmPrefsUIntRc(   cmPrH_t h, const cmChar_t* pathStr, unsigned*        retValPtr )
 {
   unsigned id;
   unsigned n = 1;
@@ -691,7 +697,7 @@ cmPrRC_t        cmPrefsScalarUInt(   cmPrH_t h, const cmChar_t* pathStr, unsigne
   return rc;
 }
 
-cmPrRC_t        cmPrefsScalarInt(    cmPrH_t h, const cmChar_t* pathStr, int*             retValPtr )
+cmPrRC_t        cmPrefsIntRc(    cmPrH_t h, const cmChar_t* pathStr, int*             retValPtr )
 {
   unsigned id;
   if((id = cmPrefsId(h,pathStr,true)) == cmInvalidId )
@@ -701,7 +707,7 @@ cmPrRC_t        cmPrefsScalarInt(    cmPrH_t h, const cmChar_t* pathStr, int*   
   return cmPrefsGetInt(h,id,retValPtr,&n); 
 }
 
-cmPrRC_t        cmPrefsScalarFloat(  cmPrH_t h, const cmChar_t* pathStr, float*           retValPtr )
+cmPrRC_t        cmPrefsFloatRc(  cmPrH_t h, const cmChar_t* pathStr, float*           retValPtr )
 {
   unsigned id;
   unsigned n = 1;
@@ -717,7 +723,7 @@ cmPrRC_t        cmPrefsScalarFloat(  cmPrH_t h, const cmChar_t* pathStr, float* 
   return rc;
 }
 
-cmPrRC_t        cmPrefsScalarReal(   cmPrH_t h, const cmChar_t* pathStr, double*          retValPtr )
+cmPrRC_t        cmPrefsRealRc(   cmPrH_t h, const cmChar_t* pathStr, double*          retValPtr )
 {
   unsigned id;
   if((id = cmPrefsId(h,pathStr,true)) == cmInvalidId )
@@ -727,7 +733,7 @@ cmPrRC_t        cmPrefsScalarReal(   cmPrH_t h, const cmChar_t* pathStr, double*
   return cmPrefsGetReal(h,id,retValPtr,&n); 
 }
 
-cmPrRC_t        cmPrefsScalarString( cmPrH_t h, const cmChar_t* pathStr, const cmChar_t** retValPtr ) 
+cmPrRC_t        cmPrefsStringRc( cmPrH_t h, const cmChar_t* pathStr, const cmChar_t** retValPtr ) 
 {
   unsigned id;
   if((id = cmPrefsId(h,pathStr,true)) == cmInvalidId )
@@ -996,30 +1002,71 @@ cmPrRC_t _cmPrefsSetValues( cmPrH_t h, unsigned id, const bool* bvp, const int* 
   return _cmPrefsSetValues2( p, np, bvp, ivp, rvp, svp, eleCntPtr );
 }
 
-cmPrRC_t cmPrefsSetBool(   cmPrH_t h, unsigned id, const bool*   vp, const unsigned* eleCntPtr )
+cmPrRC_t cmPrefsSetBoolArray(   cmPrH_t h, unsigned id, const bool*   vp, const unsigned* eleCntPtr )
 { return _cmPrefsSetValues(h, id, vp, NULL, NULL, NULL, eleCntPtr ); }
 
-cmPrRC_t cmPrefsSetInt(    cmPrH_t h, unsigned id, const int*    vp, const unsigned* eleCntPtr )
+cmPrRC_t cmPrefsSetIntArray(    cmPrH_t h, unsigned id, const int*    vp, const unsigned* eleCntPtr )
 { return _cmPrefsSetValues(h, id, NULL, vp, NULL, NULL, eleCntPtr ); }
 
-cmPrRC_t cmPrefsSetReal(   cmPrH_t h, unsigned id, const double* vp, const unsigned* eleCntPtr )
+cmPrRC_t cmPrefsSetRealArray(   cmPrH_t h, unsigned id, const double* vp, const unsigned* eleCntPtr )
 { return _cmPrefsSetValues(h, id, NULL, NULL, vp, NULL, eleCntPtr ); }
 
-cmPrRC_t cmPrefsSetString( cmPrH_t h, unsigned id, const cmChar_t**   vp, const unsigned* eleCntPtr )
+cmPrRC_t cmPrefsSetStringArray( cmPrH_t h, unsigned id, const cmChar_t**   vp, const unsigned* eleCntPtr )
 { return _cmPrefsSetValues(h, id, NULL, NULL, NULL, vp, eleCntPtr ); }
 
 
-cmPrRC_t cmPrefsSetScalarBool(   cmPrH_t h, const cmChar_t* pathStr, bool val )
+cmPrRC_t cmPrefsSetBool(   cmPrH_t h, unsigned id, bool val )
+{
+  unsigned n = 1;
+  return cmPrefsSetBoolArray(h,id,&val,&n);
+}
+
+cmPrRC_t cmPrefsSetUInt(   cmPrH_t h, unsigned id, unsigned val )
+{
+  unsigned n = 1;
+  int ival = (int)val;
+  return cmPrefsSetIntArray(h,id,&ival,&n);
+}
+
+cmPrRC_t cmPrefsSetInt(    cmPrH_t h, unsigned id, int val )
+{
+  unsigned n = 1;
+  return cmPrefsSetIntArray(h,id,&val,&n);
+}
+
+cmPrRC_t cmPrefsSetFloat(  cmPrH_t h, unsigned id, float val )
+{
+  unsigned n = 1;
+  double dval = val;
+  return cmPrefsSetRealArray(h,id,&dval,&n);
+}
+
+cmPrRC_t cmPrefsSetReal( cmPrH_t h, unsigned id, double val )
+{
+  unsigned n = 1;
+  return cmPrefsSetRealArray(h,id,&val,&n);
+}
+
+cmPrRC_t cmPrefsSetString( cmPrH_t h, unsigned id, const cmChar_t* val )
+{
+  unsigned n = 1;
+  return cmPrefsSetStringArray(h,id,&val,&n);
+}
+
+
+
+
+cmPrRC_t cmPrefsPathSetBool(   cmPrH_t h, const cmChar_t* pathStr, bool val )
 {
   unsigned id;
   unsigned n = 1;
   if((id = cmPrefsId(h,pathStr,true)) == cmInvalidId )
     return kVarNotFoundPrRC;
 
-  return cmPrefsSetBool(h,id,&val,&n);
+  return cmPrefsSetBoolArray(h,id,&val,&n);
 }
 
-cmPrRC_t cmPrefsSetScalarUInt(   cmPrH_t h, const cmChar_t* pathStr, unsigned val )
+cmPrRC_t cmPrefsPathSetUInt(   cmPrH_t h, const cmChar_t* pathStr, unsigned val )
 {
   unsigned id;
   unsigned n = 1;
@@ -1027,20 +1074,20 @@ cmPrRC_t cmPrefsSetScalarUInt(   cmPrH_t h, const cmChar_t* pathStr, unsigned va
     return kVarNotFoundPrRC;
 
   int ival = (int)val;
-  return cmPrefsSetInt(h,id,&ival,&n);
+  return cmPrefsSetIntArray(h,id,&ival,&n);
 }
 
-cmPrRC_t cmPrefsSetScalarInt(    cmPrH_t h, const cmChar_t* pathStr, int val )
+cmPrRC_t cmPrefsPathSetInt(    cmPrH_t h, const cmChar_t* pathStr, int val )
 {
   unsigned id;
   unsigned n = 1;
   if((id = cmPrefsId(h,pathStr,true)) == cmInvalidId )
     return kVarNotFoundPrRC;
 
-  return cmPrefsSetInt(h,id,&val,&n);
+  return cmPrefsSetIntArray(h,id,&val,&n);
 }
 
-cmPrRC_t cmPrefsSetScalarFloat(  cmPrH_t h, const cmChar_t* pathStr, float val )
+cmPrRC_t cmPrefsPathSetFloat(  cmPrH_t h, const cmChar_t* pathStr, float val )
 {
   unsigned id;
   unsigned n = 1;
@@ -1048,27 +1095,27 @@ cmPrRC_t cmPrefsSetScalarFloat(  cmPrH_t h, const cmChar_t* pathStr, float val )
     return kVarNotFoundPrRC;
 
   double dval = val;
-  return cmPrefsSetReal(h,id,&dval,&n);
+  return cmPrefsSetRealArray(h,id,&dval,&n);
 }
 
-cmPrRC_t cmPrefsSetScalarReal( cmPrH_t h, const cmChar_t* pathStr, double val )
+cmPrRC_t cmPrefsPathSetReal( cmPrH_t h, const cmChar_t* pathStr, double val )
 {
   unsigned id;
   unsigned n = 1;
   if((id = cmPrefsId(h,pathStr,true)) == cmInvalidId )
     return kVarNotFoundPrRC;
 
-  return cmPrefsSetReal(h,id,&val,&n);
+  return cmPrefsSetRealArray(h,id,&val,&n);
 }
 
-cmPrRC_t cmPrefsSetScalarString( cmPrH_t h, const cmChar_t* pathStr, const cmChar_t* val )
+cmPrRC_t cmPrefsPathSetString( cmPrH_t h, const cmChar_t* pathStr, const cmChar_t* val )
 {
   unsigned id;
   unsigned n = 1;
   if((id = cmPrefsId(h,pathStr,true)) == cmInvalidId )
     return kVarNotFoundPrRC;
 
-  return cmPrefsSetString(h,id,&val,&n);
+  return cmPrefsSetStringArray(h,id,&val,&n);
 }
 
 
@@ -1168,7 +1215,7 @@ cmPrRC_t  _cmPrefsCreateJsonNode(
   }
 
   // we have followed 'pathString' to the last node which already
-  // exists in the JSON tree - now we must new JSON nodes to reflect 
+  // exists in the JSON tree - now we must create new JSON nodes to reflect 
   // the remaining path elements
   for(; i<pathCnt; ++i)
   {
@@ -1225,12 +1272,18 @@ cmPrRC_t  _cmPrefsCreateJsonNode(
 
     }
 
+    unsigned nxtId = p->id;
+
     // create a pref node to associate with this new level
-    if((pnp = _cmPrefsCreateNode(p, jsPairNodePtr, pnp->pathPtr )) == NULL )
+    if((pnp = _cmPrefsCreateNode(p, jsPairNodePtr, pnp==NULL ? NULL : pnp->pathPtr )) == NULL )
     {
       rc = cmErrMsg(&p->err,kNodeCreateFailPrRC,"Creation failed for the '%s' element of the preference node '%s'.",cmStringNullGuard(pathEleStr),cmStringNullGuard(pathString));
       goto errLabel;
     }
+
+    // always leave internal nodes with id=cmInvalidId, leaf node id's will be set below
+    p->id   = nxtId;
+    pnp->id = cmInvalidId;
 
     pathEleStr += strlen(pathEleStr) + 1;
   }
@@ -1238,10 +1291,12 @@ cmPrRC_t  _cmPrefsCreateJsonNode(
   assert( pnp != NULL );
 
   // if an preference variable 'id' was given then set it here
-  if( id != cmInvalidId )
+  if( id == cmInvalidId )
+    pnp->id = _cmPrefsCalcNextAvailId(p);
+  else
   {
     if( _cmPrefsIdToNodePtr(p, id, false ) != NULL )
-      cmErrWarnMsg(&p->err,kDuplicateIdPrRC,"The preference variable id '%i' is used by multiple preference variables including '%s'.",cmStringNullGuard(pathString));
+      cmErrWarnMsg(&p->err,kDuplicateIdPrRC,"The preference variable id '%i' is used by multiple preference variables including '%s'.",id,cmStringNullGuard(pathString));
   
     pnp->id = id;
   }
@@ -1462,19 +1517,19 @@ void _cmPrintNodes( const cmPrNode_t* np )
   
   sr = 44100;
   n  = 1;
-  cmPrefsSetInt(h, cmPrefsId(h,"cfg/srate",true), &sr, &n);
+  cmPrefsSetIntArray(h, cmPrefsId(h,"cfg/srate",true), &sr, &n);
   cmPrefsGetInt(h, cmPrefsId(h,"cfg/chNames/array",true), &sr, &n );
   printf("sr:%i %i\n",sr,n);
  
   int sarr[] = {10,11,12,13 };
   n = sizeof(sarr)/sizeof(sarr[0]);
-  cmPrefsSetInt(h, cmPrefsId(h,"cfg/chNames/array",true), sarr, &n);
+  cmPrefsSetIntArray(h, cmPrefsId(h,"cfg/chNames/array",true), sarr, &n);
   cmPrefsGetInt(h, cmPrefsId(h,"cfg/chNames/array",true), sarr, &n );
   printf("array:%i %i %i %i n=%i\n",sarr[0],sarr[1],sarr[2],sarr[3],n);
 
   int tarr[] = {20,21 };
   n = sizeof(tarr)/sizeof(tarr[0]);
-  cmPrefsSetInt(h, cmPrefsId(h,"cfg/chNames/array",true), tarr, &n);
+  cmPrefsSetIntArray(h, cmPrefsId(h,"cfg/chNames/array",true), tarr, &n);
   cmPrefsGetInt(h, cmPrefsId(h,"cfg/chNames/array",true), tarr, &n );
   printf("array:%i %i  n=%i\n",tarr[0],tarr[1],n);
 

@@ -34,6 +34,8 @@ extern "C" {
 
   bool cmPrefsIsValid( cmPrH_t h );
 
+  const cmChar_t* cmPrefsFileName( cmPrH_t h );
+
   // Return last RC.
   cmPrRC_t cmPrefsRC( cmPrH_t h);
 
@@ -52,6 +54,7 @@ extern "C" {
 
   // On input *'eleCntPtr' must contain the number of elements in the buffer pointed to by 'vp'.
   // On return *'eleCntPtr' contains the actuall number of elements returned by the function.
+  // Set *eleCntPtr to 1 for scalar a values.
   cmPrRC_t cmPrefsGetBool(   cmPrH_t h, unsigned id, bool*            vp, unsigned* eleCntPtr );
   cmPrRC_t cmPrefsGetInt(    cmPrH_t h, unsigned id, int*             vp, unsigned* eleCntPtr );
   cmPrRC_t cmPrefsGetReal(   cmPrH_t h, unsigned id, double*          vp, unsigned* eleCntPtr );
@@ -76,12 +79,12 @@ extern "C" {
   const cmChar_t* cmPrefsStringDef( cmPrH_t h, const cmChar_t* pathStr, const cmChar_t* dfltVal ); 
 
   // Get a scalar value. 
-  cmPrRC_t        cmPrefsScalarBool(   cmPrH_t h, const cmChar_t* pathStr, bool*            retValPtr );
-  cmPrRC_t        cmPrefsScalarUInt(   cmPrH_t h, const cmChar_t* pathStr, unsigned*        retValPtr );
-  cmPrRC_t        cmPrefsScalarInt(    cmPrH_t h, const cmChar_t* pathStr, int*             retValPtr );
-  cmPrRC_t        cmPrefsScalarFloat(  cmPrH_t h, const cmChar_t* pathStr, float*           retValPtr );
-  cmPrRC_t        cmPrefsScalarReal(   cmPrH_t h, const cmChar_t* pathStr, double*          retValPtr );
-  cmPrRC_t        cmPrefsScalarString( cmPrH_t h, const cmChar_t* pathStr, const cmChar_t** retValPtr ); 
+  cmPrRC_t        cmPrefsBoolRc(   cmPrH_t h, const cmChar_t* pathStr, bool*            retValPtr );
+  cmPrRC_t        cmPrefsUIntRc(   cmPrH_t h, const cmChar_t* pathStr, unsigned*        retValPtr );
+  cmPrRC_t        cmPrefsIntRc(    cmPrH_t h, const cmChar_t* pathStr, int*             retValPtr );
+  cmPrRC_t        cmPrefsFloatRc(  cmPrH_t h, const cmChar_t* pathStr, float*           retValPtr );
+  cmPrRC_t        cmPrefsRealRc(   cmPrH_t h, const cmChar_t* pathStr, double*          retValPtr );
+  cmPrRC_t        cmPrefsStringRc( cmPrH_t h, const cmChar_t* pathStr, const cmChar_t** retValPtr ); 
 
 
   // Simplified array interface - check cmPrefsRC() for errors
@@ -108,17 +111,24 @@ extern "C" {
   // 3) For  scalar (non-array) variables *eleCntPtr must be set to 1.
   //
 
-  cmPrRC_t cmPrefsSetBool(   cmPrH_t h, unsigned id, const bool*      vp, const unsigned* eleCntPtr );
-  cmPrRC_t cmPrefsSetInt(    cmPrH_t h, unsigned id, const int*       vp, const unsigned* eleCntPtr );
-  cmPrRC_t cmPrefsSetReal(   cmPrH_t h, unsigned id, const double*    vp, const unsigned* eleCntPtr );
-  cmPrRC_t cmPrefsSetString( cmPrH_t h, unsigned id, const cmChar_t** vp, const unsigned* eleCntPtr );
+  cmPrRC_t cmPrefsSetBoolArray(   cmPrH_t h, unsigned id, const bool*      vp, const unsigned* eleCntPtr );
+  cmPrRC_t cmPrefsSetIntArray(    cmPrH_t h, unsigned id, const int*       vp, const unsigned* eleCntPtr );
+  cmPrRC_t cmPrefsSetRealArray(   cmPrH_t h, unsigned id, const double*    vp, const unsigned* eleCntPtr );
+  cmPrRC_t cmPrefsSetStringArray( cmPrH_t h, unsigned id, const cmChar_t** vp, const unsigned* eleCntPtr );
 
-  cmPrRC_t cmPrefsSetScalarBool(   cmPrH_t h, const cmChar_t* pathStr, bool     val );
-  cmPrRC_t cmPrefsSetScalarUInt(   cmPrH_t h, const cmChar_t* pathStr, unsigned val );
-  cmPrRC_t cmPrefsSetScalarInt(    cmPrH_t h, const cmChar_t* pathStr, int      val );
-  cmPrRC_t cmPrefsSetScalarFloat(  cmPrH_t h, const cmChar_t* pathStr, float    val );
-  cmPrRC_t cmPrefsSetScalarReal(   cmPrH_t h, const cmChar_t* pathStr, double   val );
-  cmPrRC_t cmPrefsSetScalarString( cmPrH_t h, const cmChar_t* pathStr, const cmChar_t* val );
+  cmPrRC_t cmPrefsSetBool(   cmPrH_t h, unsigned id, bool     val );
+  cmPrRC_t cmPrefsSetUInt(   cmPrH_t h, unsigned id, unsigned val );
+  cmPrRC_t cmPrefsSetInt(    cmPrH_t h, unsigned id, int      val );
+  cmPrRC_t cmPrefsSetFloat(  cmPrH_t h, unsigned id, float    val );
+  cmPrRC_t cmPrefsSetReal(   cmPrH_t h, unsigned id, double   val );
+  cmPrRC_t cmPrefsSetString( cmPrH_t h, unsigned id, const cmChar_t* val );
+
+  cmPrRC_t cmPrefsPathSetBool(   cmPrH_t h, const cmChar_t* pathStr, bool     val );
+  cmPrRC_t cmPrefsPathSetUInt(   cmPrH_t h, const cmChar_t* pathStr, unsigned val );
+  cmPrRC_t cmPrefsPathSetInt(    cmPrH_t h, const cmChar_t* pathStr, int      val );
+  cmPrRC_t cmPrefsPathSetFloat(  cmPrH_t h, const cmChar_t* pathStr, float    val );
+  cmPrRC_t cmPrefsPathSetReal(   cmPrH_t h, const cmChar_t* pathStr, double   val );
+  cmPrRC_t cmPrefsPathSetString( cmPrH_t h, const cmChar_t* pathStr, const cmChar_t* val );
 
   // Create a new preference variable and set it's value to 'val'.
   // If a variable with the same path and type already exists and kForceValuePrFl is set then update it's value to 'val'.
@@ -126,6 +136,10 @@ extern "C" {
   //
   // If a variable with the same path but a different type exists then an error is returned.
   // 
+  // The 'id' argument is optional.  If 'id' is set to cmInvalidId then the
+  // variable will be automatically assigned an id.  The value of the
+  // automatically assigned id can be found from the path string
+  // via cmPrefsId()
 
   // Set kForceValuePrFl 
   enum { kForceValuePrFl=0x01 };
@@ -144,6 +158,8 @@ extern "C" {
   cmPrRC_t cmPrefsCreateStringArray( cmPrH_t h, unsigned id, const cmChar_t* pathStr, unsigned flags, const cmChar_t** val, unsigned eleCnt );
 
   bool     cmPrefsIsDirty( cmPrH_t h );
+
+  // If 'fn' is NULL then the filename passed in cmPrefsInitialize() is used.
   cmPrRC_t cmPrefsWrite( cmPrH_t h, const cmChar_t* fn );
 
 
