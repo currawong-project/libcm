@@ -305,6 +305,8 @@ cmPrRC_t cmPrefsInitialize( cmPrH_t* hp, const cmChar_t* fn, cmPrefsOnChangeFunc
   p->fn = cmLHeapAllocZ( p->lhH, strlen(fn)+1 );
   strcpy(p->fn,fn);
 
+  p->id = kMaxVarPrId;
+
   hp->h = p;
 
  errLabel:
@@ -1169,6 +1171,10 @@ cmPrRC_t  _cmPrefsCreateJsonNode(
   int             i;
 
   assert( pathCnt >= 1 );
+
+  if( id != cmInvalidId && id >= kMaxVarPrId )
+    return cmErrMsg(&p->err,kNodeCreateFailPrRC,"User supplied id's must be less than 0x%x.",kMaxVarPrId);
+
   
   // for each path element
   for(i=0; i<pathCnt; ++i)

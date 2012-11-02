@@ -24,6 +24,12 @@ extern "C" {
     kDuplicateIdPrRC
   };
 
+  enum
+  {
+    kMaxVarPrId = 0x7fffffff // User assigned variable id's given to cmPrefsCreateXXX()
+                             // must be less than kMaxVarPrId
+  };
+
   typedef void (*cmPrefsOnChangeFunc_t)( cmPrH_t h, void* cbDataPtr, unsigned id ); 
 
   extern cmPrH_t cmPrNullHandle;
@@ -139,7 +145,8 @@ extern "C" {
   // The 'id' argument is optional.  If 'id' is set to cmInvalidId then the
   // variable will be automatically assigned an id.  The value of the
   // automatically assigned id can be found from the path string
-  // via cmPrefsId()
+  // via cmPrefsId().  If 'id' is not set to cmInvalidId then it must be less than 
+  // kMaxVarId.
 
   // Set kForceValuePrFl 
   enum { kForceValuePrFl=0x01 };
