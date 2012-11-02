@@ -101,22 +101,24 @@ extern "C" {
   extern cmTlH_t cmTimeLineNullHandle;
 
   // 
-  cmTlRC_t   cmTimeLineInitialize( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg );
-  cmTlRC_t   cmTimeLineInitializeFromFile( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg, const cmChar_t* fn );
+  cmTlRC_t        cmTimeLineInitialize( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg );
+  cmTlRC_t        cmTimeLineInitializeFromFile( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg, const cmChar_t* fn );
 
-  cmTlRC_t   cmTimeLineFinalize( cmTlH_t* hp );
+  const cmChar_t* cmTimeLineFileName( cmTlH_t h );
 
-  bool       cmTimeLineIsValid( cmTlH_t h );
-  double     cmTimeLineSampleRate( cmTlH_t h );
+  cmTlRC_t        cmTimeLineFinalize( cmTlH_t* hp );
+
+  bool            cmTimeLineIsValid( cmTlH_t h );
+  double          cmTimeLineSampleRate( cmTlH_t h );
 
   // Return the object following 'p' assigned to 'seqId'.
   // If 'p' is NULL then return the first object assigned to seqId.
   // If 'seqId' is set to cmInvalidId then return the next object on any seq.
   // If no objects follow 'p' on the specified sequence then return NULL.
-  cmTlObj_t* cmTimeLineNextObj( cmTlH_t h, cmTlObj_t* p, unsigned seqId );
+  cmTlObj_t*       cmTimeLineNextObj( cmTlH_t h, cmTlObj_t* p, unsigned seqId );
 
   // Same as cmTimeLineNextObj() but returns next object whose type matches 'typeId'.
-  cmTlObj_t* cmTimeLineNextTypeObj( cmTlH_t h, cmTlObj_t* p, unsigned seqId, unsigned typeId );
+  cmTlObj_t*       cmTimeLineNextTypeObj( cmTlH_t h, cmTlObj_t* p, unsigned seqId, unsigned typeId );
 
   cmTlMidiFile_t*  cmTlNextMidiFileObjPtr(  cmTlH_t h, cmTlObj_t* op, unsigned seqId );
   cmTlAudioFile_t* cmTlNextAudioFileObjPtr( cmTlH_t h, cmTlObj_t* op, unsigned seqId );

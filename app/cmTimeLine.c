@@ -48,17 +48,18 @@ typedef struct
 
 typedef struct
 {
-  cmErr_t     err;
-  cmCtx_t     ctx;
-  cmLHeapH_t  lH;
-  double      srate;
-  unsigned    nextSeqId;
-  cmTlCb_t    cbFunc;
-  void*       cbArg;
-  unsigned    nextUId;
-  char*       tmpBuf;  
-  unsigned    seqCnt;
-  _cmTlSeq_t*  seq;    // seq[seqCnt]
+  cmErr_t         err;
+  cmCtx_t         ctx;
+  cmLHeapH_t      lH;
+  double          srate;
+  unsigned        nextSeqId;
+  cmTlCb_t        cbFunc;
+  void*           cbArg;
+  unsigned        nextUId;
+  char*           tmpBuf;  
+  unsigned        seqCnt;
+  _cmTlSeq_t*     seq;          // seq[seqCnt]
+  const cmChar_t* filename;
 } _cmTl_t;
 
 typedef struct
@@ -922,10 +923,13 @@ cmTlRC_t   cmTimeLineInitializeFromFile( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbF
   if((rc = cmTimeLineInitialize(ctx,hp,cbFunc,cbArg)) != kOkTlRC )
     return rc;
 
-  //_cmTl_t* p = _cmTlHandleToPtr(*hp);
-  //_cmTlNotifyListener(p, kInitMsgTlId, NULL );
-
   return  cmTimeLineReadJson(*hp,fn);
+}
+
+const cmChar_t* cmTimeLineFileName( cmTlH_t h )
+{ 
+  _cmTl_t* p = _cmTlHandleToPtr(h);  
+  return p->filename; 
 }
 
 cmTlRC_t cmTimeLineFinalize( cmTlH_t* hp )
@@ -1218,6 +1222,7 @@ cmTlRC_t cmTimeLineReadJson(  cmTlH_t h, const cmChar_t* ifn )
     
   }
   
+  p->filename = cmLhAllocStr(p->lH,ifn);
 
  errLabel:
   if( rc != kOkTlRC )
