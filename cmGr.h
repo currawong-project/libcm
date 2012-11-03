@@ -530,7 +530,7 @@ extern "C" {
 #define   cmGrVExtIsNullOrEmpty(e)    (cmGrVExtIsNull(e)||cmGrVExtIsEmpty(e))
 #define   cmGrVExtIsNotEmpty(e)       (!cmGrVExtIsEmpty(e))
 #define   cmGrVExtIsNotNull(e)        (!cmGrVExtIsNull(e))
-#define   cmGrVExtIsNotNullOrEmpty(e) (cmGrVExtIsNotNull(e)||cmGrVExtIsNotEmpty(e))
+#define   cmGrVExtIsNotNullOrEmpty(e) (cmGrVExtIsNotNull(e)&&cmGrVExtIsNotEmpty(e))
 #define   cmGrVExtIsEqual( e0, e1 )   (cmGrVPtIsEqual(&(e0)->loc,&(e1)->loc) && cmGrVSzIsEqual(&(e0)->sz, &(e1)->sz))
 
 
