@@ -185,7 +185,7 @@ extern "C" {
   typedef enum
   {
     kInvalidMsgTlId,
-    kInitMsgTlId,      // A new time-line object is begin intialized.  
+    kInitMsgTlId,      // A a set of time-line objects is about to be transmitted
     kFinalMsgTlId,     // A time-line object is being finalized.
     kDoneMsgTlId,      // All the objects assoc'd with a time line seq-notify have been sent.
     kInsertMsgTlId,    // A time-line object was inserted.
