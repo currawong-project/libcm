@@ -346,6 +346,17 @@ void _cmGrPlotObjGetVExt( cmGrPlotObj_t* op, cmGrVExt_t* vext )
         cmGrVExt_t wext;
         cmGrObjH_t oh = cmGrObjParent(op->grObjH);
         cmGrObjWorldExt(oh,&wext);
+
+        // TODO: Put a check somewhere which can report an error
+        // message when the parents world extent is not yet set.
+        // Horz and Vert lines depend on the their parent's
+        // world extents being set first.  There is no automatic
+        // way to set the parent world extents because we don't
+        // know the range of values which the data set will cover.
+        // Any number picked could result in a range much to large
+        // thereby leaving the data invisible.  It therefore must
+        // be up to the application to set a good range.
+        assert( cmGrVExtIsNotNullOrEmpty(&wext) );
         
         vext->loc.x = op->typeId==kHLineGrPlId ? wext.loc.x : op->vext.loc.x;
         vext->loc.y = op->typeId==kVLineGrPlId ? wext.loc.y : op->vext.loc.y;
