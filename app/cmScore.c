@@ -60,6 +60,9 @@ typedef struct
   cmScoreEvt_t* array;
   unsigned      cnt;
   cmCsvH_t      cH;
+  cmScCb_t      cbFunc;
+  void*         cbArg;
+  cmChar_t*     fn;
 } cmSc_t;
 
 cmScEvtRef_t _cmScEvtRefArray[] = 
@@ -111,7 +114,7 @@ unsigned _cmScEvtTypeLabelToId( const cmChar_t* label )
   return kInvalidEvtScId;
 }
 
-const cmChar_t* _cmScEvtTypeIdToLabel( unsigned id )
+const cmChar_t* cmScEvtTypeIdToLabel( unsigned id )
 {
   cmScEvtRef_t* r = _cmScEvtRefArray;
   for(; r->id != kInvalidEvtScId; ++r )
@@ -129,7 +132,7 @@ unsigned _cmScDynLabelToId( const cmChar_t* label )
   return kInvalidDynScId;
 }
 
-const cmChar_t* _cmScDynIdToLabel( unsigned id )
+const cmChar_t* cmScDynIdToLabel( unsigned id )
 {
   cmScEvtRef_t* r = _cmScDynRefArray;
   for(; r->id != kInvalidDynScId; ++r )
@@ -173,15 +176,20 @@ cmScRC_t _cmScFinalize( cmSc_t* p )
   if( cmCsvFinalize(&p->cH) != kOkCsvRC )
     return rc;
 
+  cmMemFree(p->fn);
   cmMemFree(p->array);
   cmMemFree(p);
   return rc;
 }
 
-cmScRC_t _cmScParseBar( cmSc_t* p, unsigned rowIdx, int* barNumb )
+cmScRC_t _cmScParseBar( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, int* barNumb )
 {
   if((*barNumb = cmCsvCellInt(p->cH,rowIdx,kBarColScIdx)) == INT_MAX )
     return cmErrMsg(&p->err,kSyntaxErrScRC,"Unable to parse the bar number.");
+
+  s->type    = kBarEvtScId;
+  s->dsecs   = 0;
+  s->barNumb = *barNumb;
   return kOkScRC;
 }
 
@@ -223,6 +231,7 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, int barN
   }
 
   s->type       = kNonEvtScId;
+  s->dsecs      = dsecs;
   s->pitch      = midiPitch;
   s->flags      = flags;
   s->dynVal     = dynVal; 
@@ -235,8 +244,10 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, int barN
 cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
 {
   cmScRC_t rc = kOkScRC;
-  unsigned barNoteIdx;
-  int      barNumb;
+  unsigned barNoteIdx = 0;
+  int      barEvtIdx = cmInvalidIdx;
+  int      barNumb   = 0;
+  double   secs;
 
   if( cmCsvInitialize(&p->cH, ctx ) != kOkCsvRC )
   {
@@ -280,19 +291,25 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
       break;
     }
 
-    
+    secs = DBL_MAX;
+
     switch(tid)
     {
       case kBarEvtScId:
         // parse bar lines
-        if((rc = _cmScParseBar(p,i,&barNumb)) == kOkScRC )
+        if((rc = _cmScParseBar(p,i,p->array+j,&barNumb)) == kOkScRC )
+        {
           barNoteIdx = 0;
+          barEvtIdx  = j;
+          ++j;
+        }
         break;
 
       case kNonEvtScId:
         // parse note-on events
         if((rc =  _cmScParseNoteOn(p, i, p->array + j, barNumb, barNoteIdx )) == kOkScRC )
         {
+          secs = p->array[j].dsecs;
           if( cmIsFlag(p->array[j].flags,kSkipScFl) == false )
             ++j;
 
@@ -301,7 +318,18 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
         break;
 
       default:
+        // Returns DBL_MAX on error.
+        secs =  cmCsvCellDouble(p->cH, i, kDSecsColScIdx );
         break;
+    }
+    
+    // the bar lines don't have times so set the time of the bar line to the
+    // time of the first event in the bar.
+    if( barEvtIdx != cmInvalidIdx && secs != DBL_MAX )
+    {
+      assert( p->array[ barEvtIdx ].type == kBarEvtScId );
+      p->array[ barEvtIdx ].dsecs = secs;
+      barEvtIdx = cmInvalidIdx;
     }
     
   }
@@ -319,7 +347,7 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
   return rc;
 }
 
-cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn )
+cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, cmScCb_t cbFunc, void* cbArg )
 {
   cmScRC_t rc = kOkScRC;
   if((rc = cmScoreFinalize(hp)) != kOkScRC )
@@ -331,6 +359,10 @@ cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn )
 
   if((rc = _cmScParseFile(p,ctx,fn)) != kOkScRC )
     goto errLabel;
+
+  p->cbFunc = cbFunc;
+  p->cbArg  = cbArg;
+  p->fn     = cmMemAllocStr(fn);
 
   hp->h = p;
 
@@ -358,6 +390,12 @@ cmScRC_t cmScoreFinalize( cmScH_t* hp )
   return rc;
 }
 
+const cmChar_t* cmScoreFileName( cmScH_t h )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  return p->fn;
+}
+
 bool     cmScoreIsValid( cmScH_t h )
 { return h.h != NULL; }
 
@@ -378,6 +416,42 @@ cmScoreEvt_t* cmScoreEvt( cmScH_t h, unsigned idx )
   return p->array + idx;
 }
 
+cmScRC_t      cmScoreSeqNotify( cmScH_t h )
+{
+  cmScRC_t  rc = kOkScRC;
+  cmSc_t*   p  = _cmScHandleToPtr(h);
+  cmScMsg_t m;
+  unsigned  i;
+
+  if( p->cbFunc != NULL )
+  {
+    memset(&m.evt,0,sizeof(m.evt));
+    m.typeId = kBeginMsgScId;
+    p->cbFunc(p->cbArg,&m,sizeof(m));
+
+    m.typeId = kEventMsgScId;
+    for(i=0; i<p->cnt; ++i)
+    {
+      m.evt = p->array[i];
+      p->cbFunc(p->cbArg,&m,sizeof(m));
+    }
+
+    memset(&m.evt,0,sizeof(m.evt));
+    m.typeId = kEndMsgScId;
+    p->cbFunc(p->cbArg,&m,sizeof(m));
+
+  }
+  return rc;
+}
+
+cmScRC_t      cmScoreDecode( const void* msg, unsigned msgByteCnt, cmScMsg_t* m)
+{
+  cmScMsg_t* mp = (cmScMsg_t*)msg;
+  *m = *mp;
+  return kOkScRC;
+}
+
+
 void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
 {
   cmSc_t* p = _cmScHandleToPtr(h);
@@ -392,12 +466,12 @@ void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
           i,
           r->barNumb,
           r->barNoteIdx,
-          _cmScEvtTypeIdToLabel(r->type),
+          cmScEvtTypeIdToLabel(r->type),
           r->pitch,
           cmIsFlag(r->flags,kEvenScFl)  ? 'e' : ' ',
           cmIsFlag(r->flags,kTempoScFl) ? 't' : ' ',
           cmIsFlag(r->flags,kDynScFl)   ? 'd' : ' ',
-          cmIsFlag(r->flags,kDynScFl)   ? _cmScDynIdToLabel(r->dynVal) : "");          
+          cmIsFlag(r->flags,kDynScFl)   ? cmScDynIdToLabel(r->dynVal) : "");          
         break;
 
       default:
@@ -603,7 +677,7 @@ cmScRC_t cmScoreSyncTimeLineTest( cmCtx_t* ctx,  const cmChar_t* timeLineJsFn, c
 
   if(1)
   {
-    if((rc = cmScoreInitialize(ctx,&scH,scoreCsvFn))  != kOkScRC )
+    if((rc = cmScoreInitialize(ctx,&scH,scoreCsvFn,NULL,NULL))  != kOkScRC )
       goto errLabel;
 
 
@@ -626,7 +700,7 @@ cmScRC_t cmScoreSyncTimeLineTest( cmCtx_t* ctx,  const cmChar_t* timeLineJsFn, c
 void cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
 {
   cmScH_t h = cmScNullHandle;
-  if( cmScoreInitialize(ctx,&h,fn) != kOkScRC )
+  if( cmScoreInitialize(ctx,&h,fn,NULL,NULL) != kOkScRC )
     return;
 
   cmScorePrint(h,&ctx->rpt);

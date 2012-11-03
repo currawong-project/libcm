@@ -51,15 +51,25 @@ extern "C" {
     unsigned     barNoteIdx;   // index of this note in this bar
   } cmScoreEvt_t;
 
+  typedef void (*cmScCb_t)( void* arg, const void* data, unsigned byteCnt );
 
   typedef cmRC_t     cmScRC_t;
   typedef cmHandle_t cmScH_t;
+
+  typedef void (*cmScCb_t)( void* arg, const void* data, unsigned byteCnt );
   
   extern cmScH_t cmScNullHandle;
 
+  const cmChar_t* cmScEvtTypeIdToLabel( unsigned id );
+  const cmChar_t* cmScDynIdToLabel( unsigned id );
+
+
   // Initialize a score object from a CSV File generated from a score spreadsheet.
-  cmScRC_t      cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn );
-  cmScRC_t      cmScoreFinalize( cmScH_t* hp );
+  cmScRC_t      cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, cmScCb_t cbFunc, void* cbArg );
+  cmScRC_t      cmScoreFinalize(   cmScH_t* hp );
+
+  // Filename of last successfuly loaded score file.
+  const cmChar_t* cmScoreFileName( cmScH_t h );
 
   bool          cmScoreIsValid( cmScH_t h );
 
@@ -67,13 +77,32 @@ extern "C" {
   unsigned      cmScoreEvtCount( cmScH_t h );
   cmScoreEvt_t* cmScoreEvt( cmScH_t h, unsigned idx );
 
+
+  cmScRC_t      cmScoreSeqNotify( cmScH_t h );
+  
+  typedef enum
+  {
+    kInvalidMsgScId,
+    kBeginMsgScId,
+    kEventMsgScId,
+    kEndMsgScId
+  } cmScMsgTypeId_t;
+
+  typedef struct
+  {
+    cmScMsgTypeId_t typeId;
+    cmScoreEvt_t    evt;    // only used when typeId == kEventMsgScId
+  } cmScMsg_t;
+
+  cmScRC_t      cmScoreDecode( const void* msg, unsigned msgByteCnt, cmScMsg_t* );
+
   void          cmScorePrint( cmScH_t h, cmRpt_t* rpt );
 
   cmScRC_t      cmScoreSyncTimeLine( cmScH_t scH, cmTlH_t tlH, unsigned editDistWndCnt, cmReal_t maxNoteOffsetSecs );
 
   cmScRC_t      cmScoreSyncTimeLineTest( cmCtx_t* ctx,  const cmChar_t* timeLineJsFn, const cmChar_t* scoreCsvFn );
 
-  void           cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn );
+  void          cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn );
 
 #ifdef __cplusplus
 }
