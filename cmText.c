@@ -522,13 +522,14 @@ cmChar_t* cmTextReplaceSN( cmChar_t* s, const cmChar_t* t, unsigned tn, const cm
 cmChar_t* cmTextReplaceS( cmChar_t* s, const cmChar_t* t, unsigned tn, const cmChar_t* u )
 { return cmTextReplaceSN(s,t,tn,u,u==NULL ? 0 : strlen(u)); }
 
-cmChar_t* cmTextReplaceAll( cmChar_t* s, const cmChar_t* t, const cmChar_t* u )
+cmChar_t* _cmTextReplace( cmChar_t* s, const cmChar_t* t, const cmChar_t* u, unsigned n )
 {
-  // we will go into an endless loop if 't' is contained in 'u'.
-  assert( s!= NULL && t!=NULL && u!=NULL && strstr(u,t) == NULL );
+  // we will go into an endless loop if 't' is contained in 'u' and n > 1.
+  assert( s!= NULL && t!=NULL && u!=NULL && (n==1 || strstr(u,t) == NULL) );
 
   int       tn = strlen(t);
   cmChar_t* c  = NULL;
+  unsigned  i  = 0;
 
   while( (c = strstr(s,t)) != NULL ) 
   {
@@ -536,10 +537,20 @@ cmChar_t* cmTextReplaceAll( cmChar_t* s, const cmChar_t* t, const cmChar_t* u )
 
     assert(s!=NULL);
 
+    ++i;
+    if( n!=cmInvalidCnt && i>=n)
+      break;
+
   };
 
   return s;
 }
+
+cmChar_t* cmTextReplaceAll( cmChar_t* s, const cmChar_t* t, const cmChar_t* u )
+{ return _cmTextReplace(s,t,u,cmInvalidCnt); }
+
+cmChar_t* cmTextReplaceFirst( cmChar_t* s, const cmChar_t* t, const cmChar_t* u )
+{ return _cmTextReplace(s,t,u,1); }
 
 cmChar_t* cmTextInsertSN(  cmChar_t* s, const cmChar_t* t, const cmChar_t* u, unsigned un )
 {

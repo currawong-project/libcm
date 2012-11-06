@@ -169,6 +169,9 @@ extern "C" {
   
   // Replace all occurrences of t[] with u[] in s[].
   cmChar_t* cmTextReplaceAll( cmChar_t* s, const cmChar_t* t, const cmChar_t* u );
+  
+  // Replace the first occurence of t[] in s[] with u[].
+  cmChar_t* cmTextReplaceFirst( cmChar_t* s, const cmChar_t* t, const cmChar_t* u );
 
   // Insert u[un] at before t in s[].
   cmChar_t* cmTextInsertSN(  cmChar_t* s, const cmChar_t* t, const cmChar_t* u, unsigned un );

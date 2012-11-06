@@ -431,7 +431,7 @@ cmLexH cmLexInit( const cmChar_t* cp, unsigned cn, unsigned flags, cmRpt_t* rpt 
 
 cmRC_t cmLexFinal( cmLexH* hp )
 {
-  if( hp == NULL )
+  if( hp == NULL || cmLexIsValid(*hp)==false )
     return cmOkRC;
 
   cmLex* p = _cmLexHandleToPtr(*hp);
@@ -835,21 +835,18 @@ const cmChar_t* cmLexRcToMsg( unsigned rc )
 // cmLexTest() gives a simple cmLex example.
 //)
 
-//[
+//(
 void cmLexTest( cmRpt_t* rpt)
 {
   cmChar_t buf[] =
-"123ident0\n\
- 123.456\n\
-ident0\n\
-0xa12+.2\n\
-// comment \n\
-/* block \n\
-comment */\
-\"quoted string\"\
-ident1\
-// last line comment\
-";
+"123ident0\n 123.456\nident0\n"
+"0xa12+.2\n"
+"// comment \n"
+"/* block \n"
+"comment */"
+"\"quoted string\""
+"ident1"
+"// last line comment";
 
   // initialize a lexer with a buffer of text
   cmLexH h = cmLexInit(buf,strlen(buf),
@@ -906,5 +903,5 @@ ident1\
 
 }
 
-//]
+//)
 //}

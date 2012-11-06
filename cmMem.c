@@ -166,6 +166,12 @@ cmMmRC_t _cmMmFreeP( cmMm_t* p, void* dataPtr )
     // if no tracking recd was found
     if( rp == NULL )
       return cmErrMsg(&p->err,kMissingRecdMmRC,"Unable to locate a tracking record associated with released data area pointer:%p.",dataPtr);
+    /*
+    if( rp->uniqueId == 176690 )
+    {
+      cmErrMsg(&p->err,kOkMmRC,"Breakpoint for memory free id:%i.",rp->uniqueId);
+    }
+    */
 
     // if this block was already freed then this is a double free
     if( cmIsFlag(rp->flags,kFreedMmFl) )
@@ -437,12 +443,14 @@ void* cmMmAllocate(
    cmMm_t*  p          = _cmMmHandleToPtr(h); 
    unsigned newByteCnt = newEleCnt * newEleByteCnt;
    void*    ndp        = _cmMmAllocate(p,orgDataPtr,newByteCnt,flags);
+   
    /*
-   if( p->nextId == 1575 )
+   if( p->nextId == 189114 )
    {
      cmErrMsg(&p->err,kOkMmRC,"Breakpoint for memory allocation id:%i.",p->nextId);
    }
    */
+
    // if we are tracking changes
    if( cmIsFlag(p->flags,kTrackMmFl) )
    {
