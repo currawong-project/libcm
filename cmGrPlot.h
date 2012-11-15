@@ -94,7 +94,7 @@ extern "C" {
     cmGrKeyCodeId_t eventKey;     // Event keys (See the cmGrEvent() keys)
     int             eventX;       // Mouse X,Y location when event was generated (Same as cmGrEvent()) 
     int             eventY;       // 
-    unsigned        deltaFlags;   // Event caused an object state change (See kXXXGrPlFl flags) 
+    unsigned        deltaFlags;   // Event which caused an object state change (See kXXXGrPlFl flags) 
   } cmGrPlotCbArg_t;
 
 
@@ -104,7 +104,8 @@ extern "C" {
   // the object has not yet been changed.  This may be confusing because if 
   // the state of the object is queried inside the callback it will have the 
   // pre-change state - but this state will be automatically toggled when the 
-  // callback returns  'true'.  
+  // callback returns  'true'.  Examine the arg->deltaFlags to determine the
+  // state attribute which is changing.
   typedef bool (*cmGrPlotCbFunc_t)( cmGrPlotCbArg_t* arg );
 
   extern cmGrPlH_t    cmGrPlNullHandle;
@@ -201,13 +202,21 @@ extern "C" {
   cmGrPlRC_t   cmGrPlotClear(   cmGrPlH_t h ); // destroy all objects
   cmErr_t*     cmGrPlotErr(     cmGrPlH_t h );
   cmRpt_t*     cmGrPlotRpt(     cmGrPlH_t h );
+  
+  // Return the count of plot objects.
   unsigned     cmGrPlotObjectCount(   cmGrPlH_t h );
+
+  // Return the handle of the ith object (0<=index<cmGrPlotObjectCount())
   cmGrPlObjH_t cmGrPlotObjectIndexToHandle( cmGrPlH_t h, unsigned index );
+
+  // Given a plot object id return the associated object handle.
   cmGrPlObjH_t cmGrPlotObjectIdToHandle( cmGrPlH_t h, unsigned id );
 
   // Pass a keyboard event to the plot system.
   void         cmGrPlotKeyEvent(   cmGrPlH_t h, cmGrH_t grH, unsigned eventFlags, cmGrKeyCodeId_t keycode );
   
+  // Set the default object callback and arg.
+  void         cmGrPlotSetCb( cmGrPlH_t h, cmGrPlotCbFunc_t func, void* arg );
 
 
 #ifdef __cplusplus

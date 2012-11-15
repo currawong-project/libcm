@@ -62,10 +62,12 @@ typedef struct cmGrPlotObj_str
 
 typedef struct cmGrPl_str
 {
-  cmCtx_t*       ctx;  // 
-  cmErr_t        err;  //
-  cmGrPlotObj_t* list; // plot object linked list
-  cmGrPlotObj_t* fop;  // focused object ptr
+  cmCtx_t*         ctx;         // 
+  cmErr_t          err;         //
+  cmGrPlotObj_t*   list;        // plot object linked list
+  cmGrPlotObj_t*   fop;         // focused object ptr
+  cmGrPlotCbFunc_t cbFunc;      // dflt callback function
+  void*            cbArg;       // dflt callback function arg.
 } cmGrPl_t;
 
 cmGrPlH_t    cmGrPlNullHandle    = cmSTATIC_NULL_HANDLE;
@@ -196,7 +198,7 @@ bool _cmGrPlotObjCb( cmGrPlotObj_t* op, cmGrPlCbSelId_t selId, unsigned deltaFla
   {
     cmGrPlotCbArg_t a;
 
-    _cmGrPlotObjSetupCbArg(&a,op,kPreEventCbSelGrPlId);
+    _cmGrPlotObjSetupCbArg(&a,op,selId);
     a.deltaFlags = deltaFlags; 
     return op->cbFunc(&a);
   }
@@ -743,6 +745,8 @@ cmGrPlRC_t cmGrPlotObjCreate(
   op->fontId     = kHelveticaFfGrId;
   op->fontSize   = 12;
   op->fontStyle  = kNormalFsGrFl;
+  op->cbFunc     = p->cbFunc;
+  op->cbArg      = p->cbArg;
 
   if( cmIsFlag(op->cfgFlags,kSymbolGrPlFl) )
   {
@@ -1231,4 +1235,11 @@ void  cmGrPlotKeyEvent(   cmGrPlH_t h, cmGrH_t grH, unsigned eventFlags, cmGrKey
 
     _cmGrPlotObjEvent(&a, eventFlags, keycode, 0, 0 );   
   }   
+}
+
+void  cmGrPlotSetCb( cmGrPlH_t h, cmGrPlotCbFunc_t func, void* arg )
+{
+  cmGrPl_t*      p  = _cmGrPlHandleToPtr(h);
+  p->cbFunc = func;
+  p->cbArg  = arg;
 }
