@@ -37,8 +37,10 @@ enum
 
 enum
 {
+  kMidiFileIdColScIdx= 0,  
   kTypeLabelColScIdx = 3,
-  kDSecsColScIdx     = 5,
+  kDSecsColScIdx     = 4,
+  kSecsColScIdx      = 5,
   kPitchColScIdx     = 11,
   kBarColScIdx       = 13,
   kSkipColScIdx      = 14,
@@ -63,6 +65,8 @@ typedef struct
   cmScCb_t      cbFunc;
   void*         cbArg;
   cmChar_t*     fn;
+  cmScoreLoc_t* loc;
+  unsigned      locCnt;
 } cmSc_t;
 
 cmScEvtRef_t _cmScEvtRefArray[] = 
@@ -176,6 +180,11 @@ cmScRC_t _cmScFinalize( cmSc_t* p )
   if( cmCsvFinalize(&p->cH) != kOkCsvRC )
     return rc;
 
+  unsigned i;
+  for(i=0; i<p->locCnt; ++i)
+    cmMemFree(p->loc[i].evtArray);
+  cmMemFree(p->loc);
+
   cmMemFree(p->fn);
   cmMemFree(p->array);
   cmMemFree(p);
@@ -188,7 +197,7 @@ cmScRC_t _cmScParseBar( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, int* barNum
     return cmErrMsg(&p->err,kSyntaxErrScRC,"Unable to parse the bar number.");
 
   s->type    = kBarEvtScId;
-  s->dsecs   = 0;
+  s->secs   = 0;
   s->barNumb = *barNumb;
   return kOkScRC;
 }
@@ -201,7 +210,8 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, int barN
   const cmChar_t* sciPitch;
   cmMidiByte_t    midiPitch;
   const cmChar_t* attr;
-  double          dsecs;
+  double          secs;
+  double          durSecs;
 
   if((sciPitch = cmCsvCellText(p->cH,rowIdx,kPitchColScIdx)) == NULL )
     return cmErrMsg(&p->err,kSyntaxErrScRC,"Expected a scientific pitch value");
@@ -210,8 +220,8 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, int barN
    return cmErrMsg(&p->err,kSyntaxErrScRC,"Unable to convert the scientific pitch '%s' to a MIDI value. ");
 
   // it is possible that note delta-secs field is empty - so default to 0
-  if((dsecs =  cmCsvCellDouble(p->cH, rowIdx, kDSecsColScIdx )) == DBL_MAX) // Returns DBL_MAX on error.
-    dsecs = 0;
+  if((secs =  cmCsvCellDouble(p->cH, rowIdx, kSecsColScIdx )) == DBL_MAX) // Returns DBL_MAX on error.
+    flags += kInvalidScFl;
 
   if((attr = cmCsvCellText(p->cH,rowIdx,kSkipColScIdx)) != NULL && *attr == 's' )
     flags += kSkipScFl;
@@ -230,14 +240,19 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, int barN
     flags += kDynScFl;
   }
 
+  // Returns DBL_MAX on error.
+  if((durSecs =  cmCsvCellDouble(p->cH, rowIdx, kDSecsColScIdx )) == DBL_MAX) 
+    durSecs = 0.25;
+
+
   s->type       = kNonEvtScId;
-  s->dsecs      = dsecs;
+  s->secs       = secs;
   s->pitch      = midiPitch;
   s->flags      = flags;
   s->dynVal     = dynVal; 
   s->barNumb    = barNumb;
   s->barNoteIdx = barNoteIdx;
-
+  s->durSecs    = durSecs;
   return rc;
 }
 
@@ -248,6 +263,7 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
   int      barEvtIdx = cmInvalidIdx;
   int      barNumb   = 0;
   double   secs;
+  double   cur_secs = 0;
 
   if( cmCsvInitialize(&p->cH, ctx ) != kOkCsvRC )
   {
@@ -295,23 +311,29 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
 
     switch(tid)
     {
-      case kBarEvtScId:
-        // parse bar lines
+      case kBarEvtScId: // parse bar lines        
         if((rc = _cmScParseBar(p,i,p->array+j,&barNumb)) == kOkScRC )
         {
           barNoteIdx = 0;
           barEvtIdx  = j;
+          p->array[j].index = j;
           ++j;
         }
         break;
 
-      case kNonEvtScId:
-        // parse note-on events
+      case kNonEvtScId:  // parse note-on events
         if((rc =  _cmScParseNoteOn(p, i, p->array + j, barNumb, barNoteIdx )) == kOkScRC )
         {
-          secs = p->array[j].dsecs;
+          secs =  p->array[j].secs;
+
+          if( p->array[j].secs == DBL_MAX )
+            p->array[j].secs = cur_secs;
+
           if( cmIsFlag(p->array[j].flags,kSkipScFl) == false )
+          {
+            p->array[j].index = j;
             ++j;
+          }
 
           ++barNoteIdx;
         }
@@ -319,16 +341,24 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
 
       default:
         // Returns DBL_MAX on error.
-        secs =  cmCsvCellDouble(p->cH, i, kDSecsColScIdx );
+        secs =  cmCsvCellDouble(p->cH, i, kSecsColScIdx );
         break;
     }
     
+    if( secs != DBL_MAX )
+      cur_secs = secs;
+
     // the bar lines don't have times so set the time of the bar line to the
     // time of the first event in the bar.
     if( barEvtIdx != cmInvalidIdx && secs != DBL_MAX )
     {
       assert( p->array[ barEvtIdx ].type == kBarEvtScId );
-      p->array[ barEvtIdx ].dsecs = secs;
+      p->array[ barEvtIdx ].secs = secs;
+
+      // handle the case where the previous bar had no events
+      if( p->array[ barEvtIdx-1].type == kBarEvtScId )
+        p->array[ barEvtIdx-1].secs = secs;
+
       barEvtIdx = cmInvalidIdx;
     }
     
@@ -347,6 +377,76 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
   return rc;
 }
 
+// This function does not currently work because there is no
+// guarantee that all the time values (secs field) have been filled in 
+/// with valid times and that all event records have a valid 'type' id.
+cmScRC_t _cmScoreInitLocArray( cmSc_t* p )
+{
+  cmScRC_t rc       = kOkScRC;
+  double   minDSecs = 0;
+  unsigned barNumb  = 0;
+
+  if( p->cnt==0)
+    return rc;
+
+  p->locCnt = 1;
+
+  // count the number of unique time locations in the score
+  int i,j,k;
+  double secs = p->array[0].secs;
+  for(i=0; i<p->cnt; ++i)
+  {
+    assert( p->array[i].secs >= secs );
+
+    if( p->array[i].secs - secs <= minDSecs )
+    {
+      p->locCnt += 1;
+      secs = p->array[i].secs;
+    }
+  }
+
+  // allocate the loc. array
+  p->loc = cmMemAllocZ(cmScoreLoc_t,p->locCnt);
+
+  
+
+  // fill in the location array
+  for(i=0,k=0; i<p->cnt; ++k)
+  {
+    j = i+1;
+
+    assert(p->array[j].secs > p->array[i].secs );
+
+    // get the count of events at this location
+    while( j<p->cnt && p->array[j].secs - p->array[i].secs < minDSecs )
+      ++j;
+
+    assert(k<p->locCnt);
+
+    p->loc[k].evtCnt   = j-i;
+    p->loc[k].evtArray = cmMemAllocZ(cmScoreEvt_t*,p->loc[k].evtCnt);
+
+    // fill in the location record event pointers
+    for(j=0; j<p->loc[k].evtCnt; ++j)
+    {
+      p->loc[k].evtArray[j] = p->array + (i + j);
+
+      if( p->array[i+j].type == kBarEvtScId )
+        barNumb = p->array[i+j].barNumb;
+    }
+
+    // fill in the location record
+    p->loc[k].secs     = p->array[i].secs;
+    p->loc[k].evtIdx   = i;
+    p->loc[k].barNumb  = barNumb;
+
+    i += p->loc[k].evtCnt;
+
+  }
+
+  return rc;
+}
+
 cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, cmScCb_t cbFunc, void* cbArg )
 {
   cmScRC_t rc = kOkScRC;
@@ -359,6 +459,10 @@ cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, cmScC
 
   if((rc = _cmScParseFile(p,ctx,fn)) != kOkScRC )
     goto errLabel;
+
+  // See note at function
+  //if((rc = _cmScoreInitLocArray(p)) != kOkScRC )
+  //  goto errLabel;
 
   p->cbFunc = cbFunc;
   p->cbArg  = cbArg;
@@ -415,6 +519,24 @@ cmScoreEvt_t* cmScoreEvt( cmScH_t h, unsigned idx )
   }
   return p->array + idx;
 }
+
+unsigned      cmScoreLocCount( cmScH_t h )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  return p->locCnt;
+}
+
+cmScoreLoc_t* cmScoreLoc( cmScH_t h, unsigned idx )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  if( idx >= p->locCnt )
+  {
+    cmErrMsg(&p->err,kInvalidIdxScRC,"%i is an invalid index for %i location records.",idx,p->locCnt);
+    return NULL;
+  }
+  return p->loc + idx;
+}
+
 
 cmScRC_t      cmScoreSeqNotify( cmScH_t h )
 {
@@ -706,4 +828,112 @@ void cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
   cmScorePrint(h,&ctx->rpt);
 
   cmScoreFinalize(&h);
+}
+
+// 1. Fix absolute message time which was incorrect on original score file.
+// 2. 
+void cmScoreFix( cmCtx_t* ctx )
+{
+  const cmChar_t*          mfn  = "/home/kevin/src/cmgv/src/gv/data/ImaginaryThemes.mid";
+  const cmChar_t*          crfn = "/home/kevin/src/cmgv/src/gv/data/mod0a.txt";
+  const cmChar_t*          cwfn = "/home/kevin/src/cmgv/src/gv/data/mod1.csv";
+  cmMidiFileH_t            mfH  = cmMidiFileNullHandle;
+  cmCsvH_t                 csvH = cmCsvNullHandle;
+  const cmMidiTrackMsg_t** msg  = NULL;
+  double                   secs = 0.0;
+  int                      ci,mi,crn,mn;
+  bool                     errFl = true;
+  unsigned                 handCnt = 0;
+  unsigned                 midiMissCnt = 0;
+
+  if( cmCsvInitialize(&csvH,ctx) != kOkCsvRC )
+    goto errLabel;
+
+  if( cmCsvLexRegisterMatcher(csvH, cmCsvLexNextAvailId(csvH), _cmScLexSciPitchMatcher ) != kOkCsvRC )
+    goto errLabel;
+
+  if( cmCsvParseFile(csvH, crfn, 0 ) != kOkCsvRC )
+    goto errLabel;
+
+  if( cmMidiFileOpen(mfn,&mfH,ctx) != kOkMfRC )
+    goto errLabel;
+
+  cmMidiFileTickToMicros(mfH);
+
+  cmMidiFileCalcNoteDurations(mfH);
+
+  mn = cmMidiFileMsgCount(mfH);
+
+  msg = cmMidiFileMsgArray(mfH);
+
+  crn = cmCsvRowCount(csvH);
+
+  // for each row in the score file
+  for(ci=1,mi=0; ci<crn && cmCsvLastRC(csvH)==kOkCsvRC; ++ci)
+  {
+    unsigned  id;
+
+    // zero the duration column 
+    if( cmCsvCellPtr(csvH, ci, kDSecsColScIdx ) != NULL )
+      cmCsvSetCellUInt(   csvH, ci, kDSecsColScIdx, 0 );
+
+    // get the MIDI file event id for this row
+    if((id = cmCsvCellUInt(csvH,ci,kMidiFileIdColScIdx)) == UINT_MAX)
+    {
+      // this is a hand-entered event -  so it has no event id
+      ++handCnt;
+      
+    }
+    else
+    {
+      for(; mi<mn; ++mi)
+      {
+        const cmMidiTrackMsg_t* m = msg[mi];
+
+        assert( mi+1 <= id );
+        secs += m->dtick/1000000.0;
+
+        if( mi+1 != id )
+        {
+          if( m->status == kNoteOnMdId && m->u.chMsgPtr->d1>0 )
+          {
+            // this MIDI note-on does not have a corresponding score event
+            ++midiMissCnt;
+          }
+        }
+        else
+        {
+          cmCsvSetCellDouble( csvH, ci, kSecsColScIdx, secs );
+          ++mi;
+
+          if( m->status == kNoteOnMdId )
+            cmCsvSetCellDouble(   csvH, ci, kDSecsColScIdx, m->u.chMsgPtr->durTicks/1000000.0 );
+          break;
+        }
+        
+        
+      }
+
+      if( mi==mn)
+        printf("done on row:%i\n",ci);
+    }
+  }
+
+  if( cmCsvLastRC(csvH) != kOkCsvRC )
+    goto errLabel;
+
+  if( cmCsvWrite(csvH,cwfn) != kOkCsvRC )
+    goto errLabel;
+
+  errFl = false;
+
+ errLabel:
+  if( errFl )
+    printf("Score fix failed.\n");
+  else
+    printf("Score fix done! hand:%i miss:%i\n",handCnt,midiMissCnt);
+  cmMidiFileClose(&mfH);
+
+  cmCsvFinalize(&csvH);
+
 }
