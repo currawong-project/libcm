@@ -1,6 +1,10 @@
 #ifndef cmMidiFile_h
 #define cmMidiFile_h
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // MIDI file timing:
 // Messages in the MIDI file are time tagged with a delta offset in 'ticks'
 // from the previous message in the same track.
@@ -15,6 +19,10 @@
 // MpQN is given as the value of the MIDI file tempo message.
 //
 // See cmMidiFileSeekUSecs() for an example of converting ticks to milliseconds.
+//
+// As part of the file reading process, the status byte of note-on messages 
+// with velocity=0 are is changed to a note-off message. See _cmMidiFileReadChannelMsg().
+
 
 
 typedef cmHandle_t cmMidiFileH_t;
@@ -159,5 +167,9 @@ unsigned              cmMidiFilePackTrackMsgBufByteCount( const cmMidiTrackMsg_t
 void                  cmMidiFilePrint( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt );
 bool                  cmMidiFileIsNull( cmMidiFileH_t h );
 void                  cmMidiFileTest( const char* fn, cmCtx_t* ctx );
+
+#ifdef __cplusplus
+}
+#endif
  
 #endif

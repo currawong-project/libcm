@@ -266,6 +266,10 @@ cmMfRC_t _cmMidiFileReadChannelMsg( _cmMidiFile_t* mfp, cmMidiByte_t* rsPtr, cmM
       return rc;
   }
 
+  // convert note-on velocity=0 to note off
+  if( tmp->status == kNoteOnMdId && p->d1==0 )
+    tmp->status = kNoteOffMdId;
+
   tmp->u.chMsgPtr = p;
   
   return rc;
@@ -833,13 +837,23 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
   _cmMidiVoice_t* vp;
   bool            sustainFlagV[ kMidiChCnt ];
 
+  for(mi=0; mi<kMidiChCnt; ++mi)
+    sustainFlagV[mi]=false;
+
   for(mi=0; mi<p->msgN; ++mi)
   {
     cmMidiTrackMsg_t* mp = p->msgV[mi];
 
     // update the duration of the sounding notes
+    //int ii=0;
+    //printf("---- %i ------\n",mi);
     for(vp = list; vp!=NULL; vp=vp->link)
+    {
       vp->durTicks += mp->dtick;
+      //printf("%i %i %p %p\n",ii,vp->sustainFl,vp,vp->link);
+      //++ii;
+    }
+    
 
     //
     // If this is sustain pedal msg
@@ -894,6 +908,8 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
           // if this active voice ch/pitch matches the note-off msg ch pitch 
           if( (vp->mp->u.chMsgPtr->d0==mp->u.chMsgPtr->d0) && (vp->mp->u.chMsgPtr->ch==mp->u.chMsgPtr->ch) )
           {
+            assert( mp->u.chMsgPtr->ch < kMidiChCnt );
+
             if( sustainFlagV[mp->u.chMsgPtr->ch] )
               vp->sustainFl = true;
             else
