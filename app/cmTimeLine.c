@@ -655,7 +655,6 @@ cmTlRC_t _cmTlProcMidiFile( _cmTl_t* p,  _cmTlObj_t* op, cmMidiFileH_t mfH )
       fl =  mp->dtick == 0;        
     }
       
-
     accum += dtick * p->srate / 1000000;
 
     //int      begSmpIdx         = floor(accum_micros * p->srate / 1000000);
@@ -958,6 +957,35 @@ double cmTimeLineSampleRate( cmTlH_t h )
   return p->srate;
 }
 
+cmTlObj_t* _cmTimeLineIdToObj( _cmTl_t* p, unsigned seqId, unsigned id )
+{
+  assert( seqId < p->seqCnt );
+
+  _cmTlObj_t* op = p->seq[seqId].first;
+  for(; op != NULL; op=op->next )
+    if( op->obj->uid == id )
+      return op->obj;
+  return NULL;
+}
+
+cmTlObj_t* cmTimeLineIdToObj( cmTlH_t h, unsigned seqId, unsigned id )
+{
+  _cmTl_t*    p  = _cmTlHandleToPtr(h);
+  cmTlObj_t* op = NULL;
+
+  if( seqId != cmInvalidId )
+    op = _cmTimeLineIdToObj(p,seqId,id);
+  else
+  {
+    for(seqId=0; seqId<p->seqCnt; ++seqId)
+      if((op = _cmTimeLineIdToObj(p,seqId,id) ) != NULL )
+        break;
+  }
+
+  return op;
+}
+
+
 cmTlObj_t* cmTimeLineNextObj( cmTlH_t h, cmTlObj_t* tp, unsigned seqId )
 {
   _cmTl_t* p = _cmTlHandleToPtr(h);
@@ -1034,6 +1062,22 @@ cmTlMarker_t*    cmTlNextMarkerObjPtr(    cmTlH_t h, cmTlObj_t* op, unsigned seq
   if((op = cmTimeLineNextTypeObj(h, op, seqId, kMarkerTlId )) == NULL )
     return NULL;
   return cmTimeLineMarkerObjPtr(h,op);
+}
+
+cmTlObj_t*       cmTlIdToObjPtr( cmTlH_t h, unsigned uid )
+{
+  _cmTl_t* p = _cmTlHandleToPtr(h);
+  unsigned i;
+  for(i=0; i<p->seqCnt; ++i)
+    //if( p->seq[i].first->obj->uid <= uid && uid <= p->seq[i].last->obj->uid )
+    {
+      _cmTlObj_t* op = p->seq[i].first;
+      for(; op != NULL; op=op->next )
+        if( op->obj->uid == uid )
+          return op->obj;
+    }
+
+  return NULL;
 }
 
 
@@ -1474,16 +1518,16 @@ cmTlRC_t  _cmTimeLineDecodeObj( const void* msg, unsigned msgByteCnt, cmTlUiMsg_
 
   r->msgId       = kInsertMsgTlId;
   r->objId       = tp->uid;
-  r->parentObjId = *parentIdPtr;
+  //r->parentObjId = *parentIdPtr;
   r->seqId       = tp->seqId;
-  r->typeId      = tp->typeId;
-  r->begSmpIdx   = tp->begSmpIdx;
-  r->durSmpCnt   = tp->durSmpCnt;
-  r->label       = strlen(text)==0 ? NULL : text;
+  //r->typeId      = tp->typeId;
+  //r->begSmpIdx   = tp->begSmpIdx;
+  //r->durSmpCnt   = tp->durSmpCnt;
+  //r->label       = strlen(text)==0 ? NULL : text;
   r->srate       = 0;
-  r->midiTrkMsg  = NULL;
-  r->textStr     = NULL;
-
+  //r->midiTrkMsg  = NULL;
+  //r->textStr     = NULL;
+  /*
   switch( tp->typeId )
   {
     case kMidiFileTlId:
@@ -1515,7 +1559,7 @@ cmTlRC_t  _cmTimeLineDecodeObj( const void* msg, unsigned msgByteCnt, cmTlUiMsg_
     default:
       { assert(0); }
   }
-
+  */
   return rc;
 }
 

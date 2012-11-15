@@ -111,6 +111,10 @@ extern "C" {
   bool            cmTimeLineIsValid( cmTlH_t h );
   double          cmTimeLineSampleRate( cmTlH_t h );
 
+  // Given cmTlObj_t.uid return a pointer to the associated record.
+  // seqId is optional (dflt:cmInvalidId)
+  cmTlObj_t*      cmTimeLineIdToObj( cmTlH_t h, unsigned seqId, unsigned uid );
+
   // Return the object following 'p' assigned to 'seqId'.
   // If 'p' is NULL then return the first object assigned to seqId.
   // If 'seqId' is set to cmInvalidId then return the next object on any seq.
@@ -126,6 +130,7 @@ extern "C" {
   cmTlAudioEvt_t*  cmTlNextAudioEvtObjPtr(  cmTlH_t h, cmTlObj_t* op, unsigned seqId );
   cmTlMarker_t*    cmTlNextMarkerObjPtr(    cmTlH_t h, cmTlObj_t* op, unsigned seqId );
 
+  cmTlObj_t*       cmTlIdToObjPtr( cmTlH_t h, unsigned uid );
 
   // Cast a genereic cmTlObj_t pointer to a specificy type.
   cmTlMidiFile_t*  cmTimeLineMidiFileObjPtr(  cmTlH_t h, cmTlObj_t* op );
@@ -195,17 +200,9 @@ extern "C" {
   {
     cmTlUiMsgTypeId_t       msgId;         // See cmTlUiMsgTypeId_t.
     unsigned                objId;         // Set to cmTlObj_t.uid
-    unsigned                parentObjId;   // cmTlObj_t.uid of the object this object's begSmpIdx is set relative to.
-    unsigned                seqId;         // 
-    cmTlObjTypeId_t         typeId;        // 
-    int                     begSmpIdx;     // Time relative to parent.
-    unsigned                durSmpCnt;     // Duration of the object.
-    const char*             label;         // Object label (points to memory inside the serialized msg.)
+    unsigned                seqId;         // Sequence id
     double                  srate;         // Only valid with kInitMsgTlId.
     unsigned                seqCnt;        // Only valid with kInitMsgTlId.
-    const cmMidiTrackMsg_t* midiTrkMsg;    // Only valid for typeId  == kMidiEvtTlId. Internal pointers refer to memory inside the serialzed msg. buffer.
-    unsigned                midiFileObjId; // Only valid for typeId  == kMidiEvtTlId
-    const char*             textStr;       // filename for kAudioFileTlId and kMidiFileTlId, marker text for kMarkerTlId
   } cmTlUiMsg_t;
 
   // Decode a serialized cmTlObj_t as passed to the cmTlCb_t listener
