@@ -56,49 +56,8 @@ typedef struct
  
 cmDspClass_t _cmKrDC;
 
-// cm console output function
-void _cmKrCmRptFunc( void* userDataPtr, const cmChar_t* fmt, va_list vl )
-{
-  cmCtx_t* p = (cmCtx_t*)userDataPtr;
-  if( p == NULL )
-    vprintf(fmt,vl);
-  else
-    cmRptVPrintf(&p->rpt,fmt,vl);
-}
 
-// initialize the cm library
-/*
-cmDspRC_t cmDspKrCmLibInit(cmCtx_t* cmCtx )
-{
-  bool debugFl = false;
-#ifdef NDEBUG
-  debugFl = true;
-#endif
-
-  unsigned memPadByteCnt       = cmCtx->guardByteCnt;
-  unsigned memAlignByteCnt     = cmCtx->alignByteCnt;
-  unsigned memAutoBlockByteCnt = 0;
-  unsigned memFlags            = cmCtx->mmFlags;
-
-  if( cmMallocDebugIsInit() == false )
-    cmMallocDebugInitialize( memPadByteCnt, memAlignByteCnt, memAutoBlockByteCnt, memFlags, _cmKrCmRptFunc, cmCtx  );
-  
-  return kOkDspRC;
-}
-
-// free the cm library
-cmDspRC_t cmDspKrCmLibFinal()
-{
-#ifdef NDEBUG
-  cmMallocDebugReport( vPrintF, _rptUserPtr, 0);
-#endif
-
-  if( cmMallocDebugIsInit()  )
-    cmMallocDebugFinalize();
-
-  return kOkDspRC;
-}
-*/
+//==========================================================================================================================================
 
   cmDspInst_t*  _cmDspKrAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
@@ -266,4 +225,74 @@ struct cmDspClass_str* cmKrClassCons( cmDspCtx_t* ctx )
   return &_cmKrDC;
 }
 
+
+//==========================================================================================================================================
+enum
+{
+  kValTlId,
+  kLblTlId,
+  kTlFileTlId,
+  kAudPathTlId
+};
+
+cmDspClass_t _cmTimeLineDC;
+
+typedef struct
+{
+  cmDspInst_t inst;
+} cmDspTimeLine_t;
+
+cmDspInst_t*  _cmDspTimeLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  cmDspVarArg_t args[] =
+  {
+    { "val",  kValTlId,  0, 0, kInDsvFl  | kOutDsvFl    | kStrzDsvFl | kReqArgDsvFl | kSendDfltDsvFl,  "Current string"},
+    { "lbl",  kLblTlId,  0, 0, kStrzDsvFl | kOptArgDsvFl, "Label"},
+    { NULL, 0, 0, 0, 0 }
+  };
+
+  cmDspTimeLine_t* p = cmDspInstAlloc(cmDspTimeLine_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+
+  // create the UI control
+  cmDspUiTimeLineCreate(ctx,&p->inst,kValTlId,kLblTlId,kTlFileTlId,kAudPathTlId);
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspTimeLineReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspApplyAllDefaults(ctx,inst);
+  return kOkDspRC;
+}
+
+cmDspRC_t _cmDspTimeLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+
+  switch( evt->dstVarId )
+  {
+    case kValTlId:
+      cmDspSetEvent(ctx,inst,evt);
+      break;
+
+    default:
+      {assert(0);}
+  }
+
+  return kOkDspRC;
+}
+
+struct cmDspClass_str* cmTimeLineClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmTimeLineDC,ctx,"TimeLine",
+    NULL,
+    _cmDspTimeLineAlloc,
+    NULL,
+    _cmDspTimeLineReset,
+    NULL,
+    _cmDspTimeLineRecv,
+    NULL,NULL,
+    "Time Line control.");
+
+  return &_cmTimeLineDC;
+}
 

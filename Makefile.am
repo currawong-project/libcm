@@ -42,8 +42,11 @@ cmSRC +=  src/libcm/dsp/cmDspSys.c src/libcm/dsp/cmDspClass.c src/libcm/dsp/cmDs
 cmHDR += src/libcm/dsp/cmDspBuiltIn.h  src/libcm/dsp/cmDspFx.h 
 cmSRC += src/libcm/dsp/cmDspBuiltIn.c  src/libcm/dsp/cmDspFx.c 
 
-cmHDR += src/libcm/dsp/cmDspPgm.h src/libcm/dsp/cmDspKr.h src/libcm/dsp/cmDspPgmPP.h src/libcm/dsp/cmDspPgmPPMain.h
-cmSRC += src/libcm/dsp/cmDspPgm.c src/libcm/dsp/cmDspKr.c src/libcm/dsp/cmDspPgmPP.c src/libcm/dsp/cmDspPgmPPMain.c
+cmHDR += src/libcm/dsp/cmDspPgm.h src/libcm/dsp/cmDspPgmPP.h src/libcm/dsp/cmDspPgmPPMain.h
+cmSRC += src/libcm/dsp/cmDspPgm.c src/libcm/dsp/cmDspPgmPP.c src/libcm/dsp/cmDspPgmPPMain.c
+
+cmHDR +=  src/libcm/dsp/cmDspKr.h src/libcm/dsp/cmDspPgmKr.h
+cmSRC +=  src/libcm/dsp/cmDspKr.c src/libcm/dsp/cmDspPgmKr.c
 
 cmHDR += src/libcm/cmAudDsp.h src/libcm/cmAudDspIF.h src/libcm/cmAudDspLocal.h
 cmSRC += src/libcm/cmAudDsp.c src/libcm/cmAudDspIF.c src/libcm/cmAudDspLocal.c
