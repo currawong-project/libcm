@@ -149,7 +149,13 @@ extern "C" {
   cmTlMarker_t*    cmTlMarkerObjPtr(    cmTlH_t h, cmTlObj_t* op );
 
   cmTlAudioFile_t* cmTimeLineFindAudioFile( cmTlH_t h, const cmChar_t* fn );
-  cmTlMidiFile_t*  cmTimeLineFindMidiFile( cmTlH_t h, const cmChar_t* fn );
+  cmTlMidiFile_t*  cmTimeLineFindMidiFile(  cmTlH_t h, const cmChar_t* fn );
+
+  
+  cmTlAudioFile_t* cmTimeLineAudioFileAtTime( cmTlH_t h, unsigned seqId, unsigned seqSmpIdx );
+  cmTlMidiFile_t*  cmTimeLineMidiFileAtTime(  cmTlH_t h, unsigned seqId, unsigned seqSmpIdx );
+  cmTlMidiEvt_t*   cmTimeLineMidiEvtAtTime(   cmTlH_t h, unsigned seqId, unsigned seqSmpIdx );
+  cmTlMarker_t*    cmTimeLineMarkerAtTime(    cmTlH_t h, unsigned seqId, unsigned seqSmpIdx );
 
   // 'typeId' = kAudioFileTlId, kMidiFileTId, kMarkerTlId.
   // 'nameStr' and 'refObjNameStr' may be NULL.

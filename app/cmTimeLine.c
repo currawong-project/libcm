@@ -1193,6 +1193,87 @@ cmTlMidiFile_t* cmTimeLineFindMidiFile( cmTlH_t h, const cmChar_t* fn )
   return NULL;
 }
 
+_cmTlObj_t* _cmTimeLineObjAtTime( _cmTl_t* p, unsigned seqId, unsigned seqSmpIdx, unsigned typeId )
+{
+  assert( seqId < p->seqCnt );
+  _cmTlObj_t* op      = p->seq[seqId].first;
+  _cmTlObj_t* min_op  = NULL;
+  unsigned    minDist = UINT_MAX;
+
+  for(; op!=NULL; op=op->next)
+    if( typeId==cmInvalidId || op->obj->typeId == typeId )
+    {
+      // if seqSmpIdx is inside this object - then return it as the solution
+      if((op->obj->seqSmpIdx <= seqSmpIdx && seqSmpIdx < (op->obj->seqSmpIdx + op->obj->durSmpCnt)))
+        return op;
+
+      // measure the distance from seqSmpIdx to the begin and end of this object
+      unsigned d0 =  op->obj->seqSmpIdx                    < seqSmpIdx ? seqSmpIdx - op->obj->seqSmpIdx                    : op->obj->seqSmpIdx - seqSmpIdx;
+      unsigned d1 =  op->obj->seqSmpIdx+op->obj->durSmpCnt < seqSmpIdx ? seqSmpIdx - op->obj->seqSmpIdx+op->obj->durSmpCnt : op->obj->seqSmpIdx+op->obj->durSmpCnt - seqSmpIdx;
+
+      // d0 and d1 should decrease as the cur object approaches seqSmpIdx
+      // If they do not then the search is over - return the closest point.
+      if( d0>minDist && d1>minDist)
+        break;
+
+      // track the min dist and the assoc'd obj
+      if( d0 < minDist )
+      {
+        minDist = d0;
+        min_op  = op;
+      }
+
+      if( d1 < minDist )
+      {
+        minDist = d1;
+        min_op  = op;
+      }
+        
+    }
+       
+  return min_op;
+}
+
+cmTlAudioFile_t* cmTimeLineAudioFileAtTime( cmTlH_t h, unsigned seqId, unsigned seqSmpIdx )
+{ 
+  _cmTl_t*   p = _cmTlHandleToPtr(h);
+  _cmTlObj_t* op;
+  if((op = _cmTimeLineObjAtTime(p,seqId,seqSmpIdx,kAudioFileTlId)) == NULL )
+    return NULL;
+
+  return _cmTlAudioFileObjPtr(p,op->obj,false);  
+}
+
+cmTlMidiFile_t*  cmTimeLineMidiFileAtTime(  cmTlH_t h, unsigned seqId, unsigned seqSmpIdx )
+{
+  _cmTl_t*   p = _cmTlHandleToPtr(h);
+  _cmTlObj_t* op;
+  if((op = _cmTimeLineObjAtTime(p,seqId,seqSmpIdx,kMidiFileTlId)) == NULL )
+    return NULL;
+
+  return _cmTlMidiFileObjPtr(p,op->obj,false);  
+}
+
+cmTlMidiEvt_t*   cmTimeLineMidiEvtAtTime(   cmTlH_t h, unsigned seqId, unsigned seqSmpIdx )
+{
+  _cmTl_t*   p = _cmTlHandleToPtr(h);
+  _cmTlObj_t* op;
+  if((op = _cmTimeLineObjAtTime(p,seqId,seqSmpIdx,kMidiEvtTlId)) == NULL )
+    return NULL;
+
+  return _cmTlMidiEvtObjPtr(p,op->obj,false);  
+}
+
+cmTlMarker_t*    cmTimeLineMarkerAtTime(    cmTlH_t h, unsigned seqId, unsigned seqSmpIdx )
+{
+  _cmTl_t*   p = _cmTlHandleToPtr(h);
+  _cmTlObj_t* op;
+  if((op = _cmTimeLineObjAtTime(p,seqId,seqSmpIdx,kMarkerTlId)) == NULL )
+    return NULL;
+
+  return _cmTlMarkerObjPtr(p,op->obj,false);  
+}
+
 
 cmTlRC_t _cmTlParseErr( cmErr_t* err, const cmChar_t* errLabelPtr, unsigned idx, const cmChar_t* fn )
 {
