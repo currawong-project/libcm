@@ -217,22 +217,32 @@ void _cmGrPlotObjSetFocus( cmGrPlotObj_t* op )
     if( cmIsNotFlag(op->cfgFlags,kNoFocusGrPlFl) && cmIsNotFlag(op->cfgFlags,kNoDrawGrPlFl) )
       break;
 
-  if( op != NULL )
+  // if the focus is changing to a new object
+  if( op != NULL  && op->p->fop != op )
   {  
     if( op->p->fop != NULL )
     {
       // if the application callback returns false then do no release focus from the current object
-      if(_cmGrPlotObjCb(op->p->fop, kStateChangeGrPlId, kFocusGrPlFl ) == false )
+      if(_cmGrPlotObjCb(op->p->fop, kPreEventCbSelGrPlId, kFocusGrPlFl ) == false )
         return;
 
+      cmGrPlotObj_t* fop = op->p->fop;
+
       op->p->fop = NULL;
+
+      // notify focus loser
+      _cmGrPlotObjCb(fop, kStateChangeGrPlId, kFocusGrPlFl );
     }
 
     // if the application callback returns false then do not give focus to the selected object
-    if(_cmGrPlotObjCb(op, kStateChangeGrPlId, kFocusGrPlFl ) == false )
+    if(_cmGrPlotObjCb(op, kPreEventCbSelGrPlId, kFocusGrPlFl ) == false )
       return;
 
     op->p->fop = op;
+
+    // notify focus winner
+    _cmGrPlotObjCb(op, kStateChangeGrPlId, kFocusGrPlFl );
+        
   }
 
 }
@@ -246,7 +256,7 @@ void _cmGrPlotObjSetSelect( cmGrPlotObj_t* op, bool clearFl )
   unsigned stateFlags = op->stateFlags;
 
   // if the application callback returns false then do change the select state of the object
-  if(_cmGrPlotObjCb(op, kStateChangeGrPlId, kSelectGrPlFl ) == false )
+  if(_cmGrPlotObjCb(op, kPreEventCbSelGrPlId, kSelectGrPlFl ) == false )
     return;
 
   if( clearFl )
@@ -262,6 +272,8 @@ void _cmGrPlotObjSetSelect( cmGrPlotObj_t* op, bool clearFl )
          
   op->stateFlags = cmTogFlag(stateFlags,kSelectGrPlFl);
 
+  // notify state change
+  _cmGrPlotObjCb(op, kStateChangeGrPlId, kSelectGrPlFl );
 }
 
 
@@ -914,18 +926,22 @@ void       cmGrPlotObjSetStateFlags( cmGrPlObjH_t oh, unsigned flags )
 
   if( cmIsFlag(flags,kVisibleGrPlFl) != _cmGrPlotObjIsVisible(op) )
   {
-    if( _cmGrPlotObjCb(op, kStateChangeGrPlId, kVisibleGrPlFl ) == false )
+    if( _cmGrPlotObjCb(op, kPreEventCbSelGrPlId, kVisibleGrPlFl ) == false )
       return;
 
     op->cfgFlags = cmTogFlag(op->cfgFlags,kNoDrawGrPlFl);
+
+    _cmGrPlotObjCb(op, kStateChangeGrPlId, kVisibleGrPlFl );
   }
 
   if( cmIsFlag(flags,kEnabledGrPlFl) != _cmGrPlotObjIsEnabled(op) )
   {
-    if( _cmGrPlotObjCb(op, kStateChangeGrPlId, kEnabledGrPlFl ) == false )
+    if( _cmGrPlotObjCb(op, kPreEventCbSelGrPlId, kEnabledGrPlFl ) == false )
       return;
 
     op->stateFlags = cmTogFlag(op->cfgFlags,kEnabledGrPlFl);
+
+    _cmGrPlotObjCb(op, kStateChangeGrPlId, kEnabledGrPlFl );        
   }
 
   bool fl;
