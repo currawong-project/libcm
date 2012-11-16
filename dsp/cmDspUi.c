@@ -361,10 +361,10 @@ cmDspRC_t  cmDspUiLabelCreate(  cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned lbl
   return rc;
 }
 
-cmDspRC_t  cmDspUiTimeLineCreate(   cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned valVarId, unsigned lblVarId )
+cmDspRC_t  cmDspUiTimeLineCreate(   cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned valVarId, unsigned lblVarId, unsigned tlFileVarId, unsigned audPathVarId )
 {
   cmDspRC_t    rc;
-  unsigned     arr[] = { valVarId, lblVarId  };
+  unsigned     arr[] = { valVarId, lblVarId, tlFileVarId, audPathVarId  };
   cmDspValue_t v;
   unsigned     vn    = sizeof(arr)/sizeof(arr[0]);
   cmDsvSetUIntMtx(&v,arr,vn,1);
@@ -379,7 +379,9 @@ cmDspRC_t  cmDspUiTimeLineCreate(   cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned
 
   // Set the kUiDsvFl on the variables used for the min/max/def/val for this scalar
   // Setting this flag will cause their values to be sent to the UI whenever they change.
-  cmDspInstVarSetFlags( ctx, inst, valVarId, kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, valVarId,     kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, tlFileVarId,  kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, audPathVarId, kUiDsvFl );
   return rc;
 }
 

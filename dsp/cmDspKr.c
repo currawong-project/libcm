@@ -230,7 +230,9 @@ struct cmDspClass_str* cmKrClassCons( cmDspCtx_t* ctx )
 enum
 {
   kValTlId,
-  kLblTlId
+  kLblTlId,
+  kTlFileTlId,
+  kAudPathTlId
 };
 
 cmDspClass_t _cmTimeLineDC;
@@ -252,7 +254,7 @@ cmDspInst_t*  _cmDspTimeLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspTimeLine_t* p = cmDspInstAlloc(cmDspTimeLine_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
 
   // create the UI control
-  cmDspUiTimeLineCreate(ctx,&p->inst,kValTlId,kLblTlId);
+  cmDspUiTimeLineCreate(ctx,&p->inst,kValTlId,kLblTlId,kTlFileTlId,kAudPathTlId);
 
   return &p->inst;
 }
