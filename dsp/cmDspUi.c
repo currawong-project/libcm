@@ -361,6 +361,29 @@ cmDspRC_t  cmDspUiLabelCreate(  cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned lbl
   return rc;
 }
 
+cmDspRC_t  cmDspUiTimeLineCreate(   cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned valVarId, unsigned lblVarId )
+{
+  cmDspRC_t    rc;
+  unsigned     arr[] = { valVarId, lblVarId  };
+  cmDspValue_t v;
+  unsigned     vn    = sizeof(arr)/sizeof(arr[0]);
+  cmDsvSetUIntMtx(&v,arr,vn,1);
+
+  // tell the UI to create a time-line control
+  if((rc = _cmDspUiMsg( ctx, kUiSelAsId, kTimeLineDuiId, 0, inst, cmInvalidId, &v )) != kOkDspRC )
+    return cmDspInstErr(ctx,inst,kUiEleCreateFailDspRC,"Time Line UI element create failed.");
+
+  // use instance symbol as default label
+  if((rc = _cmDspUiUseInstSymbolAsLabel(ctx, inst, lblVarId, "TimeLine")) != kOkDspRC )
+    return rc;
+
+  // Set the kUiDsvFl on the variables used for the min/max/def/val for this scalar
+  // Setting this flag will cause their values to be sent to the UI whenever they change.
+  cmDspInstVarSetFlags( ctx, inst, valVarId, kUiDsvFl );
+  return rc;
+}
+
+
 cmDspRC_t  cmDspUiNewColumn(    cmDspCtx_t* ctx, unsigned colW )
 {
   cmDspRC_t rc = kOkDspRC;

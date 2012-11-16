@@ -19,6 +19,7 @@
 #include "cmDspCtx.h"
 #include "cmDspClass.h"
 #include "cmDspFx.h"
+#include "cmDspKr.h"
 #include "cmMsgProtocol.h"
 #include "cmThread.h"
 #include "cmUdpPort.h"
@@ -4990,6 +4991,9 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmPresetClassCons,
   cmBcastSymClassCons,
   cmSegLineClassCons,
+  
+  cmTimeLineClassCons,
+  
   NULL,
 };
 

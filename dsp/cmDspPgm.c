@@ -23,6 +23,7 @@
 #include "cmDspSys.h"
 #include "cmDspPgm.h"
 #include "cmDspPgmPP.h"
+#include "cmDspPgmKr.h"
 
 cmDspRC_t _cmDspSysPgm_Stereo_Through( cmDspSysH_t h, void** userPtrPtr )
 {
@@ -2312,6 +2313,7 @@ cmDspRC_t _cmDspSysPgm_SegLine( cmDspSysH_t h, void** userPtrPtr )
 }
 _cmDspSysPgm_t _cmDspSysPgmArray[] = 
 {
+  { "time_line",     _cmDspSysPgm_TimeLine,     NULL, NULL },
   { "main",          _cmDspSysPgm_Main,         NULL, NULL },
   { "array",         _cmDspSysPgm_Array,        NULL, NULL },
   { "line",          _cmDspSysPgm_Line,         NULL, NULL },
