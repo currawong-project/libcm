@@ -36,16 +36,19 @@
 
 cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 {
-  cmDspRC_t rc = kOkDspRC;
+  cmDspRC_t       rc      = kOkDspRC;
+  const cmChar_t* tlFn    = "/home/kevin/src/cmgv/src/gv/data/tl7.js";
+  const cmChar_t* audPath = "/home/kevin/media/audio/20110723-Kriesberg/Audio Files";
 
-  cmDspInst_t* tlp = cmDspSysAllocInst(h,"TimeLine",   "text",      1, "Hello" );
+  cmDspInst_t* tlp = cmDspSysAllocInst(h,"TimeLine",   "tl",  2, tlFn, audPath );
   cmDspInst_t* prp = cmDspSysAllocInst(h,"Printer", NULL,   1, ">" );
   
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
     return rc;
 
   
-  cmDspSysInstallCb(h, tlp, "val", prp, "in", NULL );
+  cmDspSysInstallCb(h, tlp, "afn", prp, "in", NULL );
+  cmDspSysInstallCb(h, tlp, "sel", prp, "in", NULL );
 
   return rc;
 }

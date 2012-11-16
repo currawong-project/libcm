@@ -24,6 +24,7 @@
 #include "cmOp.h"
 #include "cmMath.h"
 
+
 #include "cmAudioFile.h"
 #include "cmFileSys.h"
 #include "cmProcObj.h"
@@ -32,6 +33,10 @@
 #include "cmMidi.h"
 #include "cmProc2.h"
 #include "cmVectOpsTemplateMain.h"
+
+#include "cmAudioFile.h"
+#include "cmMidiFile.h"
+#include "cmTimeLine.h"
 
 enum
 {
@@ -229,10 +234,12 @@ struct cmDspClass_str* cmKrClassCons( cmDspCtx_t* ctx )
 //==========================================================================================================================================
 enum
 {
-  kValTlId,
-  kLblTlId,
   kTlFileTlId,
-  kAudPathTlId
+  kAudPathTlId,
+  kSelTlId,
+  kAudFnTlId,
+  kBegSmpIdxTlId,
+  kEndSmpIdxTlId
 };
 
 cmDspClass_t _cmTimeLineDC;
@@ -240,29 +247,62 @@ cmDspClass_t _cmTimeLineDC;
 typedef struct
 {
   cmDspInst_t inst;
+  cmTlH_t     tlH;
 } cmDspTimeLine_t;
 
 cmDspInst_t*  _cmDspTimeLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
   cmDspVarArg_t args[] =
   {
-    { "val",  kValTlId,  0, 0, kInDsvFl  | kOutDsvFl    | kStrzDsvFl | kReqArgDsvFl | kSendDfltDsvFl,  "Current string"},
-    { "lbl",  kLblTlId,  0, 0, kStrzDsvFl | kOptArgDsvFl, "Label"},
+    { "tlfile",  kTlFileTlId,    0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl,   "Time line file." },
+    { "path",    kAudPathTlId,   0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl,   "Audio path"    },
+    { "sel",     kSelTlId,       0, 0, kInDsvFl   | kInDsvFl   | kOutDsvFl  | kUIntDsvFl,   "Selected marker id."},
+    { "afn",     kAudFnTlId,     0, 0, kOutDsvFl  | kStrzDsvFl,   "Selected Audio file." },
+    { "bsi",     kBegSmpIdxTlId, 0, 0, kOutDsvFl  | kUIntDsvFl,   "Begin audio sample index."},
+    { "esi",     kEndSmpIdxTlId, 0, 0, kOutDsvFl  | kUIntDsvFl,   "End audio sample index."},
     { NULL, 0, 0, 0, 0 }
   };
 
   cmDspTimeLine_t* p = cmDspInstAlloc(cmDspTimeLine_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+  
+  cmDspSetDefaultUInt(  ctx, &p->inst,  kSelTlId,       0, cmInvalidId);
+  cmDspSetDefaultStrcz( ctx, &p->inst,  kAudFnTlId,     NULL, "");
+  cmDspSetDefaultUInt(  ctx, &p->inst,  kBegSmpIdxTlId, 0, cmInvalidIdx);
+  cmDspSetDefaultUInt(  ctx, &p->inst,  kEndSmpIdxTlId, 0, cmInvalidIdx);
 
   // create the UI control
-  cmDspUiTimeLineCreate(ctx,&p->inst,kValTlId,kLblTlId,kTlFileTlId,kAudPathTlId);
+  cmDspUiTimeLineCreate(ctx,&p->inst,kTlFileTlId,kAudPathTlId,kSelTlId);
+
+  p->tlH = cmTimeLineNullHandle;
 
   return &p->inst;
 }
 
+cmDspRC_t _cmDspTimeLineFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t        rc = kOkDspRC;
+  cmDspTimeLine_t* p = (cmDspTimeLine_t*)inst;
+
+  if( cmTimeLineFinalize(&p->tlH) != kOkTlRC )
+    return cmErrMsg(&inst->classPtr->err, kInstFinalFailDspRC, "Time-line finalize failed.");
+
+  return rc;
+}
+
+
 cmDspRC_t _cmDspTimeLineReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
+  cmDspRC_t        rc = kOkDspRC;
+  cmDspTimeLine_t* p  = (cmDspTimeLine_t*)inst;
+
   cmDspApplyAllDefaults(ctx,inst);
-  return kOkDspRC;
+
+  const cmChar_t* tlFn;
+  if((tlFn =  cmDspStrcz(inst, kTlFileTlId )) !=  NULL )
+    if( cmTimeLineInitializeFromFile(ctx->cmCtx, &p->tlH, NULL, NULL, tlFn ) != kOkTlRC )
+      rc = cmErrMsg(&inst->classPtr->err, kInstResetFailDspRC, "Time-line file open failed.");
+
+  return rc;
 }
 
 cmDspRC_t _cmDspTimeLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
@@ -270,8 +310,9 @@ cmDspRC_t _cmDspTimeLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
   switch( evt->dstVarId )
   {
-    case kValTlId:
+    case kSelTlId:
       cmDspSetEvent(ctx,inst,evt);
+      
       break;
 
     default:
@@ -286,7 +327,7 @@ struct cmDspClass_str* cmTimeLineClassCons( cmDspCtx_t* ctx )
   cmDspClassSetup(&_cmTimeLineDC,ctx,"TimeLine",
     NULL,
     _cmDspTimeLineAlloc,
-    NULL,
+    _cmDspTimeLineFree,
     _cmDspTimeLineReset,
     NULL,
     _cmDspTimeLineRecv,
