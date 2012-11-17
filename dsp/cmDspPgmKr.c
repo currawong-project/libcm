@@ -40,14 +40,29 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   const cmChar_t* tlFn    = "/home/kevin/src/cmgv/src/gv/data/tl7.js";
   const cmChar_t* audPath = "/home/kevin/media/audio/20110723-Kriesberg/Audio Files";
 
-  cmDspInst_t* tlp = cmDspSysAllocInst(h,"TimeLine",   "tl",  2, tlFn, audPath );
+  cmDspInst_t* tlp  = cmDspSysAllocInst(h,"TimeLine",   "tl",  2, tlFn, audPath );
+  cmDspInst_t* php  = cmDspSysAllocInst(h,"Phasor",   NULL,  0 );
+  cmDspInst_t* wtp  = cmDspSysAllocInst(h,"WaveTable",NULL,  2, cmDspSysSampleRate(h), 0 );
+  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 0 );
+  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 1 );
+
+
   cmDspInst_t* prp = cmDspSysAllocInst(h,"Printer", NULL,   1, ">" );
   
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
     return rc;
 
+  cmDspSysConnectAudio(h, php, "out", wtp,  "phs" );   // phs -> wt
+  cmDspSysConnectAudio(h, wtp, "out", ao0p, "in"  );   // wt  -> aout0
+  cmDspSysConnectAudio(h, wtp, "out", ao1p, "in" );    // wt  -> aout1
+
   
   cmDspSysInstallCb(h, tlp, "afn", prp, "in", NULL );
+  cmDspSysInstallCb(h, tlp, "afn", wtp, "fn", NULL );
+  cmDspSysInstallCb(h, tlp, "bsi", wtp, "beg", NULL );
+  cmDspSysInstallCb(h, tlp, "esi", wtp, "end", NULL );
+
+  cmDspSysInstallCb(h, tlp, "mfn", prp, "in", NULL );
   cmDspSysInstallCb(h, tlp, "sel", prp, "in", NULL );
 
   return rc;

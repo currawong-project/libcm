@@ -1534,8 +1534,6 @@ cmDspInst_t*  _cmDspTextAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned 
 
   cmDspText_t* p = cmDspInstAlloc(cmDspText_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
 
-  
-
   // create the UI control
   cmDspUiTextCreate(ctx,&p->inst,kValTxId,kLblTxId);
 
@@ -4993,6 +4991,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmSegLineClassCons,
   
   cmTimeLineClassCons,
+  cmMidiFilePlayClassCons,
   
   NULL,
 };

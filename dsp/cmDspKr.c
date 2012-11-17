@@ -238,6 +238,7 @@ enum
   kAudPathTlId,
   kSelTlId,
   kAudFnTlId,
+  kMidiFnTlId,
   kBegSmpIdxTlId,
   kEndSmpIdxTlId
 };
@@ -258,6 +259,7 @@ cmDspInst_t*  _cmDspTimeLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
     { "path",    kAudPathTlId,   0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl,   "Audio path"    },
     { "sel",     kSelTlId,       0, 0, kInDsvFl   | kInDsvFl   | kOutDsvFl  | kUIntDsvFl,   "Selected marker id."},
     { "afn",     kAudFnTlId,     0, 0, kOutDsvFl  | kStrzDsvFl,   "Selected Audio file." },
+    { "mfn",     kMidiFnTlId,    0, 0, kOutDsvFl  | kStrzDsvFl,   "Selected MIDI file." },
     { "bsi",     kBegSmpIdxTlId, 0, 0, kOutDsvFl  | kUIntDsvFl,   "Begin audio sample index."},
     { "esi",     kEndSmpIdxTlId, 0, 0, kOutDsvFl  | kUIntDsvFl,   "End audio sample index."},
     { NULL, 0, 0, 0, 0 }
@@ -267,6 +269,7 @@ cmDspInst_t*  _cmDspTimeLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   
   cmDspSetDefaultUInt(  ctx, &p->inst,  kSelTlId,       0, cmInvalidId);
   cmDspSetDefaultStrcz( ctx, &p->inst,  kAudFnTlId,     NULL, "");
+  cmDspSetDefaultStrcz( ctx, &p->inst,  kMidiFnTlId,     NULL, "");
   cmDspSetDefaultUInt(  ctx, &p->inst,  kBegSmpIdxTlId, 0, cmInvalidIdx);
   cmDspSetDefaultUInt(  ctx, &p->inst,  kEndSmpIdxTlId, 0, cmInvalidIdx);
 
@@ -307,11 +310,41 @@ cmDspRC_t _cmDspTimeLineReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
 
 cmDspRC_t _cmDspTimeLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
+  cmDspTimeLine_t* p  = (cmDspTimeLine_t*)inst;
 
   switch( evt->dstVarId )
   {
     case kSelTlId:
-      cmDspSetEvent(ctx,inst,evt);
+      {
+        unsigned markerId;
+        cmDspSetEvent(ctx,inst,evt);
+        
+        // get the id of the selected marker
+        if((markerId = cmDspUInt(inst,kSelTlId)) != cmInvalidId )
+        {
+          // get the marker object
+          cmTlObj_t* op;
+          if((op = cmTimeLineIdToObj(p->tlH, cmInvalidId, markerId )) != NULL )
+          {
+            assert(op->typeId == kMarkerTlId);
+
+            cmDspSetUInt(ctx, inst, kBegSmpIdxTlId, op->begSmpIdx );
+            cmDspSetUInt(ctx, inst, kEndSmpIdxTlId, op->begSmpIdx + op->durSmpCnt );
+            
+            // locate the audio file assoc'd with the marker
+            cmTlAudioFile_t* afp;
+            if((afp = cmTimeLineAudioFileAtTime(p->tlH,op->seqId,op->seqSmpIdx)) != NULL)
+              cmDspSetStrcz(ctx, inst, kAudFnTlId, afp->fn );
+
+            // locate the midi file assoc'd with the marker
+            cmTlMidiFile_t* mfp;
+            if((mfp = cmTimeLineMidiFileAtTime(p->tlH,op->seqId,op->seqSmpIdx)) != NULL )
+              cmDspSetStrcz(ctx, inst, kMidiFnTlId, mfp->fn );
+          }
+          
+        }
+        
+      }
       
       break;
 
@@ -337,3 +370,174 @@ struct cmDspClass_str* cmTimeLineClassCons( cmDspCtx_t* ctx )
   return &_cmTimeLineDC;
 }
 
+//==========================================================================================================================================
+
+//
+//
+//  Read files created by this object with the Octave function cmTextFile().
+//
+//
+
+enum
+{
+  kFnMfId,
+  kSelMfId,    
+  kBsiMfId,
+  kEsiMfId,
+  kStatusMfId,
+  kD0MfId,
+  kD1MfId
+};
+
+cmDspClass_t _cmMidiFilePlayDC;
+
+typedef struct
+{
+  cmDspInst_t   inst;
+  cmMidiFileH_t mfH;  
+  unsigned      msgIdx;     // current midi file msg index
+  unsigned      bsi;
+  unsigned      esi;
+  unsigned      startSymId;
+  unsigned      stopSymId;
+  unsigned      contSymId;
+} cmDspMidiFilePlay_t;
+
+/*
+  'bsi' and 'esi' give the starting and ending sample for MIDI file playback.
+  These indexes are relative to the start of the file.
+  When the player recieves a 'start' msg it sets the current sample index
+  'si' to 'bsi' and begins scanning for the next note to play.  
+  On each call to the _cmDspMidiFilePlayExec() msgs that fall in the interval
+  si:si+sPc-1 will be transmitted.  (where sPc are the number of samples per DSP cycle).
+ */
+
+cmDspInst_t*  _cmDspMidiFilePlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  cmDspVarArg_t args[] =
+  {
+    { "fn",     kFnMfId,     0, 0, kInDsvFl  | kStrzDsvFl   | kReqArgDsvFl, "File name"},
+    { "sel",    kSelMfId,    0, 0, kInDsvFl  | kSymDsvFl,  "start | stop | continue" },
+    { "bsi",    kBsiMfId,    0, 0, kInDsvFl  | kUIntDsvFl, "Starting sample." },
+    { "esi",    kEsiMfId,    0, 0, kInDsvFl  | kUIntDsvFl, "Ending sample."},
+    { "status", kStatusMfId, 0, 0, kOutDsvFl | kUIntDsvFl, "Status value output" },
+    { "d0",     kD0MfId,     0, 0, kOutDsvFl | kUIntDsvFl, "Data byte 0" },
+    { "d1",     kD1MfId,     0, 0, kOutDsvFl | kUIntDsvFl, "Data byte 1" },
+    { NULL, 0, 0, 0, 0 }
+  };
+
+  cmDspMidiFilePlay_t* p = cmDspInstAlloc(cmDspMidiFilePlay_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+
+  cmDspSetDefaultUInt(  ctx, &p->inst,  kStatusMfId, 0, 0);
+  cmDspSetDefaultUInt(  ctx, &p->inst,  kD0MfId,     0, 0);
+  cmDspSetDefaultUInt(  ctx, &p->inst,  kD1MfId,     0, 0);
+
+  p->startSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"start");
+  p->stopSymId  = cmSymTblRegisterStaticSymbol(ctx->stH,"stop");
+  p->contSymId  = cmSymTblRegisterStaticSymbol(ctx->stH,"continue");
+  p->mfH        = cmMidiFileNullHandle;
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspMidiFilePlayFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspMidiFilePlay_t* p = (cmDspMidiFilePlay_t*)inst;
+  if( cmMidiFileClose(&p->mfH) )
+    return cmErrMsg(&inst->classPtr->err, kInstFinalFailDspRC, "MIDI file close failed.");
+  return kOkDspRC;
+}
+
+// return the index of the msg following smpIdx
+unsigned _cmDspMidiFilePlaySeekMsgIdx( cmDspCtx_t* ctx, cmDspMidiFilePlay_t* p, unsigned smpIdx )
+{
+  unsigned                 i;
+  unsigned                 n     = cmMidiFileMsgCount(p->mfH);
+  const cmMidiTrackMsg_t** a     = cmMidiFileMsgArray(p->mfH);
+  double                   srate = cmDspSampleRate(ctx);
+
+  for(i=0; i<n; ++i)
+    if( floor(a[i]->dtick*srate) > smpIdx )
+      break;
+
+  return i==n ? cmInvalidIdx : i;
+}
+
+cmDspRC_t _cmDspMidiFilePlayOpen(cmDspCtx_t* ctx, cmDspInst_t* inst )
+{
+  cmDspRC_t        rc = kOkDspRC;
+  const cmChar_t*  fn = cmDspStrcz(inst,kFnMfId);
+  cmDspMidiFilePlay_t* p  = (cmDspMidiFilePlay_t*)inst;
+
+  if( cmMidiFileOpen( fn, &p->mfH, ctx->cmCtx ) != kOkFileRC )
+    rc = cmErrMsg(&inst->classPtr->err, kInstResetFailDspRC, "MIDI file open failed.");
+  else
+  {
+    p->msgIdx    = 0;
+    p->bsi       = cmDspUInt(inst,kBsiMfId);
+    p->esi       = cmDspUInt(inst,kEsiMfId);
+    cmMidiFileTickToMicros(p->mfH);
+  }
+  return rc;
+}
+
+cmDspRC_t _cmDspMidiFilePlayReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspApplyAllDefaults(ctx,inst);
+
+  return _cmDspMidiFilePlayOpen(ctx,inst);
+}
+
+cmDspRC_t _cmDspMidiFilePlayExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t        rc = kOkDspRC;
+  cmDspMidiFilePlay_t* p  = (cmDspMidiFilePlay_t*)inst;
+
+  double   srate = cmDspSampleRate(ctx);
+  unsigned sPc   = cmDspSamplesPerCycle(ctx);
+
+  
+  
+    
+
+  return rc;
+}
+
+cmDspRC_t _cmDspMidiFilePlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{ 
+  cmDspMidiFilePlay_t* p = (cmDspMidiFilePlay_t*)inst;
+  
+  cmDspSetEvent(ctx,inst,evt);
+
+  switch(evt->dstVarId)
+  {
+    case kFnMfId:
+      _cmDspMidiFilePlayOpen(ctx, inst );
+      break;
+
+    case kSelMfId:
+      {
+        if( cmDspSymbol(inst,kSelMfId)==p->startSymId ) 
+        {
+          _cmDspMidiFilePlaySeekMsgIdx(ctx, p, cmDspUInt(inst,kBsiMfId) );
+        }
+        break;
+      }
+  }
+
+  return kOkDspRC;
+}
+
+struct cmDspClass_str* cmMidiFilePlayClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmMidiFilePlayDC,ctx,"MidiFilePlay",
+    NULL,
+    _cmDspMidiFilePlayAlloc,
+    _cmDspMidiFilePlayFree,
+    _cmDspMidiFilePlayReset,
+    _cmDspMidiFilePlayExec,
+    _cmDspMidiFilePlayRecv,
+    NULL,NULL,
+    "Time tagged text file.");
+
+  return &_cmMidiFilePlayDC;
+}
