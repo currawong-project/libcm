@@ -5,168 +5,172 @@
 extern "C" {
 #endif
 
-// MIDI file timing:
-// Messages in the MIDI file are time tagged with a delta offset in 'ticks'
-// from the previous message in the same track.
-// 
-// A 'tick' can be converted to microsends as follows:
-//
-// microsecond per tick = micros per quarter note / ticks per quarter note
-// 
-// MpT = MpQN / TpQN
-// 
-// TpQN is given as a constant in the MIDI file header.
-// MpQN is given as the value of the MIDI file tempo message.
-//
-// See cmMidiFileSeekUSecs() for an example of converting ticks to milliseconds.
-//
-// As part of the file reading process, the status byte of note-on messages 
-// with velocity=0 are is changed to a note-off message. See _cmMidiFileReadChannelMsg().
+  // MIDI file timing:
+  // Messages in the MIDI file are time tagged with a delta offset in 'ticks'
+  // from the previous message in the same track.
+  // 
+  // A 'tick' can be converted to microsends as follows:
+  //
+  // microsecond per tick = micros per quarter note / ticks per quarter note
+  // 
+  // MpT = MpQN / TpQN
+  // 
+  // TpQN is given as a constant in the MIDI file header.
+  // MpQN is given as the value of the MIDI file tempo message.
+  //
+  // See cmMidiFileSeekUSecs() for an example of converting ticks to milliseconds.
+  //
+  // As part of the file reading process, the status byte of note-on messages 
+  // with velocity=0 are is changed to a note-off message. See _cmMidiFileReadChannelMsg().
 
 
 
-typedef cmHandle_t cmMidiFileH_t;
-typedef unsigned   cmMfRC_t;
+  typedef cmHandle_t cmMidiFileH_t;
+  typedef unsigned   cmMfRC_t;
 
-typedef struct
-{
-  cmMidiByte_t hr;
-  cmMidiByte_t min;
-  cmMidiByte_t sec;
-  cmMidiByte_t frm;
-  cmMidiByte_t sfr;
-} cmMidiSmpte_t;
-
-typedef struct
-{
-  cmMidiByte_t num;
-  cmMidiByte_t den;
-  cmMidiByte_t metro;
-  cmMidiByte_t th2s;
-} cmMidiTimeSig_t;
-
-typedef struct
-{
-  cmMidiByte_t key;
-  cmMidiByte_t scale;
-} cmMidiKeySig_t;
-
-typedef struct
-{
-  cmMidiByte_t ch;
-  cmMidiByte_t d0;
-  cmMidiByte_t d1;
-  unsigned     durTicks; // note duration calc'd by 
-} cmMidiChMsg_t;
-
-
-typedef struct cmMidiTrackMsg_str
-{
-  unsigned                   dtick;   // delta ticks
-  cmMidiByte_t               status;  // ch msg's have the channel value removed (it is stored in u.chMsgPtr->ch)
-  cmMidiByte_t               metaId;  //
-  unsigned short             trkIdx;  //  
-  unsigned                   byteCnt; // length of data pointed to by u.voidPtr (or any other pointer in the union)
-  struct cmMidiTrackMsg_str* link;    // link to next record in this track
-
-  union
+  typedef struct
   {
-    cmMidiByte_t           bVal;
-    unsigned               iVal;
-    unsigned short         sVal;
-    const char*            text;
-    const void*            voidPtr;
-    const cmMidiSmpte_t*   smptePtr;
-    const cmMidiTimeSig_t* timeSigPtr;
-    const cmMidiKeySig_t*  keySigPtr;
-    const cmMidiChMsg_t*   chMsgPtr;
-    const cmMidiByte_t*    sysExPtr;
-  } u;
-} cmMidiTrackMsg_t;
+    cmMidiByte_t hr;
+    cmMidiByte_t min;
+    cmMidiByte_t sec;
+    cmMidiByte_t frm;
+    cmMidiByte_t sfr;
+  } cmMidiSmpte_t;
 
-enum
-{
-  kOkMfRC = cmOkRC,  // 0
-  kSysFopenFailMfRC,  // 1
-  kSysFreadFailMfRC,  // 2
-  kSysFseekFailMfRC,  // 3
-  kSysFtellFailMfRC,  // 4
-  kSysFcloseFailMfRC, // 5
-  kNotAMidiFileMfRC,  // 6
-  kMemAllocFailMfRC,  // 7
-  kFileCorruptMfRC,   // 8
-  kMissingEoxMfRC,    // 9 
-  kUnknownMetaIdMfRC, // 10
-  kInvalidHandleMfRC, // 11
-  kMissingNoteOffMfRC, // 12
-  kInvalidStatusMfRC  // 13
-};
+  typedef struct
+  {
+    cmMidiByte_t num;
+    cmMidiByte_t den;
+    cmMidiByte_t metro;
+    cmMidiByte_t th2s;
+  } cmMidiTimeSig_t;
 
-extern cmMidiFileH_t cmMidiFileNullHandle;
+  typedef struct
+  {
+    cmMidiByte_t key;
+    cmMidiByte_t scale;
+  } cmMidiKeySig_t;
 
-cmMfRC_t              cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx );
-cmMfRC_t              cmMidiFileClose( cmMidiFileH_t* hp );
+  typedef struct
+  {
+    cmMidiByte_t ch;
+    cmMidiByte_t d0;
+    cmMidiByte_t d1;
+    unsigned     durTicks; // note duration calc'd by 
+  } cmMidiChMsg_t;
 
-// Returns track count or kInvalidCnt if 'h' is invalid.
-unsigned              cmMidiFileTrackCount( cmMidiFileH_t h );
 
-// Return midi file format id (0,1,2) or kInvalidId if 'h' is invalid.
-unsigned              cmMidiFileType( cmMidiFileH_t h );
+  typedef struct cmMidiTrackMsg_str
+  {
+    unsigned                   dtick;   // delta ticks
+    cmMidiByte_t               status;  // ch msg's have the channel value removed (it is stored in u.chMsgPtr->ch)
+    cmMidiByte_t               metaId;  //
+    unsigned short             trkIdx;  //  
+    unsigned                   byteCnt; // length of data pointed to by u.voidPtr (or any other pointer in the union)
+    struct cmMidiTrackMsg_str* link;    // link to next record in this track
 
-// Returns ticks per quarter note or kInvalidMidiByte if 'h' is invalid or 0 if file uses SMPTE ticks per frame time base.
-unsigned              cmMidiFileTicksPerQN( cmMidiFileH_t h );
+    union
+    {
+      cmMidiByte_t           bVal;
+      unsigned               iVal;
+      unsigned short         sVal;
+      const char*            text;
+      const void*            voidPtr;
+      const cmMidiSmpte_t*   smptePtr;
+      const cmMidiTimeSig_t* timeSigPtr;
+      const cmMidiKeySig_t*  keySigPtr;
+      const cmMidiChMsg_t*   chMsgPtr;
+      const cmMidiByte_t*    sysExPtr;
+    } u;
+  } cmMidiTrackMsg_t;
 
-// The file name used in an earlier call to midiFileOpen() or NULL if this 
-// midi file did not originate from an actual file.
-const char*           cmMidiFileName( cmMidiFileH_t h );
+  enum
+  {
+    kOkMfRC = cmOkRC,  // 0
+    kSysFopenFailMfRC,  // 1
+    kSysFreadFailMfRC,  // 2
+    kSysFseekFailMfRC,  // 3
+    kSysFtellFailMfRC,  // 4
+    kSysFcloseFailMfRC, // 5
+    kNotAMidiFileMfRC,  // 6
+    kMemAllocFailMfRC,  // 7
+    kFileCorruptMfRC,   // 8
+    kMissingEoxMfRC,    // 9 
+    kUnknownMetaIdMfRC, // 10
+    kInvalidHandleMfRC, // 11
+    kMissingNoteOffMfRC, // 12
+    kInvalidStatusMfRC  // 13
+  };
 
-// Returns SMPTE ticks per frame or kInvalidMidiByte if 'h' is invalid or 0 if file uses ticks per quarter note time base.
-cmMidiByte_t          cmMidiFileTicksPerSmpteFrame( cmMidiFileH_t h );
+  extern cmMidiFileH_t cmMidiFileNullHandle;
 
-// Returns SMPTE format or kInvalidMidiByte if 'h' is invalid or 0 if file uses ticks per quarter note time base.
-cmMidiByte_t          cmMidiFileSmpteFormatId( cmMidiFileH_t h );
+  cmMfRC_t              cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx );
+  cmMfRC_t              cmMidiFileClose( cmMidiFileH_t* hp );
 
-// Returns count of records in track 'trackIdx' or kInvalidCnt if 'h' is invalid.
-unsigned              cmMidiFileTrackMsgCount( cmMidiFileH_t h, unsigned trackIdx );
+  // Returns track count or kInvalidCnt if 'h' is invalid.
+  unsigned              cmMidiFileTrackCount( cmMidiFileH_t h );
 
-// Returns base of record chain from track 'trackIdx' or NULL if 'h' is invalid.
-const cmMidiTrackMsg_t* cmMidiFileTrackMsg( cmMidiFileH_t h, unsigned trackIdx );
+  // Return midi file format id (0,1,2) or kInvalidId if 'h' is invalid.
+  unsigned              cmMidiFileType( cmMidiFileH_t h );
 
-// Returns the total count of records in the midi file and the number in the array returned by cmMidiFileMsgArray().
-// Return kInvalidCnt if 'h' is invalid.
-unsigned              cmMidiFileMsgCount( cmMidiFileH_t h );
+  // Returns ticks per quarter note or kInvalidMidiByte if 'h' is invalid or 0 if file uses SMPTE ticks per frame time base.
+  unsigned              cmMidiFileTicksPerQN( cmMidiFileH_t h );
 
-// Returns a pointer to the base of an array of pointers to each record in the file sorted in ascending time order.
-// Returns NULL if 'h' is invalid.
-const cmMidiTrackMsg_t** cmMidiFileMsgArray( cmMidiFileH_t h );
+  // The file name used in an earlier call to midiFileOpen() or NULL if this 
+  // midi file did not originate from an actual file.
+  const char*           cmMidiFileName( cmMidiFileH_t h );
 
-// Return a pointer to the first msg at or after 'usecsOffs' or kInvalidIdx if no
-// msg exists after 'usecsOffs'.  Note that 'usecOffs' is an offset from the beginning
-// of the file.
-// On return *'msgUsecsPtr' is set to the actual time of the msg. 
-// (which will be equal to or greater than 'usecsOffs').
-unsigned              cmMidiFileSeekUsecs( cmMidiFileH_t h, unsigned usecsOffs, unsigned* msgUsecsPtr, unsigned* newMicrosPerTickPtr );
+  // Returns SMPTE ticks per frame or kInvalidMidiByte if 'h' is invalid or 0 if file uses ticks per quarter note time base.
+  cmMidiByte_t          cmMidiFileTicksPerSmpteFrame( cmMidiFileH_t h );
 
-double                cmMidiFileDurSecs( cmMidiFileH_t h );
+  // Returns SMPTE format or kInvalidMidiByte if 'h' is invalid or 0 if file uses ticks per quarter note time base.
+  cmMidiByte_t          cmMidiFileSmpteFormatId( cmMidiFileH_t h );
 
-// Convert the track message 'dtick' field to delta-microseconds.
-void                  cmMidiFileTickToMicros( cmMidiFileH_t h );
+  // Returns count of records in track 'trackIdx' or kInvalidCnt if 'h' is invalid.
+  unsigned              cmMidiFileTrackMsgCount( cmMidiFileH_t h, unsigned trackIdx );
 
-// Calculate Note Duration 
-void                  cmMidiFileCalcNoteDurations( cmMidiFileH_t h );
+  // Returns base of record chain from track 'trackIdx' or NULL if 'h' is invalid.
+  const cmMidiTrackMsg_t* cmMidiFileTrackMsg( cmMidiFileH_t h, unsigned trackIdx );
 
-// Set the delay prior to the first non-zero msg.
-void                  cmMidiFileSetDelay( cmMidiFileH_t h, unsigned ticks );
+  // Returns the total count of records in the midi file and the number in the array returned by cmMidiFileMsgArray().
+  // Return kInvalidCnt if 'h' is invalid.
+  unsigned              cmMidiFileMsgCount( cmMidiFileH_t h );
 
-// This function packs a track msg into a single  consecutive 
-// block of memory buf[ bufByteCnt ]. Call cmMidiFilePackTracMsgBufByteCount()
-// to get the required buffer length for any given cmMidiTrackMsg_t instance.
-cmMidiTrackMsg_t*     cmMidiFilePackTrackMsg( const cmMidiTrackMsg_t* m, void* buf, unsigned bufByteCnt );
-unsigned              cmMidiFilePackTrackMsgBufByteCount( const cmMidiTrackMsg_t* m );
+  // Returns a pointer to the base of an array of pointers to each record in the file sorted in ascending time order.
+  // Returns NULL if 'h' is invalid.
+  const cmMidiTrackMsg_t** cmMidiFileMsgArray( cmMidiFileH_t h );
 
-void                  cmMidiFilePrint( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt );
-bool                  cmMidiFileIsNull( cmMidiFileH_t h );
-void                  cmMidiFileTest( const char* fn, cmCtx_t* ctx );
+  // Return a pointer to the first msg at or after 'usecsOffs' or kInvalidIdx if no
+  // msg exists after 'usecsOffs'.  Note that 'usecOffs' is an offset from the beginning
+  // of the file.
+  // On return *'msgUsecsPtr' is set to the actual time of the msg. 
+  // (which will be equal to or greater than 'usecsOffs').
+  unsigned              cmMidiFileSeekUsecs( cmMidiFileH_t h, unsigned usecsOffs, unsigned* msgUsecsPtr, unsigned* newMicrosPerTickPtr );
+
+  double                cmMidiFileDurSecs( cmMidiFileH_t h );
+
+  // Convert the track message 'dtick' field to delta-microseconds.
+  void                  cmMidiFileTickToMicros( cmMidiFileH_t h );
+
+  // Convert the track message 'dtick' field to samples.
+  // If the absFl is set then the delta times are converted to absolute time.
+  void                  cmMidiFileTickToSamples( cmMidiFileH_t h, double srate, bool absFl );
+
+  // Calculate Note Duration 
+  void                  cmMidiFileCalcNoteDurations( cmMidiFileH_t h );
+
+  // Set the delay prior to the first non-zero msg.
+  void                  cmMidiFileSetDelay( cmMidiFileH_t h, unsigned ticks );
+
+  // This function packs a track msg into a single  consecutive 
+  // block of memory buf[ bufByteCnt ]. Call cmMidiFilePackTracMsgBufByteCount()
+  // to get the required buffer length for any given cmMidiTrackMsg_t instance.
+  cmMidiTrackMsg_t*     cmMidiFilePackTrackMsg( const cmMidiTrackMsg_t* m, void* buf, unsigned bufByteCnt );
+  unsigned              cmMidiFilePackTrackMsgBufByteCount( const cmMidiTrackMsg_t* m );
+
+  void                  cmMidiFilePrint( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt );
+  bool                  cmMidiFileIsNull( cmMidiFileH_t h );
+  void                  cmMidiFileTest( const char* fn, cmCtx_t* ctx );
 
 #ifdef __cplusplus
 }
