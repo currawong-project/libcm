@@ -111,6 +111,9 @@ extern "C" {
   bool            cmTimeLineIsValid( cmTlH_t h );
   double          cmTimeLineSampleRate( cmTlH_t h );
 
+  // Convert global (sequence) time to a time relative to an object.
+  int             cmTimeLineSeqToLocalSampleIndex( int seqSmpIdx, cmTlObj_t* localObjPtr );
+
   // Given cmTlObj_t.uid return a pointer to the associated record.
   // seqId is optional (dflt:cmInvalidId)
   cmTlObj_t*      cmTimeLineIdToObj( cmTlH_t h, unsigned seqId, unsigned uid );
@@ -152,6 +155,12 @@ extern "C" {
   cmTlMidiFile_t*  cmTimeLineFindMidiFile(  cmTlH_t h, const cmChar_t* fn );
 
   
+  cmTlAudioFile_t* cmTimeLineAudioFileAtTime( cmTlH_t h, unsigned seqId, unsigned seqSmpIdx );
+  cmTlMidiFile_t*  cmTimeLineMidiFileAtTime(  cmTlH_t h, unsigned seqId, unsigned seqSmpIdx );
+  cmTlMidiEvt_t*   cmTimeLineMidiEvtAtTime(   cmTlH_t h, unsigned seqId, unsigned seqSmpIdx );
+  cmTlMarker_t*    cmTimeLineMarkerAtTime(    cmTlH_t h, unsigned seqId, unsigned seqSmpIdx );
+
+
   cmTlAudioFile_t* cmTimeLineAudioFileAtTime( cmTlH_t h, unsigned seqId, unsigned seqSmpIdx );
   cmTlMidiFile_t*  cmTimeLineMidiFileAtTime(  cmTlH_t h, unsigned seqId, unsigned seqSmpIdx );
   cmTlMidiEvt_t*   cmTimeLineMidiEvtAtTime(   cmTlH_t h, unsigned seqId, unsigned seqSmpIdx );

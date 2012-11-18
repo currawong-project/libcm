@@ -796,6 +796,30 @@ void cmMidiFileTickToMicros( cmMidiFileH_t h )
   
 }
 
+void cmMidiFileTickToSamples( cmMidiFileH_t h, double srate, bool absFl )
+{
+  _cmMidiFile_t* p;
+  unsigned mi;
+  //bool fl = true;
+
+  if((p = _cmMidiFileHandleToPtr(h)) == NULL )
+    return;
+
+  cmMidiFileTickToMicros(h);
+
+  unsigned absSmp = 0;
+
+  for(mi=0; mi<p->msgN; ++mi)
+  {
+    cmMidiTrackMsg_t* mp    = p->msgV[mi];
+    unsigned          delta = floor((mp->dtick*srate)/1000000.0);
+
+    mp->dtick  = absFl ? absSmp : delta;
+
+    absSmp    += delta;    
+  }
+}
+
 typedef struct _cmMidiVoice_str
 {
   const  cmMidiTrackMsg_t*  mp;
