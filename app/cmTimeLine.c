@@ -635,9 +635,9 @@ cmTlRC_t _cmTlProcMidiFile( _cmTl_t* p,  _cmTlObj_t* op, cmMidiFileH_t mfH )
   unsigned                 mn           = cmMidiFileMsgCount(mfH);
   const cmMidiTrackMsg_t** mapp         = cmMidiFileMsgArray(mfH);
   unsigned                 mi           = 0;
-  double                   accum = 0; 
+  //double                   accum = 0; 
   _cmTlObj_t*              refOp        = op;
-  bool                     fl           = false;
+  //bool                     fl           = false;
   unsigned                 dtick        = 0;
   mfp->noteOnCnt = 0;
   
@@ -649,16 +649,16 @@ cmTlRC_t _cmTlProcMidiFile( _cmTl_t* p,  _cmTlObj_t* op, cmMidiFileH_t mfH )
 
     dtick = mp->dtick;
 
-    if( fl )
-    {
-      dtick = 0;
-      fl =  mp->dtick == 0;        
-    }
+    //if( fl )
+    //{
+    //  dtick = 0;
+    //  fl =  mp->dtick == 0;        
+    //}
       
-    accum += dtick * p->srate / 1000000;
+    //accum += dtick * p->srate / 1000000;
 
     //int      begSmpIdx         = floor(accum_micros * p->srate / 1000000);
-    int      begSmpIdx         = floor( dtick * p->srate / 1000000 );
+    int      begSmpIdx         = dtick; //floor( dtick * p->srate / 1000000.0 );
     int      durSmpCnt         = 0;
     unsigned midiTrkMsgByteCnt = cmMidiFilePackTrackMsgBufByteCount( mp );
     unsigned recdByteCnt       = sizeof(cmTlMidiEvt_t) + midiTrkMsgByteCnt;
@@ -669,7 +669,8 @@ cmTlRC_t _cmTlProcMidiFile( _cmTl_t* p,  _cmTlObj_t* op, cmMidiFileH_t mfH )
     // count the note-on messages
     if( mp->status == kNoteOnMdId )
     {
-      durSmpCnt = floor(mp->u.chMsgPtr->durTicks * p->srate  / 1000000 );
+      //durSmpCnt = floor(mp->u.chMsgPtr->durTicks * p->srate  / 1000000.0 );
+      durSmpCnt = mp->u.chMsgPtr->durTicks;
       ++mfp->noteOnCnt;
     }
 
@@ -727,7 +728,7 @@ cmTlRC_t _cmTlAllocMidiFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
   unsigned durSmpCnt = floor(cmMidiFileDurSecs(mfH)*p->srate);
 
   // convert the midi file from ticks to microseconds
-  cmMidiFileTickToMicros(mfH);
+  cmMidiFileTickToSamples(mfH,p->srate,false);
 
   // assign note durations to all note-on msg's
   cmMidiFileCalcNoteDurations(mfH);
@@ -955,6 +956,11 @@ double cmTimeLineSampleRate( cmTlH_t h )
 {
   _cmTl_t* p = _cmTlHandleToPtr(h);
   return p->srate;
+}
+
+int cmTimeLineSeqToLocalSampleIndex( int seqSmpIdx, cmTlObj_t* localObjPtr )
+{
+  return seqSmpIdx - localObjPtr->seqSmpIdx;
 }
 
 cmTlObj_t* _cmTimeLineIdToObj( _cmTl_t* p, unsigned seqId, unsigned id )

@@ -111,6 +111,9 @@ extern "C" {
   bool            cmTimeLineIsValid( cmTlH_t h );
   double          cmTimeLineSampleRate( cmTlH_t h );
 
+  // Convert global (sequence) time to a time relative to an object.
+  int             cmTimeLineSeqToLocalSampleIndex( int seqSmpIdx, cmTlObj_t* localObjPtr );
+
   // Given cmTlObj_t.uid return a pointer to the associated record.
   // seqId is optional (dflt:cmInvalidId)
   cmTlObj_t*      cmTimeLineIdToObj( cmTlH_t h, unsigned seqId, unsigned uid );
