@@ -686,11 +686,13 @@ cmDspRC_t _cmDspScFolRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
     switch( evt->dstVarId )
     {
       case kIndexSfId:
-        if( cmScFolReset( p->sfp, cmDspUInt(inst,kIndexSfId) ) != cmOkRC )
-          cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Score follower reset to score index '%i' failed.");
+        if( cmScoreIsValid(p->scH) )
+          if( cmScFolReset( p->sfp, cmDspUInt(inst,kIndexSfId) ) != cmOkRC )
+            cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Score follower reset to score index '%i' failed.");
         break;
 
       case kStatusSfId:
+        if( cmScoreIsValid(p->scH))
         {
           unsigned idx = cmScFolExec(p->sfp, ctx->cycleCnt, cmDspUInt(inst,kStatusSfId), cmDspUInt(inst,kD0SfId), cmDspUInt(inst,kD1SfId));
           if( idx != cmInvalidIdx )

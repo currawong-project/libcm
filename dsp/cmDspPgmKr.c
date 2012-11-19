@@ -39,7 +39,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspRC_t       rc      = kOkDspRC;
   const cmChar_t* tlFn    = "/home/kevin/src/cmgv/src/gv/data/tl7.js";
   const cmChar_t* audPath = "/home/kevin/media/audio/20110723-Kriesberg/Audio Files";
-  const cmChar_t* scFn    = "/home/kevin/src/cmgv/src/gv/data/mod2.csv";
+  const cmChar_t* scFn    = "/home/kevin/src/cmgv/src/gv/data/mod2b.txt";
 
   cmDspInst_t* sci =  cmDspSysAllocInst(h,"Scalar", "ScIdx",  5, kNumberDuiId, 0.0,  10000.0, 1.0,  0.0);
 
