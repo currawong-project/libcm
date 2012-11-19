@@ -4992,7 +4992,8 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   
   cmTimeLineClassCons,
   cmMidiFilePlayClassCons,
-  
+  cmScFolClassCons,
+
   NULL,
 };
 

@@ -25,11 +25,11 @@
 
 
 
-cmScFol* cmScFolAlloc( cmCtx* c, cmScFol* p, cmReal_t srate, unsigned wndN, cmReal_t wndMs, cmScH_t scH )
+cmScFol* cmScFolAlloc( cmCtx* c, cmScFol* p, cmReal_t srate, unsigned bufN, cmReal_t wndMs, cmScH_t scH )
 {
   cmScFol* op = cmObjAlloc(cmScFol,c,p);
   if( srate != 0 )
-    if( cmScFolInit(op,srate,wndN,wndMs,scH) != cmOkRC )
+    if( cmScFolInit(op,srate,bufN,wndMs,scH) != cmOkRC )
       cmScFolFree(&op);
   return op;
 }
@@ -62,14 +62,14 @@ void _cmScFolPrint( cmScFol* p )
   int i,j;
   for(i=0; i<p->locN; ++i)
   {
-    printf("%2i %5i ",p->loc[i].barNumb,p->loc[i].evtIdx);
+    printf("%2i %5i ",p->loc[i].barNumb,p->loc[i].scIdx);
     for(j=0; j<p->loc[i].pitchCnt; ++j)
       printf("%s ",cmMidiToSciPitch(p->loc[i].pitchV[j],NULL,0));
     printf("\n");
   }
 }
 
-cmRC_t   cmScFolInit(  cmScFol* p, cmReal_t srate, unsigned wndN, cmReal_t wndMs, cmScH_t scH )
+cmRC_t   cmScFolInit(  cmScFol* p, cmReal_t srate, unsigned bufN, cmReal_t wndMs, cmScH_t scH )
 {
   cmRC_t rc;
   if((rc = cmScFolFinal(p)) != cmOkRC )
@@ -77,22 +77,19 @@ cmRC_t   cmScFolInit(  cmScFol* p, cmReal_t srate, unsigned wndN, cmReal_t wndMs
 
   p->srate          = srate;
   p->scH            = scH;
-  p->maxWndSmp      = floor(wndMs * srate / 1000.0);
-  p->wndN           = wndN;
-  p->wndV           = cmMemResizeZ(cmScFolWndEle_t,p->wndV,wndN);
+  p->bufN           = bufN;
+  p->bufV           = cmMemResizeZ(cmScFolBufEle_t,p->bufV,bufN);
   p->locN           = cmScoreEvtCount(scH);
   p->loc            = cmMemResizeZ(cmScFolLoc_t,p->loc,p->locN);
-  p->sri            = cmInvalidIdx;
   p->sbi            = cmInvalidIdx;
   p->sei            = cmInvalidIdx;
-  p->edWndMtx       = cmVOU_LevEditDistAllocMtx(p->wndN);
-  p->evalWndN       = 5;
-  p->allowedMissCnt = 1;
+  p->msln           = 7;
+  p->mswn           = 30;
+  p->edWndMtx       = cmVOU_LevEditDistAllocMtx(p->bufN);
 
-  assert(p->evalWndN<p->wndN);
 
   int i,n;
-  double        maxDSecs = 0;   // max time between events to be considered simultaneous
+  double        maxDSecs = 0;   // max time between score entries to be considered simultaneous
   cmScoreEvt_t* e0p      = NULL;
   int           j0       = 0;
 
@@ -106,7 +103,7 @@ cmRC_t   cmScFolInit(  cmScFol* p, cmReal_t srate, unsigned wndN, cmReal_t wndMs
     {
       assert( j0+n < p->locN );
 
-      p->loc[j0+n].evtIdx  = i;
+      p->loc[j0+n].scIdx  = i;
       p->loc[j0+n].barNumb = ep->barNumb;
 
       // if the first event has not yet been selected
@@ -141,7 +138,7 @@ cmRC_t   cmScFolInit(  cmScFol* p, cmReal_t srate, unsigned wndN, cmReal_t wndMs
 
             for(m=0; m<n; ++m)
             {
-              cmScoreEvt_t* tp = cmScoreEvt(scH,p->loc[j0+m].evtIdx);
+              cmScoreEvt_t* tp = cmScoreEvt(scH,p->loc[j0+m].scIdx);
               assert(tp!=NULL);
               p->loc[j0+k].pitchV[m] = tp->pitch;
             }
@@ -166,43 +163,34 @@ cmRC_t   cmScFolReset(   cmScFol* p, unsigned scoreIndex )
 {
   int i;
 
-  // zero the event index
-  memset(p->wndV,0,sizeof(cmScFolWndEle_t)*p->wndN);
+
+  // empty the event buffer
+  memset(p->bufV,0,sizeof(cmScFolBufEle_t)*p->bufN);
 
   // don't allow the score index to be prior to the first note
-  if( scoreIndex < p->loc[0].evtIdx )
-    scoreIndex = p->loc[0].evtIdx;
+  if( scoreIndex < p->loc[0].scIdx )
+    scoreIndex = p->loc[0].scIdx;
+
+  p->sei = cmInvalidIdx;
+  p->sbi = cmInvalidIdx;
 
   // locate the score element in svV[] that is closest to,
   // and possibly after, scoreIndex.
   for(i=0; i<p->locN-1; ++i)
-    if( p->loc[i].evtIdx <= scoreIndex && scoreIndex < p->loc[i+1].evtIdx  )
-      break;
-
-  // force scEvtIndex to be valid
-  assert( i<p->locN );
-
-  p->sri = i;
-  p->sbi = i;
-
-  // score event window is dBar bars before and after scEvtIndex;
-  int dBar = 1;
-
-  // backup dBar bars from the 'scoreIndex'
-  for(; i>=0; --i)
-    if( p->loc[i].barNumb >= (p->loc[p->sri].barNumb-dBar) ) 
+    if( p->loc[i].scIdx <= scoreIndex && scoreIndex < p->loc[i+1].scIdx  )
+    {
       p->sbi = i;
-    else
       break;
-  
-  dBar = 3;
+    }
 
-  // move forward dBar bars from 'scoreIndex'
-  for(i=p->sri; i<p->locN; ++i)
-    if( p->loc[i].barNumb <= (p->loc[p->sri].barNumb+dBar) )
+  // locate the score element at the end of the look-ahead region
+  for(; i<p->locN-1; ++i)
+    if( p->loc[i].scIdx <= scoreIndex + p->msln && scoreIndex + p->msln < p->loc[i+1].scIdx )
+    {
       p->sei = i;
-    else
       break;
+    }
+
 
   return cmOkRC;
 }
@@ -244,7 +232,7 @@ int _cmScFolDist(unsigned mtxMaxN, unsigned* m, const unsigned* s1, const cmScFo
   return v;		
 }
 
-
+/*
 unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
 {
   assert( p->sri != cmInvalidIdx );
@@ -266,7 +254,8 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
   int en = 0;
   for(; i>=0; --i,++en)
   {
-    if( p->wndV[i].validFl /*&& ((smpIdx-p->wnd[i].smpIdx)<=maxWndSmp)*/)
+    //if( p->wndV[i].validFl && ((smpIdx-p->wnd[i].smpIdx)<=maxWndSmp))
+    if( p->wndV[i].validFl )
       ewnd[i] = p->wndV[i].val;
     else
       break;
@@ -306,7 +295,8 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
   
   // a successful match has <= allowedMissCnt and an exact match on the last element  
   //if( dist <= p->allowedMissCnt && ewnd[p->wndN-1] == p->loc[p->sbi+minIdx+en-1] )
-  if( /*dist <= p->allowedMissCnt &&*/ _cmScFolIsMatch(p->loc+(p->sbi+minIdx+en-1),ewnd[p->wndN-1]))
+  //if( dist <= p->allowedMissCnt && _cmScFolIsMatch(p->loc+(p->sbi+minIdx+en-1),ewnd[p->wndN-1]))
+  if(  _cmScFolIsMatch(p->loc+(p->sbi+minIdx+en-1),ewnd[p->wndN-1]))
   {
     p->sbi  = p->sbi + minIdx;
     p->sei  = cmMin(p->sei+minIdx,p->locN-1);
@@ -315,5 +305,98 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
 
   printf("minDist:%i minIdx:%i evalDist:%i sbi:%i sei:%i\n",minDist,minIdx,dist,p->sbi,p->sei);
 
+  return ret_idx;
+}
+*/
+
+unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
+{
+
+  unsigned ret_idx = cmInvalidIdx;
+  unsigned ebuf[ p->bufN ];
+
+  if( status != kNoteOnMdId && d1>0 )
+    return ret_idx;
+
+  // left shift bufV[] to make the right-most element available - then copy in the new element
+  memmove(p->bufV, p->bufV+1, sizeof(cmScFolBufEle_t)*(p->bufN-1));
+  p->bufV[ p->bufN-1 ].smpIdx = smpIdx;
+  p->bufV[ p->bufN-1 ].val    = d0;
+  p->bufV[ p->bufN-1 ].validFl= true;
+
+  // fill in ebuf[] with the valid values in bufV[]
+  int i = p->bufN-1;
+  int en = 0;
+  for(; i>=0; --i,++en)
+  {
+    if( p->bufV[i].validFl)
+      ebuf[i] = p->bufV[i].val;
+    else
+      break;
+  }
+  ++i;  // increment i to the first valid element in ebuf[].
+
+
+  // en is the count of valid elements in ebuf[].
+  // ebuf[p->boi] is the first valid element
+
+  int    j       = 0;
+  int    minDist = INT_MAX;
+  int    minIdx  = cmInvalidIdx;
+  int    dist;
+
+  // the score wnd must always be as long as the buffer n
+  // at the end of the score this may not be the case 
+  // (once sei hits locN - at this point we must begin
+  // shrinking ewnd[] to contain only the last p->sei-p->sbi+1 elements)
+  assert( p->sei-p->sbi+1 >= en );
+
+  for(j=0; p->sbi+en+j <= p->sei; ++j)
+    if((dist = _cmScFolDist(p->bufN, p->edWndMtx, ebuf+i, p->loc + p->sbi+j, en )) < minDist )
+    {
+      minDist = dist;
+      minIdx  = j;
+    }
+
+  // The best fit is on the score window: p->loc[sbi+minIdx : sbi+minIdx+en-1 ]
+
+  // if a perfect match occurred
+  if( minDist == 0 )
+  {
+    // we had a perfect match - shrink the window to it's minumum size
+    p->sbi += (en==p->bufN) ? minIdx + 1 : 0;  // move wnd begin forward to just past first match
+    p->sei  = p->sbi + minIdx + en + p->msln;  // move wnd end forward to just past last match
+    ret_idx = p->sbi + minIdx + en - 1;       
+    // BUG BUG BUG - is the window length valid - 
+    //  - sbi and sei must be inside 0:locN
+    //  - sei-sbi + 1 must be >= en
+  }
+  else
+  {
+    // if the last event matched - then return the match location as the current score location
+    if( _cmScFolIsMatch(p->loc+(p->sbi+minIdx+en-1),ebuf[p->bufN-1]) )
+      ret_idx = p->sbi + minIdx + en - 1;
+
+    // even though we didn't match move the end of the score window forward
+    // this will enlarge the score window by one
+     p->sei += 1;
+
+    assert( p->sei > p->sbi );
+
+    // if the score window length surpasses the max score window size 
+    // move the beginning index forward 
+    if( p->sei - p->sbi + 1 > p->mswn && p->sei > p->mswn )
+      p->sbi = p->sei - p->mswn + 1;
+
+    // BUG BUG BUG - is the window length valid - 
+    //  - sbi and sei must be inside 0:locN
+    //  - sei-sbi + 1 must be >= en
+
+  }
+
+  // BUG BUG BUG - this is not currently guarded against
+  assert( p->sei < p->locN );
+  assert( p->sbi < p->locN );
+    
   return ret_idx;
 }
