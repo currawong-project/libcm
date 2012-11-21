@@ -55,7 +55,7 @@ extern "C" {
   cmGrVwH_t cmGrPageFocusedView( cmGrPgH_t h );
 
   // 
-  void      cmGrPageLayout( cmGrPgH_t h, cmGrDcH_t dcH );
+  bool      cmGrPageLayout( cmGrPgH_t h, cmGrDcH_t dcH );
 
   // Draw the page.
   void      cmGrPageDraw( cmGrPgH_t h, cmGrDcH_t dcH );

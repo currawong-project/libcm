@@ -261,8 +261,6 @@ void _cmGrPageCallback( void* arg, cmGrH_t grH, cmGrCbId_t id, unsigned eventFla
     default:
       { assert(0); }
   }
-
-
 } 
 
 
@@ -293,7 +291,6 @@ cmGrRC_t cmGrPageDestroy( cmGrPgH_t* hp )
     return kOkGrRC;
 
   cmGrPg_t* p = _cmGrPgHandleToPtr(*hp);
-
 
   if((rc = _cmGrPgDestroy(p)) != kOkGrRC )
     return rc;
@@ -418,7 +415,7 @@ void _cmGrPgLayoutView( cmGrPg_t* p, cmGrPgVw_t* vp, cmGrDcH_t dcH )
   
 
   // Create a negative string with a repeating decimal to simulate an arbitrary hash label
-  // Use the measurements pgom this string to compute the geometry of the view layouts.
+  // Use the measurements from this string to compute the geometry of the view layouts.
   char label[ kHashCharCnt + 1];
   snprintf(label,kHashCharCnt,"%f",-4.0/3.0); 
   label[kHashCharCnt] = 0;
@@ -635,23 +632,25 @@ void _cmGrPgLayoutView( cmGrPg_t* p, cmGrPgVw_t* vp, cmGrDcH_t dcH )
 
 }
 
-void  _cmGrPageLayout( cmGrPg_t* p, cmGrDcH_t dcH )
+bool  _cmGrPageLayout( cmGrPg_t* p, cmGrDcH_t dcH )
 {
   unsigned  i;
 
   if( cmIsNotFlag(p->flags,kDirtyFl) )
-    return;
+    return false;
 
   cmGrDcSetFontFamily(dcH,kHelveticaFfGrId);
   cmGrDcSetFontSize(dcH,10);
 
   // Create a negative string with a repeating decimal to simulate an arbitrary hash label
   // Use the measurements pgom this string to compute the geometry of the view layouts.
+  /*
   char label[ kHashCharCnt + 1];
   cmGrPSz_t sz;
   snprintf(label,kHashCharCnt,"%f",-4.0/3.0); 
   label[kHashCharCnt] = 0;
   cmGrDcMeasure(dcH,label,&sz);
+  */
 
   _cmGrPgLayoutVwPosition(p);
 
@@ -663,10 +662,13 @@ void  _cmGrPageLayout( cmGrPg_t* p, cmGrDcH_t dcH )
   }
 
   p->flags = cmClrFlag(p->flags,kDirtyFl);
+
+  return true;
 }
 
 cmGrRC_t cmGrPageInit( cmGrPgH_t h, const cmGrPExt_t* r, unsigned rn, unsigned cn, cmGrDcH_t dcH  )
 {
+  cmGrRC_t rc = kOkGrRC;
   cmGrPg_t* p = _cmGrPgHandleToPtr(h);
   unsigned i;
 
@@ -730,7 +732,7 @@ cmGrRC_t cmGrPageInit( cmGrPgH_t h, const cmGrPExt_t* r, unsigned rn, unsigned c
     p->flags = cmSetFlag(p->flags,kDirtyFl);
 
     // layout the page
-    _cmGrPageLayout(p, dcH );
+    // kpl _cmGrPageLayout(p, dcH );
 
     // notify the application that views have been created
     for(i=0; i<rn*cn; ++i)
@@ -739,14 +741,11 @@ cmGrRC_t cmGrPageInit( cmGrPgH_t h, const cmGrPExt_t* r, unsigned rn, unsigned c
       
       // Set the 'id' assoc'd with this views cmGrH_t handle to 'i'. 
       // This will allow the grH to return the index of the plot.
-      if( cmGrCreate(&p->ctx,&vp->grH,i,kExpandViewGrFl,_cmGrPageCallback,p,NULL) == kOkGrRC )
-      {
-        //if( p->rspdr != NULL )
-        //  p->rspdr->on_view_create( p->rspdrArg, i );
-      }
+      if((rc = cmGrCreate(&p->ctx,&vp->grH,i,kExpandViewGrFl,_cmGrPageCallback,p,NULL)) != kOkGrRC )
+        break;
     }
   }    
-  return kOkGrRC;
+  return rc;
 }
 
 
@@ -760,7 +759,7 @@ cmGrRC_t cmGrPageResize( cmGrPgH_t h, const cmGrPExt_t* r, cmGrDcH_t dcH )
   p->flags = cmSetFlag(p->flags,kDirtyFl);
 
   // layout the page
-  _cmGrPageLayout(p, dcH );
+  // kpl _cmGrPageLayout(p, dcH );
 
   return kOkGrRC;
 }
@@ -984,12 +983,13 @@ cmGrVwH_t cmGrPageFocusedView( cmGrPgH_t h )
 }
 
 
-void     cmGrPageLayout( cmGrPgH_t h, cmGrDcH_t dcH )
-{
+bool     cmGrPageLayout( cmGrPgH_t h, cmGrDcH_t dcH )
+{  
   cmGrPg_t* p = _cmGrPgHandleToPtr(h);
   cmGrDcPushCtx(dcH);
-  _cmGrPageLayout(p,dcH);
+  bool fl = _cmGrPageLayout(p,dcH);
   cmGrDcPopCtx(dcH);
+  return fl;
 }
 
 void     cmGrPageDraw( cmGrPgH_t h, cmGrDcH_t dcH )
