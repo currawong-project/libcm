@@ -226,6 +226,9 @@ extern "C" {
   bool     cmThUIntCAS(  unsigned* addr, unsigned old, unsigned neww );
   bool     cmThFloatCAS( float*    addr, float    old, float    neww );
 
+  // Note: voidPtrPtr is must really be a pointer to a pointer.
+  bool     cmThPtrCAS(   void* voidPtrPtr, void*    old, void*    neww );
+
   // Thread safe increment and decrement implemented in terms of
   // cmThXXXCAS().
   void     cmThIntIncr(  int*      addr, int      incr );

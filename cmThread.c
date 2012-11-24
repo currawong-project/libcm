@@ -12,7 +12,6 @@
 #include <unistd.h>  // usleep
 //#include <atomic_ops.h>
 
-
 cmThreadH_t cmThreadNullHandle = {NULL};
 
 enum
@@ -102,10 +101,12 @@ cmThThread_t* _cmThThreadFromHandle( cmThreadH_t h )
 cmThRC_t _cmThWaitForState( cmThThread_t* t, unsigned stateId )
 {
   unsigned waitTimeMicroSecs = 0;
+
   while( t->state != stateId && waitTimeMicroSecs < t->waitMicroSecs )
   {
-    usleep( t->waitMicroSecs );
-    waitTimeMicroSecs += t->waitMicroSecs;
+    //usleep( t->waitMicroSecs );
+    usleep( 15000 );
+    waitTimeMicroSecs += 15000; //t->waitMicroSecs;
   }
 
   return t->state==stateId ? kOkThRC :  kTimeOutThRC;
@@ -1261,6 +1262,16 @@ bool     cmThUIntCAS(  unsigned* addr, unsigned old, unsigned new )
 bool     cmThFloatCAS( float*    addr, float    old, float    new )
 { return  __sync_bool_compare_and_swap((unsigned*)addr, *(unsigned*)(&old),*(unsigned*)(&new)); }
 
+bool     cmThPtrCAS(   void*    addr, void*    old, void*    neww )
+{
+#ifdef OS_64
+  return  __sync_bool_compare_and_swap((long long*)addr, (long long)old, (long long)neww); 
+#else
+  return  __sync_bool_compare_and_swap((int*)addr,(int)old,(int)neww); 
+#endif
+}
+
+
 
 void     cmThIntIncr(  int*      addr, int      incr )
 {
@@ -1432,7 +1443,8 @@ void* cmTsMp1cCbArg( cmTsMp1cH_t h )
   return p->cbArg;
 }
 
-#define CAS(addr,old,new) __sync_bool_compare_and_swap(addr,old,new)
+//#define CAS(addr,old,new) __sync_bool_compare_and_swap(addr,old,new)
+//#define CAS(addr,old,neww) cmThPtrCAS(addr,old,neww)
 
 cmThRC_t   cmTsMp1cEnqueueSegMsg( cmTsMp1cH_t h, const void* msgPtrArray[], unsigned msgByteCntArray[], unsigned arrayCnt )
 {
@@ -1512,7 +1524,7 @@ cmThRC_t   cmTsMp1cEnqueueSegMsg( cmTsMp1cH_t h, const void* msgPtrArray[], unsi
   {
     old_hp = p->ilp;
     new_hp = hp;
-  }while(!CAS(&p->ilp,old_hp,new_hp));
+  }while(!cmThPtrCAS(&p->ilp,old_hp,new_hp));
 
   // link the prev recd to this recd
   if( old_hp != NULL )
@@ -1527,7 +1539,7 @@ cmThRC_t   cmTsMp1cEnqueueSegMsg( cmTsMp1cH_t h, const void* msgPtrArray[], unsi
     if( old_hp != NULL )
       break;
     
-  }while(!CAS(&p->olp,old_hp,new_hp));
+  }while(!cmThPtrCAS(&p->olp,old_hp,new_hp));
 
   return rc;
 }
