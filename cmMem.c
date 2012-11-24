@@ -5,6 +5,7 @@
 #include "cmMem.h"
 #include "cmFloatTypes.h"
 #include "cmMath.h"
+#include "cmThread.h"
 
 // Block layout
 //
@@ -431,14 +432,14 @@ bool     cmMmIsValid( cmMmH_t h )
 { return h.h != NULL; }
 
 void* cmMmAllocate(     
-  cmMmH_t     h, 
-  void*       orgDataPtr, 
-  unsigned    newEleCnt,
-  unsigned    newEleByteCnt, 
-  enum cmMmAllocFlags_t    flags, 
-  const char* fileName, 
-  const char* funcName, 
-  unsigned    fileLine )
+  cmMmH_t               h, 
+  void*                 orgDataPtr, 
+  unsigned              newEleCnt,
+  unsigned              newEleByteCnt, 
+  enum cmMmAllocFlags_t flags, 
+  const char*           fileName, 
+  const char*           funcName, 
+  unsigned              fileLine )
 {
    cmMm_t*  p          = _cmMmHandleToPtr(h); 
    unsigned newByteCnt = newEleCnt * newEleByteCnt;
@@ -449,7 +450,13 @@ void* cmMmAllocate(
    {
      cmErrMsg(&p->err,kOkMmRC,"Breakpoint for memory allocation id:%i.",p->nextId);
    }
+
+   if( (long long)_cmMmDataToBasePtr(ndp,p->guardByteCnt) == 0x7fffed8d0b40 )
+   {
+     cmErrMsg(&p->err,kOkMmRC,"Breakpoint for memory allocation id:%i.",p->nextId);
+   }
    */
+
 
    // if we are tracking changes
    if( cmIsFlag(p->flags,kTrackMmFl) )
@@ -470,23 +477,27 @@ void* cmMmAllocate(
          return ndp;
        }
 
+       cmThUIntIncr(&p->nextId,1);
+
        // initialize the new tracking recd
-       rp->uniqueId     = p->nextId;
        rp->dataPtr      = ndp;
        rp->dataByteCnt  = newByteCnt;
        rp->fileLine     = fileLine;
        rp->fileNameStr  = fileName;
        rp->funcNameStr  = funcName;
        rp->flags        = 0;
-       rp->linkPtr      = p->listPtr;
+       rp->uniqueId     = p->nextId;
 
-       //printf("%i %i %s %i %s\n",rp->uniqueId,newByteCnt,funcName,fileLine,fileName);
-
-       p->listPtr = rp;
+       cmMmRecd_t *oldp, *newp;
+       do
+       {
+         oldp         = p->listPtr;
+         newp         = rp;
+         rp->linkPtr  = p->listPtr;
+       }while(!cmThPtrCAS(&p->listPtr,oldp,newp));
 
        assert( _cmMmCheckGuards(p,rp) == kOkMmRC );
 
-       ++p->nextId;
      }
      else // a reallocation occurred.
        if( orgDataPtr == ndp )
