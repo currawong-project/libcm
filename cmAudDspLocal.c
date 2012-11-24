@@ -136,6 +136,21 @@ cmAdlRC_t cmAudDspLocalFree( cmAdlH_t* hp )
   return rc;
 }
 
+cmAdlRC_t cmAudDspLocalSendSetup( cmAdlH_t h )
+{
+  cmAdlRC_t rc = kOkAdlRC;
+  cmAdl_t* p = _cmAdlHandleToPtr(h);
+  if( cmAudDspSendSetup(p->adH) != kOkAdRC )
+  {
+    rc = cmErrMsg(&p->err,kAudDspFailAdlRC,"The audio DSP system setup request failed.");
+    goto errLabel;
+  }
+
+ errLabel:
+  return rc;
+}
+
+
 bool      cmAudDspLocalIsValid( cmAdlH_t h )
 { return h.h != NULL; }
 

@@ -26,6 +26,8 @@ extern "C" {
 
   cmAdlRC_t cmAudDspLocalFree( cmAdlH_t* hp );
 
+  cmAdlRC_t cmAudDspLocalSendSetup( cmAdlH_t h );
+
   bool      cmAudDspLocalIsValid( cmAdlH_t h );
 
   cmAiH_t   cmAudDspLocalIF_Handle( cmAdlH_t h );

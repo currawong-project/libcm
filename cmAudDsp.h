@@ -40,6 +40,9 @@ extern "C" {
   cmAdRC_t cmAudDspAlloc( cmCtx_t* ctx, cmAdH_t* hp, cmMsgSendFuncPtr_t cbPtr, void* cbDataPtr );
   cmAdRC_t cmAudDspFree(  cmAdH_t* hp );
 
+  // Send the setup to the UI (device list,system cfg list, DSP programs)
+  cmAdRC_t cmAudDspSendSetup( cmAdH_t h );
+
   bool cmAudDspIsValid( cmAdH_t h );
 
   // This function provides the primary interface for communication from the

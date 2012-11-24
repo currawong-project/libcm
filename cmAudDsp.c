@@ -612,18 +612,6 @@ cmAdRC_t cmAudDspAlloc( cmCtx_t* ctx, cmAdH_t* hp, cmMsgSendFuncPtr_t cbFunc, vo
   p->curAsCfgIdx = cmInvalidIdx;
   p->ctx         = *ctx;
   
-  // notify the client of the available audio system configurations
-  if((rc =  _cmAdSendAudioSysCfgLabels(p)) != kOkAdRC )
-    goto errLabel;
-
-  // notify the client of the available devices
-  if((rc =  _cmAdSendDeviceLabels(p)) != kOkAdRC) 
-    goto errLabel;
-
-  // notify the client of the available programs
-  if((rc = _cmAdSendProgramLabels(p)) != kOkAdRC )
-    goto errLabel;
-   
 
   hp->h          = p;
 
@@ -650,6 +638,27 @@ cmAdRC_t cmAudDspFree( cmAdH_t* hp )
 
   hp->h = NULL;
 
+  return rc;
+}
+
+cmAdRC_t cmAudDspSendSetup( cmAdH_t h )
+{
+  cmAdRC_t rc = kOkAdRC;
+  cmAd_t* p = _cmAdHandleToPtr( h );
+
+  // notify the client of the available audio system configurations
+  if((rc =  _cmAdSendAudioSysCfgLabels(p)) != kOkAdRC )
+    goto errLabel;
+
+  // notify the client of the available devices
+  if((rc =  _cmAdSendDeviceLabels(p)) != kOkAdRC) 
+    goto errLabel;
+
+  // notify the client of the available programs
+  if((rc = _cmAdSendProgramLabels(p)) != kOkAdRC )
+    goto errLabel;
+   
+ errLabel:
   return rc;
 }
 
