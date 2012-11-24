@@ -873,6 +873,8 @@ cmTlRC_t _cmTimeLineFinalize( _cmTl_t* p )
         goto errLabel;   
     }
 
+  cmMemFree(p->seq);
+
   cmLHeapDestroy(&p->lH);
 
   //_cmTlNotifyListener(p, kFinalMsgTlId, NULL );
