@@ -107,6 +107,8 @@ extern "C" {
   cmMfRC_t              cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx );
   cmMfRC_t              cmMidiFileClose( cmMidiFileH_t* hp );
 
+  bool                  cmMidiFileIsValid( cmMidiFileH_t h );
+
   // Returns track count or kInvalidCnt if 'h' is invalid.
   unsigned              cmMidiFileTrackCount( cmMidiFileH_t h );
 

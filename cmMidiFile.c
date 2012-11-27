@@ -365,8 +365,8 @@ cmMfRC_t _cmMidiFileReadTrack( _cmMidiFile_t* mfp, unsigned short trkIdx )
         break;
 
       default:
-          // handle channel msg
-          rc = _cmMidiFileReadChannelMsg(mfp,&runstatus,status,tmp);
+        // handle channel msg
+        rc = _cmMidiFileReadChannelMsg(mfp,&runstatus,status,tmp);
 
     }
   }
@@ -454,10 +454,14 @@ cmMfRC_t _cmMidiFileClose( _cmMidiFile_t* mfp )
 
 cmMfRC_t cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx )
 {
-  cmMfRC_t         rc     = kOkMfRC;
+  cmMfRC_t       rc     = kOkMfRC;
   _cmMidiFile_t* mfp    = NULL;
   unsigned short trkIdx = 0;
   cmErr_t        err;
+
+  if( cmMidiFileIsValid(*hPtr) )
+    if((rc = _cmMidiFileClose(_cmMidiFileHandleToPtr(*hPtr))) != kOkMfRC )
+      return rc;
 
   cmErrSetup(&err,&ctx->rpt,"MIDI File");
 
@@ -575,13 +579,13 @@ cmMfRC_t cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx )
 
  errLabel:
 
-    if( cmFileClose(&mfp->fh) != kOkFileRC )
-      rc = _cmMidiFileError(&mfp->err,kCloseFailFileRC);
+  if( cmFileClose(&mfp->fh) != kOkFileRC )
+    rc = _cmMidiFileError(&mfp->err,kCloseFailFileRC);
 
-    if( rc != kOkMfRC )
-      _cmMidiFileClose(mfp);
+  if( rc != kOkMfRC )
+    _cmMidiFileClose(mfp);
 
-    return rc;
+  return rc;
 }
 
 
@@ -599,6 +603,9 @@ cmMfRC_t        cmMidiFileClose( cmMidiFileH_t* h )
   h->h = NULL;
   return rc;
 }
+
+bool   cmMidiFileIsValid( cmMidiFileH_t h )
+{ return !cmMidiFileIsNull(h); }
 
 unsigned    cmMidiFileTrackCount( cmMidiFileH_t h )
 {
@@ -648,7 +655,7 @@ cmMidiByte_t  cmMidiFileTicksPerSmpteFrame( cmMidiFileH_t h )
   if( mfp->ticksPerQN != 0 )
     return 0;
  
- return mfp->smpteTicksPerFrame;
+  return mfp->smpteTicksPerFrame;
 } 
 
 cmMidiByte_t  cmMidiFileSmpteFormatId( cmMidiFileH_t h )
@@ -661,7 +668,7 @@ cmMidiByte_t  cmMidiFileSmpteFormatId( cmMidiFileH_t h )
   if( mfp->ticksPerQN != 0 )
     return 0;
  
- return mfp->smpteFmtId;
+  return mfp->smpteFmtId;
 }
     
 unsigned    cmMidiFileTrackMsgCount( cmMidiFileH_t h, unsigned trackIdx )
