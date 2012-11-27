@@ -2778,6 +2778,7 @@ typedef struct
   unsigned       onSymId;
   unsigned       offSymId;
   unsigned       doneSymId;
+  bool           useThreadFl;
  } cmDspWaveTable_t;
 
 bool _cmDspWaveTableThreadFunc( void* param);
@@ -2822,6 +2823,8 @@ cmDspInst_t*  _cmDspWaveTableAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsi
   cmDspSetDefaultUInt(  ctx, &p->inst, kOtWtId,    0,     5 );
   cmDspSetDefaultDouble(ctx, &p->inst, kGainWtId,  0,     1.0 );
   cmDspSetDefaultUInt(  ctx, &p->inst, kFIdxWtId,  0,     0 );
+
+  p->useThreadFl = false;
 
   return &p->inst;
 }
@@ -3069,10 +3072,10 @@ cmDspRC_t _cmDspWaveTableStartFileLoadThread( cmDspCtx_t* ctx, cmDspWaveTable_t*
   if( p->loadFileFl )
     return cmDspInstErr(ctx,&p->inst,kInvalidStateDspRC,"The audio file '%s' was not loaded because another file is in the process of being loaded.",cmStringNullGuard(fn));  
 
-  if(cmThreadIsValid(p->thH) == false)
+  if(p->useThreadFl && cmThreadIsValid(p->thH) == false)
     cmThreadCreate(&p->thH,_cmDspWaveTableThreadFunc,p,ctx->rpt);
 
-  if( cmThreadIsValid(p->thH) == false )
+  if(p->useThreadFl && cmThreadIsValid(p->thH) == false )
     return cmDspInstErr(ctx,&p->inst,kInvalidStateDspRC,"The audio file '%s' was not loaded because the audio load thread is invalid.",cmStringNullGuard(fn));
 
   p->loadFileFl = true;
@@ -3080,7 +3083,7 @@ cmDspRC_t _cmDspWaveTableStartFileLoadThread( cmDspCtx_t* ctx, cmDspWaveTable_t*
   cmDspSetUInt(ctx,&p->inst,kShapeWtId,kSilenceWtId);
   cmDspSetStrcz(ctx,&p->inst,kFnWtId,fn);
 
-  if(1)
+  if( p->useThreadFl == false )
   {
     // use non-threaded load
     if((rc = _cmDspWaveTableInitAudioFile(p->ctx,p)) != kOkDspRC )
