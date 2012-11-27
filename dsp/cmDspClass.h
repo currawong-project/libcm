@@ -392,7 +392,8 @@ extern "C" {
   cmDspRC_t  cmDspUiMeterCreate(  cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned minVarId,  unsigned maxVarId,  unsigned valVarId,  unsigned lblVarId );
   cmDspRC_t  cmDspUiButtonCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned typeDuiId, unsigned outVarId, unsigned lblVarId );
   cmDspRC_t  cmDspUiLabelCreate(  cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned lblVarId,  unsigned alignVarId );
-  cmDspRC_t  cmDspUiTimeLineCreate(cmDspCtx_t* ctx,cmDspInst_t* inst, unsigned tlFileVarId,  unsigned audPathVarId, unsigned selVarId );
+  cmDspRC_t  cmDspUiTimeLineCreate(cmDspCtx_t* ctx,cmDspInst_t* inst, unsigned tlFileVarId,  unsigned audPathVarId, unsigned selVarId, unsigned cursVarId );
+  cmDspRC_t  cmDspUiScoreCreate(   cmDspCtx_t* ctx,cmDspInst_t* inst, unsigned scFileVarId,  unsigned selVarId );
 
   cmDspRC_t  cmDspUiNewColumn(        cmDspCtx_t* ctx, unsigned colW );
   cmDspRC_t  cmDspUiInsertHorzBorder( cmDspCtx_t* ctx );

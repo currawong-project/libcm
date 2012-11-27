@@ -21,7 +21,6 @@
 #include "cmDspCtx.h"
 #include "cmDspClass.h"
 #include "cmDspUi.h"
-#include "cmOp.h"
 #include "cmMath.h"
 
 
@@ -163,7 +162,7 @@ cmDspRC_t _cmDspKrExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt
   cmSpecDistExec(p->sdp,ip,iSmpCnt);
   
   if((sp = cmSpecDistOut(p->sdp)) != NULL )
-    vs_Copy(op,sp,oSmpCnt);
+    cmVOS_Copy(op,oSmpCnt,sp);
   
   return rc;
 }
@@ -241,13 +240,14 @@ enum
   kTlFileTlId,
   kAudPathTlId,
   kSelTlId,
+  kCursTlId,
+  kResetTlId,
   kAudFnTlId,
   kMidiFnTlId,
   kBegAudSmpIdxTlId,
   kEndAudSmpIdxTlId,
   kBegMidiSmpIdxTlId,
   kEndMidiSmpIdxTlId
-
 };
 
 cmDspClass_t _cmTimeLineDC;
@@ -256,27 +256,31 @@ typedef struct
 {
   cmDspInst_t inst;
   cmTlH_t     tlH;
+  unsigned    afIdx;
 } cmDspTimeLine_t;
 
 cmDspInst_t*  _cmDspTimeLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
   cmDspVarArg_t args[] =
   {
-    { "tlfile",  kTlFileTlId,         0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl,   "Time line file." },
-    { "path",    kAudPathTlId,        0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl,   "Audio path"    },
-    { "sel",     kSelTlId,            0, 0, kInDsvFl   | kInDsvFl   | kOutDsvFl  | kUIntDsvFl,   "Selected marker id."},
-    { "afn",     kAudFnTlId,          0, 0, kOutDsvFl  | kStrzDsvFl,   "Selected Audio file." },
-    { "mfn",     kMidiFnTlId,         0, 0, kOutDsvFl  | kStrzDsvFl,   "Selected MIDI file." },
-    { "absi",     kBegAudSmpIdxTlId,  0, 0, kOutDsvFl  | kIntDsvFl,   "Begin audio sample index."},
-    { "aesi",     kEndAudSmpIdxTlId,  0, 0, kOutDsvFl  | kIntDsvFl,   "End audio sample index."},
-    { "mbsi",     kBegMidiSmpIdxTlId, 0, 0, kOutDsvFl  | kIntDsvFl,   "Begin MIDI sample index."},
-    { "mesi",     kEndMidiSmpIdxTlId, 0, 0, kOutDsvFl  | kIntDsvFl,   "End MIDI sample index."},
+    { "tlfile",  kTlFileTlId,         0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl, "Time line file." },
+    { "path",    kAudPathTlId,        0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl, "Audio path"    },
+    { "sel",     kSelTlId,            0, 0, kInDsvFl   | kOutDsvFl  | kUIntDsvFl,   "Selected marker id."},
+    { "curs",    kCursTlId,           0, 0, kInDsvFl   | kUIntDsvFl,  "Current audio file index."},
+    { "reset",   kResetTlId,          0, 0, kInDsvFl   | kSymDsvFl,   "Resend all outputs." },
+    { "afn",     kAudFnTlId,          0, 0, kOutDsvFl  | kStrzDsvFl,  "Selected Audio file." },
+    { "mfn",     kMidiFnTlId,         0, 0, kOutDsvFl  | kStrzDsvFl,  "Selected MIDI file." },
+    { "absi",    kBegAudSmpIdxTlId,   0, 0, kOutDsvFl  | kIntDsvFl,   "Begin audio sample index."},
+    { "aesi",    kEndAudSmpIdxTlId,   0, 0, kOutDsvFl  | kIntDsvFl,   "End audio sample index."},
+    { "mbsi",    kBegMidiSmpIdxTlId,  0, 0, kOutDsvFl  | kIntDsvFl,   "Begin MIDI sample index."},
+    { "mesi",    kEndMidiSmpIdxTlId,  0, 0, kOutDsvFl  | kIntDsvFl,   "End MIDI sample index."},
     { NULL, 0, 0, 0, 0 }
   };
 
   cmDspTimeLine_t* p = cmDspInstAlloc(cmDspTimeLine_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
   
   cmDspSetDefaultUInt( ctx, &p->inst,  kSelTlId,           0, cmInvalidId);
+  cmDspSetDefaultUInt( ctx, &p->inst,  kCursTlId,          0, 0);
   cmDspSetDefaultStrcz(ctx, &p->inst,  kAudFnTlId,         NULL, "");
   cmDspSetDefaultStrcz(ctx, &p->inst,  kMidiFnTlId,        NULL, "");
   cmDspSetDefaultInt(  ctx, &p->inst,  kBegAudSmpIdxTlId,  0, cmInvalidIdx);
@@ -285,7 +289,7 @@ cmDspInst_t*  _cmDspTimeLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspSetDefaultInt(  ctx, &p->inst,  kEndMidiSmpIdxTlId, 0, cmInvalidIdx);
 
   // create the UI control
-  cmDspUiTimeLineCreate(ctx,&p->inst,kTlFileTlId,kAudPathTlId,kSelTlId);
+  cmDspUiTimeLineCreate(ctx,&p->inst,kTlFileTlId,kAudPathTlId,kSelTlId,kCursTlId);
 
   p->tlH = cmTimeLineNullHandle;
 
@@ -325,6 +329,11 @@ cmDspRC_t _cmDspTimeLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
   switch( evt->dstVarId )
   {
+    case kCursTlId:
+      cmDspSetEvent(ctx,inst,evt);
+      break;
+
+    case kResetTlId:
     case kSelTlId:
       {
         unsigned markerId;
@@ -338,6 +347,8 @@ cmDspRC_t _cmDspTimeLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
           if((op = cmTimeLineIdToObj(p->tlH, cmInvalidId, markerId )) != NULL )
           {
             assert(op->typeId == kMarkerTlId);
+
+            p->afIdx = op->begSmpIdx;
 
             cmDspSetInt(ctx, inst, kBegAudSmpIdxTlId,  op->begSmpIdx );
             cmDspSetInt(ctx, inst, kEndAudSmpIdxTlId,  op->begSmpIdx + op->durSmpCnt );
@@ -384,6 +395,111 @@ struct cmDspClass_str* cmTimeLineClassCons( cmDspCtx_t* ctx )
     "Time Line control.");
 
   return &_cmTimeLineDC;
+}
+
+//==========================================================================================================================================
+// Score UI Object
+
+enum
+{
+  kFnScId,
+  kSelScId,
+  kSendScId
+};
+
+cmDspClass_t _cmScoreDC;
+
+typedef struct
+{
+  cmDspInst_t inst;
+  cmScH_t     scH;
+} cmDspScore_t;
+
+cmDspInst_t*  _cmDspScoreAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  cmDspVarArg_t args[] =
+  {
+    { "fn",      kFnScId,             0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl, "Score file." },
+    { "sel",     kSelScId,            0, 0, kInDsvFl   |  kOutDsvFl | kUIntDsvFl,   "Selected score element index."},
+    { "send",    kSendScId,           0, 0, kInDsvFl   | kTypeDsvMask,              "Resend last selected score element."},
+    { NULL, 0, 0, 0, 0 }
+  };
+
+  cmDspScore_t* p = cmDspInstAlloc(cmDspScore_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+  
+  cmDspSetDefaultUInt( ctx, &p->inst,  kSelScId,           0, cmInvalidId);
+
+  // create the UI control
+  cmDspUiScoreCreate(ctx,&p->inst,kFnScId,kSelScId);
+
+  p->scH = cmScNullHandle;
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspScoreFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t        rc = kOkDspRC;
+  cmDspScore_t* p = (cmDspScore_t*)inst;
+
+  if( cmScoreFinalize(&p->scH) != kOkTlRC )
+    return cmErrMsg(&inst->classPtr->err, kInstFinalFailDspRC, "Score finalize failed.");
+
+  return rc;
+}
+
+
+cmDspRC_t _cmDspScoreReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t        rc = kOkDspRC;
+  cmDspScore_t* p  = (cmDspScore_t*)inst;
+
+  cmDspApplyAllDefaults(ctx,inst);
+
+  const cmChar_t* tlFn;
+  if((tlFn =  cmDspStrcz(inst, kFnScId )) !=  NULL )
+    if( cmScoreInitialize(ctx->cmCtx, &p->scH, tlFn, NULL, NULL ) != kOkTlRC )
+      rc = cmErrMsg(&inst->classPtr->err, kInstResetFailDspRC, "Score file open failed.");
+
+  return rc;
+}
+
+cmDspRC_t _cmDspScoreRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  switch( evt->dstVarId )
+  {
+    case kSelScId:
+      cmDspSetEvent(ctx,inst,evt);
+      break;
+
+    case kSendScId:
+      {
+        unsigned selIdx;
+        if((selIdx = cmDspUInt(inst,kSelScId)) != cmInvalidIdx )
+          cmDspSetUInt(ctx,inst,kSelScId, selIdx );
+      }
+      break;
+
+    default:
+      {assert(0);}
+  }
+
+  return kOkDspRC;
+}
+
+struct cmDspClass_str* cmScoreClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmScoreDC,ctx,"Score",
+    NULL,
+    _cmDspScoreAlloc,
+    _cmDspScoreFree,
+    _cmDspScoreReset,
+    NULL,
+    _cmDspScoreRecv,
+    NULL,NULL,
+    "Score control.");
+
+  return &_cmScoreDC;
 }
 
 //==========================================================================================================================================

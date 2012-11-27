@@ -31,6 +31,7 @@ extern "C" {
     kCheckDuiId,   // ui<--eng create a check box control
     kLabelDuiId,   // ui<--end create a label control
     kTimeLineDuiId,// ui<--end create a time-line control
+    kScoreDuiId,   // ui<--end create a score control
     kNumberDuiId,  // ui<--eng create a number box
     kTextDuiId,    // ui<--eng create a text entry control
     kFnameDuiId,   // ui<--eng create a file/directory picker control

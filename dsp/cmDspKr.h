@@ -7,6 +7,7 @@ extern "C" {
 
   struct cmDspClass_str* cmKrClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmTimeLineClassCons( cmDspCtx_t* ctx );
+  struct cmDspClass_str* cmScoreClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmMidiFilePlayClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmScFolClassCons( cmDspCtx_t* ctx );
 
