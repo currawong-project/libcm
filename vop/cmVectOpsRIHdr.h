@@ -77,7 +77,6 @@ VECT_OP_TYPE* VECT_OP_FUNC(SubVVNN)(VECT_OP_TYPE* dp, unsigned dn, unsigned dnn,
 VECT_OP_TYPE* VECT_OP_FUNC(SubVVV)( VECT_OP_TYPE* dp, unsigned dn, const VECT_OP_TYPE* sb0p, const VECT_OP_TYPE* sb1p );
 VECT_OP_TYPE* VECT_OP_FUNC(SubVSV)( VECT_OP_TYPE* dp, unsigned dn, const VECT_OP_TYPE  s0, const VECT_OP_TYPE* sb1p );
 
-
 VECT_OP_TYPE* VECT_OP_FUNC(AddVS)(  VECT_OP_TYPE* dp, unsigned dn, VECT_OP_TYPE v );
 VECT_OP_TYPE* VECT_OP_FUNC(AddVV)(  VECT_OP_TYPE* dp, unsigned dn, const VECT_OP_TYPE* v );
 VECT_OP_TYPE* VECT_OP_FUNC(AddVVS)( VECT_OP_TYPE* dp, unsigned dn, const VECT_OP_TYPE* v, VECT_OP_TYPE s );
@@ -90,6 +89,7 @@ VECT_OP_TYPE* VECT_OP_FUNC(MultVVNN)(VECT_OP_TYPE* dp,  unsigned dn, unsigned dn
 VECT_OP_TYPE* VECT_OP_FUNC(MultVS)(  VECT_OP_TYPE* dbp, unsigned dn, VECT_OP_TYPE s );
 VECT_OP_TYPE* VECT_OP_FUNC(MultVVS)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp, VECT_OP_TYPE s );
 VECT_OP_TYPE* VECT_OP_FUNC(MultVaVS)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp, VECT_OP_TYPE s );
+VECT_OP_TYPE* VECT_OP_FUNC(MultSumVVS)(VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp, VECT_OP_TYPE s );
 
 VECT_OP_TYPE* VECT_OP_FUNC(DivVVS)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sb0p, VECT_OP_TYPE sb1 );
 VECT_OP_TYPE* VECT_OP_FUNC(DivVVV)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sb0p, const VECT_OP_TYPE* sb1p );
@@ -101,7 +101,6 @@ VECT_OP_TYPE* VECT_OP_FUNC(DivVSV)( VECT_OP_TYPE* dp,  unsigned dn, const VECT_O
 // Set dest to 0 if denominator is 0.
 VECT_OP_TYPE* VECT_OP_FUNC(DivVVVZ)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sb0p, const VECT_OP_TYPE* sb1p );
 VECT_OP_TYPE* VECT_OP_FUNC(DivVVZ)(  VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sb0p );
-
 
 // Divide columns of dp[:,i] by each value in the source vector sp[i]. 
 VECT_OP_TYPE*  VECT_OP_FUNC(DivMS)(    VECT_OP_TYPE* dp, unsigned drn, unsigned dcn, const VECT_OP_TYPE* sp ); 

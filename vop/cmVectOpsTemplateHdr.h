@@ -103,6 +103,9 @@ unsigned      VECT_OP_FUNC(FindNonNormalZ)( unsigned* dp, unsigned dn, const VEC
 /// Successive call to to ZeroCrossCount should preserve the value pointed to by delaySmpPtr.
 unsigned      VECT_OP_FUNC(ZeroCrossCount)( const VECT_OP_TYPE* sp, unsigned n, VECT_OP_TYPE* delaySmpPtr);
 
+// Calculuate the sum of the squares of all elements in bp[bn]. 
+VECT_OP_TYPE VECT_OP_FUNC(SquaredSum)( const VECT_OP_TYPE* bp, unsigned bn );
+
 /// sn must be <= wndSmpCnt. If sn < wndSmpCnt then sp[sn] is treated as a
 /// a partially filled buffer padded with wndSmpCnt-sn zeros.
 /// rms = sqrt( sum(sp[1:sn] .* sp[1:sn]) / wndSmpCnt )

@@ -502,6 +502,16 @@ unsigned      VECT_OP_FUNC(ZeroCrossCount)( const VECT_OP_TYPE* bp, unsigned bn,
   return n;
 }
 
+VECT_OP_TYPE VECT_OP_FUNC(SquaredSum)( const VECT_OP_TYPE* bp, unsigned bn )
+{
+  VECT_OP_TYPE        sum = 0;
+  const VECT_OP_TYPE* ep  = bp + bn;
+
+  for(; bp < ep; ++bp )
+    sum += *bp * *bp;
+  return sum;
+}
+
 VECT_OP_TYPE  VECT_OP_FUNC(RMS)( const VECT_OP_TYPE* bp, unsigned bn, unsigned wndSmpCnt )
 {
   const VECT_OP_TYPE* ep = bp + bn;

@@ -31,7 +31,6 @@
 #include "cmDspNet.h"
 
 #include "cmAudioFile.h"
-#include "cmOp.h"
 #include "cmThread.h"  // used for threaded loading in wave table file mode
 
 
@@ -1055,7 +1054,7 @@ cmDspRC_t _cmDspAudioInExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
 
   // if this channel is disabled then iChArray[chIdx] will be NULL
   if( ctx->ctx->iChArray[chIdx]!=NULL )
-    vs_MultVVS(dp,ctx->ctx->iChArray[chIdx],n,gain);
+    cmVOS_MultVVS(dp,n,ctx->ctx->iChArray[chIdx],(cmSample_t)gain);
 
   return kOkDspRC;
 }
@@ -1170,7 +1169,7 @@ cmDspRC_t _cmDspAudioOutExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   
   // if this channel is disabled or set to pass-through then chArray[chIdx] will be NULL
   if( ctx->ctx->oChArray[chIdx] != NULL )
-    vs_MultVVS(ctx->ctx->oChArray[chIdx],sp,n,gain);
+    cmVOS_MultVVS(ctx->ctx->oChArray[chIdx],n,sp,(cmSample_t)gain);
 
   return kOkDspRC;
 }
@@ -1329,7 +1328,7 @@ cmDspRC_t _cmDspAudioFileOutExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDsp
       const cmSample_t* sp  = i==0 ? cmDspAudioBuf(ctx,inst,kIn0AofId,0) : cmDspAudioBuf(ctx,inst,kIn1AofId,0);
       cmSample_t       gain = i==0 ? cmDspDouble(inst,kGain0AofId) : cmDspDouble(inst,kGain1AofId);
 
-      cmVOS_MultVVS(chArray[i], n, sp, gain);
+      cmVOS_MultVVS(chArray[i], n, sp, (cmSample_t)gain);
 
     }
 
@@ -2732,7 +2731,9 @@ enum
   kGainWtId,
   kPhsWtId,
   kOutWtId,
-  kCntWtId
+  kCntWtId,
+  kFIdxWtId,
+  kDoneWtId
 };
 
 enum
@@ -2762,6 +2763,8 @@ typedef struct
   unsigned       wtn;           // count of empty samples (avail for writing over) in the wavetable.
   unsigned       fi;            // absolute index into the file of the next sample to read
   unsigned       fn;            // length of the file in samples
+  unsigned       cfi;           // absolute index into the file of the beginning of the current audio vector
+  unsigned       cfn;           // when cfi >= cfn and doneFl is set then the 'done' msg is sent
   unsigned       loopCnt;       // current loop count
   bool           doneFl;        // the wave table source is exhausted 
   cmAudioFileH_t afH;           // current audio file handle
@@ -2774,6 +2777,7 @@ typedef struct
   double         phsLast;
   unsigned       onSymId;
   unsigned       offSymId;
+  unsigned       doneSymId;
  } cmDspWaveTable_t;
 
 bool _cmDspWaveTableThreadFunc( void* param);
@@ -2785,7 +2789,7 @@ cmDspInst_t*  _cmDspWaveTableAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsi
     { "len",    kLenWtId,    0, 0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "Wave table length in samples" },
     { "shape",  kShapeWtId,  0, 0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "Wave shape 0=silent 1=file 2=sine 3=white"   },
     { "fn",     kFnWtId,     0, 0, kInDsvFl  | kStrzDsvFl | kOptArgDsvFl, "Optional audio file name"     },
-    { "loop",   kLoopWtId,   0, 0, kInDsvFl  | kIntDsvFl  | kOptArgDsvFl, "-1=loop forever  >0=loop count"},
+    { "loop",   kLoopWtId,   0, 0, kInDsvFl  | kIntDsvFl  | kOptArgDsvFl, "-1=loop forever  >0=loop count (dflt:-1)"},
     { "beg",    kBegWtId,    0, 0, kInDsvFl  | kIntDsvFl  | kOptArgDsvFl, "File begin sample index" },
     { "end",    kEndWtId,    0, 0, kInDsvFl  | kIntDsvFl  | kOptArgDsvFl, "File end sample index (-1=play all)" },
     { "cmd",    kCmdWtId,    0, 0, kInDsvFl  | kSymDsvFl  | kOptArgDsvFl, "Command: on off"},
@@ -2794,6 +2798,8 @@ cmDspInst_t*  _cmDspWaveTableAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsi
     { "phs",    kPhsWtId,    0, 0, kInDsvFl  | kAudioBufDsvFl,            "Driving phase" },
     { "out",    kOutWtId,    0, 1, kOutDsvFl | kAudioBufDsvFl,            "Audio output" },
     { "cnt",    kCntWtId,    0, 0, kOutDsvFl | kIntDsvFl,                 "Loop count event."},
+    { "fidx",   kFIdxWtId,   0, 0, kOutDsvFl | kUIntDsvFl,                "Current audio file index."},
+    { "done",   kDoneWtId,   0, 0, kOutDsvFl | kSymDsvFl,                 "'done' sent after last loop."},
     { NULL, 0, 0, 0, 0 }
   };
 
@@ -2804,6 +2810,7 @@ cmDspInst_t*  _cmDspWaveTableAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsi
 
   p->offSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"off");
   p->onSymId  = cmSymTblRegisterStaticSymbol(ctx->stH,"on");
+  p->doneSymId= cmSymTblRegisterStaticSymbol(ctx->stH,"done");
 
   cmDspSetDefaultUInt(  ctx, &p->inst, kLenWtId,   0,    cmDspSampleRate(ctx));
   cmDspSetDefaultUInt(  ctx, &p->inst, kShapeWtId, 0,    kSilenceWtId  );
@@ -2814,6 +2821,7 @@ cmDspInst_t*  _cmDspWaveTableAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsi
   cmDspSetDefaultSymbol(ctx, &p->inst, kCmdWtId,   p->onSymId );
   cmDspSetDefaultUInt(  ctx, &p->inst, kOtWtId,    0,     5 );
   cmDspSetDefaultDouble(ctx, &p->inst, kGainWtId,  0,     1.0 );
+  cmDspSetDefaultUInt(  ctx, &p->inst, kFIdxWtId,  0,     0 );
 
   return &p->inst;
 }
@@ -2889,7 +2897,11 @@ cmDspRC_t _cmDspWaveTableReadBlock( cmDspCtx_t* ctx, cmDspWaveTable_t* p, cmSamp
     if( maxLoopCnt != -1 && p->loopCnt >= maxLoopCnt )
     {
       p->doneFl = true;
-      vs_Zero(wt,n1);   // zero to the end of the buffer
+      cmVOS_Zero(wt,n1);   // zero to the end of the buffer
+
+      p->cfn = p->cfi + cmDspUInt((cmDspInst_t*)p,kLenWtId) - p->wtn - n0;
+      assert( p->cfn >= p->cfi );
+
     }
     else
     {
@@ -2904,7 +2916,8 @@ cmDspRC_t _cmDspWaveTableReadBlock( cmDspCtx_t* ctx, cmDspWaveTable_t* p, cmSamp
       assert( actFrmCnt == n1 );
 
       // reset the file index tracker
-      p->fi = begSmpIdx + n1;
+      p->fi  = begSmpIdx + n1;
+      p->cfi = begSmpIdx;
     }
   }
 
@@ -2931,33 +2944,31 @@ cmDspRC_t _cmDspWaveTableReadAudioFile( cmDspCtx_t* ctx, cmDspWaveTable_t* p, un
 
   assert(n1<wtSmpCnt);
 
-  // if the EOF was encountered on a previous read
+  // the first read always starts at p->wt + p->wti
   if( p->doneFl )
-  {
-    vs_Zero(p->wt + p->wti,n0);
-    vs_Zero(p->wt,n1);
-  }
+    cmVOS_Zero(p->wt + p->wti,n0);
   else
-  {
-
-    // the first read always starts at p->wt + p->wti
     if( _cmDspWaveTableReadBlock(ctx, p, p->wt+p->wti, n0,begSmpIdx,endSmpIdx,maxLoopCnt  ) != kOkDspRC )
       return cmDspInstErr(ctx,&p->inst,kVarNotValidDspRC,"An error occured while reading the wave table file.");
 
-    p->wti += n0;
+  p->wtn -= n0;   // decrease the count of available samples
+  p->wti += n0;
 
-    if( n1 > 0 )
-    {
-      // the second read always starts at the beginning of the wave table
+  if( n1 > 0 )
+  {
+    // the second read always starts at the beginning of the wave table
+    if( p->doneFl )
+      cmVOS_Zero(p->wt,n1);
+    else
       if( _cmDspWaveTableReadBlock(ctx, p, p->wt, n1,begSmpIdx,endSmpIdx,maxLoopCnt  ) != kOkDspRC )
         return cmDspInstErr(ctx,&p->inst,kVarNotValidDspRC,"An error occured while reading the wave table file.");
 
-      p->wti = n1;
-    }
-   
+    p->wtn -= n1;  // decrease the count of available samples
+    p->wti = n1;
   }
+   
 
-  p->wtn -= rdSmpCnt;   // decrease the count of availabe sample
+  //p->wtn -= rdSmpCnt;   // decrease the count of available samples
 
   return kOkDspRC;
 }
@@ -3003,6 +3014,7 @@ cmDspRC_t _cmDspWaveTableInitAudioFile( cmDspCtx_t* ctx, cmDspWaveTable_t* p )
 
   p->afH = afH;
   p->fi  = begSmpIdx;
+  p->cfi = begSmpIdx;
   p->fn  = afInfo.frameCnt;
   p->wti = 0;
   p->wtn = wtSmpCnt;
@@ -3060,12 +3072,11 @@ cmDspRC_t _cmDspWaveTableStartFileLoadThread( cmDspCtx_t* ctx, cmDspWaveTable_t*
   if(cmThreadIsValid(p->thH) == false)
     cmThreadCreate(&p->thH,_cmDspWaveTableThreadFunc,p,ctx->rpt);
 
-
   if( cmThreadIsValid(p->thH) == false )
     return cmDspInstErr(ctx,&p->inst,kInvalidStateDspRC,"The audio file '%s' was not loaded because the audio load thread is invalid.",cmStringNullGuard(fn));
 
   p->loadFileFl = true;
-  p->ctx    = ctx;
+  p->ctx        = ctx;
   cmDspSetUInt(ctx,&p->inst,kShapeWtId,kSilenceWtId);
   cmDspSetStrcz(ctx,&p->inst,kFnWtId,fn);
 
@@ -3104,7 +3115,7 @@ cmDspRC_t _cmDspWaveTableCreateTable( cmDspCtx_t* ctx, cmDspWaveTable_t* p )
   if( p->wt == NULL )
     p->wt           = cmLhResizeNZ(ctx->lhH,cmSample_t,p->wt,wtSmpCnt);
   else
-    vs_Zero(p->wt,wtSmpCnt);
+    cmVOS_Zero(p->wt,wtSmpCnt);
 
   p->wtn          = wtSmpCnt;  // all samples in the wt are avail for filling
   p->wti          = 0;         // beginning with the first sample
@@ -3122,16 +3133,6 @@ cmDspRC_t _cmDspWaveTableCreateTable( cmDspCtx_t* ctx, cmDspWaveTable_t* p )
       printf("Loading:%i %i %s\n",p->nxtBegSmpIdx,p->nxtEndSmpIdx,cmDspStrcz(&p->inst,kFnWtId));
       rc = _cmDspWaveTableStartFileLoadThread(ctx,p,cmDspStrcz(&p->inst,kFnWtId));
       break;
-      /*
-    case kWhiteWtId:
-      vs_Rand(p->wt,wtSmpCnt,-1.0,1.0);
-      break;
-
-    case kSineWtId:
-      //vs_Sine(p->wt, wtSmpCnt, 1000.0*2*M_PI/wtSmpCnt, 0 );
-      cmVOS_SynthSine(p->wt,wtSmpCnt,0,cmDspSampleRate(ctx),1.0);
-      break;
-      */
 
     case kWhiteWtId:
       cmVOS_Random(p->wt,wtSmpCnt,-gain,gain);
@@ -3151,7 +3152,6 @@ cmDspRC_t _cmDspWaveTableCreateTable( cmDspCtx_t* ctx, cmDspWaveTable_t* p )
       cmVOS_SynthCosine(p->wt,wtSmpCnt,0,sr,hz);
       cmVOS_MultVS(p->wt,wtSmpCnt,gain);
       break;
-
 
     case kSawWtId:
       cmVOS_SynthSawtooth(p->wt,wtSmpCnt,0,sr,hz,otCnt);
@@ -3262,6 +3262,15 @@ cmDspRC_t _cmDspWaveTableExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
     // ... and there are rdSmpCnt avail locations in the wave table
     if( p->wtn >= rdSmpCnt )
       rc =  _cmDspWaveTableReadAudioFile(ctx, p, wtSmpCnt, rdSmpCnt );
+
+    // send the current audio file index
+    if( p->doneFl && p->cfi < p->cfn && p->cfn <= (p->cfi + outCnt) )
+      cmDspSetSymbol(ctx,inst,kDoneWtId,p->doneSymId);
+    else
+      cmDspSetUInt(ctx,inst,kFIdxWtId,p->cfi);
+
+    p->cfi += outCnt;
+
   }
 
   return rc;
@@ -3321,7 +3330,9 @@ cmDspRC_t _cmDspWaveTableRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
       {
         if( cmDspSymbol(inst,kCmdWtId) == p->onSymId )
         {
-          rc = _cmDspWaveTableReset(ctx,inst, evt );
+          //rc = _cmDspWaveTableReset(ctx,inst, evt );
+          rc =  _cmDspWaveTableCreateTable(ctx,p);
+
           cmDspSetSymbol(ctx,inst,kCmdWtId,p->onSymId);
           p->phsOffs = 0;
           p->phsLast = 0;
@@ -3858,7 +3869,7 @@ cmDspRC_t _cmDspAMixExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* e
     if( sp != NULL )
     {
       double            gain = cmDspDouble(inst,p->baseGainId+i);
-      vs_SumMultVVS(dp,sp,n,gain);
+      cmVOS_MultSumVVS(dp,n,sp,(cmSample_t)gain);
     }
   }
 
@@ -4015,7 +4026,7 @@ cmDspRC_t _cmDspASplitExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   {
     cmSample_t*       dp   = cmDspAudioBuf(ctx,inst,kBaseOutAsId+i,0);
     double            gain = cmDspDouble(inst,p->baseGainId+i);
-    vs_MultVVS(dp,sp,n,gain);
+    cmVOS_MultVVS(dp,n,sp,(cmSample_t)gain);
   }
 
   return kOkDspRC;
@@ -4128,7 +4139,7 @@ cmDspRC_t _cmDspAMeterExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
     return kOkDspRC;
   }
 
-  p->sum += vs_SquaredSum(sp,n);
+  p->sum += cmVOS_SquaredSum(sp,n);
   ++p->idx;
 
   if( p->idx == p->bufN )
@@ -4991,6 +5002,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmSegLineClassCons,
   
   cmTimeLineClassCons,
+  cmScoreClassCons,
   cmMidiFilePlayClassCons,
   cmScFolClassCons,
 

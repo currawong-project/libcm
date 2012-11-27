@@ -504,6 +504,16 @@ VECT_OP_TYPE* VECT_OP_FUNC(MultVaVS)( VECT_OP_TYPE* dbp, unsigned dn, const VECT
   return dp;
 }
 
+VECT_OP_TYPE* VECT_OP_FUNC(MultSumVVS)(VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp, VECT_OP_TYPE s )
+{
+  const VECT_OP_TYPE* dep = dbp + dn;
+  VECT_OP_TYPE* dp = dbp;
+  while( dbp < dep )
+    *dbp++ += *sbp++ * s;
+  return dp;
+}
+
+
 
 VECT_OP_TYPE* VECT_OP_FUNC(DivVVS)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sb0p, VECT_OP_TYPE s1 )
 {

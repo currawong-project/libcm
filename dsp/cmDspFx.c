@@ -26,7 +26,6 @@
 #include "cmDspClass.h"
 #include "cmDspUi.h"
 #include "cmAudioFile.h"
-#include "cmOp.h"
 
 #include "cmProcObj.h"
 #include "cmProcTemplateMain.h"
