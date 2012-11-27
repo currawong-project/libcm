@@ -704,8 +704,8 @@ struct cmDspClass_str* cmMidiFilePlayClassCons( cmDspCtx_t* ctx )
 enum
 {
   kFnSfId,
-  kWndCntSfId,
-  kWndMsSfId,
+  kBufCntSfId,
+  kBufMsSfId,
   kIndexSfId,
   kStatusSfId,
   kD0SfId,
@@ -727,8 +727,8 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   cmDspVarArg_t args[] =
   {
     { "fn",    kFnSfId,     0, 0, kInDsvFl | kStrzDsvFl   | kReqArgDsvFl,   "Score file." },
-    { "wndcnt",kWndCntSfId, 0, 0, kInDsvFl | kUIntDsvFl,                    "Event window element count." },
-    { "wndms", kWndMsSfId,  0, 0, kInDsvFl | kUIntDsvFl,                    "Event window length milliseconds."},
+    { "bufcnt",kBufCntSfId, 0, 0, kInDsvFl | kUIntDsvFl,                    "Event buffer element count." },
+    { "bufms", kBufMsSfId,  0, 0, kInDsvFl | kUIntDsvFl,                    "Event buffer length milliseconds."},
     { "index", kIndexSfId,  0, 0, kInDsvFl | kUIntDsvFl,                    "Tracking start location."},
     { "status",kStatusSfId, 0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI status byte"},
     { "d0",    kD0SfId,     0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI data byte 0"},
@@ -745,8 +745,8 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
 
   p->sfp = cmScFolAlloc(ctx->cmProcCtx, NULL, 0, 0, 0, cmScNullHandle );
 
-  cmDspSetDefaultUInt( ctx, &p->inst,  kWndCntSfId,     0,    10);
-  cmDspSetDefaultUInt( ctx, &p->inst,  kWndMsSfId,      0,  5000);
+  cmDspSetDefaultUInt( ctx, &p->inst,  kBufCntSfId,     0,    10);
+  cmDspSetDefaultUInt( ctx, &p->inst,  kBufMsSfId,      0,  5000);
   cmDspSetDefaultUInt( ctx, &p->inst,  kIndexSfId,      0,     0);  
   cmDspSetDefaultUInt( ctx, &p->inst,  kOutSfId,        0,     0);
 
@@ -785,7 +785,7 @@ cmDspRC_t _cmDspScFolReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
     return rc;
 
   if( cmScoreIsValid(p->scH) )
-    if( cmScFolInit(p->sfp, cmDspSampleRate(ctx), cmDspUInt(inst,kWndCntSfId), cmDspUInt(inst,kWndMsSfId), p->scH) != cmOkRC )
+    if( cmScFolInit(p->sfp, cmDspSampleRate(ctx), cmDspUInt(inst,kBufCntSfId), cmDspUInt(inst,kBufMsSfId), p->scH) != cmOkRC )
       rc = cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Internal score follower allocation failed.");
 
   return rc;  

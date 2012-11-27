@@ -19,33 +19,10 @@ typedef struct
 {
   unsigned  pitchCnt; // 
   unsigned* pitchV;   // pitchV[pitchCnt]
-  unsigned  scIdx;   // index of the score event (into cmScoreEvt[]) at this location 
+  unsigned  scIdx;    // index of the score event (into cmScoreEvt[]) at this location 
   int       barNumb;  // bar number of this location
 } cmScFolLoc_t;
 
-  /*
-typedef struct
-{
-  cmObj            obj;
-  cmReal_t         srate;
-  cmScH_t          scH;
-  unsigned         maxWndSmp;
-  unsigned         wndN;
-  cmScFolWndEle_t* wndV;    // wnd[wndN]
-  int              wni;     // oldest value in wnd[]
-  int              locN;
-  cmScFolLoc_t*    loc;
-  unsigned         sri;     // last reset score index
-  unsigned         sbi;     // first (oldest) score index
-  unsigned         sei;     // last (newest) score index
-
-  unsigned         evalWndN; // (dflt:5) count of elements to use for refined match window
-  unsigned         allowedMissCnt; // (dflt:1) count of non-match elements in refined match where a match is still signaled
-
-  unsigned*        edWndMtx;
-  
-} cmScFol1;
-  */
 
 typedef struct
 {
@@ -56,21 +33,23 @@ typedef struct
   cmScFolBufEle_t* bufV;    // event buffer bufV[bufN] - bufV[bufN-1] newest event, bufV[boi] oldest event
   int              locN;    // count of score locations
   cmScFolLoc_t*    loc;     // score loc[locN]
-  unsigned         sbi;    // oldest score window index
-  unsigned         sei;    // newest score window index
+  unsigned         sbi;     // oldest score window index
+  unsigned         sei;     // newest score window index
   unsigned         msln;    // minimum score look ahead count
   unsigned         mswn;    // maximum score window length
-
-  //unsigned         evalWndN; // (dflt:5) count of elements to use for refined match window
-  //unsigned         allowedMissCnt; // (dflt:1) count of non-match elements in refined match where a match is still signaled
-
+  unsigned         minVel;  // notes < minVel are ignored
+  unsigned         missCnt; // current consecutive unmatched notes
+  unsigned         matchCnt;// current consecutive matched notes
+  bool             printFl; // true if pitch tracker reporting should be included
+  unsigned         aheadCnt;// count of score loc's to look ahead for a match to the current pitch when the optimal edit-dist alignment does not produce a match for the current pitch
+  unsigned         eventIdx;// events since init
   unsigned*        edWndMtx;
   
 } cmScFol;
 
 
-// wndN = max count of elements in the  score following window.
-// wndMs     = max length of the score following window in time
+// bufN   = max count of elements in the event buffer.
+// wndMs  = max length of the score following window in time
 
 cmScFol* cmScFolAlloc( cmCtx* ctx, cmScFol* p, cmReal_t srate, unsigned bufN, cmReal_t wndMs, cmScH_t scH );
 cmRC_t   cmScFolFree(  cmScFol** pp );

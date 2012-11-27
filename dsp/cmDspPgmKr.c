@@ -110,7 +110,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, tlp, "afn",  prp, "in",  NULL );
   cmDspSysInstallCb(h, tlp, "mfn",  prp, "in",  NULL );
   cmDspSysInstallCb(h, tlp, "sel",  prp, "in",  NULL );
-  cmDspSysInstallCb(h, sfp, "out",  prp, "in",     NULL );
+  //cmDspSysInstallCb(h, sfp, "out",  prp, "in",     NULL );
 
 
   return rc;

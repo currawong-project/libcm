@@ -90,7 +90,11 @@ cmRC_t   cmScFolInit(  cmScFol* p, cmReal_t srate, unsigned bufN, cmReal_t wndMs
   p->msln           = 7;
   p->mswn           = 30;
   p->edWndMtx       = cmVOU_LevEditDistAllocMtx(p->bufN);
-
+  p->minVel         = 5;
+  p->missCnt        = 0;
+  p->matchCnt       = 0;
+  p->printFl        = true;
+  p->eventIdx       = 0;
 
   int i,n;
   double        maxDSecs = 0;   // max time between score entries to be considered simultaneous
@@ -208,6 +212,18 @@ bool  _cmScFolIsMatch( const cmScFolLoc_t* loc, unsigned pitch )
   return false;
 }
 
+int _cmScFolMatchCost( const cmScFolLoc_t* loc, unsigned li, const unsigned* pitch, unsigned pi )
+{
+  if( _cmScFolIsMatch(loc+li,pitch[pi]) )
+    return 0;
+  
+  if( li>0 && pi>0 )
+    if( _cmScFolIsMatch(loc+li-1,pitch[pi]) && _cmScFolIsMatch(loc+li,pitch[pi-1]) )
+      return 0;
+
+  return 1;
+}
+
 int _cmScFolDist(unsigned mtxMaxN, unsigned* m, const unsigned* s1, const cmScFolLoc_t* s0, int n )
 {
   mtxMaxN += 1;
@@ -226,7 +242,8 @@ int _cmScFolDist(unsigned mtxMaxN, unsigned* m, const unsigned* s1, const cmScFo
     for( j=1; j<n+1; ++j)
     {
       //int cost = s0[i-1] == s1[j-1] ? 0 : 1;
-      int cost = _cmScFolIsMatch(s0 + i-1, s1[j-1]) ? 0 : 1;
+      //int cost = _cmScFolIsMatch(s0 + i-1, s1[j-1]) ? 0 : 1;
+      int cost = _cmScFolMatchCost(s0,i-1,s1,j-1);
 
       //m[i][j] = min( m[i-1][j] + 1, min( m[i][j-1] + 1, m[i-1][j-1] + cost ) );
 					
@@ -236,82 +253,57 @@ int _cmScFolDist(unsigned mtxMaxN, unsigned* m, const unsigned* s1, const cmScFo
   return v;		
 }
 
-/*
-unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
+void _cmScFolRpt0( cmScFol* p, unsigned locIdx, unsigned locN, unsigned* b, unsigned bn, unsigned min_idx )
 {
-  assert( p->sri != cmInvalidIdx );
+  unsigned i;
+  int      n;
 
-  unsigned ret_idx = cmInvalidIdx;
-  unsigned ewnd[ p->wndN ];
+  printf("--------------- event:%i -------------  \n",p->eventIdx);
 
-  if( status != kNoteOnMdId && d1>0 )
-    return ret_idx;
-
-  // left shift wndV[] to make the right-most element available - then copy in the new element
-  memmove(p->wndV, p->wndV+1, sizeof(cmScFolWndEle_t)*(p->wndN-1));
-  p->wndV[ p->wndN-1 ].smpIdx = smpIdx;
-  p->wndV[ p->wndN-1 ].val    = d0;
-  p->wndV[ p->wndN-1 ].validFl= true;
-
-  // fill in ewnd[] with the valid values in wndV[]
-  int i = p->wndN-1;
-  int en = 0;
-  for(; i>=0; --i,++en)
-  {
-    //if( p->wndV[i].validFl && ((smpIdx-p->wnd[i].smpIdx)<=maxWndSmp))
-    if( p->wndV[i].validFl )
-      ewnd[i] = p->wndV[i].val;
-    else
-      break;
-  }
-  ++i; // increment i to the first valid element in ewnd[].
-
-  int k;
-  printf("en:%i sbi:%i sei:%i pitch:%s : ",en,p->sbi,p->sei,cmMidiToSciPitch(d0,NULL,0));
-  for(k=i; k<p->wndN; ++k)
-    printf("%s ", cmMidiToSciPitch(ewnd[k],NULL,0));
+  printf("loc: ");
+  for(i=0; i<locN; ++i)
+    printf("%4i ",i+locIdx);
   printf("\n");
 
-  // en is the count of valid elements in ewnd[].
-  // ewnd[i] is the first valid element
+  for(n=0,i=0; i<locN; ++i)
+    if( p->loc[locIdx+i].pitchCnt > n )
+      n = p->loc[locIdx+i].pitchCnt;
 
-  int    j       = 0;
-  int    dist;
-  int    minDist = INT_MAX;
-  int    minIdx  = cmInvalidIdx;
-  for(j=0; p->sbi+en+j <= p->sei; ++j)
-    if((dist = _cmScFolDist(p->wndN, p->edWndMtx, ewnd+i, p->loc + p->sbi+j, en )) < minDist )
-    {
-      minDist = dist;
-      minIdx  = j;
-    }
-
-  // The best fit is on the score window: p->loc[sbi+minIdx : sbi+minIdx+en-1 ]
-   
-  int evalWndN = cmMin(en,p->evalWndN);
-
-  assert(evalWndN<p->wndN);
-  
-  j = p->sbi+minIdx+en - evalWndN;
-
-  // Determine how many of the last evalWndN elements match
-  dist =  _cmScFolDist(p->wndN, p->edWndMtx, ewnd+p->wndN-evalWndN, p->loc+j, evalWndN );
-  
-  // a successful match has <= allowedMissCnt and an exact match on the last element  
-  //if( dist <= p->allowedMissCnt && ewnd[p->wndN-1] == p->loc[p->sbi+minIdx+en-1] )
-  //if( dist <= p->allowedMissCnt && _cmScFolIsMatch(p->loc+(p->sbi+minIdx+en-1),ewnd[p->wndN-1]))
-  if(  _cmScFolIsMatch(p->loc+(p->sbi+minIdx+en-1),ewnd[p->wndN-1]))
+  --n;
+  for(; n>=0; --n)
   {
-    p->sbi  = p->sbi + minIdx;
-    p->sei  = cmMin(p->sei+minIdx,p->locN-1);
-    ret_idx = p->sbi+minIdx+en-1;
+    printf("sc%1i: ",n);
+    for(i=0; i<locN; ++i)
+    {
+      if( n < p->loc[locIdx+i].pitchCnt )
+        printf("%4s ",cmMidiToSciPitch(p->loc[locIdx+i].pitchV[n],NULL,0));
+      else
+        printf("     ");
+    }
+    printf("\n");
   }
 
-  printf("minDist:%i minIdx:%i evalDist:%i sbi:%i sei:%i\n",minDist,minIdx,dist,p->sbi,p->sei);
+  printf("perf:");
+  for(i=0; i<min_idx; ++i)
+    printf("     ");
 
-  return ret_idx;
+  for(i=0; i<bn; ++i)
+    printf("%4s ",cmMidiToSciPitch(b[i],NULL,0));
+
+  printf("\n");
 }
-*/
+
+void _cmScFolRpt1( cmScFol*p, unsigned minDist, unsigned ret_idx, unsigned d1, unsigned missCnt, unsigned matchCnt )
+{
+
+  printf("dist:%i miss:%i match:%i ",minDist,missCnt,matchCnt);
+  if( ret_idx == cmInvalidIdx )
+    printf("vel:%i ", d1 );
+  else
+    printf("ret_idx:%i ",ret_idx);
+  printf("\n");
+
+}
 
 unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
 {
@@ -319,7 +311,13 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
   unsigned ret_idx = cmInvalidIdx;
   unsigned ebuf[ p->bufN ];
 
-  if( status != kNoteOnMdId && d1>0 )
+  if( status != kNoteOnMdId )
+    return ret_idx;
+
+  ++p->eventIdx;
+
+  // reject notes with very low velocity
+  if( d1 < p->minVel )
     return ret_idx;
 
   // left shift bufV[] to make the right-most element available - then copy in the new element
@@ -355,14 +353,23 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
   // shrinking ewnd[] to contain only the last p->sei-p->sbi+1 elements)
   assert( p->sei-p->sbi+1 >= en );
 
-  for(j=0; p->sbi+en+j <= p->sei; ++j)
-    if((dist = _cmScFolDist(p->bufN, p->edWndMtx, ebuf+i, p->loc + p->sbi+j, en )) < minDist )
+  for(j=0; p->sbi+en+j-1 <= p->sei; ++j)
+  {
+    // use <= minDist to choose the latest window with the lowest match
+    if((dist = _cmScFolDist(p->bufN, p->edWndMtx, ebuf+i, p->loc + p->sbi+j, en )) <= minDist )
     {
       minDist = dist;
       minIdx  = j;
     }
+  }
 
   // The best fit is on the score window: p->loc[sbi+minIdx : sbi+minIdx+en-1 ]
+
+  if( p->printFl )
+    _cmScFolRpt0( p, p->sbi, p->sei-p->sbi+1, ebuf+i, en, minIdx );
+    
+  // save current missCnt for later printing
+  unsigned missCnt = p->missCnt;
 
   // if a perfect match occurred
   if( minDist == 0 )
@@ -370,16 +377,63 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
     // we had a perfect match - shrink the window to it's minumum size
     p->sbi += (en==p->bufN) ? minIdx + 1 : 0;  // move wnd begin forward to just past first match
     p->sei  = p->sbi + minIdx + en + p->msln;  // move wnd end forward to just past last match
-    ret_idx = p->sbi + minIdx + en - 1;       
+    
     // BUG BUG BUG - is the window length valid - 
     //  - sbi and sei must be inside 0:locN
     //  - sei-sbi + 1 must be >= en
+    ret_idx = p->sbi + minIdx + en - 1;       
+    p->missCnt = 0;
+
   }
   else
   {
     // if the last event matched - then return the match location as the current score location
     if( _cmScFolIsMatch(p->loc+(p->sbi+minIdx+en-1),ebuf[p->bufN-1]) )
-      ret_idx = p->sbi + minIdx + en - 1;
+    {
+      ret_idx    = p->sbi + minIdx + en - 1;
+      p->missCnt = 0;
+
+      if( en >= p->bufN-1 && (en+2) <= ret_idx )
+        p->sbi = ret_idx - (en+2);
+        
+      
+    }
+    else // the last event does not match based on the optimal  edit-distance alignment
+    {
+      // Look backward from the closest match location for a match to the current pitch.
+      // The backward search scope is limited by the current value of 'missCnt'.
+
+      j = p->sbi+minIdx+en-2;
+      for(i=1; i+1 <= p->bufN && j>=p->sbi && i<=p->missCnt; ++i,--j)
+      {
+        // if this look-back location already matched then stop the backward search
+        if(_cmScFolIsMatch(p->loc+j,ebuf[p->bufN-1-i]))
+          break;
+        
+        // does this look-back location match the current pitch
+        if(_cmScFolIsMatch(p->loc+j,ebuf[p->bufN-1]))
+        {
+          ret_idx    = j;
+          p->missCnt = i;  // set missCnt to the cnt of steps backward necessary for a match
+          break;
+        }
+      }
+
+      // If the backward search did not find a match - look forward
+      if( ret_idx == cmInvalidIdx )
+      {
+        j = p->sbi+minIdx+en;
+        for(i=0; j<=p->sei && i<2; ++i,++j)
+          if( _cmScFolIsMatch(p->loc+j,ebuf[p->bufN-1]) )
+          {
+            ret_idx = j;
+            break;
+          }
+
+        p->missCnt = ret_idx == cmInvalidIdx ? p->missCnt + 1 : 0;
+      }
+        
+    }
 
     // even though we didn't match move the end of the score window forward
     // this will enlarge the score window by one
@@ -398,9 +452,19 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
 
   }
 
+  if( p->printFl )
+    _cmScFolRpt1(p, minDist, ret_idx, d1, missCnt, p->matchCnt );
+
+  if( ret_idx == cmInvalidIdx )
+    p->matchCnt = 0;
+  else
+    ++p->matchCnt;
+
+  
   // BUG BUG BUG - this is not currently guarded against
   assert( p->sei < p->locN );
   assert( p->sbi < p->locN );
     
+
   return ret_idx;
 }
