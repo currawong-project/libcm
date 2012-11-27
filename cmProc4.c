@@ -49,13 +49,17 @@ cmRC_t   cmScFolFree(  cmScFol** pp )
     cmMemFree(p->loc[i].pitchV);
 
   cmMemFree(p->loc);
+  cmMemFree(p->bufV);
   cmObjFree(pp);
   return rc;
 }
 
 
 cmRC_t   cmScFolFinal( cmScFol* p )
-{ return cmOkRC; }
+{ 
+  cmMemFree(p->edWndMtx);
+  return cmOkRC; 
+}
 
 void _cmScFolPrint( cmScFol* p )
 {
