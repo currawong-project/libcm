@@ -140,6 +140,10 @@ extern "C" {
   cmGrPlH_t         cmGrPlotObjMgrHandle(     cmGrPlObjH_t oh );
   cmGrObjH_t        cmGrPlotObjHandle(        cmGrPlObjH_t oh );
 
+  cmGrPlObjH_t      cmGrPlotObjParent(        cmGrPlObjH_t oh );
+  cmGrPlObjH_t      cmGrPlotObjXAnchor(       cmGrPlObjH_t oh );
+  cmGrPlObjH_t      cmGrPlotObjYAnchor(       cmGrPlObjH_t oh );
+  
   void              cmGrPlotObjSetId(         cmGrPlObjH_t oh, unsigned id );
   unsigned          cmGrPlotObjId(            cmGrPlObjH_t oh );
 

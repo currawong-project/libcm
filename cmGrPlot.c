@@ -847,6 +847,33 @@ cmGrObjH_t     cmGrPlotObjHandle( cmGrPlObjH_t oh )
   return op->grObjH;
 }
 
+cmGrPlObjH_t     cmGrPlotObjParent( cmGrPlObjH_t oh )
+{
+  cmGrPlObjH_t p_oh;
+  cmGrPlotObj_t* op = _cmGrPlObjHandleToPtr(oh);
+ 
+  p_oh.h = op->parent;
+  return p_oh;
+}
+
+cmGrPlObjH_t     cmGrPlotObjXAnchor( cmGrPlObjH_t oh )
+{
+  cmGrPlObjH_t p_oh;
+  cmGrPlotObj_t* op = _cmGrPlObjHandleToPtr(oh);
+ 
+  p_oh.h = op->xAnchor;
+  return p_oh;
+}
+
+cmGrPlObjH_t     cmGrPlotObjYAnchor( cmGrPlObjH_t oh )
+{
+  cmGrPlObjH_t p_oh;
+  cmGrPlotObj_t* op = _cmGrPlObjHandleToPtr(oh);
+ 
+  p_oh.h = op->yAnchor;
+  return p_oh;
+}
+
 
 void            cmGrPlotObjSetId( cmGrPlObjH_t oh, unsigned id )
 {
