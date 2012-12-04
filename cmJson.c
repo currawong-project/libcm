@@ -1039,15 +1039,14 @@ cmJsonNode_t* cmJsonFindValue( cmJsonH_t h, const char* label, const cmJsonNode_
 }
 
 
-cmJsRC_t  _cmJsonFindPathValue( cmJs_t* p, const char* pathPrefix, const char* path, const cmJsonNode_t* np, const cmJsonNode_t** rpp )
+cmJsRC_t  _cmJsonFindPathValue( cmJs_t* p, const char* pathPrefix, const char* path, const cmJsonNode_t* rp, const cmJsonNode_t** rpp )
 {
   cmJsRC_t rc = kOkJsRC;
-  const cmJsonNode_t* rp = np;
 
-  if( np == NULL )
+  if( rp == NULL )
     rp = p->rootPtr;
 
-  if( np == NULL )
+  if( rp == NULL )
     return kOkJsRC;  
 
   assert( cmJsonIsObject(rp));
@@ -1438,7 +1437,7 @@ cmJsRC_t   cmJsonStringValue( const cmJsonNode_t* vp, const char **retPtrPtr )
 {
   cmJsRC_t rc = kOkJsRC;
   
-  if( vp == NULL && vp->typeId != kStringTId )
+  if( vp == NULL || vp->typeId != kStringTId )
     return kNodeCannotCvtJsRC;
 
   *retPtrPtr = vp->u.stringVal;
