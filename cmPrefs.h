@@ -21,7 +21,8 @@ extern "C" {
     kInvalidIndexPrRC,
     kWriteFileFailPrRC,
     kNodeCreateFailPrRC,
-    kDuplicateIdPrRC
+    kDuplicateIdPrRC,
+    kFileSysFailPrRC
   };
 
   enum
@@ -34,8 +35,14 @@ extern "C" {
 
   extern cmPrH_t cmPrNullHandle;
 
-  // 'cbFunc' is optional
-  cmPrRC_t cmPrefsInitialize( cmPrH_t* hp, const cmChar_t* fn, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr, cmCtx_t* ctx );
+  // cmPrefsInit() creates the preference directory if it does not exist 
+  // according to cmFsPrefsDir(). It then forms the prefs file name as
+  // 'cmFsPrefsDir()/fnName.fnExt' and call cmPrefsInitialize().
+  // Set 'fnName' to NULL to use cmFsAppName() as the pref file name.
+  // Set 'fnExt' to NULL to use '.js' as the pref file extension.
+  // 'cbFunc'  and 'cbDataPtr' are optional in both versions.
+  cmPrRC_t cmPrefsInit(   cmCtx_t* ctx, cmPrH_t* hp, const cmChar_t* fnName, const cmChar_t* fnExt, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr );
+  cmPrRC_t cmPrefsInitialize( cmCtx_t* ctx, cmPrH_t* hp, const cmChar_t* fn, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr);
   cmPrRC_t cmPrefsFinalize(   cmPrH_t* hp );
 
   bool cmPrefsIsValid( cmPrH_t h );
@@ -168,6 +175,8 @@ extern "C" {
 
   // If 'fn' is NULL then the filename passed in cmPrefsInitialize() is used.
   cmPrRC_t cmPrefsWrite( cmPrH_t h, const cmChar_t* fn );
+
+  void cmPrefsReport( cmPrH_t h );
 
 
   void cmPrefsTest( cmCtx_t* ctx, const char* ifn, const char* ofn );

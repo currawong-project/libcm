@@ -249,7 +249,43 @@ cmPrNode_t* _cmPrefsPathToNodePtr( cmPr_t* p, const cmChar_t* pathStr, bool repo
   return _cmPrefsIdToNodePtr(p,id, reportErrFl);
 }
 
-cmPrRC_t cmPrefsInitialize( cmPrH_t* hp, const cmChar_t* fn, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr, cmCtx_t* ctx )
+cmPrRC_t cmPrefsInit( cmCtx_t* ctx, cmPrH_t* prefsH, const cmChar_t* fnName, const cmChar_t* fnExt, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr )
+{
+  cmPrRC_t rc = kOkPrRC;
+
+  const cmChar_t* prefsDir = cmFsPrefsDir();
+  const cmChar_t* prefsFn  = NULL;
+
+  if( fnName == NULL )
+    fnName = cmFsAppName();
+
+  if( fnExt == NULL )
+    fnExt = ".js";
+  
+  // if the prefs directory does not exist then create it
+  if( cmFsIsDir(prefsDir) == false )
+  {
+    if( cmFsMkDir(prefsDir) != kOkFsRC )
+    {
+      rc = cmErrMsg(&ctx->err,kFileSysFailPrRC,"The preference directory '%s' could not be created.",prefsDir);
+      goto errLabel;
+    }
+  }
+
+  // create the preference file name
+  if((prefsFn = cmFsMakeFn( prefsDir, fnName, fnExt, NULL )) == NULL )
+  {
+    rc = cmErrMsg(&ctx->err,kFileSysFailPrRC,"The preference file name could not be formed.");
+    goto errLabel;
+  }
+
+  // initialize the preference manager
+  rc = cmPrefsInitialize(ctx,prefsH,prefsFn,cbFunc,cbDataPtr);
+
+ errLabel:
+  return rc;
+}
+cmPrRC_t cmPrefsInitialize( cmCtx_t* ctx, cmPrH_t* hp, const cmChar_t* fn, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr )
 {
   cmPrRC_t rc = kOkPrRC;
 
@@ -1238,7 +1274,7 @@ cmPrRC_t  _cmPrefsCreateJsonNode(
         if( boolVal != NULL )
           jsTypeId = *boolVal ? kTrueTId : kFalseTId;
 
-        if((jsnp = cmJsonInsertPair( p->jsH, jsnp, pathEleStr,jsTypeId, sv, rv, iv )) == NULL )
+        if((jsnp = cmJsonInsertPair( p->jsH, jsnp, pathEleStr,jsTypeId, sv, iv, rv )) == NULL )
         {
           rc = cmErrMsg(&p->err,kInvalidIdPrRC,"Preference node create failed for '%s'",cmStringNullGuard(pathString));
           goto errLabel;
@@ -1434,6 +1470,12 @@ cmPrRC_t cmPrefsWrite( cmPrH_t h, const cmChar_t* fn )
   return rc;
 }
 
+void cmPrefsReport( cmPrH_t h )
+{
+  cmPr_t*  p  = _cmPrefsHandleToPtr(h);
+  cmJsonReport(p->jsH);
+}
+
 //=============================================================================================
 // cmPrefsTest()
 //
@@ -1494,7 +1536,7 @@ void _cmPrintNodes( const cmPrNode_t* np )
   void cmPrefsTest( cmCtx_t* ctx, const char* ifn, const char* ofn )
 {
   cmPrH_t h = cmPrNullHandle;
-  if( cmPrefsInitialize(&h,ifn,NULL,NULL,ctx) != kOkPrRC )
+  if( cmPrefsInitialize(ctx,&h,ifn,NULL,NULL) != kOkPrRC )
     return;
 
   cmPr_t* p = _cmPrefsHandleToPtr(h);
