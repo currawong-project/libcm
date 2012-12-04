@@ -33,24 +33,53 @@
 #include "cmVectOpsTemplateMain.h"
 #include "cmVectOps.h"
 
+typedef struct
+{
+  const cmChar_t* tlFn;
+  const cmChar_t* audPath;
+  const cmChar_t* scFn;
+  
+} krRsrc_t;
+
+cmDspRC_t krLoadRsrc(cmDspSysH_t h, cmErr_t* err, krRsrc_t* r)
+{
+  cmDspRC_t rc;
+  if((rc = cmDspSysLastRC(h)) != kOkDspRC )
+    return rc;
+
+  cmDspRsrcString(h,&r->tlFn,   "timeLineFn",      NULL);
+  cmDspRsrcString(h,&r->audPath,"tlAudioFilePath", NULL);
+  cmDspRsrcString(h,&r->scFn,   "scoreFn",         NULL);
+
+  if((rc = cmDspSysLastRC(h)) != kOkDspRC )
+    cmErrMsg(err,rc,"A KR DSP resource load failed.");
+    
+  return rc;
+}
 
 cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t       rc         = kOkDspRC;
-  const cmChar_t* tlFn       = "/home/kevin/src/cmgv/src/gv/data/tl7.js";
-  const cmChar_t* audPath    = "/home/kevin/media/audio/20110723-Kriesberg/Audio Files";
-  const cmChar_t* scFn       = "/home/kevin/src/cmgv/src/gv/data/mod2b.txt";
+  cmCtx_t*        cmCtx      = cmDspSysPgmCtx(h);
+  cmErr_t         err;
+  krRsrc_t        r;
   unsigned        wtLoopCnt  = 1;                            // play once (do not loop)
   unsigned        wtInitMode = 0;                            // initial wt mode is 'silence'
   unsigned        wtSmpCnt   = floor(cmDspSysSampleRate(h)); // wt length == srate
 
-  cmDspInst_t* tlp  = cmDspSysAllocInst(h,"TimeLine",    "tl",  2, tlFn, audPath );
-  cmDspInst_t* scp  = cmDspSysAllocInst(h,"Score",       "sc",  1, scFn );
+  memset(&r,0,sizeof(r));
+  cmErrSetup(&err,&cmCtx->rpt,"Kr Timeline");
+
+  if( krLoadRsrc(h,&err,&r) != kOkDspRC )
+    return rc;
+
+  cmDspInst_t* tlp  = cmDspSysAllocInst(h,"TimeLine",    "tl",  2, r.tlFn, r.audPath );
+  cmDspInst_t* scp  = cmDspSysAllocInst(h,"Score",       "sc",  1, r.scFn );
   cmDspInst_t* php  = cmDspSysAllocInst(h,"Phasor",      NULL,  0 );
   cmDspInst_t* wtp  = cmDspSysAllocInst(h,"WaveTable",   NULL,  4, wtSmpCnt, wtInitMode, NULL, wtLoopCnt );
   cmDspInst_t* pts  = cmDspSysAllocInst(h,"PortToSym",   NULL,  2, "on", "off" );
   cmDspInst_t* mfp  = cmDspSysAllocInst(h,"MidiFilePlay",NULL,  0 );
-  cmDspInst_t* sfp  = cmDspSysAllocInst(h,"ScFol",       NULL,  1, scFn );
+  cmDspInst_t* sfp  = cmDspSysAllocInst(h,"ScFol",       NULL,  1, r.scFn );
   cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",    NULL,  1, 0 );
   cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",    NULL,  1, 1 );
 
