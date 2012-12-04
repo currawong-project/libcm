@@ -513,7 +513,8 @@ enum
   kEsiMfId,
   kStatusMfId,
   kD0MfId,
-  kD1MfId
+  kD1MfId,
+  kSmpIdxMfId
 };
 
 cmDspClass_t _cmMidiFilePlayDC;
@@ -546,11 +547,12 @@ cmDspInst_t*  _cmDspMidiFilePlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, u
   {
     { "fn",     kFnMfId,     0, 0, kInDsvFl  | kStrzDsvFl, "File name"},
     { "sel",    kSelMfId,    0, 0, kInDsvFl  | kSymDsvFl,  "start | stop | continue" },
-    { "bsi",    kBsiMfId,    0, 0, kInDsvFl  | kIntDsvFl, "Starting sample." },
-    { "esi",    kEsiMfId,    0, 0, kInDsvFl  | kIntDsvFl, "Ending sample."},
-    { "status", kStatusMfId, 0, 0, kOutDsvFl | kIntDsvFl, "Status value output" },
+    { "bsi",    kBsiMfId,    0, 0, kInDsvFl  | kIntDsvFl,  "Starting sample." },
+    { "esi",    kEsiMfId,    0, 0, kInDsvFl  | kIntDsvFl,  "Ending sample."},
+    { "status", kStatusMfId, 0, 0, kOutDsvFl | kIntDsvFl,  "Status value output" },
     { "d0",     kD0MfId,     0, 0, kOutDsvFl | kUIntDsvFl, "Data byte 0" },
     { "d1",     kD1MfId,     0, 0, kOutDsvFl | kUIntDsvFl, "Data byte 1" },
+    { "smpidx", kSmpIdxMfId, 0, 0, kOutDsvFl | kUIntDsvFl, "Msg time tag as a sample index." }, 
     { NULL, 0, 0, 0, 0 }
   };
 
@@ -646,6 +648,7 @@ cmDspRC_t _cmDspMidiFilePlayExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDsp
       {
         case kNoteOnMdId:
         case kCtlMdId:
+          cmDspSetUInt(ctx,inst, kSmpIdxMfId, mp->dtick);
           cmDspSetUInt(ctx,inst, kD1MfId,     mp->u.chMsgPtr->d1);
           cmDspSetUInt(ctx,inst, kD0MfId,     mp->u.chMsgPtr->d0);
           cmDspSetUInt(ctx,inst, kStatusMfId, mp->status);
@@ -705,11 +708,14 @@ enum
 {
   kFnSfId,
   kBufCntSfId,
-  kBufMsSfId,
+  kMinLkAhdSfId,
+  kMaxWndCntSfId,
+  kMinVelSfId,
   kIndexSfId,
   kStatusSfId,
   kD0SfId,
   kD1SfId,
+  kSmpIdxSfId,
   kOutSfId
 };
 
@@ -726,15 +732,18 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
 {
   cmDspVarArg_t args[] =
   {
-    { "fn",    kFnSfId,     0, 0, kInDsvFl | kStrzDsvFl   | kReqArgDsvFl,   "Score file." },
-    { "bufcnt",kBufCntSfId, 0, 0, kInDsvFl | kUIntDsvFl,                    "Event buffer element count." },
-    { "bufms", kBufMsSfId,  0, 0, kInDsvFl | kUIntDsvFl,                    "Event buffer length milliseconds."},
-    { "index", kIndexSfId,  0, 0, kInDsvFl | kUIntDsvFl,                    "Tracking start location."},
-    { "status",kStatusSfId, 0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI status byte"},
-    { "d0",    kD0SfId,     0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI data byte 0"},
-    { "d1",    kD1SfId,     0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI data byte 1"},
-    { "out",   kOutSfId,    0, 0, kOutDsvFl| kUIntDsvFl,                    "Current score index."},
-    { NULL,    0,           0, 0, 0, NULL }
+    { "fn",    kFnSfId,       0, 0, kInDsvFl | kStrzDsvFl   | kReqArgDsvFl,   "Score file." },
+    { "bufcnt",kBufCntSfId,   0, 0, kInDsvFl | kUIntDsvFl,                    "Event buffer element count." },
+    { "lkahd", kMinLkAhdSfId, 0, 0, kInDsvFl | kUIntDsvFl,                    "Minimum window look-ahead."},
+    { "wndcnt",kMaxWndCntSfId,0, 0, kInDsvFl | kUIntDsvFl,                    "Maximum window length."},
+    { "minvel",kMinVelSfId,   0, 0, kInDsvFl | kUIntDsvFl,                    "Minimum velocity."},
+    { "index", kIndexSfId,    0, 0, kInDsvFl | kUIntDsvFl,                    "Tracking start location."},
+    { "status",kStatusSfId,   0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI status byte"},
+    { "d0",    kD0SfId,       0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI data byte 0"},
+    { "d1",    kD1SfId,       0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI data byte 1"},
+    { "smpidx",kSmpIdxSfId,   0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI time tag as a sample index"},
+    { "out",   kOutSfId,      0, 0, kOutDsvFl| kUIntDsvFl,                    "Current score index."},
+    { NULL,    0,             0, 0, 0, NULL }
   };
 
   cmDspScFol_t* p;
@@ -743,10 +752,12 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     return NULL;
   
 
-  p->sfp = cmScFolAlloc(ctx->cmProcCtx, NULL, 0, 0, 0, cmScNullHandle );
+  p->sfp = cmScFolAlloc(ctx->cmProcCtx, NULL, 0, cmScNullHandle, 0, 0, 0, 0 );
 
-  cmDspSetDefaultUInt( ctx, &p->inst,  kBufCntSfId,     0,    10);
-  cmDspSetDefaultUInt( ctx, &p->inst,  kBufMsSfId,      0,  5000);
+  cmDspSetDefaultUInt( ctx, &p->inst,  kBufCntSfId,     0,     7);
+  cmDspSetDefaultUInt( ctx, &p->inst,  kMinLkAhdSfId,   0,    10);
+  cmDspSetDefaultUInt( ctx, &p->inst,  kMaxWndCntSfId,  0,    25);
+  cmDspSetDefaultUInt( ctx, &p->inst,  kMinVelSfId,     0,     5);
   cmDspSetDefaultUInt( ctx, &p->inst,  kIndexSfId,      0,     0);  
   cmDspSetDefaultUInt( ctx, &p->inst,  kOutSfId,        0,     0);
 
@@ -785,7 +796,7 @@ cmDspRC_t _cmDspScFolReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
     return rc;
 
   if( cmScoreIsValid(p->scH) )
-    if( cmScFolInit(p->sfp, cmDspSampleRate(ctx), cmDspUInt(inst,kBufCntSfId), cmDspUInt(inst,kBufMsSfId), p->scH) != cmOkRC )
+    if( cmScFolInit(p->sfp, cmDspSampleRate(ctx),  p->scH, cmDspUInt(inst,kBufCntSfId), cmDspUInt(inst,kMinLkAhdSfId), cmDspUInt(inst,kMaxWndCntSfId), cmDspUInt(inst,kMinVelSfId) ) != cmOkRC )
       rc = cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Internal score follower allocation failed.");
 
   return rc;  
