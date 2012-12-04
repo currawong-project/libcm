@@ -29,6 +29,7 @@ typedef struct
 {
   cmErr_t    err;
   cmLHeapH_t heapH;
+  const cmChar_t* appNameStr;
 #ifdef OS_OSX
   _cmFsOsx_t* p;
 #endif
@@ -134,6 +135,8 @@ cmFsRC_t cmFileSysInitialize( cmFileSysH_t* hp, cmCtx_t* ctx, const cmChar_t* ap
   {
 #endif
 
+  p->appNameStr =  cmLhAllocStr(p->heapH,appNameStr);
+
   hp->h = p;
 
 #ifdef OS_LINUX
@@ -172,6 +175,12 @@ cmFsRC_t cmFileSysFinalize(   cmFileSysH_t* hp )
   hp->h = NULL;
 
   return rc;
+}
+
+const cmChar_t* cmFileSysAppName( cmFileSysH_t h )
+{
+  cmFs_t* p = _cmFileSysHandleToPtr(h);
+  return p->appNameStr;
 }
 
 const cmChar_t* cmFileSysPrefsDir( cmFileSysH_t h )
@@ -1010,6 +1019,9 @@ cmFsRC_t             cmFsInitialize( cmCtx_t* ctx, const cmChar_t* appNameStr )
 
 cmFsRC_t             cmFsFinalize()
 { return cmFileSysFinalize(&_cmFsH); }
+
+const cmChar_t*      cmFsAppName() 
+{ return cmFileSysAppName(_cmFsH); }
 
 const cmChar_t*      cmFsPrefsDir()
 { return cmFileSysPrefsDir(_cmFsH); }

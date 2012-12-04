@@ -59,6 +59,7 @@ extern "C" {
   // Returns true if the file system handle is active and initialized.
   bool     cmFileSysIsValid(    cmFileSysH_t h );
 
+  const cmChar_t* cmFileSysAppName(  cmFileSysH_t h ); //< Return the application name as passed to cmFileSysInitialize()
   const cmChar_t* cmFileSysPrefsDir( cmFileSysH_t h ); //< Return the operating system dependent preference data directory for this application.
   const cmChar_t* cmFileSysRsrcDir(  cmFileSysH_t h ); //< Return the operating system dependent application resource directory for this application.
   const cmChar_t* cmFileSysUserDir(  cmFileSysH_t h ); //< Return the operating system dependent user directory for this application.
@@ -187,6 +188,7 @@ extern "C" {
   cmFsRC_t        cmFsInitialize( cmCtx_t* ctx, const cmChar_t* appNameStr );
   cmFsRC_t        cmFsFinalize();
 
+  const cmChar_t* cmFsAppName();
   const cmChar_t* cmFsPrefsDir();
   const cmChar_t* cmFsRsrcDir();
   const cmChar_t* cmFsUserDir();
