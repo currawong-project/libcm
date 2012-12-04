@@ -330,7 +330,7 @@ cmCsvRC_t  _cmCsvAllocCell( cmCsv_t* p, unsigned symId, unsigned flags, unsigned
 
   // allocate cell memory
   if(( cp = cmLHeapAllocZ(p->heapH, sizeof(cmCsvCell_t) )) == NULL )
-    return _cmCsvError(p,kMemAllocErrCsvRC,"Cell allocation failed. for row: %i column %i.",cellRow,cellCol);
+    return _cmCsvError(p,kMemAllocErrCsvRC,"Cell allocation failed. for row: %i column %i.",cellRow+1,cellCol+1);
 
   cp->row   = cellRow;
   cp->col   = cellCol;
@@ -482,7 +482,7 @@ cmCsvRC_t cmCsvParse(      cmCsvH_t h, const char* buf, unsigned bufCharCnt, uns
         {
           const cmCsvUdef_t* u;
           if((u = _cmCsvFindUdef(p,lexTId)) == NULL )
-            rc = _cmCsvError(p, kSyntaxErrCsvRC, "Unrecognized token type: '%s' for token: '%s'.",cmLexIdToLabel(p->lexH,lexTId),buf);
+            rc = _cmCsvError(p, kSyntaxErrCsvRC, "Unrecognized token type: '%s' for token: '%s' row:%i col:%i.",cmLexIdToLabel(p->lexH,lexTId),buf,csvRowIdx+1,csvColIdx+1);
           else
             flags = kStrCsvTFl | kUdefCsvTFl;            
         }
@@ -490,10 +490,13 @@ cmCsvRC_t cmCsvParse(      cmCsvH_t h, const char* buf, unsigned bufCharCnt, uns
 
     // if no error occurred and the token is not a comma  and the cell is not empty
     if( rc == kOkCsvRC && lexTId != kCommaLexTId && strlen(buf) > 0 )
-      rc = _cmCsvCreateCell( p, buf,flags, csvRowIdx, csvColIdx, lexTId );
+      if((rc = _cmCsvCreateCell( p, buf,flags, csvRowIdx, csvColIdx, lexTId )) != kOkCsvRC )
+        rc = _cmCsvError(p,rc,"CSV cell create fail on row:%i col:%i\n",csvRowIdx+1,csvColIdx+1);
   }
 
- 
+  if( lexTId == kErrorLexTId )
+    rc = _cmCsvError(p, kSyntaxErrCsvRC,"The lexer encountered an unrecognized token row:%i col:%i.",csvRowIdx+1,csvColIdx+1);
+
   return rc;
 }
 
