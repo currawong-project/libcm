@@ -4326,7 +4326,6 @@ struct cmDspClass_str* cmTextFileClassCons( cmDspCtx_t* ctx )
 }
 
 //==========================================================================================================================================
-
 enum
 {
   kRsrcArId,
@@ -4335,8 +4334,7 @@ enum
   kValArId,
   kCntArId,
   kDoneArId,
-  kBaseOutArId,
-
+  kBaseOutArId
 };
 
 cmDspClass_t _cmArrayDC;
@@ -4485,6 +4483,7 @@ struct cmDspClass_str* cmArrayClassCons( cmDspCtx_t* ctx )
 
   return &_cmArrayDC;
 }
+
 
 //==========================================================================================================================================
 
@@ -4928,7 +4927,6 @@ struct cmDspClass_str* cmNetSendClassCons( cmDspCtx_t* ctx )
 
 //==========================================================================================================================================
 
-  struct cmDspClass_str* cmKrClassCons( cmDspCtx_t* ctx );
 
 cmDspClassConsFunc_t _cmDspClassBuiltInArray[] = 
 {
@@ -4962,6 +4960,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmArrayClassCons,
   cmPitchCvtClassCons,
 
+  cmShiftBufClassCons,
   cmNetSendClassCons,
 
   cmDelayClassCons,
