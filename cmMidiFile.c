@@ -821,9 +821,10 @@ void cmMidiFileTickToSamples( cmMidiFileH_t h, double srate, bool absFl )
     cmMidiTrackMsg_t* mp    = p->msgV[mi];
     unsigned          delta = floor((mp->dtick*srate)/1000000.0);
 
+    absSmp    += delta;    
+
     mp->dtick  = absFl ? absSmp : delta;
 
-    absSmp    += delta;    
   }
 }
 
