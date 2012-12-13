@@ -31,7 +31,6 @@ extern "C" {
     kInstMsgRcvFailDspRC,
     kNetSendAllocFailDspRC,
 
-
     kClassNotFoundDspRC,
     kInstNotFoundDspRC,
     kDuplInstSymIdDspRC,
@@ -60,7 +59,6 @@ extern "C" {
 
     kSerializeUiMsgFailDspRC,
 
-
     kSendToHostFailDspRC,
     kUiEleCreateFailDspRC,
 
@@ -75,7 +73,6 @@ extern "C" {
 
     kInvalidPgmIdxDspRC,
     kPgmCfgFailDspRC
-
   };
 
 
@@ -287,7 +284,7 @@ extern "C" {
   // Possible values for cmDspSetXXX()
   enum
   {
-    kUpdateUiDspFl   = 0x00,  
+    kUpdateUiDspFl   = 0x00,  // 
     kNoUpdateUiDspFl = 0x01,  // don't callback the UI
     kNoAllocDspFl    = 0x02,  // the caller is handling memory mgmt for the incoming value don't allocate space for it internally
     kSetDefaultDspFl = 0x04,  // set the var default value rather than the current value
@@ -393,7 +390,7 @@ extern "C" {
   cmDspRC_t  cmDspUiButtonCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned typeDuiId, unsigned outVarId, unsigned lblVarId );
   cmDspRC_t  cmDspUiLabelCreate(  cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned lblVarId,  unsigned alignVarId );
   cmDspRC_t  cmDspUiTimeLineCreate(cmDspCtx_t* ctx,cmDspInst_t* inst, unsigned tlFileVarId,  unsigned audPathVarId, unsigned selVarId, unsigned cursVarId );
-  cmDspRC_t  cmDspUiScoreCreate(   cmDspCtx_t* ctx,cmDspInst_t* inst, unsigned scFileVarId,  unsigned selVarId );
+  cmDspRC_t  cmDspUiScoreCreate(   cmDspCtx_t* ctx,cmDspInst_t* inst, unsigned scFileVarId,  unsigned selVarId, unsigned smpIdxVarId, unsigned pitchVarId, unsigned velVarId, unsigned locIdxVarIdx, unsigned evtIdxVarIdx, unsigned dynLvlVarIdx, unsigned valTypeVarIdx, unsigned valueVarIdx );
 
   cmDspRC_t  cmDspUiNewColumn(        cmDspCtx_t* ctx, unsigned colW );
   cmDspRC_t  cmDspUiInsertHorzBorder( cmDspCtx_t* ctx );

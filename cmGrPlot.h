@@ -148,6 +148,7 @@ extern "C" {
   unsigned          cmGrPlotObjId(            cmGrPlObjH_t oh );
 
   void              cmGrPlotObjSetUserPtr(    cmGrPlObjH_t oh, void* userPtr );
+  void              cmGrPlotObjAllocUser(     cmGrPlObjH_t oh, const void* data, unsigned byteCnt );
   void*             cmGrPlotObjUserPtr(       cmGrPlObjH_t oh );
 
   void              cmGrPlotObjSetLabel(      cmGrPlObjH_t oh, const cmChar_t* label );

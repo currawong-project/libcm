@@ -41,9 +41,11 @@ enum
   kRemarkColScIdx    = 19
 };
 
+
 typedef struct
 {
   unsigned id;
+  unsigned flag;
   cmChar_t label[ kLabelCharCnt + 1 ];
 } cmScEvtRef_t; 
 
@@ -64,17 +66,11 @@ typedef struct cmScSetEle_str
 typedef struct cmScSet_str
 {
   unsigned            typeFl; // type of this set
-  cmScSetEle_t*       eles;  // indexes of set elements
-  cmScSetEle_t*       sects; // application section labels
-  bool                inFl;  // true if currently accepting elements
-  struct cmScSet_str* link;  // 
+  cmScSetEle_t*       eles;   // indexes of set elements
+  cmScSetEle_t*       sects;  // application section labels
+  bool                inFl;   // true if currently accepting elements
+  struct cmScSet_str* link;   // 
 } cmScSet_t;
-
-typedef struct cmScPerf_str
-{
-  cmScoreSet_t*        set;
-  struct cmScPerf_str* link;
-} cmScPerf_t;
 
 typedef struct
 {
@@ -102,40 +98,53 @@ typedef struct
   cmScoreSet_t*     sets;
   unsigned          setCnt;
 
-  cmScPerf_t        perf;
+  unsigned*         dynRefArray;
+  unsigned          dynRefCnt;  
+
+  unsigned          nxtLocIdx;
+  unsigned          minSetLocIdx;
+  unsigned          maxSetLocIdx;
 } cmSc_t;
 
 cmScEvtRef_t _cmScEvtRefArray[] = 
 {
-  { kTimeSigEvtScId, "tsg" },
-  { kKeySigEvtScId,  "ksg" },
-  { kTempoEvtScId,   "tmp" },
-  { kTrackEvtScId,   "trk" },
-  { kTextEvtScId,    "txt" },
-  { kEOTrackEvtScId, "eot" },
-  { kCopyEvtScId,    "cpy"},
-  { kBlankEvtScId,   "blk"},
-  { kBarEvtScId,     "bar"},
-  { kPgmEvtScId,     "pgm" },
-  { kCtlEvtScId,     "ctl" },
-  { kNonEvtScId,     "non" },
-  { kInvalidEvtScId, "***" }
+  { kTimeSigEvtScId, 0, "tsg" },
+  { kKeySigEvtScId, 0,  "ksg" },
+  { kTempoEvtScId, 0,   "tmp" },
+  { kTrackEvtScId, 0,   "trk" },
+  { kTextEvtScId, 0,    "txt" },
+  { kEOTrackEvtScId, 0, "eot" },
+  { kCopyEvtScId, 0,    "cpy" },
+  { kBlankEvtScId, 0,   "blk" },
+  { kBarEvtScId, 0,     "bar" },
+  { kPgmEvtScId, 0,     "pgm" },
+  { kCtlEvtScId, 0,     "ctl" },
+  { kNonEvtScId, 0,     "non" },
+  { kInvalidEvtScId, 0, "***" }
 };
 
 cmScEvtRef_t _cmScDynRefArray[] = 
 {
-  { 1, "pppp" },
-  { 2, "ppp" },
-  { 3, "pp"  },
-  { 4, "p"   },
-  { 5, "mp"  },
-  { 6, "m"   },
-  { 7, "mf"  },
-  { 8, "f"   },
-  { 9, "ff"  },
-  { 10, "fff" },
-  { 11, "ffff"},
-  { kInvalidDynScId, "***" },
+  { 1, 0, "pppp" },
+  { 2, 0, "ppp" },
+  { 3, 0, "pp"  },
+  { 4, 0, "p"   },
+  { 5, 0, "mp"  },
+  { 6, 0, "m"   },
+  { 7, 0, "mf"  },
+  { 8, 0, "f"   },
+  { 9, 0, "ff"  },
+  { 10,0, "fff" },
+  { 11,0, "ffff"},
+  { kInvalidDynScId,0, "***" },
+};
+
+cmScEvtRef_t _cmScVarRefArray[] = 
+{
+  { kEvenVarScId, kEvenScFl, "e"},
+  { kDynVarScId,  kDynScFl,  "d"},
+  { kTempoVarScId,kTempoScFl,"t"},
+  { cmInvalidId,  0,         "@"}
 };
 
 cmSc_t* _cmScHandleToPtr( cmScH_t h )
@@ -172,6 +181,15 @@ unsigned _cmScDynLabelToId( const cmChar_t* label )
   return kInvalidDynScId;
 }
 
+// return the count of dynamic label/id pairs
+unsigned _cmScDynLabelCount( )
+{
+  unsigned      n = 0;
+  cmScEvtRef_t* r = _cmScDynRefArray;
+  for(; r->id != kInvalidEvtScId; ++r )
+    ++n;
+  return n;
+}
 const cmChar_t* cmScDynIdToLabel( unsigned id )
 {
   cmScEvtRef_t* r = _cmScDynRefArray;
@@ -179,6 +197,66 @@ const cmChar_t* cmScDynIdToLabel( unsigned id )
     if( r->id == id )
       return r->label;
   return NULL;
+}
+
+char _cmScVarFlagToChar( unsigned flags )
+{
+  unsigned i;
+  for(i=0; _cmScVarRefArray[i].id!=cmInvalidId; ++i)
+    if( _cmScVarRefArray[i].flag == flags )
+      return _cmScVarRefArray[i].label[0];
+  assert(0);
+  return ' ';
+}
+
+char _cmScVarIdToChar( unsigned id )
+{
+  unsigned i;
+  for(i=0; _cmScVarRefArray[i].id!=cmInvalidId; ++i)
+    if( _cmScVarRefArray[i].id == id )
+      return _cmScVarRefArray[i].label[0];
+  assert(0);
+  return ' ';
+}
+
+unsigned _cmScVarFlagToId( unsigned flags )
+{
+  unsigned i;
+  for(i=0; _cmScVarRefArray[i].id!=cmInvalidId; ++i)
+    if( _cmScVarRefArray[i].flag == flags )
+      return _cmScVarRefArray[i].id;
+  assert(0);
+  return cmInvalidId;
+}
+
+const char* _cmScFlagsToStr( unsigned flags, char* buf, int bufCharCnt )
+{
+
+  unsigned i=0;
+  if( cmIsFlag(flags,kEvenScFl) )
+  {
+    assert(i<bufCharCnt);
+    buf[i] = 'e';
+    ++i;
+  }
+
+  if( cmIsFlag(flags,kDynScFl) )
+  {
+    assert(i<bufCharCnt);
+    buf[i] = 'd';
+    ++i;
+  }
+
+  if( cmIsFlag(flags,kTempoScFl ))
+  {
+    assert(i<bufCharCnt);
+    buf[i] = 't';
+    ++i;
+  }
+
+  assert(i<bufCharCnt);
+  buf[i] = 0;
+  return buf;
 }
 
 unsigned _cmScLexSciPitchMatcher( const cmChar_t* cp, unsigned cn )
@@ -275,7 +353,7 @@ cmScRC_t _cmScFinalize( cmSc_t* p )
     for(i=0; i<p->setCnt; ++i)
     {
       cmMemFree(p->sets[i].eleArray);
-      cmMemFree(p->sets[i].sectArray);
+      //cmMemFree(p->sets[i].sectArray);
     }
     cmMemFree(p->sets);
   }
@@ -285,9 +363,14 @@ cmScRC_t _cmScFinalize( cmSc_t* p )
   if( p->loc != NULL )
   {
     for(i=0; i<p->locCnt; ++i)
+    {
       cmMemFree(p->loc[i].evtArray);
+      if( p->loc[i].begSectPtr != NULL )
+        cmMemFree(p->loc[i].begSectPtr->setArray);
+    }
     cmMemFree(p->loc);
   }
+
 
   cmMemFree(p->sect);
   cmMemFree(p->fn);
@@ -660,17 +743,26 @@ cmScRC_t _cmScProcSets( cmSc_t* p )
         ++en;
 
       // allocate the section array
-      p->sets[i].typeFl    = sp->typeFl;
-      p->sets[i].sectCnt   = en;    
-      p->sets[i].sectArray = cmMemAllocZ(cmScoreSection_t*,en);
+      p->sets[i].varId    = _cmScVarFlagToId(sp->typeFl);
+      //p->sets[i].sectCnt   = en;    
+      //p->sets[i].sectArray = cmMemAllocZ(cmScoreSection_t*,en);
 
-      // fill in the section array
+      // fill in the section array with sections which this set will be applied to
       ep = sp->sects;
       for(j=0; ep!=NULL; ep=ep->link,++j)
       {
+        cmScoreSection_t* sp;
         assert(ep->label != NULL);
-        if((p->sets[i].sectArray[j] =  _cmScLabelToSection(p, ep->label )) == NULL )
-          rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The section labelled '%s' could not be found for the set which includes row number %i.",ep->label,rowNumb);
+        if((sp  =  _cmScLabelToSection(p, ep->label )) == NULL )
+          rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The section labelled '%s' could not be found for the set which includes row number %i.",ep->label,rowNumb);        
+        else
+        {
+          //= p->sets[i].sectArray[j];
+
+          sp->setArray = cmMemResizeP(cmScoreSet_t*,sp->setArray,++sp->setCnt);
+          sp->setArray[sp->setCnt-1] = p->sets + i;
+        }
+        
       }
 
       ++i;
@@ -703,7 +795,7 @@ cmScRC_t _cmScProcSets( cmSc_t* p )
     assert( j<p->locCnt );
 
     // assign the ith set to the location which contains it's last element
-    p->sets[i].link   = p->loc[j].setList;
+    p->sets[i].llink   = p->loc[j].setList;
     p->loc[j].setList = p->sets + i;
   }
 
@@ -732,16 +824,17 @@ cmScRC_t _cmScProcSections( cmSc_t* p, cmScSect_t* sectList )
     if( sp->label != NULL )
     {
       p->sect[i].label    = sp->label;
-      p->sect[i].begIndex = sp->startIdx;
+      p->sect[i].index    = i;
+      p->sect[i].begEvtIndex = sp->startIdx;
       ++i;
     }
 
   // assign the begSectPtr to each section
   for(i=0; i<p->sectCnt; ++i)
   {
-    assert( p->sect[i].begIndex < p->cnt );
+    assert( p->sect[i].begEvtIndex < p->cnt );
     unsigned j,k;
-    const cmScoreEvt_t* ep = p->array + p->sect[i].begIndex;
+    const cmScoreEvt_t* ep = p->array + p->sect[i].begEvtIndex;
     for(j=0; j<p->locCnt; ++j)
     {
       for(k=0; k<p->loc[j].evtCnt; ++k)
@@ -767,10 +860,7 @@ cmScRC_t _cmScProcSections( cmSc_t* p, cmScSect_t* sectList )
     sp = np;
   }
 
-  _cmScPrintSets("Sets",p->setList );
-  //_cmScPrintSets("even",p->evenSetList);
-  //_cmScPrintSets("dyn",p->evenSetList);
-  //_cmScPrintSets("tempo",p->evenSetList);
+  //_cmScPrintSets("Sets",p->setList );
 
   _cmScProcSets(p);
 
@@ -914,10 +1004,7 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
   return rc;
 }
 
-// This function does not currently work because there is no
-// guarantee that all the time values (secs field) have been filled in 
-/// with valid times and that all event records have a valid 'type' id.
-cmScRC_t _cmScoreInitLocArray( cmSc_t* p )
+cmScRC_t _cmScInitLocArray( cmSc_t* p )
 {
   cmScRC_t rc       = kOkScRC;
   double   maxDSecs = 0;  // max time between events that are considered simultaneous
@@ -957,6 +1044,7 @@ cmScRC_t _cmScoreInitLocArray( cmSc_t* p )
 
     assert(k<p->locCnt);
 
+    p->loc[k].index    = k;
     p->loc[k].evtCnt   = j-i;
     p->loc[k].evtArray = cmMemAllocZ(cmScoreEvt_t*,p->loc[k].evtCnt);
 
@@ -964,6 +1052,8 @@ cmScRC_t _cmScoreInitLocArray( cmSc_t* p )
     for(j=0; j<p->loc[k].evtCnt; ++j)
     {
       p->loc[k].evtArray[j] = p->array + (i + j);
+
+      p->loc[k].evtArray[j]->locIdx = k;
 
       if( p->array[i+j].type == kBarEvtScId )
         barNumb = p->array[i+j].barNumb;
@@ -982,7 +1072,8 @@ cmScRC_t _cmScoreInitLocArray( cmSc_t* p )
   return rc;
 }
 
-cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, cmScCb_t cbFunc, void* cbArg )
+
+cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, const unsigned* dynRefArray, unsigned dynRefCnt, cmScCb_t cbFunc, void* cbArg )
 {
   cmScRC_t rc = kOkScRC;
   if((rc = cmScoreFinalize(hp)) != kOkScRC )
@@ -995,17 +1086,33 @@ cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, cmScC
   if((rc = _cmScParseFile(p,ctx,fn)) != kOkScRC )
     goto errLabel;
 
-  // See note at function
-  if((rc = _cmScoreInitLocArray(p)) != kOkScRC )
+  if((rc = _cmScInitLocArray(p)) != kOkScRC )
     goto errLabel;
 
   if((rc = _cmScProcSections(p,p->sectList)) != kOkScRC )
     goto errLabel;
 
+  // load the dynamic reference array
+  if( dynRefArray != NULL && dynRefCnt > 0)
+  {
+    unsigned n = _cmScDynLabelCount();
+    if( dynRefCnt != n )
+    {
+      rc = cmErrMsg(&p->err,kInvalidDynRefCntScRC,"The count of dynamics labels must be %i not %i.",n,dynRefCnt);
+      goto errLabel;      
+    }
 
-  p->cbFunc = cbFunc;
-  p->cbArg  = cbArg;
-  p->fn     = cmMemAllocStr(fn);
+    p->dynRefArray = cmMemAllocZ(unsigned,dynRefCnt);
+    memcpy(p->dynRefArray,dynRefArray,sizeof(unsigned)*dynRefCnt);
+    p->dynRefCnt   = dynRefCnt;
+  }
+
+  p->cbFunc       = cbFunc;
+  p->cbArg        = cbArg;
+  p->fn           = cmMemAllocStr(fn);
+  p->nxtLocIdx    = 0;
+  p->minSetLocIdx = cmInvalidIdx;
+  p->maxSetLocIdx = cmInvalidIdx;
 
   hp->h = p;
 
@@ -1062,6 +1169,20 @@ cmScoreEvt_t* cmScoreEvt( cmScH_t h, unsigned idx )
   return p->array + idx;
 }
 
+unsigned      cmScoreSectionCount( cmScH_t h )
+{ 
+  cmSc_t* p = _cmScHandleToPtr(h);
+  return p->sectCnt;
+}
+
+cmScoreSection_t* cmScoreSection( cmScH_t h, unsigned idx )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  assert( idx < p->sectCnt);
+  return p->sect + idx;
+}
+
+
 unsigned      cmScoreLocCount( cmScH_t h )
 {
   cmSc_t* p = _cmScHandleToPtr(h);
@@ -1079,48 +1200,6 @@ cmScoreLoc_t* cmScoreLoc( cmScH_t h, unsigned idx )
   return p->loc + idx;
 }
 
-char _cmScFlagsToChar( unsigned flags )
-{
-  switch(flags)
-  {
-    case kEvenScFl: return 'e';
-    case kDynScFl:  return 'd';
-    case kTempoScFl:return 't';
-    default:
-      { assert(0); }
-  }
-  return ' ';
-}
-
-const char* _cmScFlagsToStr( unsigned flags, char* buf, int bufCharCnt )
-{
-
-  unsigned i=0;
-  if( cmIsFlag(flags,kEvenScFl) )
-  {
-    assert(i<bufCharCnt);
-    buf[i] = 'e';
-    ++i;
-  }
-
-  if( cmIsFlag(flags,kDynScFl) )
-  {
-    assert(i<bufCharCnt);
-    buf[i] = 'd';
-    ++i;
-  }
-
-  if( cmIsFlag(flags,kTempoScFl ))
-  {
-    assert(i<bufCharCnt);
-    buf[i] = 't';
-    ++i;
-  }
-
-  assert(i<bufCharCnt);
-  buf[i] = 0;
-  return buf;
-}
 
 void cmScorePrintLoc( cmScH_t h )
 {
@@ -1131,14 +1210,17 @@ void cmScorePrintLoc( cmScH_t h )
   char     buf[ bufCharCnt ];
   const char*     emptyStr = "        ";
 
+  // for each set of 'colCnt' columns
   for(i=0; i<p->locCnt; i+=colCnt )
   {
+    // print the location 'index' line
     unsigned c,j,k;
     printf("index: ");
     for(c=0,j=i; j<p->locCnt && c<colCnt; ++c,++j)
       printf("%7i ",j);
     printf("\n");
 
+    // print the 'sectn' label line
     printf("sectn: ");
     for(c=0,j=i; j<p->locCnt && c<colCnt; ++c,++j)
       if( p->loc[j].begSectPtr==NULL )
@@ -1147,11 +1229,14 @@ void cmScorePrintLoc( cmScH_t h )
         printf("%7s ",p->loc[j].begSectPtr->label);
     printf("\n");
 
+    // calculate the max number of simultan. events at any one location
+    // for this set of 'colCnt' columns.
     unsigned n=0;
     for(c=0,j=i; j<p->locCnt && c<colCnt; ++c,++j)
       if( p->loc[j].evtCnt > n )
         n = p->loc[j].evtCnt;
 
+    // for each 'sco' line
     for(k=0; k<n; ++k)
     {
       printf("sco%2i: ",k);
@@ -1182,42 +1267,31 @@ void cmScorePrintLoc( cmScH_t h )
       printf("\n");
     }
 
+    // calc the max number of set triggers which will occur on
+    // any one location for this set of 'colCnt' columns.
     n=0;
     for(c=0,j=i; j<p->locCnt && c<colCnt; ++c,++j)
-    {
-      unsigned m = 0;
-      const cmScoreSet_t* sp = p->loc[j].setList;
-      for(; sp!=NULL; sp=sp->link)
-        m += sp->sectCnt;
-
-      if( m>n)
-        n = m;
-    }
+      if(p->loc[j].begSectPtr != NULL && p->loc[j].begSectPtr->setCnt > n )
+        n = p->loc[j].begSectPtr->setCnt;      
 
     for(k=0; k<n; ++k)
     {
       printf("trig%1i: ",k);
       for(c=0,j=i; j<p->locCnt && c<colCnt; ++c,++j)
       {
-        unsigned            y  = 0;
-        bool                fl = true;
-        const cmScoreSet_t* sp = p->loc[j].setList;
-        for(; sp!=NULL && fl; sp=sp->link)
-        {
-          unsigned z; 
-          for(z=0; z<sp->sectCnt; ++y,++z)
-            if( y == k )
-            {
-              printf("   %3s%c ",sp->sectArray[z]->label,_cmScFlagsToChar(sp->typeFl) );
-              fl = false;
-              break;
-            }
+        if( p->loc[j].begSectPtr != NULL && k<p->loc[j].begSectPtr->setCnt )
+        {   
+          const cmScoreSet_t* sp = p->loc[j].begSectPtr->setArray[k];
+          printf("  %3s-%c ",p->loc[j].begSectPtr->label,_cmScVarIdToChar(sp->varId) );
         }
-        if( fl )
+        else
+        {
           printf("%s",emptyStr);
+        }
       }
       printf("\n");
     }
+
     printf("\n");
   }
 }
@@ -1231,18 +1305,25 @@ cmScRC_t      cmScoreSeqNotify( cmScH_t h )
 
   if( p->cbFunc != NULL )
   {
-    memset(&m.evt,0,sizeof(m.evt));
+    memset(&m.u.evt,0,sizeof(m.u.evt));
     m.typeId = kBeginMsgScId;
     p->cbFunc(p->cbArg,&m,sizeof(m));
 
     m.typeId = kEventMsgScId;
     for(i=0; i<p->cnt; ++i)
     {
-      m.evt = p->array[i];
+      m.u.evt = p->array[i];
       p->cbFunc(p->cbArg,&m,sizeof(m));
     }
 
-    memset(&m.evt,0,sizeof(m.evt));
+    m.typeId = kSectionMsgScId;
+    for(i=0; i<p->sectCnt; ++i)
+    {
+      m.u.sect = p->sect[i];
+      p->cbFunc(p->cbArg,&m,sizeof(m));
+    }
+
+    memset(&m.u.evt,0,sizeof(m.u.evt));
     m.typeId = kEndMsgScId;
     p->cbFunc(p->cbArg,&m,sizeof(m));
 
@@ -1258,7 +1339,26 @@ void          cmScoreClearPerfInfo( cmScH_t h )
   {
     p->array[i].perfSmpIdx = cmInvalidIdx;
     p->array[i].perfVel    = 0;
+    p->array[i].perfDynLvl = 0;
   }
+
+  for(i=0; i<p->locCnt; ++i)
+  {
+    cmScoreSet_t* sp = p->loc[i].setList;
+    for(; sp!=NULL; sp=sp->llink)
+      sp->doneFl = false;
+  }
+
+  for(i=0; i<p->sectCnt; ++i)
+  {
+    unsigned j;
+    for(j=0; j<kScVarCnt; ++j)
+      p->sect[i].vars[j] = DBL_MAX;
+  }
+
+  p->nxtLocIdx = 0;
+  p->minSetLocIdx = cmInvalidIdx;
+  p->maxSetLocIdx = cmInvalidIdx;
 
 }
 
@@ -1272,28 +1372,350 @@ bool _cmScIsSetPerfDone( cmScoreSet_t* sp )
 }
 
 
-
-void          cmScoreSetPerfEvent( cmScH_t h, unsigned locIdx, unsigned smpIdx, unsigned pitch, unsigned vel )
+void _cmScPerfSortTimes( unsigned *v, unsigned n )
 {
-  cmSc_t*       p      = _cmScHandleToPtr(h);
+  unsigned i;
+  bool fl = true;
+  while(fl && n)
+  {
+    fl = false;
+    for(i=1; i<n; ++i)
+    {
+      if( v[i-1] > v[i] )
+      {
+        unsigned t = v[i-1];
+        v[i-1] = v[i];
+        v[i] = t;
+        fl = true;
+      }
+    }
+   --n;
+  }
+}
+
+bool _cmScPerfEven(cmSc_t* p, cmScoreSet_t* stp, bool printMissFl)
+{
+  unsigned      i   = 0;
+  double        u   = 0;
+  double        x   = 0;
+  bool          sortFl = false;
+  bool          printFl = true;
+
+  unsigned v[ stp->eleCnt ];
+  unsigned d[ stp->eleCnt - 1];
+  assert( stp->eleCnt > 1 );
+
+  // calculate the sum of the time between events
+  for(i=0; i<stp->eleCnt; ++i)
+  {
+    // if this event was not received - then the set is not valid
+    if( stp->eleArray[i]->perfSmpIdx == cmInvalidIdx )
+    {
+      if( printFl && printMissFl)
+        printf("EVENESS: missing loc:%i %s\n",stp->eleArray[i]->locIdx,cmMidiToSciPitch(stp->eleArray[i]->pitch,NULL,0));
+      return false;
+    }
+
+    // load v[i]
+    v[i] = stp->eleArray[i]->perfSmpIdx;
+
+    // check for out of order elements
+    if( i> 0 )
+      if( v[i] < v[i-1] )
+        sortFl = true;
+  } 
+
+  // sort the times in ascending order
+  if( sortFl )
+    _cmScPerfSortTimes(v,stp->eleCnt);
+
+
+  // calc the sum of time differences 
+  for(i=1; i<stp->eleCnt; ++i)
+    u += d[i-1] = v[i] - v[i-1];
+
+  // calculate the average time between events
+  u /= stp->eleCnt-1;
+
+  // calculate the std-dev of the time between events
+  for(i=0; i<stp->eleCnt-1; ++i)
+    x += (d[i]-u)*(d[i]-u);
+  
+  double sd = sqrt(x/(stp->eleCnt-1));
+
+  // compute the average z-score
+  double c = 0;
+  for(i=0; i<stp->eleCnt-1; ++i)
+    c += fabs(d[i]-u)/sd;
+
+
+  stp->value = c/(stp->eleCnt-1);
+  stp->doneFl = true;
+
+  if(printFl)
+  {
+    /*
+    for(i=0; i<stp->eleCnt; ++i)
+    {
+      printf("%i %i ",i,v[i]);
+      if( i > 0 )
+        printf("%i ", d[i-1]);
+      printf("\n");
+    }
+    */
+    printf("%s EVENESS:%f\n",sortFl?"SORTED ":"",stp->value);
+  }
+
+  return true;
+}
+
+bool _cmScPerfDyn( cmSc_t* p, cmScoreSet_t* stp, bool printMissFl)
+{
+  double   a       = 0;
+  unsigned i       = 0;
+  bool     printFl = true;
+
+  for(i=0; i<stp->eleCnt; ++i)
+  {
+    unsigned j;
+
+    // if this event was not received - then the set is not valid
+    if( stp->eleArray[i]->perfSmpIdx == cmInvalidIdx )
+    {
+      if( printFl && printMissFl )
+        printf("DYNAMICS: missing loc:%i %s\n",stp->eleArray[i]->locIdx,cmMidiToSciPitch(stp->eleArray[i]->pitch,NULL,0));
+      return false;
+    }
+
+    unsigned m  = 0;  // lower bound for the first dyn. category
+
+    // determine the dynamic category for the performed velocity of each event
+    for(j=0; j<p->dynRefCnt; ++j)
+    {
+      // if the vel fall's into the jth dyn. category
+      if( m <= stp->eleArray[i]->perfVel && stp->eleArray[i]->perfVel < p->dynRefArray[j] )
+        break;
+
+      // store the min vel for the next dyn category
+      m = p->dynRefArray[j];
+    }
+
+    assert( j < p->dynRefCnt );
+
+    stp->eleArray[i]->perfDynLvl = j+1;
+
+    a += abs((j+1) - stp->eleArray[i]->dynVal);
+
+    if( p->cbFunc != NULL )
+    {
+      cmScMsg_t m;
+      m.typeId        = kDynMsgScId;
+      m.u.dyn.evtIdx  = stp->eleArray[i]->index;
+      m.u.dyn.dynLvl  = stp->eleArray[i]->perfDynLvl;
+      p->cbFunc(p->cbArg,&m,sizeof(m));
+    }
+
+  }
+
+  stp->value  = a / stp->eleCnt;
+  stp->doneFl = true;
+
+  if( printFl )
+    printf("DYNAMICS:%f\n",stp->value);
+
+  return true;
+}
+
+bool _cmScPerfTempo(cmSc_t* p, cmScoreSet_t* stp, bool printFl)
+{
+  return false;
+}
+
+void _cmScPerfExec( cmSc_t* p, cmScoreSet_t* sp, bool printMissFl )
+{
+  if( sp->doneFl == false )
+  {
+    switch( sp->varId )
+    {
+      case kEvenVarScId:  
+        _cmScPerfEven(p,sp,printMissFl);
+        break;
+
+      case kDynVarScId:   
+        _cmScPerfDyn(p,sp,printMissFl);
+        break;
+
+      case kTempoVarScId: 
+        _cmScPerfTempo(p,sp,printMissFl);
+        break;
+
+      default:
+        { assert(0); }
+    }
+  }
+    
+}
+
+void _cmScPerfExecRange( cmSc_t* p )
+{
+  if( p->minSetLocIdx == cmInvalidIdx || p->maxSetLocIdx==cmInvalidIdx )
+    return;
+  
+  unsigned i = p->minSetLocIdx;
+  for(; i<=p->maxSetLocIdx; ++i)
+  {
+    cmScoreSet_t* sp = p->loc[i].setList;
+    for(; sp!=NULL; sp=sp->llink)      
+      _cmScPerfExec(p,sp,false);
+    
+  }
+}
+
+bool  _cmScSetPerfEvent( cmSc_t* p, unsigned locIdx, unsigned smpIdx, unsigned pitch, unsigned vel )
+{
   assert(locIdx < p->locCnt );
-  cmScoreLoc_t* lp     = p->loc + locIdx;
+  cmScoreLoc_t* lp       = p->loc + locIdx;
+  bool          foundFl  = false;
+  bool          doneFl   = true;
   unsigned      i;
 
+  // locate the event at the loc[locIdx]
   for(i=0; i<lp->evtCnt; ++i)
   {
     cmScoreEvt_t* ep = lp->evtArray[i];
-    if( ep->type == kNonEvtScId && ep->pitch == pitch )
+    if( ep->type == kNonEvtScId  )
     {
-      assert( ep->perfSmpIdx == cmInvalidIdx );
+      if( ep->pitch == pitch )
+      {
+        assert( ep->perfSmpIdx == cmInvalidIdx );
       
-      ep->perfSmpIdx = smpIdx;
-      ep->perfVel    = vel;
-      break;
+        ep->perfSmpIdx = smpIdx;
+        ep->perfVel    = vel;
+        foundFl        = true;
+      }
+
+      // check if all notes have arrived for this location
+      if( ep->perfSmpIdx == cmInvalidIdx )
+        doneFl = false;
     }
   }
 
+  // the event must always be found 
+  assert( foundFl );
+
+  return doneFl;
 }
+
+bool  cmScoreSetPerfEvent( cmScH_t h, unsigned locIdx, unsigned smpIdx, unsigned pitch, unsigned vel )
+{
+  cmSc_t* p  = _cmScHandleToPtr(h);
+  return _cmScSetPerfEvent(p,locIdx,smpIdx,pitch,vel);
+}
+
+void  cmScoreExecPerfEvent( cmScH_t h, unsigned locIdx, unsigned smpIdx, unsigned pitch, unsigned vel )
+{
+  unsigned      i;
+  cmSc_t*       p        = _cmScHandleToPtr(h);
+  bool          doneFl   = _cmScSetPerfEvent(p,locIdx,smpIdx,pitch,vel);
+  unsigned      printLvl = 1;
+  cmScoreLoc_t* lp       = p->loc + locIdx;
+
+
+  // all events for a location must be complete to trigger attached events
+  if( doneFl == false )
+    return;
+
+  if( p->loc[locIdx].setList != NULL )
+  {
+    // set idx of most recent loc w/ a set end event
+    p->maxSetLocIdx = locIdx; 
+
+    if( p->minSetLocIdx == cmInvalidIdx )
+      p->minSetLocIdx = locIdx;
+  }
+
+  // attempt to calculate all sets between loc[p->minSetLocIdx] and loc[p->maxSetLocIdx]
+  _cmScPerfExecRange(p);
+
+  // prevent event retriggering or going backwards
+  if( printLvl && locIdx < p->nxtLocIdx )
+  {
+    printf("----- BACK ----- \n");
+    return;
+  }
+
+  if( printLvl && locIdx > p->nxtLocIdx )
+  {
+    printf("----- SKIP ----- \n");
+  }
+
+  // for each location between the current and previous location
+  for(; p->nxtLocIdx<=locIdx; ++p->nxtLocIdx)
+  {
+
+    lp = p->loc + p->nxtLocIdx;
+
+    // if this location is the start of a new section - then apply
+    // sets that are assigned to this section
+    if( lp->begSectPtr != NULL && lp->begSectPtr->setCnt > 0 )
+    {
+      // notice the location of the oldest section start - once we cross this point
+      // it is too late to notice set completions - so incr p->inSetLocIdx 
+      if( lp->begSectPtr->setCnt ) 
+        p->minSetLocIdx = p->nxtLocIdx+1;
+
+      for(i=0; i<lp->begSectPtr->setCnt; ++i)
+      {
+        cmScoreSet_t* stp = lp->begSectPtr->setArray[i];
+
+        if( stp->doneFl == false )
+          _cmScPerfExec(p, stp, printLvl>0 );
+        
+        if( stp->doneFl )
+        {
+          assert( stp->varId < kScVarCnt );
+
+          lp->begSectPtr->vars[ stp->varId ] = stp->value;
+
+          if( p->cbFunc != NULL )
+          {
+            cmScMsg_t m;
+            m.typeId        = kVarMsgScId;
+            m.u.meas.varId  = stp->varId;
+            m.u.meas.value  = stp->value;
+            p->cbFunc(p->cbArg,&m,sizeof(m));
+
+          }
+        }
+      }        
+    }
+  }
+}
+
+void  cmScoreSetPerfValue(  cmScH_t h, unsigned locIdx, unsigned varId, double value )
+{
+  cmSc_t*       p      = _cmScHandleToPtr(h);
+
+  int li = locIdx;
+  for(; li>=0; --li)
+    if( p->loc[li].begSectPtr != NULL )
+    {
+      assert( varId < kScVarCnt );
+      p->loc[li].begSectPtr->vars[varId] = value;
+      break;
+    }
+
+  assert( li>=0);
+}
+
+void cmScoreSetPerfDynLevel( cmScH_t h, unsigned evtIdx, unsigned dynLvl )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  
+  assert(evtIdx < p->cnt );
+  p->array[ evtIdx ].perfDynLvl = dynLvl;
+}
+
 
 cmScRC_t      cmScoreDecode( const void* msg, unsigned msgByteCnt, cmScMsg_t* m)
 {
@@ -1331,228 +1753,10 @@ void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
   }
 }
 
-/*
-// Each time line note-on object is decorated (via cmTlObj_t.userDataPtr) with a
-// cmScSyncState_t record.  
-typedef struct 
-{
-  unsigned cnt;        // count of candidate sync locations
-  double   dist;       // edit distance to the closest sync location
-  unsigned scEvtIdx;   // score record this note-on is assigned to
-} cmScSyncState_t;
-
-void _cmScSyncTimeLineAllocFree( cmTlH_t tlH, bool allocFl )
-{
-  cmTlMidiEvt_t* mep = cmTlNextMidiEvtObjPtr(tlH,NULL,cmInvalidId);
-  
-  for(; mep != NULL; mep = cmTlNextMidiEvtObjPtr(tlH,&mep->obj,cmInvalidId))
-    if( mep->msg->status == kNoteOnMdId )
-    {
-      if( allocFl )
-        mep->obj.userDataPtr = cmMemAllocZ(cmScSyncState_t,1);      
-      else
-        cmMemPtrFree(&mep->obj.userDataPtr);
-    }
-}
-
-void _cmScPrintSyncState( cmSc_t* p, cmTlH_t tlH )
-{
-  unsigned i = 0;
-  double sr = cmTimeLineSampleRate(tlH);
-  cmTlMidiEvt_t* mep = cmTlNextMidiEvtObjPtr(tlH,NULL,cmInvalidId);
-  
-  for(; mep != NULL; mep = cmTlNextMidiEvtObjPtr(tlH,&mep->obj,cmInvalidId))
-    if( mep->msg->status == kNoteOnMdId )
-    {
-      cmScSyncState_t* ssp        = (cmScSyncState_t*)mep->obj.userDataPtr;
-
-      cmRptPrintf(p->err.rpt,"%5.3f pit:0x%2x (%3i) bar:%3i bni:%3i cnt:%3i dst:%1.6f ref:%s\n",
-        (mep->obj.ref->begSmpIdx - mep->obj.begSmpIdx) / (sr*60),
-        mep->msg->u.chMsgPtr->d0,
-        mep->msg->u.chMsgPtr->d0,
-        ssp->cnt ? p->array[ ssp->scEvtIdx ].barNumb    : 0,
-        ssp->cnt ? p->array[ ssp->scEvtIdx ].barNoteIdx : 0,
-        ssp->cnt,
-        ssp->dist,
-        cmStringNullGuard(mep->obj.ref->name));
-
-      ++i;
-      if( i>=300)
-        break;
-    }
-}
-
-double _cmScWndEditDist( cmSc_t* p,  unsigned* mtx, const unsigned* tlWnd, cmScSyncState_t* tlObjWnd[], unsigned wndCnt )
-{
-  unsigned scWnd[ wndCnt ];
-  unsigned scIdxWnd[ wndCnt ];
-  unsigned i;
-  unsigned wn = 0;
-  double   minDist = DBL_MAX;
-
-  // for each note-on score event
-  for(i=0; i<p->cnt; ++i)
-    if( p->array[i].type == kNonEvtScId )
-    {
-      // shift the score event window to the the left
-      memmove(scWnd,   scWnd+1,   (wndCnt-1)*sizeof(scWnd[0]));
-      memmove(scIdxWnd,scIdxWnd+1,(wndCnt-1)*sizeof(scIdxWnd[0]));
-
-      // insert new score event data on right
-      scWnd[wndCnt-1]    = p->array[i].pitch;
-      scIdxWnd[wndCnt-1] = i;
-      ++wn;
-
-      // if the window is full
-      if(wn >= wndCnt )
-      {
-        // score the edit distance between the time line window and the edit window
-        double dist = cmVOU_LevEditDist(wndCnt,mtx,scWnd,wndCnt,tlWnd,wndCnt,wndCnt);
-
-        if( dist < minDist )
-          minDist = dist;
-
-        // update the match information in the time line window
-        unsigned j;
-        for(j=0; j<wndCnt; ++j)
-        {
-          // if the pitch matches and the score is less than the previous score
-          if( scWnd[j] == tlWnd[j] && (tlObjWnd[j]->cnt == 0 || dist < tlObjWnd[j]->dist) )
-          {
-            tlObjWnd[j]->cnt      += 1;
-            tlObjWnd[j]->dist      = dist;
-            tlObjWnd[j]->scEvtIdx  = scIdxWnd[j];
-          }
-        }
-      }      
-    }
-  
-  return minDist;
-}
-
-cmScRC_t cmScoreSyncTimeLine( cmScH_t scH, cmTlH_t tlH, unsigned edWndCnt, cmReal_t maxSecs )
-{
-  cmSc_t*          p            = _cmScHandleToPtr(scH);
-  unsigned*        edWndMtx     = cmVOU_LevEditDistAllocMtx(edWndCnt);
-  unsigned         maxMicroSecs = floor(maxSecs*1000000);
-  unsigned         edWndData[ edWndCnt ];
-  cmScSyncState_t* edWndObj[ edWndCnt ];
-
-  // alloc a sync state record for each MIDI note-on in the time line
-  _cmScSyncTimeLineAllocFree(tlH, true );
-
-  // get the first time line object
-  cmTlObj_t*      rfp = cmTimeLineNextTypeObj(tlH,NULL,cmInvalidId,kMidiFileTlId);
-
-  // interate through the time line in search of MIDI file objects
-  for(; rfp != NULL; rfp = cmTimeLineNextTypeObj(tlH,rfp,cmInvalidId,kMidiFileTlId))
-  {
-    cmTlMidiFile_t* mfp         = cmTimeLineMidiFileObjPtr(tlH,rfp);
-    unsigned        curEdWndCnt = 0;
-    double          prog        = 0.1;
-    unsigned        progIdx     = 0;
-
-    cmRptPrintf(p->err.rpt,"MIDI File:%s\n", cmMidiFileName( mfp->h ));
-
-    // get first midi event object
-    cmTlMidiEvt_t* mep = cmTlNextMidiEvtObjPtr(tlH,NULL,cmInvalidId);
-
-    // iterate through the time line in search of MIDI note-on events with belong to mfp      
-    for(; mep != NULL; mep = cmTlNextMidiEvtObjPtr(tlH,&mep->obj,cmInvalidId) )
-    {
-      if( mep->obj.ref == rfp && mep->msg->status == kNoteOnMdId )
-      {
-        // If this notes inter-onset time is greater than maxMicroSecs
-        // then dispose of the current window and begin refilling it again.
-        if( mep->msg->dtick > maxMicroSecs )
-          curEdWndCnt = 0;
-
-        // shift window one slot to left
-        unsigned i;
-        for(i=0; i<edWndCnt-1; ++i)
-        {
-          edWndData[i] = edWndData[i+1];
-          edWndObj[i]  = edWndObj[i+1];
-        }
-        
-        // fill window on right
-        edWndData[edWndCnt-1] = mep->msg->u.chMsgPtr->d0; // d0=pitch
-        edWndObj[ edWndCnt-1] = (cmScSyncState_t*)mep->obj.userDataPtr;
-
-        ++curEdWndCnt;
-        
-        // if a complete window exists then update the time-line / score match state
-        if( curEdWndCnt >= edWndCnt )
-         _cmScWndEditDist( p, edWndMtx, edWndData, edWndObj, edWndCnt );       
-
-        // print the progress
-        ++progIdx;
-        if( progIdx >= prog * mfp->noteOnCnt )
-        {
-          cmRptPrintf(p->err.rpt,"%i ",(unsigned)round(prog*10));
-          prog += 0.1;
-        }
-      }
-    }
-    cmRptPrintf(p->err.rpt,"\n");
-  }
-
-  _cmScPrintSyncState(p,tlH );
-
-  // free sync state records
-  _cmScSyncTimeLineAllocFree(tlH,false);
-
-  cmMemFree(edWndMtx);
-
-  return kOkScRC;
-}
-
-
-cmScRC_t cmScoreSyncTimeLineTest( cmCtx_t* ctx,  const cmChar_t* timeLineJsFn, const cmChar_t* scoreCsvFn )
-{
-  cmScRC_t rc  = kOkScRC;
-  cmTlH_t  tlH = cmTimeLineNullHandle;
-  cmScH_t  scH = cmScNullHandle;
-  unsigned edWndCnt     = 7;
-  cmReal_t maxSecs = 2.0;
-
-  if((rc = cmTimeLineInitialize(ctx,&tlH,NULL,NULL)) != kOkTlRC )
-    return cmErrMsg(&ctx->err,kTimeLineFailScRC,"Time line initialization failed.");;
-
-  if((rc = cmTimeLineReadJson(tlH,timeLineJsFn)) != kOkTlRC )
-  {
-    rc = cmErrMsg(&ctx->err,kTimeLineFailScRC,"Time line parse failed.");;
-    goto errLabel;
-  }
-
-  //cmTimeLinePrint(tlH,&ctx->rpt);
-
-  if(1)
-  {
-    if((rc = cmScoreInitialize(ctx,&scH,scoreCsvFn,NULL,NULL))  != kOkScRC )
-      goto errLabel;
-
-
-    rc = cmScoreSyncTimeLine(scH, tlH, edWndCnt, maxSecs );
-
-  }
-  //cmScorePrint(scH, ctx->err.rpt );
-
-  
-
- errLabel:
-  cmScoreFinalize(&scH);
-  cmTimeLineFinalize(&tlH);
-
-  return rc;
-
-}
-*/
-
 void cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
 {
   cmScH_t h = cmScNullHandle;
-  if( cmScoreInitialize(ctx,&h,fn,NULL,NULL) != kOkScRC )
+  if( cmScoreInitialize(ctx,&h,fn,NULL,0,NULL,NULL) != kOkScRC )
     return;
 
   cmScorePrint(h,&ctx->rpt);

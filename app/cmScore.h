@@ -11,7 +11,8 @@ extern "C" {
     kCsvFailScRC,
     kSyntaxErrScRC,
     kInvalidIdxScRC,
-    kTimeLineFailScRC
+    kTimeLineFailScRC,
+    kInvalidDynRefCntScRC
   
   };
 
@@ -32,6 +33,7 @@ extern "C" {
     kNonEvtScId
   };
 
+  // Flags used by cmScoreEvt_t.flags
   enum
   {
     kEvenScFl    = 0x01,        // This note is marked for evenness measurement
@@ -41,17 +43,31 @@ extern "C" {
     kInvalidScFl = 0x10         // This note has a calculated time
   };
 
+
+  // Id's used by cmScoreSet_t.varId and as indexes into
+  // cmScoreSection_t.vars[].
+  enum
+  {
+    kEvenVarScId,
+    kDynVarScId,
+    kTempoVarScId,
+    kScVarCnt
+  };
+
+
   struct cmScoreLoc_str;
+  struct cmScoreSet_str;
 
   // The score can be divided into arbitrary non-overlapping sections.
   typedef struct
   {
-    const cmChar_t*        label;      // section label
-    struct cmScoreLoc_str* locPtr;     // location where this section starts
-    unsigned               begIndex;   // score element index where this section starts
-    double                 evenCoeff;  // 
-    double                 dynCoeff;   //
-    double                 tempoCeoff; //
+    const cmChar_t*         label;      // section label
+    unsigned                index;      // index of this record in the internal section array
+    struct cmScoreLoc_str*  locPtr;     // location where this section starts
+    unsigned                begEvtIndex;   // score element index where this section starts    
+    unsigned                setCnt;     // Count of elements in setArray[]
+    struct cmScoreSet_str** setArray;   // Ptrs to sets which are applied to this section.
+    double                  vars[ kScVarCnt ]; // Set to DBL_MAX by default.
   } cmScoreSection_t;
 
   typedef struct
@@ -60,6 +76,7 @@ extern "C" {
     double       secs;         // Time location in seconds 
     double       durSecs;      // Duration in seconds
     unsigned     index;        // Index of this event in the event array.
+    unsigned     locIdx;       // Index of the location containing this event
     cmMidiByte_t pitch;        // MIDI pitch of this note
     unsigned     flags;        // Attribute flags for this event
     unsigned     dynVal;       // Dynamcis value pppp to ffff (1 to 11) for this note.
@@ -68,28 +85,30 @@ extern "C" {
     unsigned     csvRowNumb;   // File row number (not index) from which this record originated
     unsigned     perfSmpIdx;   // Time this event was performed or cmInvalidIdx if the event was not performed.
     unsigned     perfVel;      // Velocity of the performed note or 0 if the note was not performed.
+    unsigned     perfDynLvl;   // Index into dynamic level ref. array assoc'd with perfVel  
   } cmScoreEvt_t;
 
   typedef struct cmScoreSet_str
   {
-    unsigned           typeFl;     // See kXXXScFl flags above
-    cmScoreEvt_t**     eleArray;   // Events that make up this set in time order
-    unsigned           eleCnt;     // 
-    cmScoreSection_t** sectArray;  // Array of pointers to sections to apply this set to
-    unsigned           sectCnt;    //
-    struct cmScoreSet_str* link;   // cmScoreLoc_t setList link
+    unsigned               varId;      // See kXXXVarScId flags above
+    cmScoreEvt_t**         eleArray;   // Events that make up this set in time order
+    unsigned               eleCnt;     // 
+    bool                   doneFl;
+    double                 value;
+    struct cmScoreSet_str* llink;      // cmScoreLoc_t setList link
   } cmScoreSet_t;
   
 
   // All events which are simultaneous are collected into a single
   // cmScoreLoc_t record.
   typedef struct cmScoreLoc_str
-  {
+  {    
+    unsigned          index;         // index of this location record
     double            secs;          // Time of this location
     unsigned          evtCnt;        // Count of events in evtArray[].
     cmScoreEvt_t**    evtArray;      // Events which occur at this time.
     unsigned          barNumb;       // Bar number this event is contained by.                            
-    cmScoreSet_t*     setList;       // Set's which end on this time location
+    cmScoreSet_t*     setList;       // Set's which end on this time location (linked through cmScoreSet_t.llink)
     cmScoreSection_t* begSectPtr;    // NULL if this location does not start a section
   } cmScoreLoc_t;
 
@@ -107,7 +126,11 @@ extern "C" {
 
 
   // Initialize a score object from a CSV File generated from a score spreadsheet.
-  cmScRC_t      cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, cmScCb_t cbFunc, void* cbArg );
+  // The dynRefArray[dynRefCnt] and cbFunc(cbArg) are optional if these 
+  // features are not used.
+  // If provided the dynRefArray[] is copied into an internal array.
+  // The physical array passed here therefore does not need to remain valid.
+  cmScRC_t      cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, const unsigned* dynRefArray, unsigned dynRefCnt, cmScCb_t cbFunc, void* cbArg );
   cmScRC_t      cmScoreFinalize(   cmScH_t* hp );
 
   // Filename of last successfuly loaded score file.
@@ -119,6 +142,10 @@ extern "C" {
   // Access the score data.
   unsigned      cmScoreEvtCount( cmScH_t h );
   cmScoreEvt_t* cmScoreEvt( cmScH_t h, unsigned idx );
+
+  // Access section records
+  unsigned      cmScoreSectionCount( cmScH_t h );
+  cmScoreSection_t* cmScoreSection( cmScH_t h, unsigned idx );
 
   // Access the score location data
   unsigned      cmScoreLocCount( cmScH_t h );
@@ -132,21 +159,56 @@ extern "C" {
   cmScRC_t      cmScoreSeqNotify( cmScH_t h );
 
   void          cmScoreClearPerfInfo( cmScH_t h );
-  void          cmScoreSetPerfEvent( cmScH_t h, unsigned locIdx, unsigned smpIdx, unsigned pitch, unsigned vel );
+
+  // Assign 'smpIdx' and 'vel'  to the event matching 'pitch' at 'locIdx'
+  // but do not trigger any variable calculations. Return true if as a
+  // result of this call all events assigned to 'locIdx' have been received
+  // otherwise return false.
+  bool          cmScoreSetPerfEvent(  cmScH_t h, unsigned locIdx, unsigned smpIdx, unsigned pitch, unsigned vel );
+
+  // Assign 'smpIdx' and 'vel'  to the event matching 'pitch' at 'locIdx'
+  // but and trigger any variable calculations which may happen on, or before, 'locIdx'.
+  void          cmScoreExecPerfEvent( cmScH_t h, unsigned locIdx, unsigned smpIdx, unsigned pitch, unsigned vel );
+
+  // Assign 'value' to the section at, or before, 'locIdx'.
+  void          cmScoreSetPerfValue(  cmScH_t h, unsigned locIdx, unsigned varId, double value );
   
-  
+  // Set the performed dynamic level of a score event.
+  void          cmScoreSetPerfDynLevel( cmScH_t h, unsigned evtIdx, unsigned dynLvl );
+
   typedef enum
   {
     kInvalidMsgScId,
     kBeginMsgScId,
     kEventMsgScId,
-    kEndMsgScId
+    kSectionMsgScId,
+    kEndMsgScId,
+    kVarMsgScId,
+    kDynMsgScId
   } cmScMsgTypeId_t;
 
   typedef struct
   {
+    unsigned varId;  // see kXXXVarScId from cmScoreSet_t.varId
+    double   value;   // value of a variable
+  } cmScMeas_t;
+
+  typedef struct
+  {
+    unsigned evtIdx;
+    unsigned dynLvl;
+  } cmScDyn_t;
+
+  typedef struct
+  {
     cmScMsgTypeId_t typeId;
-    cmScoreEvt_t    evt;    // only used when typeId == kEventMsgScId
+    union
+    {
+      cmScoreEvt_t     evt;      // only used when typeId == kEventMsgScId
+      cmScMeas_t       meas;     // only used when typeId == kVarMsgScId 
+      cmScoreSection_t sect;     // only used when typeId == kSectionMsgScId
+      cmScDyn_t        dyn;      // only used when typeId == kDynLvlMsgScId
+    } u;
   } cmScMsg_t;
 
   // Decode a serialized cmScMsg_t from a byte stream as passed to the 

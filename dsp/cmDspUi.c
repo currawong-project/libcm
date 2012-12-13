@@ -386,10 +386,10 @@ cmDspRC_t  cmDspUiTimeLineCreate(   cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned
   return rc;
 }
 
-cmDspRC_t  cmDspUiScoreCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned scFileVarId, unsigned selVarId )
+cmDspRC_t  cmDspUiScoreCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned scFileVarId, unsigned selVarId, unsigned smpIdxVarId, unsigned pitchVarId, unsigned velVarId, unsigned locIdxVarId, unsigned evtIdxVarId, unsigned dynVarId, unsigned valTypeVarId, unsigned valueVarId )
 {
   cmDspRC_t    rc;
-  unsigned     arr[] = { scFileVarId, selVarId  };
+  unsigned     arr[] = { scFileVarId, selVarId, smpIdxVarId, pitchVarId, velVarId, locIdxVarId, evtIdxVarId, dynVarId, valTypeVarId, valueVarId };
   cmDspValue_t v;
   unsigned     vn    = sizeof(arr)/sizeof(arr[0]);
   cmDsvSetUIntMtx(&v,arr,vn,1);
@@ -402,6 +402,15 @@ cmDspRC_t  cmDspUiScoreCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned scFi
   // Setting this flag will cause their values to be sent to the UI whenever they change.
   cmDspInstVarSetFlags( ctx, inst, scFileVarId,  kUiDsvFl );
   cmDspInstVarSetFlags( ctx, inst, selVarId,     kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, smpIdxVarId,  kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, pitchVarId,   kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, velVarId,     kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, locIdxVarId,  kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, evtIdxVarId,  kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, dynVarId,     kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, valTypeVarId, kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, valueVarId,   kUiDsvFl );
+
   return rc;
 }
 

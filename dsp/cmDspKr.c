@@ -21,6 +21,7 @@
 #include "cmDspCtx.h"
 #include "cmDspClass.h"
 #include "cmDspUi.h"
+#include "cmDspSys.h"
 #include "cmMath.h"
 
 
@@ -404,7 +405,16 @@ enum
 {
   kFnScId,
   kSelScId,
-  kSendScId
+  kSendScId,
+  kStatusScId,
+  kD0ScId,
+  kD1ScId,
+  kSmpIdxScId,
+  kLocIdxScId,
+  kEvtIdxScId,
+  kDynScId,
+  kValTypeScId,
+  kValueScId
 };
 
 cmDspClass_t _cmScoreDC;
@@ -413,15 +423,25 @@ typedef struct
 {
   cmDspInst_t inst;
   cmScH_t     scH;
+  cmDspCtx_t* ctx;   // temporary ctx ptr used during cmScore callback in _cmDspScoreRecv()
 } cmDspScore_t;
 
 cmDspInst_t*  _cmDspScoreAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
   cmDspVarArg_t args[] =
   {
-    { "fn",      kFnScId,             0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl, "Score file." },
-    { "sel",     kSelScId,            0, 0, kInDsvFl   |  kOutDsvFl | kUIntDsvFl,   "Selected score element index."},
-    { "send",    kSendScId,           0, 0, kInDsvFl   | kTypeDsvMask,              "Resend last selected score element."},
+    { "fn",      kFnScId,     0, 0, kInDsvFl  | kStrzDsvFl | kReqArgDsvFl, "Score file." },
+    { "sel",     kSelScId,    0, 0, kInDsvFl  | kOutDsvFl  | kUIntDsvFl,   "Selected score element index input."},
+    { "send",    kSendScId,   0, 0, kInDsvFl  | kTypeDsvMask,              "Resend last selected score element."},
+    { "status",  kStatusScId, 0, 0, kInDsvFl  | kIntDsvFl,                 "Performed MIDI status value output" },
+    { "d0",      kD0ScId,     0, 0, kInDsvFl  | kUIntDsvFl,                "Performed MIDI msg data byte 0" },
+    { "d1",      kD1ScId,     0, 0, kInDsvFl  | kUIntDsvFl,                "Performed MIDI msg data byte 1" },
+    { "smpidx",  kSmpIdxScId, 0, 0, kInDsvFl  | kUIntDsvFl,                "Performed MIDi msg time tag as a sample index." }, 
+    { "loc",     kLocIdxScId, 0, 0, kInDsvFl  | kUIntDsvFl,                "Performance score location."},
+    { "evtidx",  kEvtIdxScId, 0, 0, kOutDsvFl | kUIntDsvFl,                "Performed event index of following dynamcis level."},
+    { "dyn",     kDynScId,    0, 0, kOutDsvFl | kUIntDsvFl,                "Dynamic level of previous event index."},
+    { "type",    kValTypeScId,0, 0, kOutDsvFl | kUIntDsvFl,                "Output variable type."},
+    { "value",   kValueScId,  0, 0, kOutDsvFl | kDoubleDsvFl,              "Output variable value."},
     { NULL, 0, 0, 0, 0 }
   };
 
@@ -430,7 +450,7 @@ cmDspInst_t*  _cmDspScoreAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   cmDspSetDefaultUInt( ctx, &p->inst,  kSelScId,           0, cmInvalidId);
 
   // create the UI control
-  cmDspUiScoreCreate(ctx,&p->inst,kFnScId,kSelScId);
+  cmDspUiScoreCreate(ctx,&p->inst,kFnScId,kSelScId,kSmpIdxScId,kD0ScId,kD1ScId,kLocIdxScId,kEvtIdxScId,kDynScId,kValTypeScId,kValueScId);
 
   p->scH = cmScNullHandle;
 
@@ -448,40 +468,94 @@ cmDspRC_t _cmDspScoreFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   return rc;
 }
 
+// Callback from cmScore triggered from _cmDspScoreRecv() during call to cmScoreSetPerfEvent().
+void _cmDspScoreCb( void* arg, const void* data, unsigned byteCnt )
+{
+  cmDspInst_t*  inst = (cmDspInst_t*)arg;
+  cmDspScore_t* p    = (cmDspScore_t*)inst;
+  cmScMsg_t m;
+  if( cmScoreDecode(data,byteCnt,&m) == kOkScRC )
+  {
+    switch( m.typeId )
+    {
+      case kDynMsgScId:
+        cmDspSetUInt( p->ctx,inst, kEvtIdxScId, m.u.dyn.evtIdx );
+        cmDspSetUInt( p->ctx,inst, kDynScId,    m.u.dyn.dynLvl );
+        break;
+
+      case kVarMsgScId:
+        cmDspSetUInt(  p->ctx,inst, kValTypeScId, m.u.meas.varId);
+        cmDspSetDouble(p->ctx,inst, kValueScId,   m.u.meas.value);
+        break;
+
+      default:
+        { assert(0); }
+    }
+  }
+}
 
 cmDspRC_t _cmDspScoreReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
-  cmDspRC_t        rc = kOkDspRC;
-  cmDspScore_t* p  = (cmDspScore_t*)inst;
+  cmDspRC_t       rc          = kOkDspRC;
+  cmDspScore_t*   p           = (cmDspScore_t*)inst;
+  const cmChar_t* tlFn        = NULL;
+  unsigned*       dynRefArray = NULL;
+  unsigned        dynRefCnt   = 0;
 
   cmDspApplyAllDefaults(ctx,inst);
 
-  const cmChar_t* tlFn;
+
+  if( cmDspRsrcUIntArray(ctx->dspH, &dynRefCnt, &dynRefArray, "dynRef", NULL ) != kOkDspRC )
+  {
+    rc = cmErrMsg(&inst->classPtr->err, kRsrcNotFoundDspRC, "The dynamics reference array resource was not found.");
+    goto errLabel;
+  }
+
   if((tlFn =  cmDspStrcz(inst, kFnScId )) !=  NULL )
-    if( cmScoreInitialize(ctx->cmCtx, &p->scH, tlFn, NULL, NULL ) != kOkTlRC )
+    if( cmScoreInitialize(ctx->cmCtx, &p->scH, tlFn, dynRefArray, dynRefCnt, _cmDspScoreCb, p ) != kOkTlRC )
       rc = cmErrMsg(&inst->classPtr->err, kInstResetFailDspRC, "Score file open failed.");
 
+ errLabel:
   return rc;
 }
 
 cmDspRC_t _cmDspScoreRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
+  cmDspScore_t* p  = (cmDspScore_t*)inst;
+
+  if( evt->dstVarId == kSendScId )
+  {
+    unsigned selIdx;
+    if((selIdx = cmDspUInt(inst,kSelScId)) != cmInvalidIdx )
+    {
+      cmDspSetUInt(ctx,inst,kSelScId, selIdx );
+      cmScoreClearPerfInfo(p->scH);
+    }
+    return kOkDspRC;
+  }
+
+  cmDspSetEvent(ctx,inst,evt);
+
   switch( evt->dstVarId )
   {
     case kSelScId:
-      cmDspSetEvent(ctx,inst,evt);
+      cmScoreClearPerfInfo(p->scH);
       break;
 
-    case kSendScId:
+    case kStatusScId:
+      //printf("st:%x\n",cmDspUInt(inst,kStatusScId));
+      break;
+
+    case kLocIdxScId:
       {
-        unsigned selIdx;
-        if((selIdx = cmDspUInt(inst,kSelScId)) != cmInvalidIdx )
-          cmDspSetUInt(ctx,inst,kSelScId, selIdx );
+        assert( cmDspUInt(inst,kStatusScId ) == kNoteOnMdId );
+        p->ctx = ctx; // setup p->ctx for use in _cmDspScoreCb()
+
+        // this call may result in callbacks to _cmDspScoreCb()
+        cmScoreExecPerfEvent(p->scH, cmDspUInt(inst,kLocIdxScId), cmDspUInt(inst,kSmpIdxScId), cmDspUInt(inst,kD0ScId), cmDspUInt(inst,kD1ScId) );      
       }
       break;
 
-    default:
-      {assert(0);}
   }
 
   return kOkDspRC;
@@ -619,6 +693,7 @@ cmDspRC_t _cmDspMidiFilePlayOpen(cmDspCtx_t* ctx, cmDspInst_t* inst )
 
     // convert midi msg times to absolute time in samples
     cmMidiFileTickToSamples(p->mfH,cmDspSampleRate(ctx),true);
+
   }
   return rc;
 }
@@ -716,6 +791,7 @@ enum
   kD0SfId,
   kD1SfId,
   kSmpIdxSfId,
+  kCmdSfId,
   kOutSfId
 };
 
@@ -724,8 +800,10 @@ cmDspClass_t _cmScFolDC;
 typedef struct
 {
   cmDspInst_t inst;
-  cmScFol*    sfp;
+  cmScTrk*    sfp;
   cmScH_t     scH;
+  unsigned    printSymId;
+  unsigned    quietSymId;
 } cmDspScFol_t;
 
 cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
@@ -742,6 +820,7 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     { "d0",    kD0SfId,       0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI data byte 0"},
     { "d1",    kD1SfId,       0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI data byte 1"},
     { "smpidx",kSmpIdxSfId,   0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI time tag as a sample index"},
+    { "cmd",   kCmdSfId,      0, 0, kInDsvFl | kSymDsvFl,                     "Command input: print | quiet"},
     { "out",   kOutSfId,      0, 0, kOutDsvFl| kUIntDsvFl,                    "Current score index."},
     { NULL,    0,             0, 0, 0, NULL }
   };
@@ -752,7 +831,9 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     return NULL;
   
 
-  p->sfp = cmScFolAlloc(ctx->cmProcCtx, NULL, 0, cmScNullHandle, 0, 0, 0, 0 );
+  p->sfp = cmScTrkAlloc(ctx->cmProcCtx, NULL, 0, cmScNullHandle, 0, 0, 0, 0 );
+  p->printSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"print");
+  p->quietSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"quiet");
 
   cmDspSetDefaultUInt( ctx, &p->inst,  kBufCntSfId,     0,     7);
   cmDspSetDefaultUInt( ctx, &p->inst,  kMinLkAhdSfId,   0,    10);
@@ -760,6 +841,7 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   cmDspSetDefaultUInt( ctx, &p->inst,  kMinVelSfId,     0,     5);
   cmDspSetDefaultUInt( ctx, &p->inst,  kIndexSfId,      0,     0);  
   cmDspSetDefaultUInt( ctx, &p->inst,  kOutSfId,        0,     0);
+  cmDspSetDefaultSymbol(ctx,&p->inst,  kCmdSfId,         p->quietSymId );
 
   return &p->inst;
 }
@@ -767,23 +849,33 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
 cmDspRC_t _cmDspScFolFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
   cmDspScFol_t* p = (cmDspScFol_t*)inst;
-  cmScFolFree(&p->sfp);
+  cmScTrkFree(&p->sfp);
   cmScoreFinalize(&p->scH);
   return kOkDspRC;
 }
 
 cmDspRC_t _cmDspScFolOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
 {
+  cmDspRC_t       rc          = kOkDspRC;
+  cmDspScFol_t*   p           = (cmDspScFol_t*)inst;
+  unsigned*       dynRefArray = NULL;
+  unsigned        dynRefCnt   = 0;
   const cmChar_t* fn;
-  cmDspScFol_t* p  = (cmDspScFol_t*)inst;
 
   if((fn = cmDspStrcz(inst,kFnSfId)) == NULL || strlen(fn)==0 )
     return cmErrMsg(&inst->classPtr->err, kInvalidArgDspRC, "No score file name supplied.");
 
-  if( cmScoreInitialize(ctx->cmCtx, &p->scH, fn, NULL, NULL ) != kOkScRC )
+  if( cmDspRsrcUIntArray(ctx->dspH, &dynRefCnt, &dynRefArray, "dynRef", NULL ) != kOkDspRC )
+  {
+    rc = cmErrMsg(&inst->classPtr->err, kRsrcNotFoundDspRC, "The dynamics reference array resource was not found.");
+    goto errLabel;
+  }
+
+  if( cmScoreInitialize(ctx->cmCtx, &p->scH, fn, NULL, 0, NULL, NULL ) != kOkScRC )
     return cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Unable to open the score '%s'.",fn);
 
-  return kOkDspRC;
+ errLabel:
+  return rc;
 }
 
 cmDspRC_t _cmDspScFolReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
@@ -796,7 +888,7 @@ cmDspRC_t _cmDspScFolReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
     return rc;
 
   if( cmScoreIsValid(p->scH) )
-    if( cmScFolInit(p->sfp, cmDspSampleRate(ctx),  p->scH, cmDspUInt(inst,kBufCntSfId), cmDspUInt(inst,kMinLkAhdSfId), cmDspUInt(inst,kMaxWndCntSfId), cmDspUInt(inst,kMinVelSfId) ) != cmOkRC )
+    if( cmScTrkInit(p->sfp, cmDspSampleRate(ctx),  p->scH, cmDspUInt(inst,kBufCntSfId), cmDspUInt(inst,kMinLkAhdSfId), cmDspUInt(inst,kMaxWndCntSfId), cmDspUInt(inst,kMinVelSfId) ) != cmOkRC )
       rc = cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Internal score follower allocation failed.");
 
   return rc;  
@@ -814,14 +906,14 @@ cmDspRC_t _cmDspScFolRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
     {
       case kIndexSfId:
         if( cmScoreIsValid(p->scH) )
-          if( cmScFolReset( p->sfp, cmDspUInt(inst,kIndexSfId) ) != cmOkRC )
+          if( cmScTrkReset( p->sfp, cmDspUInt(inst,kIndexSfId) ) != cmOkRC )
             cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Score follower reset to score index '%i' failed.");
         break;
 
       case kStatusSfId:
         if( cmScoreIsValid(p->scH))
         {
-          unsigned idx = cmScFolExec(p->sfp, ctx->cycleCnt, cmDspUInt(inst,kStatusSfId), cmDspUInt(inst,kD0SfId), cmDspUInt(inst,kD1SfId));
+          unsigned idx = cmScTrkExec(p->sfp, ctx->cycleCnt, cmDspUInt(inst,kStatusSfId), cmDspUInt(inst,kD0SfId), cmDspUInt(inst,kD1SfId));
           if( idx != cmInvalidIdx )
             cmDspSetUInt(ctx,inst,kOutSfId,idx);
         }
@@ -829,6 +921,15 @@ cmDspRC_t _cmDspScFolRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
 
       case kFnSfId:
         _cmDspScFolOpenScore(ctx,inst);
+        break;
+
+      case kCmdSfId:
+        if( cmDspSymbol(inst,kCmdSfId) == p->printSymId )
+          p->sfp->printFl = true;
+        else
+          if( cmDspSymbol(inst,kCmdSfId) == p->quietSymId )
+            p->sfp->printFl = false;
+
         break;
     }
   }

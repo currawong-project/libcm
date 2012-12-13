@@ -47,6 +47,7 @@ typedef struct cmGrPlotObj_str
   unsigned          fontSize;
   unsigned          fontStyle;
   void*             userPtr;
+  unsigned          userByteCnt; // 0 if userPtr does not need to be realease on object destruction
   cmGrPlotCbFunc_t  cbFunc;
   void*             cbArg;
 
@@ -102,6 +103,12 @@ cmGrPlRC_t _cmGrPlotObjDelete( cmGrPlotObj_t* op )
   if( cmGrObjDestroy( op->grH, &op->grObjH ) != kOkGrRC )
     return cmErrMsg( &p->err, kGrFailGrPlRC, "Delete failed on the object label='%s' id=%i\n",cmStringNullGuard( op->label ), cmGrObjId(op->grObjH) );
  
+  if( op->userByteCnt != 0 )
+  {
+    cmMemFree(op->userPtr);
+    op->userByteCnt = 0;
+  }
+
   return kOkGrPlRC;
 }
 
@@ -424,12 +431,13 @@ bool _cmGrPlotObjRender(   cmGrObjFuncArgs_t* args, cmGrDcH_t dcH )
   // expand the ext's according to the physical offsets
   cmGrPExtExpand(&pext,op->loffs,op->toffs,op->roffs,op->boffs);
 
+
   switch( op->typeId )
   {
     case kLineGrPlId:
-      cmGrDcSetColor(    dcH, _cmGrPlotColor(op,op->drawColors) );
-      cmGrDcDrawLine(    dcH, cmGrPExtL(&pext), cmGrPExtT(&pext), cmGrPExtR(&pext), cmGrPExtB(&pext) );
-      break;
+      //cmGrDcSetColor(    dcH, _cmGrPlotColor(op,op->drawColors) );
+      //cmGrDcDrawLine(    dcH, cmGrPExtL(&pext), cmGrPExtT(&pext), cmGrPExtR(&pext), cmGrPExtB(&pext) );
+      //break;
 
     case kStarGrPlId:
     case kCrossGrPlId:
@@ -474,6 +482,9 @@ bool _cmGrPlotObjRender(   cmGrObjFuncArgs_t* args, cmGrDcH_t dcH )
             case kHLineGrPlId:
             case kVLineGrPlId:
               cmGrDcFillRect( dcH, pext.loc.x, pext.loc.y, pext.sz.w, pext.sz.h);
+              break;
+
+            case kLineGrPlId:
               break;
 
             default:
@@ -522,6 +533,9 @@ bool _cmGrPlotObjRender(   cmGrObjFuncArgs_t* args, cmGrDcH_t dcH )
               cmGrDcDrawLine( dcH, cmGrPExtL(&pext),                       cmGrPExtT(&pext) + cmGrPExtH(&pext)/2, cmGrPExtR(&pext),                       cmGrPExtT(&pext) + cmGrPExtH(&pext)/2);
               break;
 
+            case kLineGrPlId:
+              cmGrDcDrawLine(    dcH, cmGrPExtL(&pext), cmGrPExtT(&pext), cmGrPExtR(&pext), cmGrPExtB(&pext) );
+              break;
 
             case kRectGrPlId:
             case kHLineGrPlId:
@@ -884,8 +898,35 @@ void            cmGrPlotObjSetId( cmGrPlObjH_t oh, unsigned id )
 void            cmGrPlotObjSetUserPtr(  cmGrPlObjH_t oh, void* userPtr )
 {
   cmGrPlotObj_t* op = _cmGrPlObjHandleToPtr(oh);
+  if( op->userByteCnt != 0 )
+  {
+    cmMemFree(op->userPtr);
+    op->userByteCnt = 0;
+  }
+
   op->userPtr = userPtr;
 }
+
+void            cmGrPlotObjAllocUser( cmGrPlObjH_t oh, const void* data, unsigned byteCnt )
+{
+  cmGrPlotObj_t* op = _cmGrPlObjHandleToPtr(oh);
+
+  if( op->userByteCnt != byteCnt )
+  {
+    if( op->userByteCnt != 0  )
+    {
+      cmMemFree(op->userPtr);
+      op->userByteCnt = 0;
+    }
+
+    op->userPtr     = cmMemAlloc(char,byteCnt);
+    op->userByteCnt = byteCnt;
+  }
+
+  memcpy(op->userPtr,data,byteCnt);
+  
+}
+
 void*           cmGrPlotObjUserPtr( cmGrPlObjH_t oh )
 {
   cmGrPlotObj_t* op = _cmGrPlObjHandleToPtr(oh);

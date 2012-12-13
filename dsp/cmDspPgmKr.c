@@ -86,11 +86,12 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysNewPage(h,"Controls");
   cmDspInst_t* onb  = cmDspSysAllocInst(h,"Button", "start",  2, kButtonDuiId, 1.0 );
   cmDspInst_t* offb = cmDspSysAllocInst(h,"Button", "stop",   2, kButtonDuiId, 1.0 );
+  cmDspInst_t* prtb = cmDspSysAllocInst(h,"Button", "print",  2, kButtonDuiId, 1.0 );
+  cmDspInst_t* qtb  = cmDspSysAllocInst(h,"Button", "quiet",  2, kButtonDuiId, 1.0 );
+  cmDspInst_t* prp  = cmDspSysAllocInst(h,"Printer", NULL,   1, ">" );
+  //cmDspInst_t* prd  = cmDspSysAllocInst(h,"Printer", NULL,   1, "DYN:" );
+  //cmDspInst_t* pre  = cmDspSysAllocInst(h,"Printer", NULL,   1, "EVEN:" );
 
-
-
-  cmDspInst_t* prp = cmDspSysAllocInst(h,"Printer", NULL,   1, ">" );
-  
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
     return rc;
 
@@ -125,14 +126,23 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, tlp, "mesi", mfp, "esi",   NULL );
   cmDspSysInstallCb(h, tlp, "mfn",  mfp, "fn",    NULL );
 
-  // score to score follower
+  // score to score follower - to set initial search location
   cmDspSysInstallCb(h, scp, "sel",    sfp, "index",  NULL );
+  
 
-
-  // MIDI file player to score-follower
-  cmDspSysInstallCb(h, mfp, "status", sfp, "status", NULL );
-  cmDspSysInstallCb(h, mfp, "d0",     sfp, "d0",     NULL );
+  // MIDI file player to score-follower and score - the order of connections is the same
+  // as the msg transmision order from MFP
+  cmDspSysInstallCb(h, mfp, "smpidx", scp, "smpidx", NULL );
+  cmDspSysInstallCb(h, mfp, "d1",     scp, "d1",     NULL );
   cmDspSysInstallCb(h, mfp, "d1",     sfp, "d1",     NULL );
+  cmDspSysInstallCb(h, mfp, "d0",     scp, "d0",     NULL );
+  cmDspSysInstallCb(h, mfp, "d0",     sfp, "d0",     NULL );
+  cmDspSysInstallCb(h, mfp, "status", scp, "status", NULL );
+  cmDspSysInstallCb(h, mfp, "status", sfp, "status", NULL );
+
+
+  // score follower to score
+  cmDspSysInstallCb(h, sfp, "out",  scp, "loc", NULL );
 
 
   // Printer connections
@@ -141,6 +151,11 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, tlp, "sel",  prp, "in",  NULL );
   //cmDspSysInstallCb(h, sfp, "out",  prp, "in",     NULL );
 
+  //cmDspSysInstallCb(h, scp, "even", pre, "in", NULL );
+  //cmDspSysInstallCb(h, scp, "dyn",  prd, "in", NULL );
+
+  cmDspSysInstallCb(h, prtb, "sym", sfp, "cmd", NULL );
+  cmDspSysInstallCb(h, qtb,  "sym", sfp, "cmd", NULL );
 
   return rc;
 }
