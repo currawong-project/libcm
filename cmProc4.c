@@ -46,7 +46,7 @@ cmRC_t   cmScFolFree(  cmScFol** pp )
 
   unsigned i;
   for(i=0; i<p->locN; ++i)
-    cmMemFree(p->loc[i].pitchV);
+    cmMemFree(p->loc[i].evtV);
 
   cmMemFree(p->loc);
   cmMemFree(p->bufV);
@@ -67,8 +67,8 @@ void _cmScFolPrint( cmScFol* p )
   for(i=0; i<p->locN; ++i)
   {
     printf("%2i %5i ",p->loc[i].barNumb,p->loc[i].scIdx);
-    for(j=0; j<p->loc[i].pitchCnt; ++j)
-      printf("%s ",cmMidiToSciPitch(p->loc[i].pitchV[j],NULL,0));
+    for(j=0; j<p->loc[i].evtCnt; ++j)
+      printf("%s ",cmMidiToSciPitch(p->loc[i].evtV[j].pitch,NULL,0));
     printf("\n");
   }
 }
@@ -127,87 +127,62 @@ cmRC_t   cmScFolInit(  cmScFol* p, cmReal_t srate, cmScH_t scH, unsigned bufN, u
   p->skipCnt        = 0;
   p->ret_idx        = cmInvalidIdx;
 
-  int i,n;
-  double        maxDSecs = 0;   // max time between score entries to be considered simultaneous
-  cmScoreEvt_t* e0p      = NULL;
-  int           j0       = 0;
-
-  // for each score event
-  for(i=0,n=0; i<p->locN; ++i)
+  // for each score location
+  unsigned li,ei;
+  
+  for(li=0,ei=0; li<cmScoreLocCount(p->scH); ++li)
   {
-    cmScoreEvt_t* ep = cmScoreEvt(scH,i);
+    unsigned i,n;
 
-    // if the event is not a note then ignore it
-    if( ep->type == kNonEvtScId )
+    const cmScoreLoc_t* lp = cmScoreLoc(p->scH,li);
+
+    // count the number of note events at location li
+    for(n=0,i=0; i<lp->evtCnt; ++i)
+      if( lp->evtArray[i]->type == kNonEvtScId )
+        ++n;
+
+    assert( ei+n <= p->locN );
+
+    // duplicate each note at location li n times
+    for(i=0; i<n; ++i)
     {
-      assert( j0+n < p->locN );
+      unsigned j,k;
 
-      p->loc[j0+n].scIdx  = i;
-      p->loc[j0+n].barNumb = ep->barNumb;
-
-      // if the first event has not yet been selected
-      if( e0p == NULL )
-      {
-        e0p = ep;
-        n   = 1;
-      }
-      else
-      {
-        // time can never reverse
-        assert( ep->secs >= e0p->secs );  
-
-        // calc seconds between first event and current event
-        double dsecs = ep->secs - e0p->secs;
-
-        // if the first event and current event are simultaneous...
-        if( dsecs <= maxDSecs )
-          ++n;   // ... incr. the count of simultaneous events
-        else
+      p->loc[ei+i].evtCnt = n;
+      p->loc[ei+i].evtV   = cmMemAllocZ(cmScFolEvt_t,n);
+      p->loc[ei+i].scIdx    = li;
+      p->loc[ei+i].barNumb  = lp->barNumb;
+      for(j=0,k=0; j<lp->evtCnt; ++j)
+        if( lp->evtArray[j]->type == kNonEvtScId )
         {
-          int k;
-          //  ... a complete set of simultaneous events have been located
-          // duplicate all the events at each of their respective time locations
-          for(k=0; k<n; ++k)
-          {
-            int m;
-            assert( j0+k < p->locN );
-
-            p->loc[j0+k].pitchCnt = n;
-            p->loc[j0+k].pitchV   = cmMemAllocZ(unsigned,n);
-
-            for(m=0; m<n; ++m)
-            {
-              cmScoreEvt_t* tp = cmScoreEvt(scH,p->loc[j0+m].scIdx);
-              assert(tp!=NULL);
-              p->loc[j0+k].pitchV[m] = tp->pitch;
-            }
-          }
-          
-          e0p = ep;
-          j0 += n;
-          n   = 1;
+          p->loc[ei+i].evtV[k].pitch    = lp->evtArray[j]->pitch;
+          p->loc[ei+i].evtV[k].scEvtIdx = lp->evtArray[j]->index;
+          ++k;
         }
-      }
+
     }
+
+    ei += n;
+    
   }
 
-  p->locN = j0;
+  p->locN = ei;
 
   //_cmScFolPrint(p);
 
   return rc;
 }
 
-cmRC_t   cmScFolReset(   cmScFol* p, unsigned scoreIndex )
+cmRC_t   cmScFolReset(   cmScFol* p, unsigned scEvtIdx )
 {
-  int i;
+  int i,j;
 
   // empty the event buffer
   memset(p->bufV,0,sizeof(cmScFolBufEle_t)*p->bufN);
 
   // don't allow the score index to be prior to the first note
-  if( scoreIndex < p->loc[0].scIdx )
-    scoreIndex = p->loc[0].scIdx;
+  //if( scEvtIdx < p->loc[0].scIdx )
+  //  scEvtIdx = p->loc[0].scIdx;
 
   p->sei      = cmInvalidIdx;
   p->sbi      = cmInvalidIdx;
@@ -218,22 +193,23 @@ cmRC_t   cmScFolReset(   cmScFol* p, unsigned scoreIndex )
   p->ret_idx  = cmInvalidIdx;
 
   // locate the score element in svV[] that is closest to,
-  // and possibly after, scoreIndex.
+  // and possibly after, scEvtIdx.
   for(i=0; i<p->locN-1; ++i)
-    if( p->loc[i].scIdx <= scoreIndex && scoreIndex < p->loc[i+1].scIdx  )
-    {
-      p->sbi = i;
-      break;
-    }
+  {
+    for(j=0; j<p->loc[i].evtCnt; ++j)
+      if( p->loc[i].evtV[j].scEvtIdx <= scEvtIdx )
+        p->sbi = i;
+      else
+        break;
+  }
 
   // locate the score element at the end of the look-ahead region
-  for(; i<p->locN-1; ++i)
-    if( p->loc[i].scIdx <= scoreIndex + p->msln && scoreIndex + p->msln < p->loc[i+1].scIdx )
-    {
-      p->sei = i;
-      break;
-    }
-
+  for(; i<p->locN; ++i)
+  {
+    for(j=0; j<p->loc[i].evtCnt; ++j)
+      if( p->loc[i].evtV[j].scEvtIdx <= scEvtIdx + p->msln )
+        p->sei = i;
+  }
 
   return cmOkRC;
 }
@@ -241,8 +217,8 @@ cmRC_t   cmScFolReset(   cmScFol* p, unsigned scoreIndex )
 bool  _cmScFolIsMatch( const cmScFolLoc_t* loc, unsigned pitch )
 {
   unsigned i;
-  for(i=0; i<loc->pitchCnt; ++i)
-    if( loc->pitchV[i] == pitch )
+  for(i=0; i<loc->evtCnt; ++i)
+    if( loc->evtV[i].pitch == pitch )
       return true;
   return false;
 }
@@ -301,8 +277,8 @@ void _cmScFolRpt0( cmScFol* p, unsigned locIdx, unsigned locN, const cmScFolBufE
   printf("\n");
 
   for(n=0,i=0; i<locN; ++i)
-    if( p->loc[locIdx+i].pitchCnt > n )
-      n = p->loc[locIdx+i].pitchCnt;
+    if( p->loc[locIdx+i].evtCnt > n )
+      n = p->loc[locIdx+i].evtCnt;
 
   --n;
   for(; n>=0; --n)
@@ -310,8 +286,8 @@ void _cmScFolRpt0( cmScFol* p, unsigned locIdx, unsigned locN, const cmScFolBufE
     printf("sc%1i: ",n);
     for(i=0; i<locN; ++i)
     {
-      if( n < p->loc[locIdx+i].pitchCnt )
-        printf("%4s ",cmMidiToSciPitch(p->loc[locIdx+i].pitchV[n],NULL,0));
+      if( n < p->loc[locIdx+i].evtCnt )
+        printf("%4s ",cmMidiToSciPitch(p->loc[locIdx+i].evtV[n].pitch,NULL,0));
       else
         printf("     ");
     }
@@ -338,9 +314,13 @@ void _cmScFolRpt1( cmScFol*p, unsigned minDist, unsigned ret_idx, unsigned d1, u
 
 unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
 {
-
   unsigned ret_idx = cmInvalidIdx;
-  //unsigned ebuf[ p->bufN ];
+
+  if( p->sbi == cmInvalidIdx )
+  {
+    cmCtxRtCondition( &p->obj, cmInvalidArgRC, "An initial score search location has not been set." );
+    return ret_idx;
+  }
 
   if( status != kNoteOnMdId )
     return ret_idx;
@@ -362,21 +342,7 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
 
   // fill in ebuf[] with the valid values in bufV[]
   int en = cmMin(p->eventIdx,p->bufN);
-  int i  = p->eventIdx>=p->bufN ? 0 : p->bufN-p->eventIdx-1;
-
-  /*
-  int i  = p->bufN-1;
-  int en = 0;
-  for(; i>=0; --i,++en)
-  {
-    if( p->bufV[i].validFl)
-      ebuf[i] = p->bufV[i].val;
-    else
-      break;
-  }
-  ++i;  // increment i to the first valid element in ebuf[].
-  */
-
+  int bbi  = p->eventIdx>=p->bufN ? 0 : p->bufN-p->eventIdx;
 
 
   // en is the count of valid elements in ebuf[].
@@ -396,7 +362,7 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
   for(j=0; p->sbi+en+j-1 <= p->sei; ++j)
   {
     // use <= minDist to choose the latest window with the lowest match
-    if((dist = _cmScFolDist(p->bufN, p->edWndMtx, p->bufV+i, p->loc + p->sbi+j, en )) < minDist )
+    if((dist = _cmScFolDist(p->bufN, p->edWndMtx, p->bufV+bbi, p->loc + p->sbi+j, en )) < minDist )
     {
       // only make an eql match if the posn is greater than the last location 
       if( dist==minDist && p->ret_idx != cmInvalidId && p->ret_idx >= p->sbi+minIdx+en-1 )
@@ -410,7 +376,7 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
   // The best fit is on the score window: p->loc[sbi+minIdx : sbi+minIdx+en-1 ]
 
   if( p->printFl )
-    _cmScFolRpt0( p, p->sbi, p->sei-p->sbi+1, p->bufV+i, en, minIdx );
+    _cmScFolRpt0( p, p->sbi, p->sei-p->sbi+1, p->bufV+bbi, en, minIdx );
     
   // save current missCnt for later printing
   unsigned missCnt = p->missCnt;
@@ -449,7 +415,7 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
     {
       // Look backward from the closest match location for a match to the current pitch.
       // The backward search scope is limited by the current value of 'missCnt'.
-
+      unsigned i;
       j = p->sbi+minIdx+en-2;
       for(i=1; i+1 <= p->bufN && j>=p->sbi && i<=p->missCnt; ++i,--j)
       {
@@ -469,6 +435,7 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
       // If the backward search did not find a match - look forward
       if( ret_idx == cmInvalidIdx )
       {
+        unsigned i;
         j = p->sbi+minIdx+en;
         for(i=0; j<=p->sei && i<p->forwardCnt; ++i,++j)
           if( _cmScFolIsMatch(p->loc+j,p->bufV[p->bufN-1].val) )
@@ -540,7 +507,262 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
     p->sbi = p->sei  - p->bufN + 1;
   }
 
+  if( ret_idx != cmInvalidIdx )
+    ret_idx = p->loc[ret_idx].scIdx;
 
+  return ret_idx;
+}
+
+
+
+//=======================================================================================================================
+
+cmScTrk* cmScTrkAlloc( cmCtx* c, cmScTrk* p, cmReal_t srate, cmScH_t scH, unsigned bufN, unsigned minWndLookAhead, unsigned maxWndCnt, unsigned minVel )
+{
+  cmScTrk* op = cmObjAlloc(cmScTrk,c,p);
+
+  op->sfp = cmScFolAlloc(c,NULL,srate,scH,bufN,minWndLookAhead,maxWndCnt,minVel);
+
+  if( srate != 0 )
+    if( cmScTrkInit(op,srate,scH,bufN,minWndLookAhead,maxWndCnt,minVel) != cmOkRC )
+      cmScTrkFree(&op);
+  return op;
+}
+
+cmRC_t   cmScTrkFree(  cmScTrk** pp )
+{
+  cmRC_t rc = cmOkRC;
+  if( pp==NULL || *pp==NULL )
+    return rc;
+
+  cmScTrk* p = *pp;
+  if((rc = cmScTrkFinal(p)) != cmOkRC )
+    return rc;
+
+  cmScFolFree(&p->sfp);
+
+  cmObjFree(pp);
+  return rc;
+
+}
+
+void _cmScTrkPrint( cmScTrk* p )
+{
+  int i,j;
+  for(i=0; i<p->locN; ++i)
+  {
+    printf("%2i %5i ",p->loc[i].barNumb,p->loc[i].scIdx);
+    for(j=0; j<p->loc[i].evtCnt; ++j)
+      printf("%s ",cmMidiToSciPitch(p->loc[i].evtV[j].pitch,NULL,0));
+    printf("\n");
+  }
+}
+
+cmRC_t   cmScTrkInit(  cmScTrk* p, cmReal_t srate, cmScH_t scH, unsigned bufN, unsigned minWndLookAhead, unsigned maxWndCnt, unsigned minVel )
+{
+  cmRC_t rc;
+  if((rc = cmScTrkFinal(p)) != cmOkRC )
+    return rc;
+
+  if( minWndLookAhead > maxWndCnt )
+    return cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The score follower look-ahead count (%i) must be less than the max. window length (%i).",minWndLookAhead,maxWndCnt); 
+
+  if((rc = cmScFolInit(p->sfp,srate,scH,bufN,minWndLookAhead,maxWndCnt,minVel)) != cmOkRC )
+    return rc;
+  
+  p->srate          = srate;
+  p->scH            = scH;
+  p->locN           = cmScoreLocCount(scH);
+  p->loc            = cmMemResizeZ(cmScTrkLoc_t,p->loc,p->locN);
+  p->minVel         = minVel;
+  p->maxWndCnt      = maxWndCnt;
+  p->minWndLookAhead= 3; //minWndLookAhead;
+  p->printFl        = false;
+  p->curLocIdx      = cmInvalidIdx;
+  p->evtIndex       = 0;
+
+  // for each score location
+  unsigned li;
+  
+  for(li=0; li<cmScoreLocCount(p->scH); ++li)
+  {
+    unsigned i,j,k,n;
+
+    const cmScoreLoc_t* lp = cmScoreLoc(p->scH,li);
+
+    // count the number of note events at location li
+    for(n=0,i=0; i<lp->evtCnt; ++i)
+      if( lp->evtArray[i]->type == kNonEvtScId )
+        ++n;
+
+    p->loc[li].evtCnt   = n;
+    p->loc[li].evtV     = cmMemAllocZ(cmScTrkEvt_t,n);
+    p->loc[li].scIdx    = li;
+    p->loc[li].barNumb  = lp->barNumb;
+    for(j=0,k=0; j<lp->evtCnt; ++j)
+      if( lp->evtArray[j]->type == kNonEvtScId )
+      {
+        p->loc[li].evtV[k].pitch    = lp->evtArray[j]->pitch;
+        p->loc[li].evtV[k].scEvtIdx = lp->evtArray[j]->index;
+        ++k;
+      }
+  }
+
+  //_cmScTrkPrint(p);
+
+  return rc;
+}
+
+cmRC_t   cmScTrkFinal( cmScTrk* p )
+{
+  unsigned i;
+  for(i=0; i<p->locN; ++i)
+    cmMemPtrFree(&p->loc[i].evtV);
+
+  return cmOkRC; 
+}
+
+cmRC_t   cmScTrkReset( cmScTrk* p, unsigned scEvtIdx )
+{
+  unsigned i;
+
+  cmScFolReset(p->sfp,scEvtIdx);
+
+  p->curLocIdx = cmInvalidIdx;
+  p->evtIndex  = 0;
+
+
+  // locate the score element in svV[] that is closest to,
+  // and possibly after, scEvtIdx.
+  for(i=0; i<p->locN; ++i)
+  {
+    unsigned j;
+
+    for(j=0; j<p->loc[i].evtCnt; ++j)
+    {
+      p->loc[i].evtV[j].matchFl = false;
+
+      // it is possible that scEvtIdx is before the first event included in p->loc[0]
+      // using the p->curLocIdx==cmInvalidIdx forces the first evt in p->loc[0] to be
+      // selected in this case
+      if( p->loc[i].evtV[j].scEvtIdx <= scEvtIdx || p->curLocIdx==cmInvalidIdx  )
+        p->curLocIdx = i;
+    }
+  }
+
+  if( p->curLocIdx == cmInvalidIdx )
+    return cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The initial score search location event %i was not found.", scEvtIdx );
+
+  return cmOkRC;
+}
+
+unsigned _cmScTrkIsMatch(cmScTrk* p, int d, unsigned pitch )
+{
+  if( 0 <= p->curLocIdx + d && p->curLocIdx+1 < p->locN )
+  {
+    unsigned i;
+    const cmScTrkLoc_t* lp = p->loc + p->curLocIdx + d;
+    for(i=0; i<lp->evtCnt; ++i)
+      if( lp->evtV[i].pitch == pitch && lp->evtV[i].matchFl==false)
+        return i;      
+  }
+  return cmInvalidIdx;
+}
+
+void _cmScTrkRpt0( cmScTrk* p,  unsigned pitch, unsigned vel, unsigned nli, unsigned nei )
+{
+  bool missFl = nli==cmInvalidIdx || nei==cmInvalidIdx;
+
+  printf("------- event:%i %s vel:%i cur:%i new:%i %s-------\n",p->evtIndex,cmMidiToSciPitch(pitch,NULL,0),vel,p->curLocIdx,nli,missFl?"MISS ":"");
+
+  int bi = p->curLocIdx < p->minWndLookAhead ? 0 : p->curLocIdx - p->minWndLookAhead;  
+  int ei = cmMin(p->locN-1,p->curLocIdx+p->minWndLookAhead);
+  unsigned i,n=0;
+  for(i=bi; i<=ei; ++i)
+    if( p->loc[i].evtCnt>n )
+      n = p->loc[i].evtCnt;
+    
+  printf("loc  ");
+  for(i=bi; i<=ei; ++i)
+    printf("%4i   ",i);
+  printf("\n");
+
+  for(i=0; i<n; ++i)
+  {
+    unsigned j;
+    printf("sc%2i ",i);
+    for(j=bi; j<=ei; ++j)
+    {
+      if( i < p->loc[j].evtCnt )
+      {
+        char* X = p->loc[j].evtV[i].matchFl ?  "__" : "  ";
+
+        if( nli==j && nei==i)
+        {
+          X = "**";
+          assert( p->loc[j].evtV[i].pitch == pitch );
+        }
+
+        printf("%4s%s ",cmMidiToSciPitch(p->loc[j].evtV[i].pitch,NULL,0),X);
+      }
+      else
+        printf("       ");
+    }
+    printf("\n");
+  }
+
+}
+
+
+unsigned cmScTrkExec(  cmScTrk* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
+{
+  unsigned ret_idx = cmInvalidIdx;
+
+  //cmScFolExec(p->sfp, smpIdx, status, d0, d1);
+
+  if( status != kNoteOnMdId )
+    return cmInvalidIdx;
+
+  if( p->curLocIdx == cmInvalidIdx )
+  {
+    cmCtxRtCondition( &p->obj, cmInvalidArgRC, "An initial score search location has not been set." );
+    return cmInvalidIdx;
+  }
+ 
+  int i,nei,nli=cmInvalidIdx;
+
+  // try to match curLocIdx first
+  if((nei = _cmScTrkIsMatch(p,0,d0)) != cmInvalidIdx )
+    nli = p->curLocIdx;
+
+  for(i=1; nei==cmInvalidIdx && i<p->minWndLookAhead; ++i)
+  {
+    // go forward 
+    if((nei = _cmScTrkIsMatch(p,i,d0)) != cmInvalidIdx )
+      nli = p->curLocIdx + i;
+    else
+      // go backward
+      if((nei = _cmScTrkIsMatch(p,-i,d0)) != cmInvalidIdx )
+        nli = p->curLocIdx - i;
+  }
+  
+  if( p->printFl )
+  {
+    _cmScTrkRpt0(p, d0, d1, nli, nei );
+  }
+
+
+  if( nli != cmInvalidIdx )
+  {
+    p->loc[nli].evtV[nei].matchFl = true;
+    ret_idx = p->loc[nli].scIdx;
+    
+    if( nli > p->curLocIdx )
+      p->curLocIdx = nli;
+        
+  }
+
+  ++p->evtIndex;
 
   return ret_idx;
 }

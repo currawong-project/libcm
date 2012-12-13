@@ -11,16 +11,21 @@ typedef struct
 {
   unsigned     smpIdx;  // time tag sample index for val
   cmMidiByte_t val;     //
-  bool         validFl; //
-  
+  bool         validFl; //  
 } cmScFolBufEle_t;
 
 typedef struct
 {
-  unsigned  pitchCnt; // 
-  unsigned* pitchV;   // pitchV[pitchCnt]
-  unsigned  scIdx;    // index of the score event (into cmScoreEvt[]) at this location 
-  int       barNumb;  // bar number of this location
+  unsigned pitch;
+  unsigned scEvtIdx;
+} cmScFolEvt_t;
+
+typedef struct
+{
+  unsigned      evtCnt; // 
+  cmScFolEvt_t* evtV;   // pitchV[pitchCnt]
+  unsigned      scIdx;    // index of the score loc (into cmScoreEvt[]) at this location 
+  int           barNumb;  // bar number of this location
 } cmScFolLoc_t;
 
 
@@ -63,6 +68,53 @@ cmRC_t   cmScFolReset( cmScFol* p, unsigned scoreIndex );
 // Give the follower a MIDI performance event. Only MIDI note-on events are acted upon;
 // all others are ignored.
 unsigned cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
+
+//=======================================================================================================================
+
+typedef struct
+{
+  unsigned pitch;
+  unsigned scEvtIdx;
+  bool     matchFl;
+} cmScTrkEvt_t;
+
+typedef struct
+{
+  unsigned      evtCnt;         // 
+  cmScTrkEvt_t* evtV;           // evtV[evtCnt]
+  unsigned      scIdx;          // index of the score event (into cmScoreEvt[]) at this location 
+  int           barNumb;        // bar number of this location
+} cmScTrkLoc_t;
+
+typedef struct
+{
+  cmObj         obj;
+  cmScFol*      sfp; 
+  double        srate;
+  cmScH_t       scH;
+  unsigned      locN;
+  cmScTrkLoc_t* loc;
+  unsigned      minVel;
+  unsigned      maxWndCnt;
+  unsigned      minWndLookAhead;
+  bool          printFl;
+
+  int           curLocIdx;
+  unsigned      evtIndex;
+
+} cmScTrk;
+
+cmScTrk* cmScTrkAlloc( cmCtx* ctx, cmScTrk* p, cmReal_t srate, cmScH_t scH, unsigned bufN, unsigned minWndLookAhead, unsigned maxWndCnt, unsigned minVel );
+cmRC_t   cmScTrkFree(  cmScTrk** pp );
+cmRC_t   cmScTrkInit(  cmScTrk* p, cmReal_t srate, cmScH_t scH, unsigned bufN, unsigned minWndLookAhead, unsigned maxWndCnt, unsigned minVel );
+cmRC_t   cmScTrkFinal( cmScTrk* p );
+
+// Jump to a score location and reset the internal state of the follower.
+cmRC_t   cmScTrkReset( cmScTrk* p, unsigned scoreIndex );
+
+// Give the follower a MIDI performance event. Only MIDI note-on events are acted upon;
+// all others are ignored.
+unsigned cmScTrkExec(  cmScTrk* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
   
 
 #ifdef __cplusplus
