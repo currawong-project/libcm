@@ -28,13 +28,13 @@ typedef struct
   cmGrIsInsideObjCb_t isInsideCbFunc;
   void*               isInsideCbArg;
 
-  void*       mem;
-  cmGrPExt_t  pext;
-  unsigned    pixN;
-  cmSample_t* fMinV;
-  cmSample_t* fMaxV;
-  int*        iMinV;
-  int*        iMaxV;
+  void*       mem;   //
+  cmGrPExt_t  pext;  // extents of the visible portion of this audio object
+  unsigned    pixN;  // count of pixel columns used by this audio object
+  cmSample_t* fMinV; // fMinV[pixN] = min sample value for each visible column
+  cmSample_t* fMaxV; // fMaxV[pixN] = max sample value for each visible column
+  int*        iMinV; // iMinV[pixN] = top pixel for each column line 
+  int*        iMaxV; // iMaxV[pixN] = bottom pixel for each column line
 
 } cmGrPlObjAf_t;
 
@@ -50,7 +50,12 @@ cmGrPlRC_t _cmGrPlObjAfCalcImage( cmGrPlObjAf_t* op, cmGrH_t grH )
   cmGrVExtIntersect(&drExt,&vwExt,&objExt);
 
   // if the audio object is visible
-  if( cmGrVExtIsNotNullOrEmpty(&drExt) )
+  if( cmGrVExtIsNullOrEmpty(&drExt) )
+  {
+    cmGrPExtSetNull(&op->pext);
+    op->pixN = 0;
+  }
+  else
   {
     // get the extents of the visible portion of the audio object
     cmGrVExt_VtoP( grH, cmGrPlotObjHandle(op->oH), &drExt, &op->pext);
