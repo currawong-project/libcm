@@ -267,6 +267,8 @@ extern "C" {
   int             cmDspInt(    cmDspInst_t* inst, unsigned varId );
   unsigned        cmDspUInt(   cmDspInst_t* inst, unsigned varId );
   double          cmDspDouble( cmDspInst_t* inst, unsigned varId );
+  cmSample_t      cmDspSample( cmDspInst_t* inst, unsigned varId );
+  cmReal_t        cmDspReal(   cmDspInst_t* inst, unsigned varId );
   const cmChar_t* cmDspStrcz(   cmDspInst_t* inst, unsigned varId );
   unsigned        cmDspSymbol( cmDspInst_t* inst, unsigned varId );
   cmJsonNode_t*   cmDspJson(   cmDspInst_t* inst, unsigned varId );
@@ -276,6 +278,8 @@ extern "C" {
   int             cmDspDefaultInt(    cmDspInst_t* inst, unsigned varId );
   unsigned        cmDspDefaultUInt(   cmDspInst_t* inst, unsigned varId );
   double          cmDspDefaultDouble( cmDspInst_t* inst, unsigned varId );
+  cmSample_t      cmDspDefaultSample( cmDspInst_t* inst, unsigned varId );
+  cmReal_t        cmDspDefaultReal(   cmDspInst_t* inst, unsigned varId );
   const cmChar_t* cmDspDefaultStrcz(   cmDspInst_t* inst, unsigned varId );
   unsigned        cmDspDefaultSymbol( cmDspInst_t* inst, unsigned varId );
   cmJsonNode_t*   cmDspDefaultJson(   cmDspInst_t* inst, unsigned varId );
@@ -323,6 +327,8 @@ extern "C" {
   cmDspRC_t   cmDspSetDefaultInt(    cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, int             nonInitVal, int             val );
   cmDspRC_t   cmDspSetDefaultUInt(   cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, unsigned        nonInitVal, unsigned        val );
   cmDspRC_t   cmDspSetDefaultDouble( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, double          nonInitVal, double          val );
+  cmDspRC_t   cmDspSetDefaultSample( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, cmSample_t      nonInitVal, cmSample_t      val );
+  cmDspRC_t   cmDspSetDefaultReal(   cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, cmReal_t        nonInitVal, cmReal_t        val );
   cmDspRC_t   cmDspSetDefaultStrcz(  cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, const cmChar_t* nonInitVal, const cmChar_t* val );
   cmDspRC_t   cmDspSetDefaultSymbol( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, /*unsigned cmInvalidId*/    unsigned        val );
   cmDspRC_t   cmDspSetDefaultJson(   cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, cmJsonNode_t*   nonInitVal, cmJsonNode_t*   val );
@@ -336,6 +342,8 @@ extern "C" {
   cmDspRC_t   cmDspSetInt(           cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, int             val );
   cmDspRC_t   cmDspSetUInt(          cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, unsigned        val );
   cmDspRC_t   cmDspSetDouble(        cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, double          val );
+  cmDspRC_t   cmDspSetSample(        cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, cmSample_t      val );
+  cmDspRC_t   cmDspSetReal(          cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, cmReal_t        val );
   cmDspRC_t   cmDspSetStrcz(         cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, const cmChar_t* val );
   cmDspRC_t   cmDspSetSymbol(        cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, unsigned        val );
   cmDspRC_t   cmDspSetJson(          cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, cmJsonNode_t*   val );

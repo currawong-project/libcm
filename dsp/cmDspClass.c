@@ -728,6 +728,24 @@ double cmDspDouble( cmDspInst_t* inst, unsigned varId )
   return cmDsvGetDouble(vp); 
 }
 
+cmSample_t cmDspSample( cmDspInst_t* inst, unsigned varId )
+{ 
+  cmDspValue_t* vp;
+  if(_cmDspVarValuePtr(inst,varId,&vp) != kOkDspRC )
+    return 0;
+
+  return cmDsvGetSample(vp); 
+}
+
+cmReal_t cmDspReal( cmDspInst_t* inst, unsigned varId )
+{ 
+  cmDspValue_t* vp;
+  if(_cmDspVarValuePtr(inst,varId,&vp) != kOkDspRC )
+    return 0;
+
+  return cmDsvGetReal(vp); 
+}
+
 const cmChar_t* cmDspStrcz( cmDspInst_t* inst, unsigned varId )
 {
   cmDspValue_t* vp;
@@ -790,6 +808,24 @@ double cmDspDefaultDouble( cmDspInst_t* inst, unsigned varId )
     return 0;
 
   return cmDsvGetDouble(vp); 
+}
+
+cmSample_t cmDspDefaultSample( cmDspInst_t* inst, unsigned varId )
+{ 
+  cmDspValue_t* vp;
+  if(_cmDspVarDefaultPtr(inst,varId,&vp) != kOkDspRC )
+    return 0;
+
+  return cmDsvGetSample(vp); 
+}
+
+cmReal_t cmDspDefaultReal( cmDspInst_t* inst, unsigned varId )
+{ 
+  cmDspValue_t* vp;
+  if(_cmDspVarDefaultPtr(inst,varId,&vp) != kOkDspRC )
+    return 0;
+
+  return cmDsvGetReal(vp); 
 }
 
 const cmChar_t* cmDspDefaultStrcz( cmDspInst_t* inst, unsigned varId )
@@ -1029,6 +1065,22 @@ cmDspRC_t   cmDspSetDefaultDouble( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned 
   return _cmDspDefaultSet(ctx,inst,varId,&v,dv==nonInitVal);
 }
 
+cmDspRC_t   cmDspSetDefaultSample( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, cmSample_t nonInitVal, cmSample_t val )
+{
+  cmDspValue_t v;
+  cmSample_t dv = cmDspDefaultSample(inst,varId);
+  cmDsvSetSample(&v,val);
+  return _cmDspDefaultSet(ctx,inst,varId,&v,dv==nonInitVal);
+}
+
+cmDspRC_t   cmDspSetDefaultReal( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, cmReal_t nonInitVal, cmReal_t val )
+{
+  cmDspValue_t v;
+  cmReal_t dv = cmDspDefaultReal(inst,varId);
+  cmDsvSetReal(&v,val);
+  return _cmDspDefaultSet(ctx,inst,varId,&v,dv==nonInitVal);
+}
+
 cmDspRC_t   cmDspSetDefaultSymbol( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, unsigned val )
 {
   cmDspValue_t v;
@@ -1089,6 +1141,20 @@ cmDspRC_t  cmDspSetDouble(    cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId
 { 
   cmDspValue_t v;
   cmDsvSetDouble(&v,val);
+  return cmDspValueSet(ctx, inst, varId, &v, 0);
+}
+
+cmDspRC_t  cmDspSetSample(    cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, cmSample_t val )
+{ 
+  cmDspValue_t v;
+  cmDsvSetSample(&v,val);
+  return cmDspValueSet(ctx, inst, varId, &v, 0);
+}
+
+cmDspRC_t  cmDspSetReal(    cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, cmReal_t val )
+{ 
+  cmDspValue_t v;
+  cmDsvSetReal(&v,val);
   return cmDspValueSet(ctx, inst, varId, &v, 0);
 }
 
