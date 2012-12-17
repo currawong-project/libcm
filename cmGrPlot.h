@@ -13,6 +13,7 @@ extern "C" {
     kRsrcFailGrPlRC
   };
 
+  // Graphic object type id's
   typedef enum
   {
     kInvalidPlId,
@@ -31,7 +32,7 @@ extern "C" {
     kPlusGrPlId,
   } cmGrPlObjTypeId_t;
 
-  // object cfg flags
+  // Object cfg. flags
   enum
   {
     kSymbolGrPlFl   = 0x0001,  // This object is a symbol
@@ -47,10 +48,10 @@ extern "C" {
   // object state flags
   enum
   {
-    kVisibleGrPlFl = 0x0001,
+    kVisibleGrPlFl = 0x0001,  //  
     kEnabledGrPlFl = 0x0002,  // Enabled obj's must be visible. 
-    kSelectGrPlFl  = 0x0004,  // 
-    kFocusGrPlFl   = 0x0008   // Focused obj's are also selected.
+    kSelectGrPlFl  = 0x0004,  // This object is selected - multiple objects may be selected
+    kFocusGrPlFl   = 0x0008   // Focused obj's are also selected - only one object can have the focus.
   };
 
   typedef enum

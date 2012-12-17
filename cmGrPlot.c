@@ -256,7 +256,7 @@ void _cmGrPlotObjSetFocus( cmGrPlotObj_t* op )
 
 void _cmGrPlotObjSetSelect( cmGrPlotObj_t* op, bool clearFl )
 {
-  // if the object is disabled or no selectable
+  // if the object is disabled or not selectable
   if( _cmGrPlotObjIsEnabled(op)==false || cmIsFlag(op->cfgFlags,kNoSelectGrPlFl | kNoDrawGrPlFl) )
     return;
 
