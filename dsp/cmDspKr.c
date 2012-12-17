@@ -604,6 +604,7 @@ typedef struct
   unsigned      startSymId;
   unsigned      stopSymId;
   unsigned      contSymId;
+  bool          errFl;
 } cmDspMidiFilePlay_t;
 
 /*
@@ -657,8 +658,16 @@ cmDspRC_t _cmDspMidiFilePlayFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDsp
 }
 
 // return the index of the msg following smpIdx
-unsigned _cmDspMidiFilePlaySeekMsgIdx( cmDspCtx_t* ctx, cmDspMidiFilePlay_t* p, unsigned smpIdx )
+unsigned _cmDspMidiFilePlaySeekMsgIdx( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned smpIdx )
 {
+  cmDspMidiFilePlay_t* p = (cmDspMidiFilePlay_t*)inst;
+
+  if( cmMidiFileIsValid(p->mfH) == false )
+  {
+    cmErrMsg(&inst->classPtr->err, kInvalidStateDspRC,"The MIDI file player has not been given a valid MIDI file.");
+    return cmInvalidIdx;
+  }
+
   unsigned                 i;
   unsigned                 n     = cmMidiFileMsgCount(p->mfH);
   const cmMidiTrackMsg_t** a     = cmMidiFileMsgArray(p->mfH);
@@ -676,6 +685,8 @@ cmDspRC_t _cmDspMidiFilePlayOpen(cmDspCtx_t* ctx, cmDspInst_t* inst )
   const cmChar_t*      fn = cmDspStrcz(inst,kFnMfId);
   cmDspMidiFilePlay_t* p  = (cmDspMidiFilePlay_t*)inst;
 
+  p->errFl = false;
+
   if( fn==NULL || strlen(fn)==0 )
     return rc;
 
@@ -687,7 +698,7 @@ cmDspRC_t _cmDspMidiFilePlayOpen(cmDspCtx_t* ctx, cmDspInst_t* inst )
     p->bsi       = cmDspInt(inst,kBsiMfId);
     p->esi       = cmDspInt(inst,kEsiMfId);
     p->csi       = 0;
-
+    
     // force the first msg to occurr one quarter note into the file
     cmMidiFileSetDelay(p->mfH, cmMidiFileTicksPerQN(p->mfH) );
 
@@ -711,8 +722,19 @@ cmDspRC_t _cmDspMidiFilePlayExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDsp
   cmDspMidiFilePlay_t* p   = (cmDspMidiFilePlay_t*)inst;
   unsigned             sPc = cmDspSamplesPerCycle(ctx);
 
+
   if( cmDspSymbol(inst,kSelMfId) != p->stopSymId )
   {
+    if( cmMidiFileIsValid(p->mfH) == false )
+    {
+      if( p->errFl==false )
+      {
+        rc = cmErrMsg(&inst->classPtr->err, kInvalidStateDspRC,"The MIDI file player has not been given a valid MIDI file.");
+        p->errFl = true;
+      }
+      return rc;
+    }
+
     const cmMidiTrackMsg_t** mpp   = cmMidiFileMsgArray(p->mfH);
     unsigned                 msgN  = cmMidiFileMsgCount(p->mfH);
   
@@ -754,7 +776,7 @@ cmDspRC_t _cmDspMidiFilePlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDsp
         if( cmDspSymbol(inst,kSelMfId)==p->startSymId ) 
         {
           p->csi       = cmDspInt(inst,kBsiMfId);
-          p->curMsgIdx = _cmDspMidiFilePlaySeekMsgIdx(ctx, p, p->csi );
+          p->curMsgIdx = _cmDspMidiFilePlaySeekMsgIdx(ctx, inst, p->csi );
         }
         break;
       }
