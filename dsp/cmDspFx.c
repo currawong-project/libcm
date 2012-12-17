@@ -5653,6 +5653,128 @@ struct cmDspClass_str* cmRouterClassCons( cmDspCtx_t* ctx )
   return &_cmRouter_DC;
 }
 
+//==========================================================================================================================================
+enum
+{
+  kChCntAvId,
+  kTrigAvId,
+  kChIdxAvId,  
+  kBaseInDisAvId,
+};
+
+cmDspClass_t _cmAvailCh_DC;
+
+typedef struct
+{
+  cmDspInst_t   inst;
+  unsigned      chCnt;
+  unsigned      baseOutEnaAvId; 
+  unsigned      baseInDisAvId;
+  unsigned      enableSymId;
+  unsigned      disableSymId;
+  bool*         stateArray;
+} cmDspAvailCh_t;
+
+cmDspInst_t*  _cmDspAvailCh_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  if( va_cnt < 1 )
+  {
+    cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'AvailCh' constructor must be given an channel count.");
+    return NULL;
+  }
+
+  va_list vl1;
+  va_copy(vl1,vl);
+
+  int     chCnt            = va_arg(vl,int);
+
+  if( chCnt <= 0 )
+  {
+    cmDspClassErr(ctx,classPtr,kInvalidArgDspRC,"The 'AvailCh' constructor must be given a positive channel count.");
+    return NULL;
+  }
+
+  unsigned baseInDisAvId     = kBaseInDisAvId;
+  unsigned baseOutEnaAvId    = baseInDisAvId + chCnt;
+
+  cmDspAvailCh_t* p = cmDspInstAllocV(cmDspAvailCh_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl1,
+    1,         "chs",    kChCntAvId,        0, 0, kUIntDsvFl     | kReqArgDsvFl,  "Channel count.",
+    1,         "trig",   kTrigAvId,         0, 0, kTypeDsvMask   | kInDsvFl,      "Trigger the unit to select the next available channel.", 
+    1,         "ch",     kChIdxAvId,        0, 0, kUIntDsvFl     | kReqArgDsvFl | kInDsvFl,    "Currently selected channel.",
+    chCnt,     "dis",    baseInDisAvId,     0, 0, kTypeDsvMask   | kInDsvFl,     "Disable inputs.",
+    chCnt,     "ena",    baseOutEnaAvId,    0, 0, kSymDsvFl      | kOutDsvFl,    "'enable' outputs",
+    0 );
+
+  p->chCnt     = chCnt;
+
+  p->baseInDisAvId   =  baseInDisAvId;
+  p->baseOutEnaAvId  =  baseOutEnaAvId;
+  p->enableSymId     =  cmSymTblRegisterStaticSymbol(ctx->stH,"enable");
+  p->disableSymId    =  cmSymTblRegisterStaticSymbol(ctx->stH,"disable");
+
+  unsigned i;
+  for(i=0; i<chCnt; ++i)
+    cmDspSetDefaultSymbol( ctx, &p->inst, baseOutEnaAvId+i, p->disableSymId );
+
+  cmDspSetDefaultUInt( ctx, &p->inst, kChIdxAvId, 0, cmInvalidIdx );
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspAvailCh_Free(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  return kOkDspRC;
+}
+
+cmDspRC_t _cmDspAvailCh_Reset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  return cmDspApplyAllDefaults(ctx,inst);
+}
+
+
+cmDspRC_t _cmDspAvailCh_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{ 
+  cmDspRC_t    rc = kOkDspRC;
+  cmDspAvailCh_t* p  = (cmDspAvailCh_t*)inst;
+
+  // if this is a trigger
+  if( evt->dstVarId == kTrigAvId )
+  {
+    unsigned i;
+    for(i=0; i<p->chCnt; ++i)
+      if( cmDspSymbol(inst,p->baseOutEnaAvId+i) == p->disableSymId )
+      {
+        cmDspSetUInt(ctx,inst,kChIdxAvId,i);
+        cmDspSetSymbol(ctx,inst,p->baseOutEnaAvId,p->enableSymId);
+      }
+    return rc;
+  }
+
+  // if this is an incoming disable message.
+  if( p->baseInDisAvId <= evt->dstVarId && evt->dstVarId < p->baseInDisAvId+p->chCnt )
+  {
+    cmDspSetSymbol(ctx,inst,p->baseOutEnaAvId,p->disableSymId);
+    return rc;
+  }
+
+  return rc;
+}
+
+struct cmDspClass_str* cmAvailChClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmAvailCh_DC,ctx,"AvailCh",
+    NULL,
+    _cmDspAvailCh_Alloc,
+    _cmDspAvailCh_Free,
+    _cmDspAvailCh_Reset,
+    NULL,
+    _cmDspAvailCh_Recv,
+    NULL,NULL,
+    "Enable the next availabled channel");
+
+  return &_cmAvailCh_DC;
+}
+
  
 //==========================================================================================================================================
  

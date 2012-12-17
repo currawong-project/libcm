@@ -37,6 +37,7 @@ extern "C" {
   struct cmDspClass_str* cmGateToSymClassCons(  cmDspCtx_t* ctx );
   struct cmDspClass_str* cmPortToSymClassCons(  cmDspCtx_t* ctx );
   struct cmDspClass_str* cmRouterClassCons(     cmDspCtx_t* ctx );
+  struct cmDspClass_str* cmAvailChClassCons(    cmDspCtx_t* ctx );
   struct cmDspClass_str* cmPresetClassCons(     cmDspCtx_t* ctx );
   struct cmDspClass_str* cmBcastSymClassCons(   cmDspCtx_t* ctx );
   struct cmDspClass_str* cmSegLineClassCons(    cmDspCtx_t* ctx );
