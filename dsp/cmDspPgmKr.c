@@ -63,7 +63,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmCtx_t*        cmCtx      = cmDspSysPgmCtx(h);
   cmErr_t         err;
   krRsrc_t        r;
-  unsigned        wtLoopCnt  = 1;                            // play once (do not loop)
+  unsigned        wtLoopCnt  = -1;                            // play once (do not loop)
   unsigned        wtInitMode = 0;                            // initial wt mode is 'silence'
   unsigned        wtSmpCnt   = floor(cmDspSysSampleRate(h)); // wt length == srate
 
@@ -75,7 +75,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspInst_t* tlp  = cmDspSysAllocInst(h,"TimeLine",    "tl",  2, r.tlFn, r.audPath );
   cmDspInst_t* scp  = cmDspSysAllocInst(h,"Score",       "sc",  1, r.scFn );
-  cmDspInst_t* php  = cmDspSysAllocInst(h,"Phasor",      NULL,  0 );
+  cmDspInst_t* php  = cmDspSysAllocInst(h,"Phasor",      NULL,  1, cmDspSysSampleRate(h) );
   cmDspInst_t* wtp  = cmDspSysAllocInst(h,"WaveTable",   NULL,  4, wtSmpCnt, wtInitMode, NULL, wtLoopCnt );
   cmDspInst_t* pts  = cmDspSysAllocInst(h,"PortToSym",   NULL,  2, "on", "off" );
   cmDspInst_t* mfp  = cmDspSysAllocInst(h,"MidiFilePlay",NULL,  0 );
@@ -99,8 +99,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysConnectAudio(h, php, "out", wtp,  "phs" );   // phs -> wt
   cmDspSysConnectAudio(h, wtp, "out", ao0p, "in"  );   // wt  -> aout0
   cmDspSysConnectAudio(h, wtp, "out", ao1p, "in" );    // wt  -> aout1
+ 
   cmDspSysInstallCb(   h, wtp, "fidx",tlp,  "curs", NULL); 
-  //cmDspSysInstallCb(   h, wtp, "fidx",prp,  "in", NULL );
 
   // start connections
   cmDspSysInstallCb(h, onb, "sym", tlp, "reset", NULL );
@@ -127,22 +127,22 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, tlp, "mfn",  mfp, "fn",    NULL );
 
   // score to score follower - to set initial search location
-  cmDspSysInstallCb(h, scp, "sel",    sfp, "index",  NULL );
+  //cmDspSysInstallCb(h, scp, "sel",    sfp, "index",  NULL );
   
 
   // MIDI file player to score-follower and score - the order of connections is the same
   // as the msg transmision order from MFP
   cmDspSysInstallCb(h, mfp, "smpidx", scp, "smpidx", NULL );
   cmDspSysInstallCb(h, mfp, "d1",     scp, "d1",     NULL );
-  cmDspSysInstallCb(h, mfp, "d1",     sfp, "d1",     NULL );
+  //cmDspSysInstallCb(h, mfp, "d1",     sfp, "d1",     NULL );
   cmDspSysInstallCb(h, mfp, "d0",     scp, "d0",     NULL );
-  cmDspSysInstallCb(h, mfp, "d0",     sfp, "d0",     NULL );
+  //cmDspSysInstallCb(h, mfp, "d0",     sfp, "d0",     NULL );
   cmDspSysInstallCb(h, mfp, "status", scp, "status", NULL );
-  cmDspSysInstallCb(h, mfp, "status", sfp, "status", NULL );
+  //cmDspSysInstallCb(h, mfp, "status", sfp, "status", NULL );
 
 
   // score follower to score
-  cmDspSysInstallCb(h, sfp, "out",  scp, "loc", NULL );
+  //cmDspSysInstallCb(h, sfp, "out",  scp, "loc", NULL );
 
 
   // Printer connections
@@ -156,6 +156,6 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysInstallCb(h, prtb, "sym", sfp, "cmd", NULL );
   cmDspSysInstallCb(h, qtb,  "sym", sfp, "cmd", NULL );
-
+  
   return rc;
 }

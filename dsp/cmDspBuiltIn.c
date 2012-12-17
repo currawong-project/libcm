@@ -732,8 +732,8 @@ cmDspInst_t*  _cmDspPhasorAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigne
   cmDspPhasor_t* p = cmDspInstAlloc(cmDspPhasor_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
 
   // assign default values to any of the the optional arg's which may not have been set from vl.
-  cmDspSetDefaultDouble(ctx, &p->inst, kMaxPhId,  0.0, DBL_MAX);
-  cmDspSetDefaultDouble(ctx, &p->inst, kMultPhId, 0.0, 1.0);
+  cmDspSetDefaultSample(ctx, &p->inst, kMaxPhId,  0.0, cmSample_MAX);
+  cmDspSetDefaultSample(ctx, &p->inst, kMultPhId, 0.0, 1.0);
   cmDspSetDefaultDouble(ctx, &p->inst, kPhsPhId,  0.0, 0.0);
 
   return &p->inst;
@@ -750,23 +750,23 @@ cmDspRC_t _cmDspPhasorExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 {
   cmSample_t*       bp   = cmDspAudioBuf(ctx,inst,kOutPhId,0);
   const cmSample_t* ep   = bp + cmDspAudioBufSmpCount(ctx,inst,kOutPhId,0);
-  double            mult = cmDspDouble(inst,kMultPhId);
-  double            max  = cmDspDouble(inst,kMaxPhId);
+  cmSample_t        mult = cmDspSample(inst,kMultPhId);
+  cmSample_t        max  = cmDspSample(inst,kMaxPhId);
   double            phs  = cmDspDouble(inst,kPhsPhId);
-  double            inc  = mult;
+  cmSample_t        inc  = mult;
 
   for(; bp<ep; ++bp)
   {
     while( phs >= max )
       phs -= max;
 
-    *bp = phs;
+    *bp = (cmSample_t)phs;
 
     phs += inc;
 
   }
 
-  cmDspSetDouble(ctx,inst,kPhsPhId,phs);
+  cmDspSetSample(ctx,inst,kPhsPhId,phs);
   
   return kOkDspRC;
 }
@@ -2773,12 +2773,13 @@ typedef struct
   cmThreadH_t    thH;
   bool           loadFileFl;
   cmDspCtx_t*    ctx;
-  double         phsOffs;
-  double         phsLast;
+  cmSample_t     phsOffs;
+  cmSample_t     phsLast;
   unsigned       onSymId;
   unsigned       offSymId;
   unsigned       doneSymId;
   bool           useThreadFl;
+  unsigned       wt_oi;
  } cmDspWaveTable_t;
 
 bool _cmDspWaveTableThreadFunc( void* param);
@@ -3201,6 +3202,57 @@ cmDspRC_t _cmDspWaveTableReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
 
 }
 
+cmDspRC_t _cmDspWaveTableExec1(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t         rc       = kOkDspRC;
+  cmDspWaveTable_t* p        = (cmDspWaveTable_t*)inst;
+  unsigned          mode     = cmDspSymbol(inst,kCmdWtId);
+  unsigned          srcId    = cmDspUInt(inst,kShapeWtId);
+
+  if( mode == p->offSymId || srcId == kSilenceWtId )
+  {
+    cmDspZeroAudioBuf(ctx,inst,kOutWtId);
+    return kOkDspRC;
+  }
+
+  cmSample_t*       outV     = cmDspAudioBuf(ctx,inst,kOutWtId,0);
+  unsigned          outCnt   = cmDspVarRows(inst,kOutWtId);
+  unsigned          wtSmpCnt = cmDspUInt(inst,kLenWtId);
+  double            gain     = cmDspDouble(inst,kGainWtId);
+  unsigned          i;
+
+  // for each output sample
+  for(i=0; i<outCnt; ++i)
+  {
+    p->wt_oi = (p->wt_oi + 1) % wtSmpCnt;
+    outV[i] = gain * p->wt[p->wt_oi];
+  }
+
+  // if we are reading from a file ...
+  if( srcId == kFileWtId )
+  {
+    unsigned rdSmpCnt = 8192; // file read block sample count
+
+    p->wtn += outCnt;
+
+    // ... and there are rdSmpCnt avail locations in the wave table
+    if( p->wtn >= rdSmpCnt )
+      rc =  _cmDspWaveTableReadAudioFile(ctx, p, wtSmpCnt, rdSmpCnt );
+
+    // send the current audio file index
+    if( p->doneFl && p->cfi < p->cfn && p->cfn <= (p->cfi + outCnt) )
+      cmDspSetSymbol(ctx,inst,kDoneWtId,p->doneSymId);
+    else
+      cmDspSetUInt(ctx,inst,kFIdxWtId,p->cfi);
+
+    p->cfi += outCnt;
+
+  }
+
+  return rc;
+
+}
+
 cmDspRC_t _cmDspWaveTableExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
   cmDspRC_t         rc       = kOkDspRC;
@@ -3233,7 +3285,8 @@ cmDspRC_t _cmDspWaveTableExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
   for(i=0; i<outCnt; ++i)
   {
     // get the wave table location
-    unsigned x = fmod(phsV[i] - p->phsOffs,wtSmpCnt);
+    //unsigned x = fmodf(phsV[i] - p->phsOffs,wtSmpCnt);
+    unsigned x = fmodf(phsV[i],wtSmpCnt);
 
     // if the wt loctn is passed the end of the table
     /*
@@ -3244,12 +3297,6 @@ cmDspRC_t _cmDspWaveTableExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
     }
     */
 
-    // read the wt into the output
-
-    // BUG BUG BUG BUG 
-    // BUG BUG BUG BUG - THIS DIVISION BY 0.5 IS HACK
-    // BUG BUG BUG BUG 
-    //outV[i] = 0.5 * p->wt[x];
     outV[i] = gain * p->wt[x];
   }
 
@@ -4951,7 +4998,6 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmWaveTableClassCons,
 
   cmSprintfClassCons,
-  cmKrClassCons,
   cmAMixClassCons,
   cmASplitClassCons,
   cmAMeterClassCons,
@@ -4998,11 +5044,13 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmGateToSymClassCons,
   cmPortToSymClassCons,
   cmRouterClassCons,
+  cmAvailChClassCons,
 
   cmPresetClassCons,
   cmBcastSymClassCons,
   cmSegLineClassCons,
-  
+
+  cmKrClassCons,  
   cmTimeLineClassCons,
   cmScoreClassCons,
   cmMidiFilePlayClassCons,
