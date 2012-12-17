@@ -2311,6 +2311,41 @@ cmDspRC_t _cmDspSysPgm_SegLine( cmDspSysH_t h, void** userPtrPtr )
  errLabel:
   return rc;
 }
+
+cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
+{
+  double   frqHz       = 440.0;
+  unsigned xfadeChCnt  = 2;
+  double   xfadeMs     = 250.0;
+  bool     xfadeInitFl = false;
+
+  const char*  fn    = "/home/kevin/media/audio/20110723-Kriesberg/Audio Files/Piano 3_01.wav";
+  
+  cmDspInst_t* chk   = cmDspSysAllocInst(h,"Button", "Next",  2, kCheckDuiId, 0.0 );
+
+  
+  cmDspInst_t* sphp  =  cmDspSysAllocInst( h, "Phasor",    NULL,   2, cmDspSysSampleRate(h), frqHz );
+  cmDspInst_t* swtp  =  cmDspSysAllocInst( h, "WaveTable", NULL,   2, ((int)cmDspSysSampleRate(h)), 4);
+  cmDspInst_t* fphp  =  cmDspSysAllocInst( h, "Phasor",    NULL,   1, cmDspSysSampleRate(h) );
+  cmDspInst_t* fwtp  =  cmDspSysAllocInst( h, "WaveTable", NULL,   5, ((int)cmDspSysSampleRate(h)), 1, fn, -1, 7000000 );
+  cmDspInst_t* fad0  =  cmDspSysAllocInst( h, "Xfader",    NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl ); 
+  cmDspInst_t* fad1  =  cmDspSysAllocInst( h, "Xfader",    NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl );
+
+  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, 0 );
+  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, 1 );
+    
+
+  cmDspSysConnectAudio(h, sphp, "out", swtp, "phs" );
+  cmDspSysConnectAudio(h, swtp, "out", fad0, "in" ); 
+  cmDspSysConnectAudio(h, fad0, "out", ao0p, "in" );
+  cmDspSysConnectAudio(h, fphp, "out", fwtp, "phs" );
+  cmDspSysConnectAudio(h, fwtp, "out", fad1, "in" ); 
+  cmDspSysConnectAudio(h, fad1, "out", ao1p, "in" ); 
+
+  return kOkDspRC;
+
+}
+
 _cmDspSysPgm_t _cmDspSysPgmArray[] = 
 {
   { "time_line",     _cmDspSysPgm_TimeLine,     NULL, NULL },
@@ -2351,6 +2386,7 @@ _cmDspSysPgm_t _cmDspSysPgmArray[] =
   { "comb filt",   _cmDspSysPgm_CombFilt,       NULL, NULL },
   { "scalar op",   _cmDspSysPgm_ScalarOp,       NULL, NULL },
   { "seg_line",    _cmDspSysPgm_SegLine,        NULL, NULL },
+  { "avail_ch",    _cmDspSysPgm_AvailCh,        NULL, NULL },
   { NULL , NULL, NULL, NULL }
 };
 
