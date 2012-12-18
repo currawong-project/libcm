@@ -131,7 +131,7 @@ bool _cmGrPlObjAfRender(   cmGrObjFuncArgs_t* args, cmGrDcH_t dcH )
   return true;
 }
 
-bool  _cmGrPlObjAfIsInside( cmGrObjFuncArgs_t* args, int px, int py, cmGrV_t vx, cmGrV_t vy )
+bool  _cmGrPlObjAfIsInside( cmGrObjFuncArgs_t* args, unsigned evtFlags, int px, int py, cmGrV_t vx, cmGrV_t vy )
 {
   cmGrPlObjAf_t* op = (cmGrPlObjAf_t*)args->cbArg;
 

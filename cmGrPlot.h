@@ -43,6 +43,7 @@ extern "C" {
     kNoFillGrPlFl   = 0x0020,  // Do not draw the fill area of this object
     kNoBorderGrPlFl = 0x0040,  // Do not draw the border of this object
     kNoLabelGrPlFl  = 0x0080,  // Do not draw the label for this object
+    kBorderSelGrPlFl= 0x0100,  // This object is selected by clicking near it's border
   };
 
   // object state flags

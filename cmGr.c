@@ -684,7 +684,7 @@ void _cmGrObjCbVExt( cmGr_t* p, const cmGrObj_t* op, cmGrVExt_t* vext )
   }  
 }
 
-bool _cmGrObjCbIsInside( cmGr_t* p, const cmGrObj_t* op, int px, int py, cmGrV_t vx, cmGrV_t vy )
+bool _cmGrObjCbIsInside( cmGr_t* p, const cmGrObj_t* op, unsigned evtFlags, int px, int py, cmGrV_t vx, cmGrV_t vy )
 {
   bool fl = false;
   if( op->f.isInsideCbFunc != NULL )
@@ -692,7 +692,7 @@ bool _cmGrObjCbIsInside( cmGr_t* p, const cmGrObj_t* op, int px, int py, cmGrV_t
     cmGrObjFuncArgs_t a;
     _cmGrObjSetupFuncArgs(&a,p,(cmGrObj_t*)op);
     a.cbArg = op->f.isInsideCbArg;
-    fl = op->f.isInsideCbFunc(&a,px,py,vx,vy);
+    fl = op->f.isInsideCbFunc(&a,evtFlags,px,py,vx,vy);
   }  
   return fl;
 }
@@ -1751,7 +1751,7 @@ void     _cmGrObjRootVExt( cmGrObjFuncArgs_t* args, cmGrVExt_t* vext )
   cmGrObjWorldExt( args->objH, vext );
 }
 
-bool _cmGrObjRootIsInside( cmGrObjFuncArgs_t* args, int px, int py, cmGrV_t vx, cmGrV_t vy )
+bool _cmGrObjRootIsInside( cmGrObjFuncArgs_t* args, unsigned evtFlags, int px, int py, cmGrV_t vx, cmGrV_t vy )
 {
   cmGrVExt_t vext;
   _cmGrObjRootVExt(args,&vext);
@@ -2154,8 +2154,38 @@ void  _cmGrSetSelectPoints(cmGr_t* p, const cmGrVPt_t* pt0, const cmGrVPt_t* pt1
   
 }
 
+void      _cmGrScrollExtents( cmGr_t* p, cmGrPSz_t* tot, cmGrPSz_t* vis, cmGrPSz_t* max, cmGrPPt_t* pos )
+{
+
+  assert( p->rootObj != NULL );
+
+  if( tot != NULL )
+  {
+    tot->w = round(p->rootObj->wext.sz.w * p->pext.sz.w / p->vext.sz.w);
+    tot->h = round(p->rootObj->wext.sz.h * p->pext.sz.h / p->vext.sz.h);
+  }
+
+  if( vis != NULL )
+  {
+    vis->w = round(p->vext.sz.w * p->pext.sz.w / p->vext.sz.w);
+    vis->h = round(p->vext.sz.h * p->pext.sz.h / p->vext.sz.h);
+  }
+
+  if( max != NULL )
+  {
+    max->w = tot->w - vis->w;
+    max->h = tot->h - vis->h;
+  }
+
+  if( pos != NULL )
+  {
+    pos->x = _cmGrScrollH(p);
+    pos->y = _cmGrScrollV(p);
+  }
+}
+
 // vx,vy are in the same coord's as op->vext
-cmGrObj_t* _cmGrFindObjRec( cmGr_t* p, cmGrObj_t* op, int px, int py, cmGrV_t vx, cmGrV_t vy )
+cmGrObj_t* _cmGrFindObjRec( cmGr_t* p, cmGrObj_t* op, unsigned evtFlags, int px, int py, cmGrV_t vx, cmGrV_t vy )
 {
   cmGrObj_t* rop = NULL;
   cmGrObj_t* top;
@@ -2165,27 +2195,234 @@ cmGrObj_t* _cmGrFindObjRec( cmGr_t* p, cmGrObj_t* op, int px, int py, cmGrV_t vx
   _cmGrObjCbVExt(p,op,&vext);
 
   // is vx,vy inside op - this is equiv to: cmGrVExtIsXyInside(&vext,vx,vy)
-  if( _cmGrObjCbIsInside(p,op,px,py,vx,vy) )
+  if( _cmGrObjCbIsInside(p,op,evtFlags,px,py,vx,vy) )
     rop = op;
 
   if( op->children != NULL )
   {
     cmGrVPt_t pt;
     if( _cmGrParentToLocal(p,op,vx,vy,&pt) )
-      if((top = _cmGrFindObjRec(p,op->children,px,py,vx,vy)) != NULL )
+      if((top = _cmGrFindObjRec(p,op->children,evtFlags,px,py,vx,vy)) != NULL )
         rop = top;
   }
 
   if( op->rsib != NULL )
-    if((top = _cmGrFindObjRec(p,op->rsib,px,py,vx,vy)) != NULL )
+    if((top = _cmGrFindObjRec(p,op->rsib,evtFlags,px,py,vx,vy)) != NULL )
       rop = top;
 
 
   return rop;
 }
 
+cmGrObj_t*  _cmGrEventMsDown( cmGr_t* p, unsigned evtFlags, cmGrKeyCodeId_t key, int px, int py, cmGrV_t gx, cmGrV_t gy )
+{
+  // store the phys loc. of the ms dn event
+  cmGrPPtSet(&p->msDnPPt,px,py);   
 
-bool     cmGrEvent( cmGrH_t h, unsigned flags, cmGrKeyCodeId_t key, int px, int py )
+  // get a pointer to an object 
+  cmGrObj_t* op =  _cmGrFindObjRec(p, p->rootObj, evtFlags, px, py, gx, gy );
+
+  // if the mouse did not go down in an object that accepts mouse down events
+  // or the object was a root object
+  if( op == NULL || op->parent == NULL )
+    return NULL;
+
+  // store the object and coord's where the mouse went down.
+  cmGrVExt_t vext;
+  p->msDnObj = op; // set the msDnObj
+
+  // convert the phys ms dn point to the virt point inside op->parent.wext
+  _cmGrXY_PtoV(p, op->parent, px, py, &p->msDnVPt );
+
+  p->msVPt    = p->msDnVPt;    // set the current ms virt pt
+  p->localPt  = p->msDnVPt;    // set the current local pt
+
+  // notifiy the app of the local coord's
+  _cmGrCallback(p,kLocalPtCbGrId,0,kInvalidKeyCodeGrId);
+
+  // get the ms down obj virt extents
+  _cmGrObjCbVExt(p,op,&vext);
+
+  // store the offset from the lower left to the ms dn point
+  p->msDnVOffs.w = p->msDnVPt.x - vext.loc.x; 
+  p->msDnVOffs.h = p->msDnVPt.y - vext.loc.y;
+
+  // notify the object that the mouse went down
+  if(_cmGrObjCbEvent(p,op,evtFlags,key,px,py))
+    return op;
+  return NULL;
+}
+
+cmGrObj_t* _cmGrEventMsUp( cmGr_t* p, unsigned evtFlags, cmGrKeyCodeId_t key, int px, int py, cmGrV_t gx, cmGrV_t gy )
+{
+  bool       fl = false;
+  cmGrObj_t* op = NULL;
+
+  cmGrPPt_t upPPt;
+  cmGrPPtSet(&upPPt,px,py);
+  
+  // if a click occured ...
+  if( cmGrPPtIsEqual(&p->msDnPPt,&upPPt )  )
+  {
+    // ... and the click is in a non-root object which accepts click events ...
+    if( p->msDnObj!= NULL && p->msDnObj->parent!=NULL && _cmGrObjCbIsInside(p,p->msDnObj,evtFlags | kMsClickGrFl, px, py, gx, gy) )
+    {
+      // ... then generate a click event
+      unsigned newEvtFlags = cmClrFlag(evtFlags,kMsUpGrFl) | kMsClickGrFl;
+      fl = _cmGrObjCbEvent(p,p->msDnObj,newEvtFlags,key,px,py);
+      op = p->msDnObj;
+    }
+    else // ... else if the click occurred in the root object
+      //if( p->msDnObj==NULL || p->msDnObj->parent==NULL)
+      {
+        cmGrVPt_t pt;
+        cmGrVPtSet(&pt,gx,gy);
+
+        bool shFl = cmIsFlag(evtFlags,kShiftKeyGrFl);
+        _cmGrSetSelectPoints( p, shFl ? NULL : &pt, shFl ? &pt : NULL );
+
+      }
+  }
+
+  // if op is NULL then there was no-mouse down object to match with 
+  // this mouse-up event - find an object to match with the mouse-up event
+  if( op == NULL )
+    op = _cmGrFindObjRec(p, p->rootObj, evtFlags, px, py, gx, gy );
+
+  // if a mouse-up object was found then
+  if( op != NULL && op->parent != NULL)
+  {
+    
+    // notify the object under the mouse that the mouse went up
+    if( _cmGrObjCbEvent(p,op,evtFlags,key,px,py) )
+      fl = true;
+
+    // convert the phys ms dn point to the virt point inside op->parent.wext
+    _cmGrXY_PtoV(p, op->parent, px, py, &p->msVPt );
+
+  }
+
+  _cmGrCallback(p,kFocusCbGrId,0,kInvalidKeyCodeGrId);
+
+  p->msDnObj = NULL;
+
+  return fl ? op : NULL;
+}
+
+cmGrObj_t*  _cmGrEventMsMove( cmGr_t* p, unsigned evtFlags, cmGrKeyCodeId_t key, int px, int py, cmGrV_t gx, cmGrV_t gy )
+{
+  bool       fl = false;
+  cmGrObj_t* op = _cmGrFindObjRec(p, p->rootObj, evtFlags, px, py, gx, gy );
+
+  if( op != NULL && op->parent != NULL )
+  {
+    
+    fl = _cmGrObjCbEvent(p,op,evtFlags,key,px,py);
+  }
+
+  return fl ? op : NULL;
+}
+
+cmGrObj_t*  _cmGrEventMsDrag( cmGr_t* p, unsigned evtFlags, cmGrKeyCodeId_t key, int px, int py, cmGrV_t gx, cmGrV_t gy )
+{
+  bool       fl = false;
+  cmGrObj_t* op = _cmGrFindObjRec(p, p->rootObj, evtFlags, px, py, gx, gy );
+
+  if( op != NULL && op->parent != NULL )
+  {
+    // set the current virtual point
+    _cmGrXY_PtoV(p, p->msDnObj->parent, px, py, &p->msVPt );
+
+    // callback the dragged object
+    fl = _cmGrObjCbEvent(p,p->msDnObj,evtFlags,key,px,py);
+
+    // if the px,py is outside the root phys extents then scroll
+    if( !cmGrPExtIsXyInside(&p->pext,px,py) )
+    {
+      bool      hFl = false, vFl=false;
+      cmGrPSz_t tot,vis,max;
+      cmGrPPt_t pos;
+      _cmGrScrollExtents(p, &tot, &vis, &max, &pos );
+
+      if( px < cmGrPExtL(&p->pext) )
+        hFl = _cmGrSetScrollH(p,   cmMax(0,     _cmGrScrollH(p) - (cmGrPExtL(&p->pext) - px)));
+      else
+        if( px > cmGrPExtR(&p->pext) )
+          hFl = _cmGrSetScrollH(p, cmMin(max.w, _cmGrScrollH(p) + (px - cmGrPExtR(&p->pext))));            
+
+      if( py < cmGrPExtT(&p->pext) )
+        vFl = _cmGrSetScrollV(p,   cmMax(0,     _cmGrScrollV(p) - (cmGrPExtT(&p->pext) - py)));
+      else
+        if( py > cmGrPExtB(&p->pext) )
+          vFl = _cmGrSetScrollV(p, cmMin(max.h, _cmGrScrollV(p) + (py - cmGrPExtB(&p->pext))));            
+              
+
+      fl = fl || vFl || hFl;
+    }
+  }
+  return fl ? op : NULL;
+}
+
+bool     cmGrEvent( cmGrH_t h, unsigned evtFlags, cmGrKeyCodeId_t key, int px, int py )
+{
+  bool              fl = false;
+  cmGrObj_t*        op = NULL;
+  cmGr_t*           p = _cmGrHandleToPtr(h);
+  cmGrVPtSet(&p->localPt,0,0);
+
+  // convert the phys points to points in the root coord system
+  cmGrV_t gx = _cmGr_X_PtoV(p,px);
+  cmGrV_t gy = _cmGr_Y_PtoV(p,py);
+
+  // set the global point
+  cmGrVPtSet(&p->globalPt,gx,gy);
+
+  // inform the app of the possibly new global point
+  _cmGrCallback(p,kGlobalPtCbGrId,0,kInvalidKeyCodeGrId);
+  
+  switch( evtFlags & kEvtMask)
+  {
+    case kKeyUpGrFl:
+      _cmGrCallback(p,kKeyUpCbGrId,evtFlags,key);
+      break;
+
+    case kKeyDnGrFl:
+      _cmGrCallback(p,kKeyDnCbGrId,evtFlags,key);
+      break;
+
+    case kMsDownGrFl:      
+      op = _cmGrEventMsDown(p,evtFlags,key,px,py,gx,gy);
+      break;
+
+    case kMsUpGrFl: // handle mouse-up, mouse-click, and focus events
+      op = _cmGrEventMsUp(p,evtFlags,key,px,py,gx,gy);
+      break;
+
+    case kMsMoveGrFl:
+      op = _cmGrEventMsMove(p,evtFlags,key,px,py,gx,gy);
+      break;
+
+    case kMsDragGrFl:
+      op = _cmGrEventMsDrag(p,evtFlags,key,px,py,gx,gy);
+      break;
+
+  }
+
+  if( op != NULL )
+  {
+    // convert gx,gy to be inside op->wext
+    cmGrVPtSet(&p->localPt,gx,gy);
+    _cmGrXY_GlobalToLocal(p,op,&p->localPt);
+
+    _cmGrCallback(p,kLocalPtCbGrId,0,kInvalidKeyCodeGrId);
+
+    fl = true;
+  }
+
+  return fl;
+}
+
+bool     cmGrEvent1( cmGrH_t h, unsigned flags, cmGrKeyCodeId_t key, int px, int py )
 {
   bool              fl = false;
   cmGr_t*           p = _cmGrHandleToPtr(h);
@@ -2201,7 +2438,7 @@ bool     cmGrEvent( cmGrH_t h, unsigned flags, cmGrKeyCodeId_t key, int px, int 
   _cmGrCallback(p,kGlobalPtCbGrId,0,kInvalidKeyCodeGrId);
 
   // find the obj under the mouse
-  if((op = _cmGrFindObjRec(p,p->rootObj,px,py,gx,gy)) != NULL )
+  if((op = _cmGrFindObjRec(p,p->rootObj,flags&kEvtMask,px,py,gx,gy)) != NULL )
   {          
     // convert gx,gy to be inside op->wext
     cmGrVPtSet(&p->localPt,gx,gy);
@@ -2414,38 +2651,12 @@ void     cmGrPhysExtents( cmGrH_t h, cmGrPExt_t* exts )
   cmGr_t* p = _cmGrHandleToPtr(h);
   *exts = p->pext;
 }
-
-
 void      cmGrScrollExtents( cmGrH_t h, cmGrPSz_t* tot, cmGrPSz_t* vis, cmGrPSz_t* max, cmGrPPt_t* pos )
 {
   cmGr_t* p = _cmGrHandleToPtr(h);
-
-  assert( p->rootObj != NULL );
-
-  if( tot != NULL )
-  {
-    tot->w = round(p->rootObj->wext.sz.w * p->pext.sz.w / p->vext.sz.w);
-    tot->h = round(p->rootObj->wext.sz.h * p->pext.sz.h / p->vext.sz.h);
-  }
-
-  if( vis != NULL )
-  {
-    vis->w = round(p->vext.sz.w * p->pext.sz.w / p->vext.sz.w);
-    vis->h = round(p->vext.sz.h * p->pext.sz.h / p->vext.sz.h);
-  }
-
-  if( max != NULL )
-  {
-    max->w = tot->w - vis->w;
-    max->h = tot->h - vis->h;
-  }
-
-  if( pos != NULL )
-  {
-    pos->x = _cmGrScrollH(p);
-    pos->y = _cmGrScrollV(p);
-  }
+  _cmGrScrollExtents(p,tot,vis,max,pos);
 }
+
 
 bool      cmGrSetScrollH( cmGrH_t h, int x )
 { return _cmGrSetScrollH( _cmGrHandleToPtr(h), x ); }

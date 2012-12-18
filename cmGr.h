@@ -595,7 +595,7 @@ extern "C" {
   typedef int      (*cmGrDistanceObjCb_t)( cmGrObjFuncArgs_t* args, int x, int y );
   typedef bool     (*cmGrEventObjCb_t)(    cmGrObjFuncArgs_t* args, unsigned flags, unsigned key, int px, int py  );  
   typedef void     (*cmGrVExtObjCb_t)(     cmGrObjFuncArgs_t* args, cmGrVExt_t* vext );
-  typedef bool     (*cmGrIsInsideObjCb_t)( cmGrObjFuncArgs_t* args, int px, int py, cmGrV_t vx, cmGrV_t vy );
+  typedef bool     (*cmGrIsInsideObjCb_t)( cmGrObjFuncArgs_t* args, unsigned evtFlags, int px, int py, cmGrV_t vx, cmGrV_t vy );
 
   typedef struct cmGrObjFunc_str
   {
@@ -625,9 +625,12 @@ extern "C" {
     cmGrVExtObjCb_t     vextCbFunc;
     void*               vextCbArg;
 
-    // Return true if the point is inside this obj.  vx,vy is in the the same coord's as op->vext (i.e. vx,vy is inside op->parent->wext)
+    // Called to determine which object is under the mouse and whether the event can
+    // handle the event as described by the 'evtFlags' args.
+    // Return true if the point is inside this obj.  vx,vy is in the the same coord's 
+    // as op->vext (i.e. vx,vy is inside op->parent->wext) and the object will accept
+    // the event implied by the 'evtFlags' argument.  
     // The simple answer to this call is cmGrVExtIsXyInside( *vext, vx, vy ).
-    // Called to determine which object is under the mouse.
     cmGrIsInsideObjCb_t isInsideCbFunc;
     void*               isInsideCbArg;
   } cmGrObjFunc_t;

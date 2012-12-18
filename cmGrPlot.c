@@ -678,12 +678,42 @@ bool _cmGrPlotObjEvent( cmGrObjFuncArgs_t* args, unsigned flags, unsigned key, i
   return fl;
 }
 
+bool _cmGrPlotObjIsBorderClick( const cmGrPExt_t* pext, int px, int py )
+{
+  int dist = 3;
 
-bool _cmGrPlotObjIsInside( cmGrObjFuncArgs_t* args, int px, int py, cmGrV_t vx, cmGrV_t vy )
+  if( cmVOR_PtToLineDistance(cmGrPExtL(pext),cmGrPExtT(pext),cmGrPExtL(pext),cmGrPExtB(pext),px,py) < dist )
+    return true;
+
+  if(cmVOR_PtToLineDistance(cmGrPExtR(pext),cmGrPExtT(pext),cmGrPExtR(pext),cmGrPExtB(pext),px,py) < dist )
+    return true;
+
+  if( cmVOR_PtToLineDistance(cmGrPExtL(pext),cmGrPExtT(pext),cmGrPExtR(pext),cmGrPExtT(pext),px,py) < dist )
+    return true;
+
+  if(cmVOR_PtToLineDistance(cmGrPExtL(pext),cmGrPExtB(pext),cmGrPExtR(pext),cmGrPExtB(pext),px,py) < dist )
+    return true;
+  
+  return false;
+}
+
+bool _cmGrPlotObjIsInside( cmGrObjFuncArgs_t* args, unsigned evtFlags, int px, int py, cmGrV_t vx, cmGrV_t vy )
 {
   cmGrVExt_t vext;
   cmGrPExt_t pext;
   cmGrPlotObj_t* op = args->cbArg;
+
+  // no matter the type of event the object must be visible and enabled to respond to it 
+  if(!_cmGrPlotObjIsVisible(op)|| !_cmGrPlotObjIsEnabled(op) )
+    return false;
+
+  // objects that are not selectable are also not clickable
+  if( cmIsFlag(evtFlags,kMsClickGrFl) && cmIsFlag(op->cfgFlags,kNoSelectGrPlFl) )
+    return false;
+
+  // non-draggable objects can't be dragged.
+  if( cmIsFlag(evtFlags,kMsDragGrFl) && cmIsFlag(op->cfgFlags,kNoDragGrPlFl) )
+    return false;
 
   // get the virtual extents of this object
   _cmGrPlotObjVExt( args, &vext );
@@ -697,6 +727,10 @@ bool _cmGrPlotObjIsInside( cmGrObjFuncArgs_t* args, int px, int py, cmGrV_t vx, 
   if( op->typeId == kLineGrPlId )
     if( cmVOR_PtToLineDistance(cmGrPExtL(&pext),cmGrPExtT(&pext),cmGrPExtR(&pext),cmGrPExtB(&pext),px,py) < 3 )
       return true;
+
+  // if this is a click event and this is a border selectable object
+  if( cmIsFlag(evtFlags,kMsClickGrFl) && cmIsFlag(op->cfgFlags,kBorderSelGrPlFl) )
+    return _cmGrPlotObjIsBorderClick(&pext,px,py);
 
   // check if the px,py is inside pext
   return cmGrPExtIsXyInside(&pext,px,py);
@@ -791,11 +825,11 @@ cmGrPlRC_t cmGrPlotObjCreate(
 
 
   // set the default colors
-  op->drawColors[kFocusPlGrId] =   0xcd853f;
-  op->fillColors[kFocusPlGrId] =   0xdeb887; 
+  op->drawColors[kSelectPlGrId] =   0xcd853f;
+  op->fillColors[kSelectPlGrId] =   0xdeb887; 
 
-  op->drawColors[kSelectPlGrId] =  0x483d8b;
-  op->fillColors[kSelectPlGrId] =  0x8470ff; 
+  op->drawColors[kFocusPlGrId] =  0x483d8b;
+  op->fillColors[kFocusPlGrId] =  0x8470ff; 
 
   op->drawColors[kEnablePlGrId] =  0x000000;
   op->fillColors[kEnablePlGrId] =  0x009ff7; 
