@@ -1430,6 +1430,7 @@ typedef struct
   cmXfader*    xfdp;
   unsigned     inBaseXfId;
   unsigned     outBaseXfId;
+  unsigned     stateBaseXfId;
   unsigned     gainBaseXfId;
   unsigned     chCnt;
   bool*        chGateV;
@@ -1444,8 +1445,8 @@ cmDspInst_t*  _cmDspXfaderAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigne
     { "chs",   kChCntXfId,      0, 0,               kUIntDsvFl   | kReqArgDsvFl, "Input and Output channel count"},
     { "ms",    kFadeTimeMsXfId, 0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl, "Fade time in milliseonds."},
     { "mgate", kMstrGateXfId,   0, 0,   kInDsvFl  | kBoolDsvFl   | kOptArgDsvFl, "Master gate - can be used to set all gates."},
-    { "on",    kOnXfId,         0, 0,   kOutDsvFl | kSymDsvFl,                  "Send 'on' when all ch's transition from off to on."},
-    { "off",   kOffXfId,        0, 0,   kOutDsvFl | kSymDsvFl,                  "Send 'off' when all ch's transition from on to off."},
+    { "on",    kOnXfId,         0, 0,   kOutDsvFl | kSymDsvFl,                   "Send 'on' when all ch's transition from off to on."},
+    { "off",   kOffXfId,        0, 0,   kOutDsvFl | kSymDsvFl,                   "Send 'off' when all ch's transition from on to off."},
   };
 
   if( va_cnt < 1 )
@@ -1457,12 +1458,13 @@ cmDspInst_t*  _cmDspXfaderAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigne
   va_list vl1;
   va_copy(vl1,vl);
 
-  unsigned      chCnt     = va_arg(vl,int);
-  unsigned      fixArgCnt = sizeof(args)/sizeof(args[0]);
-  unsigned      argCnt    = fixArgCnt + 4*chCnt;
-  unsigned      inBaseXfId  = kGateBaseXfId + chCnt;
-  unsigned      outBaseXfId = inBaseXfId + chCnt;
-  unsigned      gainBaseXfId= outBaseXfId + chCnt;
+  unsigned chCnt         = va_arg(vl,int);
+  unsigned fixArgCnt     = sizeof(args)/sizeof(args[0]);
+  unsigned argCnt        = fixArgCnt + 5*chCnt;
+  unsigned inBaseXfId    = kGateBaseXfId + chCnt;
+  unsigned outBaseXfId   = inBaseXfId + chCnt;
+  unsigned stateBaseXfId = outBaseXfId + chCnt;
+  unsigned gainBaseXfId  = stateBaseXfId + chCnt;
   cmDspVarArg_t a[ argCnt+1 ];
   
 
@@ -1471,6 +1473,7 @@ cmDspInst_t*  _cmDspXfaderAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigne
   cmDspArgSetupN(ctx, a, argCnt, kGateBaseXfId, chCnt, "gate", kGateBaseXfId, 0, 0, kInDsvFl  | kBoolDsvFl,     "gate flags");
   cmDspArgSetupN(ctx, a, argCnt, inBaseXfId,    chCnt, "in",   inBaseXfId,    0, 0, kInDsvFl  | kAudioBufDsvFl, "audio input");
   cmDspArgSetupN(ctx, a, argCnt, outBaseXfId,   chCnt, "out",  outBaseXfId,   0, 1, kOutDsvFl | kAudioBufDsvFl, "audio output"); 
+  cmDspArgSetupN(ctx, a, argCnt, stateBaseXfId, chCnt, "state",stateBaseXfId, 0, 0, kOutDsvFl | kBoolDsvFl,     "current fader state"); 
   cmDspArgSetupN(ctx, a, argCnt, gainBaseXfId,  chCnt, "gain", gainBaseXfId,  0, 0, kOutDsvFl | kDoubleDsvFl,   "gain output"); 
   cmDspArgSetupNull( a+argCnt); // set terminating arg. flag
 
@@ -1480,6 +1483,7 @@ cmDspInst_t*  _cmDspXfaderAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigne
   p->xfdp           = cmXfaderAlloc(ctx->cmProcCtx,NULL,cmDspSampleRate(ctx), chCnt, fadeTimeMs);
   p->inBaseXfId     = inBaseXfId;
   p->outBaseXfId    = outBaseXfId;
+  p->stateBaseXfId  = stateBaseXfId;
   p->gainBaseXfId   = gainBaseXfId;
   p->chCnt          = chCnt;
   p->chGateV        = cmMemAllocZ(bool,p->chCnt);
@@ -1489,8 +1493,13 @@ cmDspInst_t*  _cmDspXfaderAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigne
   // set default values for the parameters that were not explicitely set in the va_arg list
   cmDspSetDefaultDouble( ctx, &p->inst, kFadeTimeMsXfId,  0,     100 );
   cmDspSetDefaultBool(   ctx, &p->inst, kMstrGateXfId,    false, false);
-  cmDspSetDefaultSymbol(   ctx, &p->inst, kOnXfId,    p->onSymId );
-  cmDspSetDefaultSymbol(   ctx, &p->inst, kOffXfId,   p->offSymId );  
+  cmDspSetDefaultSymbol( ctx, &p->inst, kOnXfId,    p->onSymId );
+  cmDspSetDefaultSymbol( ctx, &p->inst, kOffXfId,   p->offSymId );  
+
+  int i;
+  for(i=0; i<chCnt; ++i)
+    cmDspSetDefaultBool( ctx, &p->inst, stateBaseXfId+i, false, false );
+
   return &p->inst;
 }
 
@@ -1541,6 +1550,12 @@ cmDspRC_t _cmDspXfaderExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
         cmVOS_MultVVS(op,n,ip,gain);
     }
 
+    if( p->xfdp->chArray[i].onFl )
+      cmDspSetBool(ctx,inst,p->stateBaseXfId+i,true);
+
+    if( p->xfdp->chArray[i].offFl )
+      cmDspSetBool(ctx,inst,p->stateBaseXfId+i,false);
+
     // send the gain output
     cmDspSetDouble(ctx,inst,p->gainBaseXfId+i,gain);
   }
@@ -1580,8 +1595,6 @@ cmDspRC_t _cmDspXfaderRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
       break;
   }
   
-    
-
   // record gate changes into p->chGateV[] for later use in _cmDspXfaderExec().
   if( kGateBaseXfId <= evt->dstVarId && evt->dstVarId < kGateBaseXfId + p->chCnt )
   {
@@ -5284,10 +5297,10 @@ cmDspInst_t*  _cmDspGateToSym_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
   cmDspGateToSym_t* p = cmDspInstAllocV(cmDspGateToSym_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl,
     1,     "on_sym", kOnSymGsId,   0, 0, kSymDsvFl    | kInDsvFl | kOptArgDsvFl,"'on' symbol id (default:'on')",
     1,     "off_sym",kOffSymGsId,  0, 0, kSymDsvFl    | kInDsvFl | kOptArgDsvFl,"'off' symbol id (default:'off')",
-    1,     "on",    kOnGsId,      0, 0, kBoolDsvFl   | kInDsvFl,    "On - send out 'on' symbol when a 'true' is received.",
-    1,     "off",   kOffGsId,     0, 0, kBoolDsvFl   | kInDsvFl,    "Off - send out 'off' symbol when a 'false' is received.",
-    1,     "both",  kBothGsId,    0, 0, kBoolDsvFl   | kInDsvFl,    "Send 'on' on 'true' and 'off' on 'false'.",
-    1,     "out",   kOutGsId,     0, 0, kSymDsvFl    | kOutDsvFl,   "Output",
+    1,     "on",    kOnGsId,       0, 0, kBoolDsvFl   | kInDsvFl,                "On - send out 'on' symbol when a 'true' is received.",
+    1,     "off",   kOffGsId,      0, 0, kBoolDsvFl   | kInDsvFl,                "Off - send out 'off' symbol when a 'false' is received.",
+    1,     "both",  kBothGsId,     0, 0, kBoolDsvFl   | kInDsvFl,                "Send 'on' on 'true' and 'off' on 'false'.",
+    1,     "out",   kOutGsId,      0, 0, kSymDsvFl    | kOutDsvFl,               "Output",
     0 );
 
 
@@ -5654,12 +5667,40 @@ struct cmDspClass_str* cmRouterClassCons( cmDspCtx_t* ctx )
 }
 
 //==========================================================================================================================================
+// Purpose: AvailCh can be used to implement a channel switching circuit.
+// 
+// Inputs:
+//   chs         - The count of channels. Constructor only argument. 
+//   trig        - Any input causes the next available channel, i, to be enabled.
+//                 gate[i] transmits 'true'.  In 'exclusive (0) mode all active
+//                 channels are then requested to shutdown by transmitting 'false' on
+//                 gate[] - only the new channel will be active.  In 'multi' (1) mode
+//                 no signal is sent out the gate[].
+//   dis[chCnt]  - Recieves a gate signal from an external object which indicates 
+//                 when a channel is no longer active. When a 'false' is received on dis[i]
+//                 the channel i is marked as available.  In 'multi' mode 'false' is 
+//                 then transmitted on gate[i].
+// Outputs:
+//   gate[chCnt] - 'true' is transmitted when a channel is made active (see trig)
+//                 'false' is transmitted to notify the channel that it should shutdown.
+//                 The channel is not considered actually shutdown until dis[i]
+//                 recieves a 'false'.
+// Notes:
+//   The gate[] output is designed to work with the gate[] input of Xfader.  When
+//   availCh.gate[] goes high Xfader fades in, when availCh.gate[] goes low
+//   Xfader fades out.  The dis[] channel is designed to connect from Xfader.state[].
+//   When Xfader.state[] goes low, when a fade-out is complete, the connected AvailCh 
+//   is marked as available. 
 enum
 {
   kChCntAvId,
+  kModeAvId,
   kTrigAvId,
   kChIdxAvId,  
-  kBaseInDisAvId,
+  kBaseDisInAvId,
+
+  kExclusiveModeAvId=0,
+  kMultiModeAvId=1
 };
 
 cmDspClass_t _cmAvailCh_DC;
@@ -5668,10 +5709,8 @@ typedef struct
 {
   cmDspInst_t   inst;
   unsigned      chCnt;
-  unsigned      baseOutEnaAvId; 
-  unsigned      baseInDisAvId;
-  unsigned      enableSymId;
-  unsigned      disableSymId;
+  unsigned      baseDisInAvId;
+  unsigned      baseGateOutAvId;
   bool*         stateArray;
 } cmDspAvailCh_t;
 
@@ -5694,29 +5733,33 @@ cmDspInst_t*  _cmDspAvailCh_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
     return NULL;
   }
 
-  unsigned baseInDisAvId     = kBaseInDisAvId;
-  unsigned baseOutEnaAvId    = baseInDisAvId + chCnt;
+  unsigned baseDisInAvId    = kBaseDisInAvId;
+  unsigned baseGateOutAvId  = baseDisInAvId + chCnt;
 
   cmDspAvailCh_t* p = cmDspInstAllocV(cmDspAvailCh_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl1,
-    1,         "chs",    kChCntAvId,        0, 0, kUIntDsvFl     | kReqArgDsvFl,  "Channel count.",
-    1,         "trig",   kTrigAvId,         0, 0, kTypeDsvMask   | kInDsvFl,      "Trigger the unit to select the next available channel.", 
-    1,         "ch",     kChIdxAvId,        0, 0, kUIntDsvFl     | kReqArgDsvFl | kInDsvFl,    "Currently selected channel.",
-    chCnt,     "dis",    baseInDisAvId,     0, 0, kTypeDsvMask   | kInDsvFl,     "Disable inputs.",
-    chCnt,     "ena",    baseOutEnaAvId,    0, 0, kSymDsvFl      | kOutDsvFl,    "'enable' outputs",
+    1,         "chs",    kChCntAvId,        0, 0, kUIntDsvFl     | kReqArgDsvFl, "Channel count.",
+    1,         "mode",   kModeAvId,         0, 0, kUIntDsvFl     | kInDsvFl,     "Mode: 0=exclusive (dflt) 1=multi",
+    1,         "trig",   kTrigAvId,         0, 0, kTypeDsvMask   | kInDsvFl,     "Trigger the unit to select the next available channel.", 
+    1,         "ch",     kChIdxAvId,        0, 0, kUIntDsvFl     | kOutDsvFl,    "Currently selected channel.",
+    chCnt,     "dis",    baseDisInAvId,     0, 0, kBoolDsvFl     | kInDsvFl,     "Disable channel gate",
+    chCnt,     "gate",   baseGateOutAvId,   0, 0, kBoolDsvFl     | kOutDsvFl,    "Active channel gate",
     0 );
 
   p->chCnt     = chCnt;
 
-  p->baseInDisAvId   =  baseInDisAvId;
-  p->baseOutEnaAvId  =  baseOutEnaAvId;
-  p->enableSymId     =  cmSymTblRegisterStaticSymbol(ctx->stH,"enable");
-  p->disableSymId    =  cmSymTblRegisterStaticSymbol(ctx->stH,"disable");
+  p->baseDisInAvId   =  baseDisInAvId;
+  p->baseGateOutAvId =  baseGateOutAvId;
 
   unsigned i;
   for(i=0; i<chCnt; ++i)
-    cmDspSetDefaultSymbol( ctx, &p->inst, baseOutEnaAvId+i, p->disableSymId );
-
+  {
+    cmDspSetDefaultBool( ctx, &p->inst, baseDisInAvId+i,  false, false );
+    cmDspSetDefaultBool( ctx, &p->inst, baseGateOutAvId+i, false, false );
+  }
+  cmDspSetDefaultUInt( ctx, &p->inst, kModeAvId,  0, kExclusiveModeAvId );
   cmDspSetDefaultUInt( ctx, &p->inst, kChIdxAvId, 0, cmInvalidIdx );
+  
+  
 
   return &p->inst;
 }
@@ -5737,24 +5780,41 @@ cmDspRC_t _cmDspAvailCh_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   cmDspRC_t    rc = kOkDspRC;
   cmDspAvailCh_t* p  = (cmDspAvailCh_t*)inst;
 
+  bool exclModeFl  = cmDspUInt(inst, kModeAvId ) == kExclusiveModeAvId;
+
   // if this is a trigger
   if( evt->dstVarId == kTrigAvId )
   {
     unsigned i;
+    bool     fl = true;
     for(i=0; i<p->chCnt; ++i)
-      if( cmDspSymbol(inst,p->baseOutEnaAvId+i) == p->disableSymId )
+    {
+      // the actual channel's active state is held in the 'dis' variable.
+      bool activeFl = cmDspBool(inst,p->baseDisInAvId+i);
+
+      // if ch[i] is the first avail inactive channel
+      if( fl && !activeFl )
       {
         cmDspSetUInt(ctx,inst,kChIdxAvId,i);
-        cmDspSetSymbol(ctx,inst,p->baseOutEnaAvId,p->enableSymId);
+        cmDspSetBool(ctx, inst, p->baseDisInAvId   + i, true);
+        cmDspSetBool(ctx, inst, p->baseGateOutAvId + i, true);
+        fl = false;
       }
+
+      // if ch[i] is active - then request that it shutdown 
+      if( activeFl && exclModeFl)
+        cmDspSetBool(ctx, inst, p->baseGateOutAvId + i, false);
+
+    }
     return rc;
   }
 
   // if this is an incoming disable message.
-  if( p->baseInDisAvId <= evt->dstVarId && evt->dstVarId < p->baseInDisAvId+p->chCnt )
+  if( p->baseDisInAvId <= evt->dstVarId && evt->dstVarId < p->baseDisInAvId+p->chCnt && cmDsvGetBool(evt->valuePtr) == false)
   {
-    cmDspSetSymbol(ctx,inst,p->baseOutEnaAvId,p->disableSymId);
-    return rc;
+    cmDspSetEvent(ctx,inst,evt);
+    if( !exclModeFl )
+      cmDspSetBool(ctx, inst, p->baseGateOutAvId + (evt->dstVarId - p->baseDisInAvId), false);
   }
 
   return rc;

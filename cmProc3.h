@@ -300,7 +300,9 @@ extern "C" {
   typedef struct
   {
     cmReal_t gain;
-    bool     gateFl;
+    bool     gateFl; // true if channel is on
+    bool     onFl;   // true if gateFl transitioned to true on this cycle  
+    bool     offFl;  // true if gateFl transitioned to false on this cycle
   } cmXfaderCh;
 
   typedef struct

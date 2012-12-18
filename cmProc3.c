@@ -2041,16 +2041,28 @@ cmRC_t    cmXfaderExec(  cmXfader* p, unsigned procSmpCnt, const bool* chGateV, 
   {
     cmXfaderCh* cp = p->chArray + i;
 
+    cp->onFl  = false;
+    cp->offFl = false;
+
     if( chGateV != NULL )
+    {
+      cp->onFl =   chGateV[i] && !cp->gateFl;  // notice fade-in transition begin
       cp->gateFl = chGateV[i];
+    }
+    
+    cmReal_t g = cp->gain;
 
     if( cp->gateFl )
       cp->gain = cmMin(cp->gain + dgain,1.0); 
     else
+    {
       cp->gain = cmMax(cp->gain - dgain,0.0); 
+      cp->offFl = g>0.0 && cp->gain==0.0; // notice fade-out transition end
+    }
 
     if( cp->gain != 0.0 )
       gateFl = true;
+
   }
 
   p->onFl  = false;

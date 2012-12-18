@@ -2321,26 +2321,44 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
 
   const char*  fn    = "/home/kevin/media/audio/20110723-Kriesberg/Audio Files/Piano 3_01.wav";
   
-  cmDspInst_t* chk   = cmDspSysAllocInst(h,"Button", "Next",  2, kCheckDuiId, 0.0 );
+  cmDspInst_t* chk0   = cmDspSysAllocInst(h,"Button", "0",  2, kButtonDuiId, 0.0 );
+  //cmDspInst_t* chk1   = cmDspSysAllocInst(h,"Button", "1",  2, kCheckDuiId, 0.0 );
 
+  cmDspInst_t* achp  = cmDspSysAllocInst( h, "AvailCh", NULL, 1, xfadeChCnt );
   
   cmDspInst_t* sphp  =  cmDspSysAllocInst( h, "Phasor",    NULL,   2, cmDspSysSampleRate(h), frqHz );
   cmDspInst_t* swtp  =  cmDspSysAllocInst( h, "WaveTable", NULL,   2, ((int)cmDspSysSampleRate(h)), 4);
   cmDspInst_t* fphp  =  cmDspSysAllocInst( h, "Phasor",    NULL,   1, cmDspSysSampleRate(h) );
   cmDspInst_t* fwtp  =  cmDspSysAllocInst( h, "WaveTable", NULL,   5, ((int)cmDspSysSampleRate(h)), 1, fn, -1, 7000000 );
   cmDspInst_t* fad0  =  cmDspSysAllocInst( h, "Xfader",    NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl ); 
-  cmDspInst_t* fad1  =  cmDspSysAllocInst( h, "Xfader",    NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl );
+
+  cmDspInst_t*  prp  = cmDspSysAllocInst(      h, "Printer",  NULL, 1, ">" );
 
   cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, 0 );
   cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, 1 );
     
 
-  cmDspSysConnectAudio(h, sphp, "out", swtp, "phs" );
-  cmDspSysConnectAudio(h, swtp, "out", fad0, "in" ); 
-  cmDspSysConnectAudio(h, fad0, "out", ao0p, "in" );
-  cmDspSysConnectAudio(h, fphp, "out", fwtp, "phs" );
-  cmDspSysConnectAudio(h, fwtp, "out", fad1, "in" ); 
-  cmDspSysConnectAudio(h, fad1, "out", ao1p, "in" ); 
+  // phasor->sine->fad-0->aout
+  cmDspSysConnectAudio(h, sphp, "out",   swtp, "phs" );
+  cmDspSysConnectAudio(h, swtp, "out",   fad0, "in-0" ); 
+  cmDspSysConnectAudio(h, fad0, "out-0", ao0p, "in" );
+
+  // phasor->file->fad-1->aout
+  cmDspSysConnectAudio(h, fphp, "out",   fwtp, "phs" );
+  cmDspSysConnectAudio(h, fwtp, "out",   fad0, "in-1" ); 
+  cmDspSysConnectAudio(h, fad0, "out-1", ao1p, "in" ); 
+
+  //cmDspSysInstallCb(h, chk0, "out", fad0, "gate-0", NULL);
+  //cmDspSysInstallCb(h, chk1, "out", fad0, "gate-1", NULL);
+
+  cmDspSysInstallCb(h, chk0, "sym",     achp, "trig",   NULL);
+  cmDspSysInstallCb(h, achp, "gate-0",  fad0, "gate-0", NULL );
+  cmDspSysInstallCb(h, fad0, "state-0", achp, "dis-0",   NULL );
+
+  cmDspSysInstallCb(h, achp, "gate-1",  fad0, "gate-1", NULL );
+  cmDspSysInstallCb(h, fad0, "state-1", achp, "dis-1",   NULL );
+
+  cmDspSysInstallCb(h, fad0, "state-0", prp, "in", NULL);
 
   return kOkDspRC;
 
