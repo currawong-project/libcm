@@ -120,7 +120,6 @@ bool _cmGrPlObjAfRender(   cmGrObjFuncArgs_t* args, cmGrDcH_t dcH )
     for(i=0; i<op->pixN; ++i)
       cmGrDcDrawLine(dcH, op->pext.loc.x+i, op->iMinV[i], op->pext.loc.x+i, op->iMaxV[i] );        
 
-
     // draw a rectangle around the entire audio clip
     cmGrDcDrawRect(dcH, op->pext.loc.x, cmGrPExtT(&pext),  op->pext.sz.w, cmGrPExtB(&pext) );
     
