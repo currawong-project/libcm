@@ -2779,7 +2779,8 @@ typedef struct
   unsigned       offSymId;
   unsigned       doneSymId;
   bool           useThreadFl;
-  unsigned       wt_oi;
+  unsigned       minAfIndexRptCnt; // min count of audio samples between transmitting the current audio file index
+  unsigned       afIndexRptCnt;    // current audio file sample index count
  } cmDspWaveTable_t;
 
 bool _cmDspWaveTableThreadFunc( void* param);
@@ -2810,9 +2811,12 @@ cmDspInst_t*  _cmDspWaveTableAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsi
   // get the filename given in the va_list (or NULL if no filename was given)
   const cmChar_t* fn = cmDspDefaultStrcz(&p->inst,kFnWtId);
 
-  p->offSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"off");
-  p->onSymId  = cmSymTblRegisterStaticSymbol(ctx->stH,"on");
-  p->doneSymId= cmSymTblRegisterStaticSymbol(ctx->stH,"done");
+  p->offSymId         = cmSymTblRegisterStaticSymbol(ctx->stH,"off");
+  p->onSymId          = cmSymTblRegisterStaticSymbol(ctx->stH,"on");
+  p->doneSymId        = cmSymTblRegisterStaticSymbol(ctx->stH,"done");
+
+  double  adCurFileIdxRptPeriodMs = 100.0;
+  p->minAfIndexRptCnt = floor(adCurFileIdxRptPeriodMs * cmDspSampleRate(ctx) / 1000.0);
 
   cmDspSetDefaultUInt(  ctx, &p->inst, kLenWtId,   0,    cmDspSampleRate(ctx));
   cmDspSetDefaultUInt(  ctx, &p->inst, kShapeWtId, 0,    kSilenceWtId  );
@@ -3202,56 +3206,6 @@ cmDspRC_t _cmDspWaveTableReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
 
 }
 
-cmDspRC_t _cmDspWaveTableExec1(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
-{
-  cmDspRC_t         rc       = kOkDspRC;
-  cmDspWaveTable_t* p        = (cmDspWaveTable_t*)inst;
-  unsigned          mode     = cmDspSymbol(inst,kCmdWtId);
-  unsigned          srcId    = cmDspUInt(inst,kShapeWtId);
-
-  if( mode == p->offSymId || srcId == kSilenceWtId )
-  {
-    cmDspZeroAudioBuf(ctx,inst,kOutWtId);
-    return kOkDspRC;
-  }
-
-  cmSample_t*       outV     = cmDspAudioBuf(ctx,inst,kOutWtId,0);
-  unsigned          outCnt   = cmDspVarRows(inst,kOutWtId);
-  unsigned          wtSmpCnt = cmDspUInt(inst,kLenWtId);
-  double            gain     = cmDspDouble(inst,kGainWtId);
-  unsigned          i;
-
-  // for each output sample
-  for(i=0; i<outCnt; ++i)
-  {
-    p->wt_oi = (p->wt_oi + 1) % wtSmpCnt;
-    outV[i] = gain * p->wt[p->wt_oi];
-  }
-
-  // if we are reading from a file ...
-  if( srcId == kFileWtId )
-  {
-    unsigned rdSmpCnt = 8192; // file read block sample count
-
-    p->wtn += outCnt;
-
-    // ... and there are rdSmpCnt avail locations in the wave table
-    if( p->wtn >= rdSmpCnt )
-      rc =  _cmDspWaveTableReadAudioFile(ctx, p, wtSmpCnt, rdSmpCnt );
-
-    // send the current audio file index
-    if( p->doneFl && p->cfi < p->cfn && p->cfn <= (p->cfi + outCnt) )
-      cmDspSetSymbol(ctx,inst,kDoneWtId,p->doneSymId);
-    else
-      cmDspSetUInt(ctx,inst,kFIdxWtId,p->cfi);
-
-    p->cfi += outCnt;
-
-  }
-
-  return rc;
-
-}
 
 cmDspRC_t _cmDspWaveTableExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
@@ -3315,11 +3269,21 @@ cmDspRC_t _cmDspWaveTableExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
 
     // send the current audio file index
     if( p->doneFl && p->cfi < p->cfn && p->cfn <= (p->cfi + outCnt) )
+    {
+      cmDspSetUInt(ctx,inst,kFIdxWtId,p->cfn);
       cmDspSetSymbol(ctx,inst,kDoneWtId,p->doneSymId);
+    }
     else
-      cmDspSetUInt(ctx,inst,kFIdxWtId,p->cfi);
+    {
+      if( p->afIndexRptCnt >= p->minAfIndexRptCnt )
+      {
+        p->afIndexRptCnt -= p->minAfIndexRptCnt;
+        cmDspSetUInt(ctx,inst,kFIdxWtId,p->cfi);
+      }
+    }
 
-    p->cfi += outCnt;
+    p->afIndexRptCnt += outCnt;
+    p->cfi           += outCnt;
 
   }
 
