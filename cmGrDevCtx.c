@@ -497,8 +497,33 @@ void   cmGrDcDrawTextJustifyPt(  cmGrDcH_t h, unsigned fontId, unsigned size, un
     else
       y = yy + sz.h/2;
 
-  cmGrDcDrawText(h, text, x+.5, y+.5 );  
 
+
+  cmGrPExt_t r;
+  cmGrPExtSet(&r,x,y,sz.w,sz.h);
+
+  // Note: Checking for visibility should not be necessary however
+  // there appears to be a problem with the FLTK text output whereby
+  // text coordinates over 0xffff wrap around and may appear in the
+  // visible region.
+  if( cmGrDcRectIsVisible(h,&r) )
+  {
+    /*
+    if( text!=NULL && (strncmp(text,"loc:138",7)==0 || strcmp(text,"loc:8 ")==0))
+    {
+      printf("%s %i %i %i %i\n",text,x,y,sz.w,xx);
+      cmGrPExtPrint(text,&r);
+      cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
+      cmGrPExt_t res;
+      cmGrPExtIntersect(&res,&p->pext,&r );
+      cmGrPExtPrint(text,&p->pext);
+      cmGrPExtPrint("isect:",&res);
+      printf("%i\n",cmGrPExtIsNotNullOrEmpty(&res));
+    }
+    */
+
+    cmGrDcDrawText(h, text, x+.5, y+.5 );  
+  }
   //cmGrPExt_t pext;
   //cmGrDcDrawTextJustifyRect(h, fontId, size, style, text, flags, xx, yy, &pext );
   //cmGrDcDrawRectPExt(h,&pext);
@@ -527,4 +552,18 @@ void   cmGrDcDrawTextJustifyRect( cmGrDcH_t h, unsigned fontId, unsigned size, u
       y = yy + sz.h/2;
 
   cmGrPExtSet( pext, x, y-sz.h, sz.w+1, sz.h );
+}
+
+bool            cmGrDcPointIsVisible( cmGrDcH_t h, int x, int y )
+{
+  cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
+  return cmGrVExtIsXyInside(&p->pext,x,y);
+}
+
+bool            cmGrDcRectIsVisible(  cmGrDcH_t h, const cmGrPExt_t* r )
+{
+  cmGrPExt_t res;
+  cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
+  cmGrPExtIntersect(&res,&p->pext,r );
+  return cmGrPExtIsNotNullOrEmpty(&res);
 }

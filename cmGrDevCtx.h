@@ -189,6 +189,12 @@ extern "C" {
   // Return the rectangle around the text but do not display the text.
   void            cmGrDcDrawTextJustifyRect( cmGrDcH_t h, unsigned fontId, unsigned size, unsigned style, const cmChar_t* text, unsigned flags, int x, int y, cmGrPExt_t* pext );
 
+  // Is the point x,y visible in this drawing context.
+  bool            cmGrDcPointIsVisible( cmGrDcH_t h, int x, int y );
+
+  // Is any of the rectangle visible in this drawing context.
+  bool            cmGrDcRectIsVisible(  cmGrDcH_t h, const cmGrPExt_t* r );
+
 #ifdef __cplusplus
 }
 #endif
