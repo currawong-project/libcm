@@ -40,7 +40,8 @@ extern "C" {
     kDynScFl     = 0x02,        // This note is marked for dynamics measurement
     kTempoScFl   = 0x04,        // This note is marked for tempo measurement
     kSkipScFl    = 0x08,        // This isn't a real event (e.g. tied note) skip over it
-    kInvalidScFl = 0x10         // This note has a calculated time
+    kGraceScFl   = 0x10,        // This is a grace note
+    kInvalidScFl = 0x20         // This note has a calculated time
   };
 
 
@@ -53,7 +54,6 @@ extern "C" {
     kTempoVarScId,
     kScVarCnt
   };
-
 
   struct cmScoreLoc_str;
   struct cmScoreSet_str;
@@ -80,6 +80,7 @@ extern "C" {
     cmMidiByte_t pitch;        // MIDI pitch of this note
     unsigned     flags;        // Attribute flags for this event
     unsigned     dynVal;       // Dynamcis value pppp to ffff (1 to 11) for this note.
+    double       frac;         // Note's time value for tempo and non-grace evenness notes.
     unsigned     barNumb;      // Bar id of the measure containing this event.
     unsigned     barNoteIdx;   // Index of this note in this bar
     unsigned     csvRowNumb;   // File row number (not index) from which this record originated
@@ -130,7 +131,8 @@ extern "C" {
   // features are not used.
   // If provided the dynRefArray[] is copied into an internal array.
   // The physical array passed here therefore does not need to remain valid.
-  cmScRC_t      cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, const unsigned* dynRefArray, unsigned dynRefCnt, cmScCb_t cbFunc, void* cbArg );
+  // Set 'srate' to zero if the score will not be used to perform measurement calculations.
+  cmScRC_t      cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, double srate, const unsigned* dynRefArray, unsigned dynRefCnt, cmScCb_t cbFunc, void* cbArg );
   cmScRC_t      cmScoreFinalize(   cmScH_t* hp );
 
   // Filename of last successfuly loaded score file.

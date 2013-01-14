@@ -35,10 +35,12 @@ enum
   kBarColScIdx       = 13,
   kSkipColScIdx      = 14,
   kEvenColScIdx      = 15,
-  kTempoColScIdx     = 16,
-  kDynColScIdx       = 17,
-  kSectionColScIdx   = 18,
-  kRemarkColScIdx    = 19
+  kGraceColScIdx     = 16,
+  kTempoColScIdx     = 17,
+  kFracColScIdx      = 18,
+  kDynColScIdx       = 19,
+  kSectionColScIdx   = 20,
+  kRemarkColScIdx    = 21
 };
 
 
@@ -79,6 +81,7 @@ typedef struct
   cmScCb_t          cbFunc;
   void*             cbArg;
   cmChar_t*         fn;
+  double            srate;
 
   cmScoreEvt_t*     array;
   unsigned          cnt;
@@ -104,6 +107,7 @@ typedef struct
   unsigned          nxtLocIdx;
   unsigned          minSetLocIdx;
   unsigned          maxSetLocIdx;
+  
 } cmSc_t;
 
 cmScEvtRef_t _cmScEvtRefArray[] = 
@@ -130,12 +134,10 @@ cmScEvtRef_t _cmScDynRefArray[] =
   { 3, 0, "pp"  },
   { 4, 0, "p"   },
   { 5, 0, "mp"  },
-  { 6, 0, "m"   },
-  { 7, 0, "mf"  },
-  { 8, 0, "f"   },
-  { 9, 0, "ff"  },
-  { 10,0, "fff" },
-  { 11,0, "ffff"},
+  { 6, 0, "mf"  },
+  { 7, 0, "f"   },
+  { 8, 0, "ff"  },
+  { 9,0, "fff" },
   { kInvalidDynScId,0, "***" },
 };
 
@@ -608,6 +610,14 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
     _cmScParseAttr(p,scoreIdx,attr,kEvenScFl);
   }
 
+  // grace attribute
+  if((attr = cmCsvCellText(p->cH,rowIdx,kGraceColScIdx)) != NULL && *attr == 'g' )
+  {
+    flags += kGraceScFl;
+    if( cmIsNotFlag(flags,kEvenScFl) )
+      return cmErrMsg(&p->err,kSyntaxErrScRC,"All 'grace' notes should also be 'even' notes.");
+  }
+
   // tempo attribute
   if((attr = cmCsvCellText(p->cH,rowIdx,kTempoColScIdx)) != NULL && *attr == 't' )
   {
@@ -625,6 +635,17 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
 
     _cmScParseAttr(p,scoreIdx,attr,kDynScFl);
 
+  }
+
+  // tempo/non-grace rythmic value
+  if( cmIsFlag(flags,kTempoScFl) || (cmIsFlag(flags,kEvenScFl) && cmIsNotFlag(flags,kGraceScFl)) )
+  {
+    double frac = cmCsvCellDouble(p->cH,rowIdx,kFracColScIdx);
+
+    // no 'frac' value is given for the last note of the set we must accept error
+    // values here and validate the actual values later
+    if( frac>0 && frac!=DBL_MAX )
+      s->frac = frac;
   }
 
   // Returns DBL_MAX on error.
@@ -729,12 +750,24 @@ cmScRC_t _cmScProcSets( cmSc_t* p )
 
       // fill in the element array
       ep = sp->eles;
+      unsigned graceCnt = 0;
       for(j=0; ep!=NULL; ep=ep->link,++j)
       {
         assert(ep->eleIdx != cmInvalidIdx && ep->eleIdx<p->cnt);
         p->sets[i].eleArray[j] = p->array + ep->eleIdx;
         assert( cmIsFlag( p->sets[i].eleArray[j]->flags, sp->typeFl) );
         rowNumb = p->array[ep->eleIdx].csvRowNumb;
+
+        unsigned flags = p->array[ep->eleIdx].flags;
+
+        // count grace notes
+        if( cmIsFlag(flags,kGraceScFl) )
+          ++graceCnt;
+
+        // validate the 'frac' field - all but the last note in 
+        // tempo and non-grace evenness sets must have a non-zero 'frac' value.
+        if( en>0 && j<en-1 && (sp->typeFl==kTempoScFl || (sp->typeFl==kEvenScFl && graceCnt==0)) && p->array[ep->eleIdx].frac==0)
+          rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The note on row number %i must have a non-zero 'frac' value.",p->array[ep->eleIdx].csvRowNumb);          
       }    
 
       // get the count of sections assoc'd with this set
@@ -1073,7 +1106,7 @@ cmScRC_t _cmScInitLocArray( cmSc_t* p )
 }
 
 
-cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, const unsigned* dynRefArray, unsigned dynRefCnt, cmScCb_t cbFunc, void* cbArg )
+cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, double srate, const unsigned* dynRefArray, unsigned dynRefCnt, cmScCb_t cbFunc, void* cbArg )
 {
   cmScRC_t rc = kOkScRC;
   if((rc = cmScoreFinalize(hp)) != kOkScRC )
@@ -1107,6 +1140,7 @@ cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, const
     p->dynRefCnt   = dynRefCnt;
   }
 
+  p->srate        = srate;
   p->cbFunc       = cbFunc;
   p->cbArg        = cbArg;
   p->fn           = cmMemAllocStr(fn);
@@ -1526,10 +1560,86 @@ bool _cmScPerfDyn( cmSc_t* p, cmScoreSet_t* stp, bool printMissFl)
   return true;
 }
 
-bool _cmScPerfTempo(cmSc_t* p, cmScoreSet_t* stp, bool printFl)
+bool _cmScPerfTempo1(cmSc_t* p, cmScoreSet_t* stp, bool printMissFl)
 {
-  return false;
+  bool     printFl = true;
+  unsigned durSmpCnt = 0;
+  double   durBeats  = 0;
+  int      i;
+
+  for(i=0; i<stp->eleCnt; ++i)
+  {
+    // if this event was not received - then the set is not valid
+    if( stp->eleArray[i]->perfSmpIdx == cmInvalidIdx )
+    {
+      if( printFl && printMissFl )
+        printf("TEMPO: missing loc:%i %s\n",stp->eleArray[i]->locIdx,cmMidiToSciPitch(stp->eleArray[i]->pitch,NULL,0));
+      return false;
+    }
+
+    if( i > 0 )
+      durSmpCnt += stp->eleArray[i]->perfSmpIdx - stp->eleArray[i-1]->perfSmpIdx;
+
+    durBeats += stp->eleArray[i]->frac;
+  }
+
+  stp->value = durBeats / (durSmpCnt / p->srate*60.0 );
+  stp->doneFl = true;
+
+  if( printFl )
+    printf("TEMPO:%f\n",stp->value);
+
+  return true;
 }
+
+bool _cmScPerfTempo(cmSc_t* p, cmScoreSet_t* stp, bool printMissFl)
+{
+  bool     printFl = true;
+  unsigned durSmpCnt = 0;
+  double   durBeats  = 0;
+  int      i;
+
+  unsigned bi = cmInvalidIdx;
+  unsigned ei = cmInvalidIdx;
+  unsigned missCnt = 0;
+
+  for(i=0; i<stp->eleCnt; ++i)
+  {
+    // if this event was not received - then the set is not valid
+    if( stp->eleArray[i]->perfSmpIdx == cmInvalidIdx )
+    {
+      ++missCnt;
+      if( printFl && printMissFl )
+        printf("TEMPO: missing loc:%i %s\n",stp->eleArray[i]->locIdx,cmMidiToSciPitch(stp->eleArray[i]->pitch,NULL,0));
+    }
+    else
+    {
+      if( bi == cmInvalidIdx )
+        bi = i;
+      
+      ei = i;
+    }
+  }
+
+  if( ei > bi )
+  {
+    for(i=bi; i<=ei; ++i)
+      durBeats += stp->eleArray[i]->frac;
+
+    durSmpCnt = stp->eleArray[ei]->perfSmpIdx - stp->eleArray[bi]->perfSmpIdx;
+
+    stp->value = durBeats / (durSmpCnt / (p->srate*60.0) );
+
+    stp->doneFl = true;
+
+  }
+
+  if( printFl )
+    printf("TEMPO:%f bi:%i ei:%i secs:%f bts:%f\n",stp->value,bi,ei,durSmpCnt/p->srate,durBeats);
+
+  return true;
+}
+
 
 void _cmScPerfExec( cmSc_t* p, cmScoreSet_t* sp, bool printMissFl )
 {
@@ -1566,7 +1676,7 @@ void _cmScPerfExecRange( cmSc_t* p )
   {
     cmScoreSet_t* sp = p->loc[i].setList;
     for(; sp!=NULL; sp=sp->llink)      
-      _cmScPerfExec(p,sp,false);
+      _cmScPerfExec(p,sp,true);
     
   }
 }
@@ -1668,8 +1778,9 @@ void  cmScoreExecPerfEvent( cmScH_t h, unsigned locIdx, unsigned smpIdx, unsigne
       {
         cmScoreSet_t* stp = lp->begSectPtr->setArray[i];
 
-        if( stp->doneFl == false )
-          _cmScPerfExec(p, stp, printLvl>0 );
+        // temporarily commented out for testing purposes
+        // if( stp->doneFl == false )
+        //  _cmScPerfExec(p, stp, printLvl>0 );
         
         if( stp->doneFl )
         {
@@ -1756,7 +1867,7 @@ void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
 void cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
 {
   cmScH_t h = cmScNullHandle;
-  if( cmScoreInitialize(ctx,&h,fn,NULL,0,NULL,NULL) != kOkScRC )
+  if( cmScoreInitialize(ctx,&h,fn,0,NULL,0,NULL,NULL) != kOkScRC )
     return;
 
   cmScorePrint(h,&ctx->rpt);
