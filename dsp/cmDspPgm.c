@@ -2332,7 +2332,7 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* fwtp  =  cmDspSysAllocInst( h, "WaveTable", NULL,   5, ((int)cmDspSysSampleRate(h)), 1, fn, -1, 7000000 );
   cmDspInst_t* fad0  =  cmDspSysAllocInst( h, "Xfader",    NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl ); 
 
-  cmDspInst_t*  prp  = cmDspSysAllocInst(      h, "Printer",  NULL, 1, ">" );
+  cmDspInst_t*  prp  = cmDspSysAllocInst(  h, "Printer",  NULL, 1, ">" );
 
   cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, 0 );
   cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, 1 );
@@ -2358,7 +2358,6 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, achp, "gate-1",  fad0, "gate-1", NULL );
   cmDspSysInstallCb(h, fad0, "state-1", achp, "dis-1",   NULL );
 
-  cmDspSysInstallCb(h, fad0, "state-0", prp, "in", NULL);
 
   return kOkDspRC;
 
