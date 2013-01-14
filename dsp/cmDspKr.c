@@ -512,7 +512,7 @@ cmDspRC_t _cmDspScoreReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   }
 
   if((tlFn =  cmDspStrcz(inst, kFnScId )) !=  NULL )
-    if( cmScoreInitialize(ctx->cmCtx, &p->scH, tlFn, dynRefArray, dynRefCnt, _cmDspScoreCb, p ) != kOkTlRC )
+    if( cmScoreInitialize(ctx->cmCtx, &p->scH, tlFn, cmDspSampleRate(ctx), dynRefArray, dynRefCnt, _cmDspScoreCb, p ) != kOkTlRC )
       rc = cmErrMsg(&inst->classPtr->err, kInstResetFailDspRC, "Score file open failed.");
 
  errLabel:
@@ -893,7 +893,7 @@ cmDspRC_t _cmDspScFolOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
     goto errLabel;
   }
 
-  if( cmScoreInitialize(ctx->cmCtx, &p->scH, fn, NULL, 0, NULL, NULL ) != kOkScRC )
+  if( cmScoreInitialize(ctx->cmCtx, &p->scH, fn, cmDspSampleRate(ctx), NULL, 0, NULL, NULL ) != kOkScRC )
     return cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Unable to open the score '%s'.",fn);
 
  errLabel:
