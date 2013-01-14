@@ -166,6 +166,8 @@ extern "C" {
   cmTlMidiEvt_t*   cmTimeLineMidiEvtAtTime(   cmTlH_t h, unsigned seqId, unsigned seqSmpIdx );
   cmTlMarker_t*    cmTimeLineMarkerAtTime(    cmTlH_t h, unsigned seqId, unsigned seqSmpIdx );
 
+  cmTlMarker_t*    cmTimeLineMarkerFind( cmTlH_t h, const cmChar_t* markText );
+
   // 'typeId' = kAudioFileTlId, kMidiFileTId, kMarkerTlId.
   // 'nameStr' and 'refObjNameStr' may be NULL.
   cmTlRC_t cmTimeLineInsert( 

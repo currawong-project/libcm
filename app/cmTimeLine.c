@@ -1282,6 +1282,28 @@ cmTlMarker_t*    cmTimeLineMarkerAtTime(    cmTlH_t h, unsigned seqId, unsigned 
   return _cmTlMarkerObjPtr(p,op->obj,false);  
 }
 
+cmTlMarker_t*    cmTimeLineMarkerFind( cmTlH_t h, const cmChar_t* markText )
+{
+  unsigned      i;
+  unsigned      n   = cmTimeLineSeqCount(h);
+  cmTlMarker_t* mop = NULL;
+  
+  for(i=0; i<n && mop==NULL; ++i)
+  {
+    cmTlObj_t* op = NULL;
+    mop = NULL;
+    while((mop = cmTlNextMarkerObjPtr(h,op,i)) != NULL )
+    {
+      if( mop->obj.name!=NULL && strcmp(mop->obj.name,markText)==0 )
+        break;
+
+      op = &mop->obj;
+    }
+  }
+    
+  return mop;
+
+}
 
 cmTlRC_t _cmTlParseErr( cmErr_t* err, const cmChar_t* errLabelPtr, unsigned idx, const cmChar_t* fn )
 {
