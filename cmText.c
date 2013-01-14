@@ -603,9 +603,10 @@ cmChar_t* cmTextAppendChar( cmChar_t* s, cmChar_t c, unsigned n )
 
 bool cmTextIsEmpty( const cmChar_t* s )
 {
-  for(; *s; ++s )
-    if( !isspace(*s) )
-      return false;
+  if( s!=NULL )
+    for(; *s; ++s )
+      if( !isspace(*s) )
+        return false;
   return true;
 }
 
