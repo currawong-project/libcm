@@ -445,7 +445,7 @@ extern "C" {
 #define   cmGrPExtIsNullOrEmpty(e) (cmGrPExtIsNull(e)||cmGrPExtIsEmpty(e))
 #define   cmGrPExtIsNotEmpty(e) (!cmGrPExtIsEmpty(e))
 #define   cmGrPExtIsNotNull(e)  (!cmGrPExtIsNull(e))
-#define   cmGrPExtIsNotNullOrEmpty(e) (cmGrPExtIsNotNull(e)||cmGrPExtIsNoEmpty(e))
+#define   cmGrPExtIsNotNullOrEmpty(e) (cmGrPExtIsNotNull(e)&&cmGrPExtIsNotEmpty(e))
 
 #define   cmGrPExtIsEqual( e0, e1 ) (cmGrPPtIsEqual(&(e0)->loc,&(e1)->loc) && cmGrPSzIsEqual(&(e0)->sz, &(e1)->sz))
 

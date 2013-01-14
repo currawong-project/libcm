@@ -27,13 +27,13 @@ enum
 
 typedef struct cmGrObj_str
 {
-  unsigned      id;         //
-  unsigned      cfgFlags;   // 
-  unsigned      stateFlags; // 
-  cmGrObjFunc_t f;          // 
-  cmGrVExt_t    wext;       // world coord's contained within this object (children of this object are contained by these extents)
+  unsigned      id;          //
+  unsigned      cfgFlags;    // 
+  unsigned      stateFlags;  // 
+  cmGrObjFunc_t f;           // 
+  cmGrVExt_t    wext;        // world coord's contained within this object (children of this object are contained by these extents)
   unsigned      wlimitFlags; // kLeftGrFl | kRightGrFl | kTopGrFl | kBottomGrFl
-  cmGrVExt_t    wlimitExt;  // limit extents for wext (ext's with set flags always define the associated wext value)
+  cmGrVExt_t    wlimitExt;   // limit extents for wext (ext's with set flags always define the associated wext value)
 
   struct cmGrObj_str* parent;
   struct cmGrObj_str* children;
