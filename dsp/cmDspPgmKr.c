@@ -63,7 +63,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmCtx_t*        cmCtx      = cmDspSysPgmCtx(h);
   cmErr_t         err;
   krRsrc_t        r;
-  unsigned        wtLoopCnt  = -1;                            // play once (do not loop)
+  unsigned        wtLoopCnt  = 1;                           // 1=play once (-1=loop forever)
   unsigned        wtInitMode = 0;                            // initial wt mode is 'silence'
   unsigned        wtSmpCnt   = floor(cmDspSysSampleRate(h)); // wt length == srate
 
@@ -127,29 +127,29 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, tlp, "mfn",  mfp, "fn",    NULL );
 
   // score to score follower - to set initial search location
-  //cmDspSysInstallCb(h, scp, "sel",    sfp, "index",  NULL );
+  cmDspSysInstallCb(h, scp, "sel",    sfp, "index",  NULL );
   
 
   // MIDI file player to score-follower and score - the order of connections is the same
   // as the msg transmision order from MFP
   cmDspSysInstallCb(h, mfp, "smpidx", scp, "smpidx", NULL );
   cmDspSysInstallCb(h, mfp, "d1",     scp, "d1",     NULL );
-  //cmDspSysInstallCb(h, mfp, "d1",     sfp, "d1",     NULL );
+  cmDspSysInstallCb(h, mfp, "d1",     sfp, "d1",     NULL );
   cmDspSysInstallCb(h, mfp, "d0",     scp, "d0",     NULL );
-  //cmDspSysInstallCb(h, mfp, "d0",     sfp, "d0",     NULL );
+  cmDspSysInstallCb(h, mfp, "d0",     sfp, "d0",     NULL );
   cmDspSysInstallCb(h, mfp, "status", scp, "status", NULL );
-  //cmDspSysInstallCb(h, mfp, "status", sfp, "status", NULL );
+  cmDspSysInstallCb(h, mfp, "status", sfp, "status", NULL );
 
 
   // score follower to score
-  //cmDspSysInstallCb(h, sfp, "out",  scp, "loc", NULL );
+  cmDspSysInstallCb(h, sfp, "out",  scp, "loc", NULL );
 
 
   // Printer connections
   cmDspSysInstallCb(h, tlp, "afn",  prp, "in",  NULL );
   cmDspSysInstallCb(h, tlp, "mfn",  prp, "in",  NULL );
   cmDspSysInstallCb(h, tlp, "sel",  prp, "in",  NULL );
-  //cmDspSysInstallCb(h, sfp, "out",  prp, "in",     NULL );
+  cmDspSysInstallCb(h, sfp, "out",  prp, "in",     NULL );
 
   //cmDspSysInstallCb(h, scp, "even", pre, "in", NULL );
   //cmDspSysInstallCb(h, scp, "dyn",  prd, "in", NULL );
