@@ -1246,11 +1246,11 @@ cmRC_t     cmScAlignInit( cmScAlign* p, cmScAlignCb_t cbFunc, void* cbArg, cmRea
       p->loc[ei+i].evtV     = cmMemAllocZ(cmScAlignScEvt_t,n);
       p->loc[ei+i].scLocIdx = li;
       p->loc[ei+i].barNumb  = lp->barNumb;
+
       for(j=0,k=0; j<lp->evtCnt; ++j)
         if( lp->evtArray[j]->type == kNonEvtScId )
         {
           p->loc[ei+i].evtV[k].pitch    = lp->evtArray[j]->pitch;
-          p->loc[ei+i].evtV[k].scEvtIdx = lp->evtArray[j]->index;
           ++k;
         }
 
@@ -1311,6 +1311,8 @@ cmRC_t     cmScAlignInit( cmScAlign* p, cmScAlignCb_t cbFunc, void* cbArg, cmRea
 
   //_cmScAlignPrint(p);
 
+  cmScAlignReset(p,0);
+
   return rc;
 }
 
@@ -1329,7 +1331,9 @@ void cmScAlignReset( cmScAlign* p, unsigned begScanLocIdx )
   p->mbi         = p->mn;
   p->mni         = 0;
   p->begScanLocIdx = begScanLocIdx;
+  p->begSyncLocIdx = cmInvalidIdx;
   p->s_opt       = DBL_MAX;
+  p->esi         = cmInvalidIdx;
   p->missCnt     = 0;
   p->scanCnt     = 0;
   p->ri          = 0;
@@ -1391,8 +1395,9 @@ bool _cmScAlignCalcMtx( cmScAlign* p )
     return false;
 
   unsigned i,j;
-  for(i=1; i<p->rn; ++i)
-    for(j=1; j<p->cn; ++j)
+
+  for(j=1; j<p->cn; ++j)
+    for(i=1; i<p->rn; ++i)
     {
       cmScAlignLoc_t* loc   = p->loc + p->begScanLocIdx + j - 1;
       unsigned        pitch = p->midiBuf[i-1].pitch;
@@ -1585,26 +1590,28 @@ double _cmScAlign( cmScAlign* p )
   return p->s_opt;
 }
 
-bool  cmScAlignExec(  cmScAlign* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
+cmRC_t  cmScAlignExec(  cmScAlign* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
 {
   bool fl    = p->mbi > 0;
-  bool retFl = true;
+  cmRC_t rc = cmOkRC;
 
+  // update the MIDI buffer with the incoming note
   cmScAlignInputMidi(p,smpIdx,status,d0,d1);
 
+  // if the MIDI buffer transitioned to full then perform an initial scan sync.
   if( fl && p->mbi == 0 )
   {
-    if( cmScAlignScan(p,cmInvalidCnt) == cmInvalidIdx )
-      retFl = false;
+    if( (p->begSyncLocIdx = cmScAlignScan(p,cmInvalidCnt)) == cmInvalidIdx )
+      rc = cmInvalidArgRC; // signal init. scan sync. fail
   }
   else
   {
-    if( !fl && p->mbi == 0 )
-      if( !cmScAlignStep(p) )
-        retFl = false;
+    // if the MIDI buffer is full then perform a step sync.
+    if( !fl && p->mbi == 0 ) 
+      rc = cmScAlignStep(p);
   }
 
-  return retFl;
+  return rc;
 }
 
 bool  cmScAlignInputMidi(  cmScAlign* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
@@ -1922,7 +1929,7 @@ unsigned cmScAlignScan( cmScAlign* p, unsigned scanCnt )
 }
 
 
-bool cmScAlignStep(  cmScAlign* p )
+cmRC_t cmScAlignStep(  cmScAlign* p )
 {
   int      i;
   unsigned pitch          = p->midiBuf[ p->mn-1 ].pitch;
@@ -1930,11 +1937,11 @@ bool cmScAlignStep(  cmScAlign* p )
 
   // the tracker must be sync'd to step
   if( p->esi == cmInvalidIdx )
-    return false;
-  
+    return cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The p->esi value must be valid to perform a step operation."); 
+
   // if the end of the score has been reached
   if( p->esi + 1 >= p->locN )
-    return cmInvalidIdx;
+    return cmEofRC;
     
   // attempt to match to next location first
   if( _cmScAlignIsMatch(p->loc + p->esi + 1, pitch) )
@@ -1982,13 +1989,13 @@ bool cmScAlignStep(  cmScAlign* p )
 
     // if the scan failed find a match
     if( bsi == cmInvalidIdx )
-      return false;
+      return cmCtxRtCondition( &p->obj, cmSubSysFailRC, "Scan resync. failed."); 
 
     //if( bsi != cmInvalidIdx )
     //  _cmScAlignPrintPath(p, p->p_opt, bsi );
   }
 
-  return true;
+  return cmOkRC;
 }
 
 
@@ -2227,7 +2234,26 @@ void _cmScAlignPrintReport( cmScAlign* p, cmScAlignPrint_t* a, unsigned an, unsi
 
 }
 
-void _cmScAlignPrintResult( cmScAlign* p )
+// The goal of this function is to create a cmScAlignPrint_t array containing
+// one record for each score bar, score note and errant MIDI note.
+// The function works by first creating a record for each score bar and note
+// and then scanning the cmScAlignResult_t array (p->res[]) for each result
+// record create by an earlier call to _cmScAlignCb().  A result record can 
+// uniquely indicates one of the following result states based on receiving
+// a MIDI event.
+// Match      - locIdx!=cmInvalidIdx matchFl==true  mni!=cmInvalidIdx
+// Mis-match  - locIdx!=cmInvalidIdx matchFl==false mni!=cmInvalidIdx
+// Delete     - locIdx==cmInvalidIdx matchFl==false mni!=cmInvalidIdx
+// Insert     - locIdx==cmInvalidIdx matchFl==false mni==cmInvalidIdx
+//
+// This is made slightly more complicated by the fact that a given MIDI event
+// may generate more than one result record.  This can occur when the 
+// tracker is in 'step' mode and generates a result record with a given state
+// as a result of a given MIDI note and then reconsiders that MIDI note
+// while during a subsequent 'scan' mode resync. operation.  For example
+// a MIDI note which generate a 'delete' result during a step operation 
+// may later generate a match result during a scan. 
+double _cmScAlignPrintResult( cmScAlign* p )
 {
   // determine the scH score begin and end indexes
   unsigned bsi = cmScoreLocCount(p->scH);
@@ -2256,9 +2282,10 @@ void _cmScAlignPrintResult( cmScAlign* p )
 
   cmScAlignPrint_t* a   = cmMemAllocZ(cmScAlignPrint_t,aan);
   unsigned          an  = 0;
-  unsigned          scNoteCnt = 0;
+  unsigned          scNoteCnt = 0; // notes in the score
   unsigned          matchCnt  = 0; // matched score notes
-  unsigned          wrongCnt  = 0; // unmatched midi notes
+  unsigned          wrongCnt  = 0; // errant midi notes
+  unsigned          skipCnt   = 0; // skipped score events
 
   // create a record for each score event
   for(i=bsi; i<=esi; ++i)
@@ -2364,11 +2391,14 @@ void _cmScAlignPrintResult( cmScAlign* p )
 
   //_cmScAlignPrintList(a,an);
 
+  // Insert records into the print record array (a[](
+  // to represent errant MIDI notes. (Notes which 
+  // were played but do not match any notes in the score.)
+  
   // for each result record ...
   for(i=0; i<p->ri; ++i)
   {
     cmScAlignResult_t* rp       = p->res + i; 
-    unsigned           scLocIdx = cmInvalidIdx;
     cmScAlignPrint_t*  pp       = NULL;
     cmScAlignPrint_t*  dpp      = NULL;
     unsigned           dmin;
@@ -2377,6 +2407,7 @@ void _cmScAlignPrintResult( cmScAlign* p )
     if(rp->foundFl)
       continue;
 
+    // find the print recd with the closest mni
     for(j=0; j<an; ++j)
     {
       pp = a + j;
@@ -2402,36 +2433,45 @@ void _cmScAlignPrintResult( cmScAlign* p )
 
     if( rp->mni > dpp->mni )
       ++j;
-      
-    scLocIdx = dpp->scLocIdx;
 
+    assert( rp->locIdx == cmInvalidIdx );
+    
+    // insert a print recd before or after the closest print recd
     an = _cmScAlignPrintExpand(a,aan,j,an);
-
-    if( rp->locIdx != cmInvalidIdx )
-    {
-      assert( rp->locIdx != cmInvalidIdx && rp->locIdx < p->locN );
-      scLocIdx = p->loc[ rp->locIdx ].scLocIdx;
-    }
+    _cmScAlignPrintSet(a + j, rp, kMidiErrSaFl, dpp->scLocIdx  );
 
     ++wrongCnt;
-
-    _cmScAlignPrintSet(a + j, rp, kMidiErrSaFl, scLocIdx  );
     
   }
+
+  for(i=0; i<an; ++i)
+    if( cmIsFlag(a[i].flags,kScNoteSaFl) && (a[i].mni == cmInvalidIdx || cmIsFlag(a[i].flags,kSubsErrSaFl)))
+      ++skipCnt;
 
   //_cmScAlignPrintList(a,an);
 
   //_cmScAlignPrintReport(p,a,an,bsi,esi);
-  printf("score notes:%i match:%i wrong:%i \n",scNoteCnt,matchCnt,wrongCnt);
+
+  double prec = (double)2.0 * matchCnt / (matchCnt + wrongCnt);
+  double rcal = (double)2.0 * matchCnt / (matchCnt + skipCnt);
+  double fmeas = prec * rcal / (prec + rcal);
+
+  printf("midi:%i scans:%i score notes:%i match:%i skip:%i wrong:%i : %f\n",p->mni,p->scanCnt,scNoteCnt,matchCnt,skipCnt,wrongCnt,fmeas);
+
+  cmMemFree(a);
+
+  return fmeas;
 }
 
-unsigned cmScAlignScanToTimeLineEvent( cmScAlign* p, cmTlH_t tlH, cmTlObj_t* top, unsigned endSmpIdx )
+
+cmRC_t cmScAlignScanToTimeLineEvent( cmScAlign* p, cmTlH_t tlH, cmTlObj_t* top, unsigned endSmpIdx )
 {
   assert( top != NULL );
-  cmTlMidiEvt_t* mep   = NULL;
+  cmTlMidiEvt_t* mep = NULL;
+  cmRC_t         rc  = cmOkRC;
   
-  // get the next time MIDI msg 
-  while( (mep = cmTlNextMidiEvtObjPtr(tlH, top, top->seqId )) != NULL )
+  // as long as more MIDI events are available get the next MIDI msg 
+  while( rc==cmOkRC && (mep = cmTlNextMidiEvtObjPtr(tlH, top, top->seqId )) != NULL )
   {
     top = &mep->obj;
 
@@ -2441,13 +2481,31 @@ unsigned cmScAlignScanToTimeLineEvent( cmScAlign* p, cmTlH_t tlH, cmTlObj_t* top
 
     // if the time line MIDI msg a note-on
     if( mep->msg->status == kNoteOnMdId )
-      if( !cmScAlignExec(p, mep->obj.seqSmpIdx, mep->msg->status, mep->msg->u.chMsgPtr->d0, mep->msg->u.chMsgPtr->d1 ) )
-        return cmInvalidIdx;
+    {
+      rc = cmScAlignExec(p, mep->obj.seqSmpIdx, mep->msg->status, mep->msg->u.chMsgPtr->d0, mep->msg->u.chMsgPtr->d1 );
+
+      switch( rc )
+      {
+        case cmOkRC:        // continue processing MIDI events
+          break;
+
+        case cmEofRC:       // end of the score was encountered
+          break;
+
+        case cmInvalidArgRC: // p->esi was not set correctly
+          break;
+
+        case cmSubSysFailRC: // scan resync failed
+          break;
+      }
+    }
   }
 
-  return p->esi;
-}
+  if( rc == cmEofRC )
+    rc = cmOkRC;
 
+  return rc;
+}
 
 void cmScAlignCb( void* cbArg, unsigned scLocIdx, unsigned mni, unsigned pitch, unsigned vel )
 {
@@ -2467,6 +2525,12 @@ void       cmScAlignScanMarkers(  cmRpt_t* rpt, cmTlH_t tlH, cmScH_t scH )
   unsigned   markCharCnt = 31;
   cmChar_t   markText[ markCharCnt+1 ];
 
+  double     scoreThresh  = 0.5;
+  unsigned   candCnt      = 0;
+  unsigned   initFailCnt  = 0;
+  unsigned   otherFailCnt = 0;
+  unsigned   scoreFailCnt = 0;
+
   p->cbArg = p; // set the callback arg. 
   
   // for each marker
@@ -2479,43 +2543,79 @@ void       cmScAlignScanMarkers(  cmRpt_t* rpt, cmTlH_t tlH, cmScH_t scH )
     cmTlMarker_t*  mp    = cmTimeLineMarkerFind( tlH, markText );
     if( mp == NULL )
     {
-      printf("The marker '%s' was not found.\n",markText);  
+      printf("The marker '%s' was not found.\n\n",markText);  
       continue;
     }
 
     // skip markers which do not contain text
     if( cmTextIsEmpty(mp->text) )
     {
-      printf("The marker '%s' is being skipped because it has no text.\n",markText);  
+      printf("The marker '%s' is being skipped because it has no text.\n\n",markText);  
       continue;
     }
 
     // reset the score follower to the beginnig of the score
     cmScAlignReset(p,0);
 
-    //printf("%s %5.2f %5.2f %5.2f\n",markText,(double)(mp->obj.begSmpIdx)/p->srate,(double)(mp->obj.durSmpCnt)/p->srate,(double)(mp->obj.begSmpIdx+mp->obj.durSmpCnt)/p->srate);
+    ++candCnt;
 
     // scan to the beginning of the marker
-    unsigned bsi = cmScAlignScanToTimeLineEvent(p,tlH,&mp->obj,mp->obj.seqSmpIdx+mp->obj.durSmpCnt);
-    
-    if( bsi != cmInvalidIdx )
+    cmRC_t rc = cmScAlignScanToTimeLineEvent(p,tlH,&mp->obj,mp->obj.seqSmpIdx+mp->obj.durSmpCnt);
+    bool   pfl = true;
+
+    if( rc != cmOkRC || p->begSyncLocIdx==cmInvalidIdx)
+    {
+      if( p->begSyncLocIdx == cmInvalidIdx )
+        rc = cmInvalidArgRC;
+
+      if( p->mni == 0 )
+      {
+        printf("mark:%i midi:%i Not enough MIDI notes to fill the scan buffer.\n",i,p->mni);
+        pfl = false;
+      }
+      else
+      {
+        switch(rc)
+        {
+          case cmInvalidArgRC:
+            printf("mark:%i INITIAL SYNC FAIL\n",i);
+            ++initFailCnt;
+            pfl = false;
+            break;
+
+          case cmSubSysFailRC:
+            printf("mark:%i SCAN RESYNC FAIL\n",i);
+            ++otherFailCnt;
+            break;
+
+          default:
+            printf("mark:%i UNKNOWN FAIL\n",i);
+            ++otherFailCnt;
+        }
+      }
+    }
+
+    if( pfl )
     {      
       //_cmScAlignPrintMtx(p);
-      printf("mark:%i scans:%4i loc:%4i bar:%4i score:%5.2f miss:%i text:'%s'\n",i,p->scanCnt,bsi,p->loc[bsi].barNumb,p->s_opt,p->missCnt,mp->text);
+      printf("mark:%i scans:%4i loc:%4i bar:%4i score:%5.2f miss:%i text:'%s'\n",i,p->scanCnt,p->begSyncLocIdx,p->loc[p->begSyncLocIdx].barNumb,p->s_opt,p->missCnt,mp->text);
       //_cmScAlignPrintPath(p, p->p_opt, bsi );
 
-      printf("mark:%i scans:%i midi:%i text:'%s'\n",i,p->scanCnt,p->mni,mp->text);
+      //printf("mark:%i scans:%i midi:%i text:'%s'\n",i,p->scanCnt,p->mni,mp->text);
 
-      _cmScAlignPrintResult(p);
+      if( _cmScAlignPrintResult(p) < scoreThresh )
+        ++scoreFailCnt;
 
-      printf("\n");
     }
+
     
     //break;  // ONLY USE ONE MARKER DURING TESTING
 
+    printf("\n");
+
   }
 
-
+  printf("cand:%i fail:%i - init:%i score:%i other:%i\n\n",candCnt,initFailCnt+scoreFailCnt+otherFailCnt,initFailCnt,scoreFailCnt,otherFailCnt);
 
   cmScAlignFree(&p);  
   cmCtxFree(&ctx);

@@ -196,9 +196,10 @@ void ed_free(ed_r* r);
 
 // Main test function.
 void ed_main();
-
 //=======================================================================================================================
 
+ 
+//=======================================================================================================================
 enum 
 { 
   kSaMinIdx, 
@@ -208,13 +209,15 @@ enum
   kSaCnt 
 };
 
+// Dynamic Programming (DP) matrix element
 typedef struct
 {
-  unsigned v[kSaCnt];
+  unsigned v[kSaCnt]; // 
   bool     matchFl;   // if this is a substitute; is it also a match?
   bool     transFl;   // if this is a substitute; is this the second element in a reversed pair?
 } cmScAlignVal_t;
 
+// List record used to track a path through the DP matrix p->m[,]
 typedef struct cmScAlignPath_str
 {
   unsigned                  code;
@@ -226,13 +229,13 @@ typedef struct cmScAlignPath_str
   struct cmScAlignPath_str* next;
 } cmScAlignPath_t;
 
+// Score note event record
 typedef struct
 {
   unsigned pitch;
-  unsigned scEvtIdx;
-  bool     matchFl;
 } cmScAlignScEvt_t;
 
+// Score location record. 
 typedef struct
 {
   unsigned          evtCnt;         // 
@@ -296,6 +299,7 @@ typedef struct
   bool                printFl;
 
   unsigned            begScanLocIdx; // begin the search at this score locations scWnd[begScanLocIdx:begScanLocIdx+p->cn-1]
+  unsigned            begSyncLocIdx; // initial sync location
 
   unsigned            resN;  // count of records in res[] == 2*cmScoreEvtCount()
   cmScAlignResult_t*  res;   // res[resN]
@@ -313,7 +317,7 @@ cmRC_t     cmScAlignInit( cmScAlign* p, cmScAlignCb_t cbFunc, void* cbArg, cmRea
 cmRC_t     cmScAlignFinal( cmScAlign* p );
 void       cmScAlignReset( cmScAlign* p, unsigned begScanLocIdx );
 
-bool       cmScAlignExec(  cmScAlign* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
+cmRC_t     cmScAlignExec(  cmScAlign* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
 
 bool       cmScAlignInputMidi(  cmScAlign* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
 
@@ -327,7 +331,9 @@ unsigned   cmScAlignScan( cmScAlign* p, unsigned scanCnt );
 // Step forward/back by p->stepCnt from p->esi.
 // If more than p->maxStepMissCnt consecutive MIDI events are 
 // missed then automatically run cmScAlignScan().
-bool cmScAlignStep(  cmScAlign* p );
+// Return cmEofRC if the end of the score is encountered.
+// Return cmSubSysFailRC if an internal scan resync. failed.
+cmRC_t     cmScAlignStep(  cmScAlign* p );
 
 unsigned   cmScAlignScanToTimeLineEvent( cmScAlign* p, cmTlH_t tlH, cmTlObj_t* top, unsigned endSmpIdx );
 
@@ -335,6 +341,42 @@ unsigned   cmScAlignScanToTimeLineEvent( cmScAlign* p, cmTlH_t tlH, cmTlObj_t* t
 // entire score looking for the best match between the first 'midiN'
 // notes in each marker region and the score. 
 void       cmScAlignScanMarkers(  cmRpt_t* rpt, cmTlH_t tlH, cmScH_t scH );
+
+//=======================================================================================================================
+
+typedef struct
+{
+  unsigned mni;
+  unsigned locIdx;
+  unsigned pitch;
+  unsigned vel;
+  unsigned smpIdx;
+} cmScMeasMidi_t;
+
+typedef struct
+{
+  cmScoreSet_t* set;  // A pointer to defining score set
+  unsigned      bli;  // Begin index into sap->loc[].
+  unsigned      eli;  // End index into sap->loc[].
+  unsigned      bmi;  // Begin index into midi[].
+  unsigned      emi;  // End index into midi[].
+  double*       val;  // val[sap->eleCnt]  
+} cmScMeasSet_t;
+
+typedef struct
+{
+  cmObj            obj;
+  cmScAlign*       sap;
+  unsigned         mn;
+  cmScMeasMidi_t*  midi;
+} cmScMeas;
+
+cmScMeas* cmScMeasAlloc( cmCtx* c, cmScMeas* p, double srate, cmScH_t scH );
+cmRC_t    cmScMeasFree(  cmScMeas** pp );
+cmRC_t    cmScMeasInit(  cmScMeas* p, double srate, cmScH_t scH );
+cmRC_t    cmScMeasFinal( cmScMeas* p );
+cmRC_t    cmScMeasExec( cmScMeas* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1, unsigned scLocIdx );
+
 
 #ifdef __cplusplus
 }
