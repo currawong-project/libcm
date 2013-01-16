@@ -209,8 +209,12 @@ enum
 
 enum
 {
-  kSmMatchFl = 0x01,
-  kSmTransFl = 0x02
+  kSmMatchFl    = 0x01,
+  kSmTransFl    = 0x02,
+  kSmTruePosFl  = 0x04,
+  kSmFalsePosFl = 0x08,
+  kSmBarFl      = 0x10,
+  kSmNoteFl     = 0x20
 };
 
 // Dynamic Programming (DP) matrix element
@@ -294,8 +298,7 @@ cmRC_t     cmScMatchExec(  cmScMatch* p, unsigned scLocIdx, unsigned locN, const
    unsigned mni;
    unsigned pitch;
    unsigned vel;
-   bool     tpFl;   // true positive     
-   bool     fpFl;   // false positive
+   unsigned flags;
  } cmScMatcherResult_t;
 
  typedef struct
