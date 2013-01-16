@@ -23,7 +23,7 @@
 #include "cmTimeLine.h"
 #include "cmScore.h"
 #include "cmProc4.h"
-
+#include "cmTime.h"
 
 
 cmScFol* cmScFolAlloc( cmCtx* c, cmScFol* p, cmReal_t srate, cmScH_t scH, unsigned bufN, unsigned minWndLookAhead, unsigned maxWndCnt, unsigned minVel )
@@ -1154,6 +1154,1002 @@ void ed_main()
   ed_free(&r);
 }
 
+//=======================================================================================================================
+cmScMatch* cmScMatchAlloc( cmCtx* c, cmScMatch* p, cmScH_t scH, unsigned maxScWndN, unsigned maxMidiWndN )
+{
+  cmScMatch* op = cmObjAlloc(cmScMatch,c,p);
+
+  if( cmScoreIsValid(scH) )
+    if( cmScMatchInit(op,scH,maxScWndN,maxMidiWndN) != cmOkRC )
+      cmScMatchFree(&op);
+  return op;
+}
+
+cmRC_t     cmScMatchFree(  cmScMatch** pp )
+{
+  cmRC_t rc = cmOkRC;
+  if( pp==NULL || *pp==NULL )
+    return rc;
+
+  cmScMatch* p = *pp;
+  if((rc = cmScMatchFinal(p)) != cmOkRC )
+    return rc;
+  
+  cmMemFree(p->loc);
+  cmMemFree(p->m);
+  cmMemFree(p->p_mem);
+  cmObjFree(pp);
+  return rc;
+}
+
+void _cmScMatchInitLoc( cmScMatch* p )
+{
+  unsigned li,ei;
+
+  p->locN = cmScoreEvtCount(p->scH);
+  p->loc  = cmMemResizeZ(cmScMatchLoc_t,p->loc,p->locN);
+
+
+  // for each score location  
+  for(li=0,ei=0; li<cmScoreLocCount(p->scH); ++li)
+  {
+    unsigned i,n;
+
+    const cmScoreLoc_t* lp = cmScoreLoc(p->scH,li);
+
+    // count the number of note events at location li
+    for(n=0,i=0; i<lp->evtCnt; ++i)
+      if( lp->evtArray[i]->type == kNonEvtScId )
+        ++n;
+
+    assert( ei+n <= p->locN );
+
+    // duplicate each note at location li n times
+    for(i=0; i<n; ++i)
+    {
+      unsigned j,k;
+
+      p->loc[ei+i].evtCnt   = n;
+      p->loc[ei+i].evtV     = cmMemAllocZ(cmScMatchEvt_t,n);
+      p->loc[ei+i].scLocIdx = li;
+      p->loc[ei+i].barNumb  = lp->barNumb;
+
+      for(j=0,k=0; j<lp->evtCnt; ++j)
+        if( lp->evtArray[j]->type == kNonEvtScId )
+        {
+          p->loc[ei+i].evtV[k].pitch    = lp->evtArray[j]->pitch;
+          ++k;
+        }
+    }
+
+    ei += n;
+  }
+
+  assert(ei<=p->locN);
+  p->locN = ei;
+}
+
+cmRC_t     cmScMatchInit(  cmScMatch* p, cmScH_t scH, unsigned maxScWndN, unsigned maxMidiWndN )
+{
+  unsigned i;
+  cmRC_t   rc;
+
+  if((rc = cmScMatchFinal(p)) != cmOkRC )
+    return rc;
+
+  p->scH  = scH;
+  p->mrn  = maxMidiWndN + 1;
+  p->mcn  = maxScWndN   + 1;
+  p->mmn  = maxMidiWndN;
+  p->msn  = maxScWndN;
+
+  _cmScMatchInitLoc(p);
+
+  p->m     = cmMemResizeZ(cmScMatchVal_t,  p->m, p->mrn*p->mcn );
+  p->pn    = p->mrn + p->mcn;
+  p->p_mem = cmMemResizeZ(cmScMatchPath_t, p->p_mem, 2*p->pn );
+  p->p_avl = p->p_mem;
+  p->p_cur = NULL;
+  p->p_opt = p->p_mem + p->pn;
+
+  // put pn path records on the available list
+  for(i=0; i<p->pn; ++i)
+  {
+    p->p_mem[i].next = i<p->pn-1 ? p->p_mem + i + 1 : NULL;
+    p->p_opt[i].next = i<p->pn-1 ? p->p_opt + i + 1 : NULL;
+  }
+
+  return rc;
+}
+
+cmRC_t     cmScMatchFinal( cmScMatch* p )
+{
+  unsigned i;
+  if( p != NULL )
+    for(i=0; i<p->locN; ++i)
+      cmMemPtrFree(&p->loc[i].evtV);
+
+  return cmOkRC; 
+}
+
+cmRC_t  _cmScMatchInitMtx( cmScMatch* p, unsigned rn, unsigned cn )
+{
+  if( rn >p->mrn && cn > p->mcn )
+    return cmCtxRtCondition( &p->obj, cmInvalidArgRC, "MIDI sequence length must be less than %i. Score sequence length must be less than %i.",p->mmn,p->msn); 
+
+  // if the size of the mtx is not changing then there is nothing to do
+  if( rn == p->rn && cn == p->cn )
+    return cmOkRC;
+
+  // update the mtx size
+  p->rn = rn;
+  p->cn = cn;
+
+  // fill in the default values for the first row
+  // and column of the DP matrix
+  unsigned i,j,k;
+  for(i=0; i<rn; ++i)
+    for(j=0; j<cn; ++j)
+    {
+      unsigned v[] = {0,0,0,0};
+
+      if( i == 0 )
+      {
+        v[kSmMinIdx] = j;
+        v[kSmInsIdx] = j;
+      }
+      else
+        if( j == 0 )
+        {
+          v[kSmMinIdx] = i;
+          v[kSmDelIdx] = i;
+        }
+
+      for(k=0; k<kSmCnt; ++k)
+        p->m[ i + (j*rn) ].v[k] = v[k];      
+    }
+
+  return cmOkRC;
+}
+
+cmScMatchVal_t* _cmScMatchValPtr( cmScMatch* p, unsigned i, unsigned j, unsigned rn, unsigned cn )
+{
+  assert( i < rn && j < cn );
+
+  return p->m + i + (j*rn);
+}
+
+bool  _cmScMatchIsMatch( const cmScMatchLoc_t* loc, unsigned pitch )
+{
+  unsigned i;
+  for(i=0; i<loc->evtCnt; ++i)
+    if( loc->evtV[i].pitch == pitch )
+      return true;
+  return false;
+}
+
+bool _cmScMatchIsTrans( cmScMatch* p, const unsigned* pitchV, const cmScMatchVal_t* v1p, unsigned bsi, unsigned i, unsigned j, unsigned rn, unsigned cn )
+{
+  bool             fl  = false;
+  cmScMatchVal_t*  v0p = _cmScMatchValPtr(p,i,j,rn,cn);
+
+  if( i>=1 && j>=1
+    && v1p->v[kSmMinIdx] == v1p->v[kSmSubIdx] 
+    && cmIsNotFlag(v1p->flags,kSmMatchFl) 
+    && v0p->v[kSmMinIdx] == v0p->v[kSmSubIdx]
+    && cmIsNotFlag(v0p->flags,kSmMatchFl) 
+      )
+  {
+    unsigned        c00 = pitchV[i-1];
+    unsigned        c01 = pitchV[i  ];
+    cmScMatchLoc_t* c10 = p->loc + bsi + j - 1;
+    cmScMatchLoc_t* c11 = p->loc + bsi + j;
+    fl = _cmScMatchIsMatch(c11,c00) && _cmScMatchIsMatch(c10,c01);
+  }
+  return fl;
+}
+
+unsigned _cmScMatchMin( cmScMatch* p, unsigned i, unsigned j, unsigned rn, unsigned cn )
+{ 
+  return _cmScMatchValPtr(p,i,j,rn,cn)->v[kSmMinIdx];
+}
+
+// Return false if bsi + cn > p->locN
+// pitchV[rn-1]
+bool  _cmScMatchCalcMtx( cmScMatch* p, unsigned bsi, const unsigned* pitchV, unsigned rn, unsigned cn )
+{
+  // loc[begScanLocIdx:begScanLocIdx+cn-1] must be valid
+  if( bsi + cn > p->locN )
+    return false;
+
+  unsigned i,j;
+
+  for(j=1; j<cn; ++j)
+    for(i=1; i<rn; ++i)
+    {
+      cmScMatchLoc_t* loc   = p->loc + bsi + j - 1;
+      unsigned        pitch = pitchV[i-1];
+      cmScMatchVal_t* vp    = _cmScMatchValPtr(p,i,j,rn,cn);
+      vp->flags             = _cmScMatchIsMatch(loc,pitch) ? kSmMatchFl : 0;
+      unsigned        cost  =  cmIsFlag(vp->flags,kSmMatchFl) ? 0 : 1;
+      vp->v[kSmSubIdx]      = _cmScMatchMin(p,i-1,j-1, rn, cn) + cost;
+      vp->v[kSmDelIdx]      = _cmScMatchMin(p,i-1,j  , rn, cn) + 1;
+      vp->v[kSmInsIdx]      = _cmScMatchMin(p,i,  j-1, rn, cn) + 1;
+      vp->v[kSmMinIdx]      = cmMin( vp->v[kSmSubIdx], cmMin(vp->v[kSmDelIdx],vp->v[kSmInsIdx]));
+      vp->flags            |= _cmScMatchIsTrans(p,pitchV,vp,bsi,i-1,j-1,rn,cn) ? kSmTransFl : 0;
+    }
+
+  return true;
+}
+
+void _cmScMatchPrintMtx( cmScMatch* r, unsigned rn, unsigned cn)
+{
+  unsigned i,j,k;
+  for(i=0; i<rn; ++i)
+  {
+    for(j=0; j<cn; ++j)
+    {
+      printf("(");
+      
+      const cmScMatchVal_t* vp = _cmScMatchValPtr(r,i,j,rn,cn);
+
+      for(k=0; k<kSmCnt; ++k)
+      {
+        printf("%i",vp->v[k]);
+        if( k<kSmCnt-1)
+          printf(", ");
+        else
+          printf(" ");
+      }
+
+      printf("%c%c)",cmIsFlag(vp->flags,kSmMatchFl)?'m':' ',cmIsFlag(vp->flags,kSmTransFl)?'t':' ');
+      
+    }
+    printf("\n");
+  }
+}
+
+
+
+void _cmScMatchPathPush( cmScMatch* r, unsigned code, unsigned ri, unsigned ci, unsigned flags )
+{
+  assert(r->p_avl != NULL );
+
+  cmScMatchPath_t* p = r->p_avl;
+  r->p_avl = r->p_avl->next;
+
+  p->code    = code;
+  p->ri      = ri;
+  p->ci      = ci;
+  p->flags   = code==kSmSubIdx && cmIsFlag(flags,kSmMatchFl) ? kSmMatchFl  : 0;
+  p->flags  |= cmIsFlag(flags,kSmTransFl);
+  p->next    = r->p_cur;  
+  r->p_cur   = p;
+}
+
+void _cmScMatchPathPop( cmScMatch* r )
+{
+  assert( r->p_cur != NULL );
+  cmScMatchPath_t* tp    = r->p_cur->next;
+  r->p_cur->next = r->p_avl;
+  r->p_avl       = r->p_cur;
+  r->p_cur       = tp;
+}
+
+double _cmScMatchCalcCandidateCost( cmScMatch* r )
+{
+  cmScMatchPath_t* cp = r->p_cur;
+  cmScMatchPath_t* bp = r->p_cur;
+  cmScMatchPath_t* ep = NULL;
+
+  // skip leading inserts
+  for(; cp!=NULL; cp=cp->next)
+    if( cp->code != kSmInsIdx )
+    {
+      bp = cp;
+      break;
+    }
+  
+  // skip to trailing inserts
+  for(; cp!=NULL; cp=cp->next)
+    if( cp->code!=kSmInsIdx )
+      ep = cp;
+
+  // count remaining path length
+  assert( ep!=NULL && bp!=ep);
+  unsigned n=1;
+  for(cp=bp; cp!=ep; cp=cp->next)
+    ++n;
+
+  double   gapCnt  = 0;
+  double   penalty = 0;
+  bool     pfl     = cmIsFlag(bp->flags,kSmMatchFl);
+  unsigned i;
+
+  cp = bp;
+  for(i=0; i<n; ++i,cp=cp->next)
+  {
+    // a gap is a transition from a matching subst. to an insert or deletion
+    //if( pc != cp->code && cp->code != kSmSubIdx && pc==kSmSubIdx && pfl==true )
+    if( pfl==true && cmIsFlag(cp->flags,kSmMatchFl)==false )
+      ++gapCnt;
+
+    //
+    switch( cp->code )
+    {
+      case kSmSubIdx:
+        penalty += cmIsFlag(cp->flags,kSmMatchFl) ? 0 : 1;
+        penalty -= cmIsFlag(cp->flags,kSmTransFl) ? 1 : 0;
+        break;
+
+      case kSmDelIdx:
+        penalty += 1;
+        break;
+
+      case kSmInsIdx:
+        penalty += 1;
+        break;
+    }
+
+    pfl = cmIsFlag(cp->flags,kSmMatchFl);
+    
+  }
+
+  double cost = gapCnt/n + penalty;
+
+  //printf("n:%i gaps:%f gap_score:%f penalty:%f score:%f\n",n,gapCnt,gapCnt/n,penalty,score);
+
+  return cost;
+
+}
+
+double _cmScMatchEvalCandidate( cmScMatch* r, double min_cost, double cost )
+{
+  
+  if( min_cost == DBL_MAX || cost < min_cost)
+  {
+    // copy the p_cur to p_opt[]
+    cmScMatchPath_t* cp = r->p_cur;
+    unsigned         i;
+
+    for(i=0; cp!=NULL && i<r->pn; cp=cp->next,++i)
+    {
+      r->p_opt[i].code    = cp->code;
+      r->p_opt[i].ri      = cp->ri;
+      r->p_opt[i].ci      = cp->ci;
+      r->p_opt[i].flags   = cp->flags;
+      r->p_opt[i].next    = cp->next==NULL ? NULL : r->p_opt + i + 1;
+    }
+    
+    assert( i < r->pn );
+    r->p_opt[i].code = 0; // terminate with code=0        
+    min_cost         = cost;
+  }
+
+  return min_cost;
+}
+
+
+
+// traverse the solution matrix from the lower-right to 
+// the upper-left.
+double _cmScMatchGenPaths( cmScMatch* r, int i, int j, unsigned rn, unsigned cn, double min_cost )
+{
+  unsigned m;
+
+  // stop when the upper-right is encountered
+  if( i==0 && j==0 )
+    return _cmScMatchEvalCandidate(r, min_cost, _cmScMatchCalcCandidateCost(r) );
+
+  cmScMatchVal_t* vp = _cmScMatchValPtr(r,i,j,rn,cn);
+
+  // for each possible dir: up,left,up-left
+  for(m=1; m<kSmCnt; ++m)
+    if( vp->v[m] == vp->v[kSmMinIdx] )
+    {
+      // prepend to the current candidate path: r->p_cur
+      _cmScMatchPathPush(r,m,i,j,vp->flags);
+
+      int ii = i-1;
+      int jj = j-1;
+
+      switch(m)
+      {
+        case kSmSubIdx:
+          break;
+
+        case kSmDelIdx:
+          jj = j;
+          break;
+
+        case kSmInsIdx:
+          ii = i;
+          break;
+
+        default:
+          { assert(0); }
+      }
+
+      // recurse!
+      min_cost = _cmScMatchGenPaths(r,ii,jj,rn,cn,min_cost);
+
+      // remove the first element from the current path
+      _cmScMatchPathPop(r);
+    }
+
+  return min_cost;
+  
+}
+
+double _cmScMatchAlign( cmScMatch* p, unsigned rn, unsigned cn, double min_cost )
+{
+  int      i = rn-1;
+  int      j = cn-1;
+  unsigned m = _cmScMatchMin(p,i,j,rn,cn);
+
+  if( m==cmMax(rn,cn) )
+    printf("Edit distance is at max: %i. No Match.\n",m);
+  else
+    min_cost = _cmScMatchGenPaths(p,i,j,rn,cn,min_cost);
+
+  return min_cost;
+}
+
+
+cmRC_t cmScMatchExec( cmScMatch* p, unsigned scLocIdx, unsigned locN, const unsigned* midiPitchV, unsigned midiPitchN, double min_cost )
+{
+  cmRC_t   rc;
+  unsigned rn = midiPitchN + 1;
+  unsigned cn = locN + 1;
+
+  // set the DP matrix default values
+  if((rc = _cmScMatchInitMtx(p, rn, cn )) != cmOkRC )
+    return rc;
+
+  // _cmScMatchCalcMtx() returns false if the score window exceeds the length of the score
+  if(!_cmScMatchCalcMtx(p,scLocIdx,midiPitchV, rn, cn) )
+    return cmEofRC;
+
+  //_cmScMatchPrintMtx(p,rn,cn);
+
+  // locate the path through the DP matrix with the lowest edit distance (cost)
+  p->opt_cost =  _cmScMatchAlign(p, rn, cn, min_cost);
+
+  return rc;
+}
+
+void _cmScMatchPrintPath( cmScMatch* p, cmScMatchPath_t* cp, unsigned bsi, const unsigned* pitchV, const unsigned* mniV )
+{
+  assert( bsi != cmInvalidIdx );
+
+  cmScMatchPath_t* pp    = cp;
+  int              polyN = 0;
+  int              i;
+
+  printf("loc: ");
+
+  // get the polyphony count for the score window 
+  for(i=0; pp!=NULL; pp=pp->next)
+  {
+    cmScMatchLoc_t* lp = p->loc + bsi + pp->ci;
+    if( pp->code!=kSmDelIdx  )
+    {
+      if(lp->evtCnt > polyN)
+        polyN = lp->evtCnt;
+
+      printf("%4i ",bsi+i);
+      ++i;
+    }
+    else
+      printf("%4s "," ");
+  }
+
+  printf("\n");
+
+  // print the score notes
+  for(i=polyN; i>0; --i)
+  {
+    printf("%3i: ",i);
+    for(pp=cp; pp!=NULL; pp=pp->next)
+    {
+      int locIdx = bsi + pp->ci - 1;
+      assert(0 <= locIdx && locIdx <= p->locN);
+      cmScMatchLoc_t* lp = p->loc + locIdx;
+      if( pp->code!=kSmDelIdx && lp->evtCnt >= i )
+        printf("%4s ",cmMidiToSciPitch(lp->evtV[i-1].pitch,NULL,0));
+      else
+        printf("%4s ", pp->code==kSmDelIdx? "-" : " ");
+    }
+    printf("\n");
+  }
+
+  printf("mid: ");
+
+  // print the MIDI buffer
+  for(pp=cp; pp!=NULL; pp=pp->next)
+  {
+    if( pp->code!=kSmInsIdx )
+      printf("%4s ",cmMidiToSciPitch(pitchV[pp->ri-1],NULL,0));
+    else
+      printf("%4s ",pp->code==kSmInsIdx?"-":" ");
+  }
+
+  printf("\nmni: ");
+
+  // print the MIDI buffer index (mni)
+  for(pp=cp; pp!=NULL; pp=pp->next)
+  {
+    if( pp->code!=kSmInsIdx )
+      printf("%4i ",mniV[pp->ri-1]);
+    else
+      printf("%4s ",pp->code==kSmInsIdx?"-":" ");
+  }
+
+  printf("\n op: ");
+
+  // print the substitute/insert/delete operation
+  for(pp=cp; pp!=NULL; pp=pp->next)
+  {
+    char c = ' ';
+    switch( pp->code )
+    {
+      case kSmSubIdx: c = 's'; break;
+      case kSmDelIdx: c = 'd'; break;
+      case kSmInsIdx: c = 'i'; break;
+      default:
+        { assert(0); }
+    }
+
+    printf("%4c ",c);
+  }
+
+  printf("\n     ");
+
+  // give substitute attribute (match or transpose)
+  for(pp=cp; pp!=NULL; pp=pp->next)
+  {
+    cmChar_t s[3];
+    int  k = 0;
+    if( cmIsFlag(pp->flags,kSmMatchFl) )
+      s[k++] = 'm';
+
+    if( cmIsFlag(pp->flags,kSmTransFl) )
+      s[k++] = 't';
+
+    s[k]   = 0;
+
+    printf("%4s ",s);
+  }
+
+  printf("\nscl: ");
+
+  // print the stored location index
+  for(pp=cp; pp!=NULL; pp=pp->next)
+  {
+    if( pp->locIdx == cmInvalidIdx )
+      printf("%4s "," ");
+    else
+      printf("%4i ",p->loc[pp->locIdx].scLocIdx);
+  }
+  
+  printf("\n\n");
+}
+
+
+//=======================================================================================================================
+cmScMatcher* cmScMatcherAlloc( cmCtx* c, cmScMatcher* p, double srate, cmScH_t scH, unsigned scWndN, unsigned midiWndN )
+{
+  cmScMatcher* op = cmObjAlloc(cmScMatcher,c,p);
+
+  if( op != NULL )
+    op->mp = cmScMatchAlloc(c,NULL,cmScNullHandle,0,0);
+
+  if( srate != 0 )
+  {
+    if( cmScMatcherInit(op,srate,scH,scWndN,midiWndN) != cmOkRC )
+      cmScMatcherFree(&op);
+  }
+
+  return op;
+}
+
+cmRC_t cmScMatcherFree(  cmScMatcher** pp )
+{
+  cmRC_t rc = cmOkRC;
+  if( pp==NULL || *pp==NULL )
+    return rc;
+
+  cmScMatcher* p = *pp;
+  if((rc = cmScMatcherFinal(p)) != cmOkRC )
+    return rc;
+
+  cmScMatchFree(&p->mp);
+  cmMemFree(p->midiBuf);
+  cmMemFree(p->res);
+  cmObjFree(pp);
+  return rc;
+
+}
+
+cmRC_t cmScMatcherInit(  cmScMatcher* p, double srate, cmScH_t scH, unsigned scWndN, unsigned midiWndN )
+{
+  cmRC_t rc;
+  if((rc = cmScMatcherFinal(p)) != cmOkRC )
+    return rc;
+
+  if( midiWndN > scWndN )
+    return cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The score alignment MIDI event buffer length (%i) must be less than the score window length (%i).",midiWndN,scWndN); 
+
+  if(( rc = cmScMatchInit(p->mp,scH,scWndN,midiWndN)) != cmOkRC )
+    return rc;
+
+  p->mn         = midiWndN;
+  p->midiBuf    = cmMemResize(cmScMatcherMidi_t,p->midiBuf,p->mn);
+  p->stepCnt    = 3;
+  p->maxMissCnt = p->stepCnt+1;
+  p->rn         = 2 * cmScoreEvtCount(scH);
+  p->res        = cmMemResizeZ(cmScMatcherResult_t,p->res,p->rn);
+  
+  cmScMatcherReset(p);
+
+  return rc;
+}
+
+cmRC_t cmScMatcherFinal( cmScMatcher* p )
+{
+  return cmScMatchFinal(p->mp);
+}
+
+void cmScMatcherReset( cmScMatcher* p )
+{
+  p->mbi           = p->mp->mmn;
+  p->mni           = 0;
+  p->begSyncLocIdx = cmInvalidIdx;
+  p->s_opt         = DBL_MAX;
+  p->missCnt       = 0;
+  p->scanCnt       = 0;
+  p->ri            = 0;
+}
+
+bool cmScMatcherInputMidi(  cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
+{
+  if( status != kNoteOnMdId )
+    return false;
+
+  unsigned mi = p->mn-1;
+
+  //printf("%3i %5.2f %4s\n",p->mni,(double)smpIdx/p->srate,cmMidiToSciPitch(d0,NULL,0));
+
+  // shift the new MIDI event onto the end of the MIDI buffer
+  memmove(p->midiBuf,p->midiBuf+1,sizeof(cmScMatcherMidi_t)*mi);
+  p->midiBuf[mi].locIdx = cmInvalidIdx;
+  p->midiBuf[mi].cbCnt  = 0;
+  p->midiBuf[mi].mni    = p->mni++;
+  p->midiBuf[mi].smpIdx = smpIdx;
+  p->midiBuf[mi].pitch  = d0;
+  p->midiBuf[mi].vel    = d1;
+  if( p->mbi > 0 )
+    --p->mbi;
+
+  return true;
+}
+
+void _cmScMatcherStoreResult( cmScMatcher* p, unsigned locIdx, bool matchFl, const cmScMatcherMidi_t* mp )
+{
+  // don't store missed score note results
+  assert( mp != NULL );
+
+  bool                  tpFl = locIdx!=cmInvalidIdx && matchFl;
+  bool                  fpFl = locIdx==cmInvalidIdx || matchFl==false;
+  cmScMatcherResult_t * rp   = NULL;
+  unsigned              i;
+
+  assert( tpFl==false || (tpFl==true && locIdx != cmInvalidIdx ) );
+
+  // it is possible that the same MIDI event is reported more than once
+  // (due to step->scan back tracking) - try to find previous result records
+  // associated with this MIDI event
+  for(i=0; i<p->ri; ++i) 
+    if( p->res[i].mni == mp->mni )
+    {
+      // if the new 
+      if( tpFl )
+      {
+        rp = p->res + i;
+        break;
+      }
+
+      // a match was found but this was not a true-pos so ignore it
+      return;
+    }
+
+  if( rp == NULL )
+  {
+    rp = p->res + p->ri;
+    ++p->ri;
+  }
+
+  rp->locIdx = locIdx;
+  rp->mni    = mp->mni;
+  rp->pitch  = mp->pitch;
+  rp->vel    = mp->vel;
+  rp->tpFl   = tpFl;
+  rp->fpFl   = fpFl;
+  
+}
+
+unsigned   cmScMatcherScan( cmScMatcher* p, unsigned bsi, unsigned scanCnt )
+{
+  assert( p->mp != NULL && p->mp->mmn > 0 );
+
+  unsigned i_opt   = cmInvalidIdx;
+  double   s_opt = DBL_MAX;
+  cmRC_t  rc     = cmOkRC;
+  unsigned i;
+
+  // initialize the internal values set by this function
+  p->missCnt = 0;
+  p->esi     = cmInvalidIdx;
+  p->s_opt   = DBL_MAX;
+  
+  // if the MIDI buf is not full
+  if( p->mbi != 0 )
+    return cmInvalidIdx;
+
+  // load a temporary MIDI pitch buffer for use by cmScMatch.
+  unsigned pitchV[p->mp->mmn];
+  for(i=0; i<p->mp->mmn; ++i)
+    pitchV[i] = p->midiBuf[i].pitch;
+
+  // calc the edit distance from pitchV[] to a sliding score window
+  for(i=0; rc==cmOkRC && (scanCnt==cmInvalidCnt || i<scanCnt); ++i)
+  {      
+    rc = cmScMatchExec(p->mp, bsi + i, p->mp->msn, pitchV, p->mp->mmn, s_opt );
+
+    switch(rc)
+    {
+      case cmOkRC:  // normal result 
+        if( p->mp->opt_cost < s_opt )
+        {
+          s_opt = p->mp->opt_cost;
+          i_opt = bsi + i;
+        }
+        break;
+
+      case cmEofRC: // score window encountered the end of the score
+        break;
+
+      default: // error state
+        return cmInvalidIdx;
+    }
+
+  }
+          
+  // store the cost assoc'd with i_opt
+  p->s_opt = s_opt;
+
+  if( i_opt == cmInvalidIdx )
+    return cmInvalidIdx;
+
+  // Traverse the least cost path and:
+  // 1) Set p->esi to the score location index of the last MIDI note
+  // which has a positive match with the score and assign
+  // the internal score index to cp->locIdx.
+  //
+  // 2) Set cmScAlignPath_t.locIdx - index into p->loc[] associated
+  // with each path element that is a 'substitute' or an 'insert'.
+  //
+  // 3) Set p->missCnt: the count of trailing non-positive matches.
+  // p->missCnt is eventually used in cmScAlignStep() to track the number
+  // of consecutive trailing missed notes.
+  //
+  cmScMatchPath_t* cp = p->mp->p_opt;
+
+  for(i=0; cp!=NULL; cp=cp->next)
+  {
+    if( cp->code != kSmInsIdx )
+    {
+      assert( cp->ri > 0 );
+      p->midiBuf[ cp->ri-1 ].locIdx = cmInvalidIdx;
+    }
+
+    switch( cp->code )
+    {
+      case kSmSubIdx:
+        if( cmIsFlag(cp->flags,kSmMatchFl) || cmIsFlag(cp->flags,kSmTransFl))
+        {
+          p->esi     = i_opt + i;
+          p->missCnt = 0;
+
+          if( cmIsFlag(cp->flags,kSmMatchFl) )
+            p->midiBuf[ cp->ri-1 ].locIdx = i_opt + i;
+        }
+        else
+        {
+          ++p->missCnt;
+        }
+        // fall through
+
+      case kSmInsIdx:
+        cp->locIdx = i_opt + i;
+        ++i;
+        break;
+
+      case kSmDelIdx:
+        cp->locIdx = cmInvalidIdx;
+        ++p->missCnt;
+        break;
+
+    }
+  }
+
+  // if no positive matches were found
+  if( p->esi == cmInvalidIdx )
+    i_opt = cmInvalidIdx;
+  else
+  {
+    // record result
+    for(cp=p->mp->p_opt; cp!=NULL; cp=cp->next)
+      if( cp->code != kSmInsIdx )
+        _cmScMatcherStoreResult(p, cp->locIdx, cmIsFlag(cp->flags,kSmMatchFl), p->midiBuf + cp->ri - 1);
+  }
+
+  return i_opt;
+
+}
+
+cmRC_t     cmScMatcherStep(  cmScMatcher* p )
+{
+  int      i;
+  unsigned pitch          = p->midiBuf[ p->mn-1 ].pitch;
+  unsigned locIdx         = cmInvalidIdx;
+
+  // the tracker must be sync'd to step
+  if( p->esi == cmInvalidIdx )
+    return cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The p->esi value must be valid to perform a step operation."); 
+
+  // if the end of the score has been reached
+  if( p->esi + 1 >= p->mp->locN )
+    return cmEofRC;
+    
+  // attempt to match to next location first
+  if( _cmScMatchIsMatch(p->mp->loc + p->esi + 1, pitch) )
+  {
+    locIdx = p->esi + 1;
+  }
+  else
+  {
+    // 
+    for(i=2; i<p->stepCnt; ++i)
+    {
+      // go forward 
+      if( p->esi+i < p->mp->locN && _cmScMatchIsMatch(p->mp->loc + p->esi + i, pitch) )
+      {
+        locIdx = p->esi + i;
+        break;
+      }
+
+      // go backward
+      if( p->esi >= (i-1)  && _cmScMatchIsMatch(p->mp->loc + p->esi - (i-1), pitch) )
+      {
+        locIdx = p->esi - (i-1);
+        break;
+      }
+    }
+  }
+
+  p->midiBuf[ p->mn-1 ].locIdx = locIdx;
+
+  if( locIdx == cmInvalidIdx )
+    ++p->missCnt;
+  else
+  {
+    p->missCnt = 0;
+    p->esi = locIdx;
+  }
+
+  // store the result
+  _cmScMatcherStoreResult(p, locIdx,  locIdx!=cmInvalidIdx, p->midiBuf + p->mn - 1);
+
+
+  if( p->missCnt >= p->maxMissCnt )
+  {
+    unsigned begScanLocIdx = p->esi > p->mn ? p->esi - p->mn : 0;
+    p->s_opt               = DBL_MAX;
+    unsigned bsi           = cmScMatcherScan(p,begScanLocIdx,p->mn*2);
+    ++p->scanCnt;
+
+    // if the scan failed find a match
+    if( bsi == cmInvalidIdx )
+      return cmCtxRtCondition( &p->obj, cmSubSysFailRC, "Scan resync. failed."); 
+
+  }
+
+  return cmOkRC;
+
+}
+
+void cmScMatcherPrintPath( cmScMatcher* p )
+{
+  unsigned pitchV[ p->mn ];
+  unsigned mniV[ p->mn ];
+  unsigned i;
+
+  for(i=0; i<p->mn; ++i)
+  {
+    pitchV[i] = p->midiBuf[i].pitch;
+    mniV[i]   = p->midiBuf[i].mni;
+  }
+
+  _cmScMatchPrintPath(p->mp, p->mp->p_opt, p->begSyncLocIdx, pitchV, mniV );
+}
+
+
+cmRC_t     cmScMatcherExec(  cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
+{
+  bool   fl = p->mbi > 0;
+  cmRC_t rc = cmOkRC;
+
+  // update the MIDI buffer with the incoming note
+  cmScMatcherInputMidi(p,smpIdx,status,d0,d1);
+
+  // if the MIDI buffer transitioned to full then perform an initial scan sync.
+  if( fl && p->mbi == 0 )
+  {
+    if( (p->begSyncLocIdx = cmScMatcherScan(p,0,cmInvalidCnt)) == cmInvalidIdx )
+      rc = cmInvalidArgRC; // signal init. scan sync. fail
+    else
+    {
+      //cmScMatcherPrintPath(p);
+    }
+  }
+  else
+  {
+    // if the MIDI buffer is full then perform a step sync.
+    if( !fl && p->mbi == 0 ) 
+      rc = cmScMatcherStep(p);
+  }
+
+  return rc;
+
+}
+
+
+
+double cmScMatcherFMeas( cmScMatcher* p )
+{
+  unsigned bli       = p->mp->locN;
+  unsigned eli       = 0;
+  unsigned scNoteCnt = 0;       // total count of score notes
+  unsigned matchCnt  = 0;       // count of matched notes       (true positives)
+  unsigned wrongCnt  = 0;       // count of incorrect notes     (false positives)
+  unsigned missCnt   = 0;       // count of missed score notes  (false negatives)
+  unsigned i;
+
+  for(i=0; i<p->ri; ++i)
+    if( p->res[i].locIdx != cmInvalidIdx )
+    {
+      bli = cmMin(bli,p->res[i].locIdx);
+      eli = cmMax(eli,p->res[i].locIdx);
+      
+      if( p->res[i].tpFl )
+        ++matchCnt;
+
+      if( p->res[i].fpFl )
+        ++wrongCnt;
+    }
+
+  scNoteCnt = eli - bli + 1;
+  missCnt   = scNoteCnt - matchCnt;
+
+  double prec = (double)2.0 * matchCnt / (matchCnt + wrongCnt);
+  double rcal = (double)2.0 * matchCnt / (matchCnt + missCnt);
+  double fmeas = prec * rcal / (prec + rcal);
+
+  //printf("total:%i match:%i wrong:%i miss:%i\n",scNoteCnt,matchCnt,wrongCnt,missCnt);
+
+  return fmeas;
+}
 
 //=======================================================================================================================
 
@@ -1854,11 +2850,14 @@ unsigned cmScAlignScan( cmScAlign* p, unsigned scanCnt )
   // 1) Set p->esi to the score location index of the last MIDI note
   // which has a positive match with the score and assign
   // the internal score index to cp->locIdx.
+  //
   // 2) Set cmScAlignPath_t.locIdx - index into p->loc[] associated
   // with each path element that is a 'substitute' or an 'insert'.
+  //
   // 3) Set p->missCnt: the count of trailing non-positive matches.
   // p->missCnt is eventually used in cmScAlignStep() to track the number
   // of consecutive trailing missed notes.
+  //
   cmScAlignPath_t* cp = p->p_opt;
   unsigned          i = bsi;
 
@@ -2464,7 +3463,7 @@ double _cmScAlignPrintResult( cmScAlign* p )
 }
 
 
-cmRC_t cmScAlignScanToTimeLineEvent( cmScAlign* p, cmTlH_t tlH, cmTlObj_t* top, unsigned endSmpIdx )
+cmRC_t cmScAlignScanToTimeLineEvent( cmScMatcher* p, cmTlH_t tlH, cmTlObj_t* top, unsigned endSmpIdx )
 {
   assert( top != NULL );
   cmTlMidiEvt_t* mep = NULL;
@@ -2482,7 +3481,7 @@ cmRC_t cmScAlignScanToTimeLineEvent( cmScAlign* p, cmTlH_t tlH, cmTlObj_t* top, 
     // if the time line MIDI msg a note-on
     if( mep->msg->status == kNoteOnMdId )
     {
-      rc = cmScAlignExec(p, mep->obj.seqSmpIdx, mep->msg->status, mep->msg->u.chMsgPtr->d0, mep->msg->u.chMsgPtr->d1 );
+      rc = cmScMatcherExec(p, mep->obj.seqSmpIdx, mep->msg->status, mep->msg->u.chMsgPtr->d0, mep->msg->u.chMsgPtr->d1 );
 
       switch( rc )
       {
@@ -2521,7 +3520,7 @@ void       cmScAlignScanMarkers(  cmRpt_t* rpt, cmTlH_t tlH, cmScH_t scH )
   unsigned   scWndN      = 10;
   unsigned   markN       = 291;
   cmCtx*     ctx         = cmCtxAlloc(NULL, rpt, cmLHeapNullHandle, cmSymTblNullHandle );
-  cmScAlign* p           = cmScAlignAlloc(ctx,NULL,cmScAlignCb,NULL,srate,scH,midiN,scWndN);
+  cmScMatcher* p         = cmScMatcherAlloc(ctx,NULL,srate,scH,scWndN,midiN);
   unsigned   markCharCnt = 31;
   cmChar_t   markText[ markCharCnt+1 ];
 
@@ -2530,8 +3529,11 @@ void       cmScAlignScanMarkers(  cmRpt_t* rpt, cmTlH_t tlH, cmScH_t scH )
   unsigned   initFailCnt  = 0;
   unsigned   otherFailCnt = 0;
   unsigned   scoreFailCnt = 0;
+  cmTimeSpec_t t0,t1;
 
-  p->cbArg = p; // set the callback arg. 
+  cmTimeGet(&t0);
+
+  //p->cbArg = p; // set the callback arg. 
   
   // for each marker
   for(i=0; i<markN; ++i)
@@ -2555,7 +3557,7 @@ void       cmScAlignScanMarkers(  cmRpt_t* rpt, cmTlH_t tlH, cmScH_t scH )
     }
 
     // reset the score follower to the beginnig of the score
-    cmScAlignReset(p,0);
+    cmScMatcherReset(p);
 
     ++candCnt;
 
@@ -2597,13 +3599,13 @@ void       cmScAlignScanMarkers(  cmRpt_t* rpt, cmTlH_t tlH, cmScH_t scH )
 
     if( pfl )
     {      
-      //_cmScAlignPrintMtx(p);
-      printf("mark:%i scans:%4i loc:%4i bar:%4i score:%5.2f miss:%i text:'%s'\n",i,p->scanCnt,p->begSyncLocIdx,p->loc[p->begSyncLocIdx].barNumb,p->s_opt,p->missCnt,mp->text);
-      //_cmScAlignPrintPath(p, p->p_opt, bsi );
+      // kpl printf("mark:%i scans:%4i loc:%4i bar:%4i score:%5.2f miss:%i text:'%s'\n",i,p->scanCnt,p->begSyncLocIdx,p->loc[p->begSyncLocIdx].barNumb,p->s_opt,p->missCnt,mp->text);
+      double fmeas = cmScMatcherFMeas(p);
+      printf("mark:%i midi:%i loc:%i bar:%i cost:%f f-meas:%f text:%s\n",i,p->mni,p->begSyncLocIdx,p->mp->loc[p->begSyncLocIdx].barNumb,p->s_opt,fmeas,mp->text);
 
       //printf("mark:%i scans:%i midi:%i text:'%s'\n",i,p->scanCnt,p->mni,mp->text);
 
-      if( _cmScAlignPrintResult(p) < scoreThresh )
+      if( fmeas < scoreThresh )
         ++scoreFailCnt;
 
     }
@@ -2617,6 +3619,9 @@ void       cmScAlignScanMarkers(  cmRpt_t* rpt, cmTlH_t tlH, cmScH_t scH )
 
   printf("cand:%i fail:%i - init:%i score:%i other:%i\n\n",candCnt,initFailCnt+scoreFailCnt+otherFailCnt,initFailCnt,scoreFailCnt,otherFailCnt);
 
-  cmScAlignFree(&p);  
+  cmTimeGet(&t1);
+  printf("elapsed:%f\n", (double)cmTimeElapsedMicros(&t0,&t1)/1000000.0 );
+
+  cmScMatcherFree(&p);  
   cmCtxFree(&ctx);
 }

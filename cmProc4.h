@@ -196,7 +196,156 @@ void ed_free(ed_r* r);
 
 // Main test function.
 void ed_main();
+
 //=======================================================================================================================
+enum 
+{ 
+  kSmMinIdx, 
+  kSmSubIdx, // 'substitute' - may or may not match
+  kSmDelIdx, // 'delete'     - delete a MIDI note 
+  kSmInsIdx, // 'insert'     - insert a space in the score 
+  kSmCnt 
+};
+
+enum
+{
+  kSmMatchFl = 0x01,
+  kSmTransFl = 0x02
+};
+
+// Dynamic Programming (DP) matrix element
+typedef struct
+{
+  unsigned v[kSmCnt]; // 
+  unsigned flags;
+} cmScMatchVal_t;
+
+// List record used to track a path through the DP matrix p->m[,]
+typedef struct cmScMatchPath_str
+{
+  unsigned                  code;
+  unsigned                  ri;
+  unsigned                  ci;
+  unsigned                  flags;
+  unsigned                  locIdx;
+  struct cmScMatchPath_str* next;
+} cmScMatchPath_t;
+
+typedef struct cmScMatchEvt_str
+{
+  unsigned pitch;
+} cmScMatchEvt_t;
+
+// Score location record. 
+typedef struct
+{
+  unsigned        evtCnt;       // 
+  cmScMatchEvt_t* evtV;         // evtV[evtCnt]
+  unsigned        scLocIdx;     // scH score location index
+  int             barNumb;      // bar number of this location
+} cmScMatchLoc_t;
+
+typedef struct
+{
+  cmObj            obj;
+  cmScH_t          scH;         //
+  unsigned         locN;        //
+  cmScMatchLoc_t*  loc;         // loc[locN] 
+  unsigned         mrn;         // max row count (midi)
+  unsigned         rn;          // cur row count
+  unsigned         mcn;         // max column count (score)
+  unsigned         cn;          // cur column count
+  unsigned         mmn;         // max length of midiBuf[]    (mrn-1)
+  unsigned         msn;         // max length of score window (mcn-1)
+  cmScMatchVal_t*  m;           // m[mrn,mcn]  DP matrix
+  unsigned         pn;          // mrn+mcn
+  cmScMatchPath_t* p_mem;       // pmem[ 2*pn ];
+  cmScMatchPath_t* p_avl;       // available path record linked list
+  cmScMatchPath_t* p_cur;       // current path linked list
+  cmScMatchPath_t* p_opt;       // p_opt[pn] current best alignment 
+  double           opt_cost;    // p_opt cost set by cmScMatchExec() 
+} cmScMatch;
+
+cmScMatch* cmScMatchAlloc( cmCtx* c, cmScMatch* p, cmScH_t scH, unsigned maxScWndN, unsigned maxMidiWndN );
+cmRC_t     cmScMatchFree(  cmScMatch** pp );
+cmRC_t     cmScMatchInit(  cmScMatch* p, cmScH_t scH, unsigned maxScWndN, unsigned maxMidiWndN );
+cmRC_t     cmScMatchFinal( cmScMatch* p );
+
+// Returns cmEofRC if scLocIdx + locN > p->locN - note that this is not necessarily an error.
+// The optimal path p_opt[] will only be updated if the edit cost is less than min_cost.
+// Set min_cost to DBL_MAX to force p_opt[] to be updated.
+cmRC_t     cmScMatchExec(  cmScMatch* p, unsigned scLocIdx, unsigned locN, const unsigned* midiPitchV, unsigned midiPitchN, double min_cost );
+
+ //=======================================================================================================================
+
+ typedef struct
+ {
+   unsigned locIdx; // location assoc'd with this MIDI evt (cmInvalidIdx if not a positive-match)
+   unsigned cbCnt;  // count of times this event has been sent via the callback
+   unsigned mni;    // unique identifier for this event since previous call to cmScAlignReset().
+   unsigned smpIdx; // time stamp of this event
+   unsigned pitch;  // MIDI note pitch
+   unsigned vel;    //  "    "   velocity
+ } cmScMatcherMidi_t;
+
+ typedef struct
+ {
+   unsigned locIdx;
+   unsigned mni;
+   unsigned pitch;
+   unsigned vel;
+   bool     tpFl;   // true positive     
+   bool     fpFl;   // false positive
+ } cmScMatcherResult_t;
+
+ typedef struct
+ {
+   cmObj              obj;
+   cmScMatch*         mp;
+   unsigned           mn;
+   cmScMatcherMidi_t* midiBuf;  // midiBuf[mn]
+
+   cmScMatcherResult_t* res;    // res[rn]
+   unsigned             rn;     // length of res[]
+   unsigned             ri;     // next avail res[] recd.
+
+   double             s_opt;          // 
+   unsigned           missCnt;        // count of consecutive trailing non-matches
+   unsigned           esi;            // index into loc[] of the last positive match. 
+   unsigned           mni;            // track the count of MIDI events since the last call to cmScMatcherReset()
+   unsigned           mbi;            // index of oldest MIDI event in midiBuf[]; 0 when the buffer is full.
+   unsigned           begSyncLocIdx;  // start of score window, in mp->loc[], of best match in previous scan
+   unsigned           stepCnt;        // count of forward/backward score loc's to examine for a match during cmScMatcherStep().
+   unsigned           maxMissCnt;     // max. number of consecutive non-matches during step prior to executing a scan.
+   unsigned           scanCnt;        // count of time scan was executed inside cmScMatcherStep()
+} cmScMatcher;
+
+
+cmScMatcher* cmScMatcherAlloc( cmCtx* c, cmScMatcher* p, double srate, cmScH_t scH, unsigned scWndN, unsigned midiWndN );
+cmRC_t       cmScMatcherFree(  cmScMatcher** pp );
+cmRC_t       cmScMatcherInit(  cmScMatcher* p, double srate, cmScH_t scH, unsigned scWndN, unsigned midiWndN );
+cmRC_t       cmScMatcherFinal( cmScMatcher* p );
+void         cmScMatcherReset( cmScMatcher* p );
+bool         cmScMatcherInputMidi(  cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
+
+// Slide a score window scanCnt times, beginning at 'bsi',
+// looking for the best match to p->midiBuf[].  The score window
+// contain scWndN (p->mp->mcn-1) score locations.
+// Returns the index into p->mp->loc[] of the start of the best
+// match score window. The score associated
+// with this match is stored in s_opt.
+unsigned   cmScMatcherScan( cmScMatcher* p, unsigned bsi, unsigned scanCnt );
+
+// Step forward/back by p->stepCnt from p->esi.
+// p->esi must therefore be valid prior to calling this function.
+// If more than p->maxMissCnt consecutive MIDI events are 
+// missed then automatically run cmScAlignScan().
+// Return cmEofRC if the end of the score is encountered.
+// Return cmSubSysFailRC if an internal scan resync. failed.
+cmRC_t     cmScMatcherStep(  cmScMatcher* p );
+
+cmRC_t     cmScMatcherExec(  cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
+
 
  
 //=======================================================================================================================
@@ -335,7 +484,7 @@ unsigned   cmScAlignScan( cmScAlign* p, unsigned scanCnt );
 // Return cmSubSysFailRC if an internal scan resync. failed.
 cmRC_t     cmScAlignStep(  cmScAlign* p );
 
-unsigned   cmScAlignScanToTimeLineEvent( cmScAlign* p, cmTlH_t tlH, cmTlObj_t* top, unsigned endSmpIdx );
+unsigned   cmScAlignScanToTimeLineEvent( cmScMatcher* p, cmTlH_t tlH, cmTlObj_t* top, unsigned endSmpIdx );
 
 // Given a score, a time-line, and a marker on the time line scan the
 // entire score looking for the best match between the first 'midiN'
