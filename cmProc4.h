@@ -200,7 +200,7 @@ void ed_main();
 //=======================================================================================================================
 enum 
 { 
-  kSmMinIdx, 
+  kSmMinIdx, // 
   kSmSubIdx, // 'substitute' - may or may not match
   kSmDelIdx, // 'delete'     - delete a MIDI note 
   kSmInsIdx, // 'insert'     - insert a space in the score 
@@ -220,24 +220,25 @@ enum
 // Dynamic Programming (DP) matrix element
 typedef struct
 {
-  unsigned v[kSmCnt]; // 
-  unsigned flags;
+  unsigned v[kSmCnt]; // cost for each operation 
+  unsigned flags;     // cmSmMatchFl | cmSmTransFl
 } cmScMatchVal_t;
 
 // List record used to track a path through the DP matrix p->m[,]
 typedef struct cmScMatchPath_str
 {
-  unsigned                  code;
-  unsigned                  ri;
-  unsigned                  ci;
-  unsigned                  flags;
-  unsigned                  locIdx;
-  struct cmScMatchPath_str* next;
+  unsigned                  code;    // kSmXXXIdx
+  unsigned                  ri;      // matrix row index
+  unsigned                  ci;      // matrix col index
+  unsigned                  flags;   // cmSmMatchFl | cmSmTransFl
+  unsigned                  locIdx;  // p->loc index or cmInvalidIdx
+  struct cmScMatchPath_str* next;    //
 } cmScMatchPath_t;
 
 typedef struct cmScMatchEvt_str
 {
-  unsigned pitch;
+  unsigned pitch;     // 
+  unsigned scEvtIdx;  // scScore event index
 } cmScMatchEvt_t;
 
 // Score location record. 
@@ -251,8 +252,8 @@ typedef struct
 
 typedef struct
 {
-  cmObj            obj;
-  cmScH_t          scH;         //
+  cmObj            obj;         // 
+  cmScH_t          scH;         // cmScore handle
   unsigned         locN;        //
   cmScMatchLoc_t*  loc;         // loc[locN] 
   unsigned         mrn;         // max row count (midi)
@@ -275,17 +276,17 @@ cmRC_t     cmScMatchFree(  cmScMatch** pp );
 cmRC_t     cmScMatchInit(  cmScMatch* p, cmScH_t scH, unsigned maxScWndN, unsigned maxMidiWndN );
 cmRC_t     cmScMatchFinal( cmScMatch* p );
 
-// Returns cmEofRC if scLocIdx + locN > p->locN - note that this is not necessarily an error.
+// Returns cmEofRC if locIdx + locN > p->locN - note that this is not necessarily an error.
 // The optimal path p_opt[] will only be updated if the edit cost is less than min_cost.
 // Set min_cost to DBL_MAX to force p_opt[] to be updated.
-cmRC_t     cmScMatchExec(  cmScMatch* p, unsigned scLocIdx, unsigned locN, const unsigned* midiPitchV, unsigned midiPitchN, double min_cost );
+cmRC_t     cmScMatchExec(  cmScMatch* p, unsigned locIdx, unsigned locN, const unsigned* midiPitchV, unsigned midiPitchN, double min_cost );
 
  //=======================================================================================================================
 
  typedef struct
  {
    unsigned locIdx; // location assoc'd with this MIDI evt (cmInvalidIdx if not a positive-match)
-   unsigned cbCnt;  // count of times this event has been sent via the callback
+   //unsigned cbCnt;  // count of times this event has been sent via the callback
    unsigned mni;    // unique identifier for this event since previous call to cmScAlignReset().
    unsigned smpIdx; // time stamp of this event
    unsigned pitch;  // MIDI note pitch
@@ -296,32 +297,39 @@ cmRC_t     cmScMatchExec(  cmScMatch* p, unsigned scLocIdx, unsigned locN, const
  {
    unsigned locIdx;
    unsigned mni;
+   unsigned smpIdx;
    unsigned pitch;
    unsigned vel;
    unsigned flags;
  } cmScMatcherResult_t;
 
- typedef struct
+struct cmScMatcher_str;
+typedef void (*cmScMatcherCb_t)( struct cmScMatcher_str* p, void* arg, cmScMatcherResult_t* rp );
+
+ typedef struct cmScMatcher_str
  {
-   cmObj              obj;
-   cmScMatch*         mp;
-   unsigned           mn;
-   cmScMatcherMidi_t* midiBuf;  // midiBuf[mn]
+   cmObj                obj;
+   cmScMatcherCb_t      cbFunc;
+   void*                cbArg;
+   cmScMatch*           mp;
+   unsigned             mn;
+   cmScMatcherMidi_t*   midiBuf;  // midiBuf[mn]
 
    cmScMatcherResult_t* res;    // res[rn]
    unsigned             rn;     // length of res[]
    unsigned             ri;     // next avail res[] recd.
 
-   double             s_opt;          // 
-   unsigned           missCnt;        // count of consecutive trailing non-matches
-   unsigned           esi;            // index into loc[] of the last positive match. 
-   unsigned           mni;            // track the count of MIDI events since the last call to cmScMatcherReset()
-   unsigned           mbi;            // index of oldest MIDI event in midiBuf[]; 0 when the buffer is full.
-   unsigned           begSyncLocIdx;  // start of score window, in mp->loc[], of best match in previous scan
-   unsigned           stepCnt;        // count of forward/backward score loc's to examine for a match during cmScMatcherStep().
-   unsigned           maxMissCnt;     // max. number of consecutive non-matches during step prior to executing a scan.
-   unsigned           scanCnt;        // count of time scan was executed inside cmScMatcherStep()
+   double               s_opt;          // 
+   unsigned             missCnt;        // count of consecutive trailing non-matches
+   unsigned             esi;            // index into loc[] of the last positive match. 
+   unsigned             mni;            // track the count of MIDI events since the last call to cmScMatcherReset()
+   unsigned             mbi;            // index of oldest MIDI event in midiBuf[]; 0 when the buffer is full.
+   unsigned             begSyncLocIdx;  // start of score window, in mp->loc[], of best match in previous scan
+   unsigned             stepCnt;        // count of forward/backward score loc's to examine for a match during cmScMatcherStep().
+   unsigned             maxMissCnt;     // max. number of consecutive non-matches during step prior to executing a scan.
+   unsigned             scanCnt;        // count of time scan was executed inside cmScMatcherStep()
 } cmScMatcher;
+
 
 
 cmScMatcher* cmScMatcherAlloc( cmCtx* c, cmScMatcher* p, double srate, cmScH_t scH, unsigned scWndN, unsigned midiWndN );
@@ -329,7 +337,7 @@ cmRC_t       cmScMatcherFree(  cmScMatcher** pp );
 cmRC_t       cmScMatcherInit(  cmScMatcher* p, double srate, cmScH_t scH, unsigned scWndN, unsigned midiWndN );
 cmRC_t       cmScMatcherFinal( cmScMatcher* p );
 void         cmScMatcherReset( cmScMatcher* p );
-bool         cmScMatcherInputMidi(  cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
+bool         cmScMatcherInputMidi( cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
 
 // Slide a score window scanCnt times, beginning at 'bsi',
 // looking for the best match to p->midiBuf[].  The score window
@@ -350,142 +358,57 @@ cmRC_t     cmScMatcherStep(  cmScMatcher* p );
 cmRC_t     cmScMatcherExec(  cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
 
 
- 
 //=======================================================================================================================
-enum 
-{ 
-  kSaMinIdx, 
-  kSaSubIdx, // 'substitute' - may or may not match
-  kSaDelIdx, // 'delete'     - delete a MIDI note 
-  kSaInsIdx, // 'insert'     - insert a space in the score 
-  kSaCnt 
-};
 
-// Dynamic Programming (DP) matrix element
 typedef struct
 {
-  unsigned v[kSaCnt]; // 
-  bool     matchFl;   // if this is a substitute; is it also a match?
-  bool     transFl;   // if this is a substitute; is this the second element in a reversed pair?
-} cmScAlignVal_t;
-
-// List record used to track a path through the DP matrix p->m[,]
-typedef struct cmScAlignPath_str
-{
-  unsigned                  code;
-  unsigned                  ri;
-  unsigned                  ci;
-  bool                      matchFl;
-  bool                      transFl;
-  unsigned                  locIdx;
-  struct cmScAlignPath_str* next;
-} cmScAlignPath_t;
-
-// Score note event record
-typedef struct
-{
+  unsigned mni;
+  unsigned scEvtIdx;
+  unsigned locIdx;
+  unsigned smpIdx;
   unsigned pitch;
-} cmScAlignScEvt_t;
+  unsigned vel;
+} cmScMeasMidi_t;
 
-// Score location record. 
-typedef struct
-{
-  unsigned          evtCnt;         // 
-  cmScAlignScEvt_t* evtV;           // evtV[evtCnt]
-  unsigned          scLocIdx;       // scH score location index
-  int               barNumb;        // bar number of this location
-} cmScAlignLoc_t;
 
 typedef struct
 {
-  unsigned locIdx; // location assoc'd with this MIDI evt (cmInvalidIdx if not a positive-match)
-  unsigned cbCnt;  // count of times this event has been sent via the callback
-  unsigned mni;    // unique identifier for this event since previous call to cmScAlignReset().
-  unsigned smpIdx; // time stamp of this event
-  unsigned pitch;  // MIDI note pitch
-  unsigned vel;    //  "    "   velocity
-} cmScAlignMidiEvt_t;
+  unsigned      bsei;  // begin score event index  
+  unsigned      esei;  // end   score event index
+
+  unsigned      bsli;  //
+  unsigned      esli;  // end score loc index
+
+  unsigned      bli;   //
+  unsigned      eli;   //
+
+} cmScMeasSet_t;
 
 typedef struct
 {
-  unsigned locIdx;    // loc[] sync. location    
-  unsigned smpIdx;    // 
-  unsigned mni;       // MIDI event unique index  
-  unsigned pitch;     // MIDI event pitch which may not match the score event pitch
-  unsigned vel;       //  "     "   velocity
-  bool     matchFl;
-  bool     transFl;
-  bool     foundFl; 
-} cmScAlignResult_t;
+  cmObj            obj;
+  cmScMatch*       mp;
+  unsigned         mi;       // next avail recd in midiBuf[]
+  unsigned         mn;       // length of of midiBuf[]
+  cmScMeasMidi_t*  midiBuf;  // midiBuf[mn]
 
-// 
-typedef void (*cmScAlignCb_t)( void* cbArg, unsigned scLocIdx, unsigned mni, unsigned pitch, unsigned vel );
+  unsigned         sn;       // length of set[]
+  cmScMeasSet_t*   set;      // set[sn]  
 
-typedef struct
-{
-  cmObj               obj;
-  cmScAlignCb_t       cbFunc;   // 
-  void*               cbArg;    // 
-  cmScH_t             scH;      // 
-  double              srate;    // 
-  unsigned            locN;     // length of loc[]
-  cmScAlignLoc_t*     loc;      // loc[locN] score array
-  unsigned            rn;       // length of midiBuf[]    (mn+1)
-  unsigned            cn;       // length of score window (scWndN+1)
-  unsigned            mn;       // length of  midiBuf[] (rn-1)
-  cmScAlignMidiEvt_t* midiBuf;  // midiBuf[ mn ]
-  unsigned            mbi;      // index of first element in midiBuf[] - this is required because the MIDI buf fills from the end to the beginning
-  unsigned            mni;      // index of event in midiBuf[p->mn] - increments on each note inserted into midiBuf[] - zeroed by cmScAlignReset().
+  unsigned         nsi;       // next set index
+  unsigned         nsli;      // next score location index
+  
 
-  cmScAlignVal_t*     m;        // m[rn,cn]   
-  unsigned            pn;       // rn+cn
-  cmScAlignPath_t*    p_mem;    // pmem[ 2*pn ];
-  cmScAlignPath_t*    p_avl;    // available path record linked list
-  cmScAlignPath_t*    p_cur;    // current path linked list
-  cmScAlignPath_t*    p_opt;    // p_opt[pn] current best alignment 
-  double              s_opt;    // score of the current best alignment  
-  unsigned            esi;      // loc[] index of latest positive match
-  unsigned            missCnt;  // count of consecutive trailing MIDI events without positive matches
-  unsigned            scanCnt;
+} cmScMeas;
 
-  bool                printFl;
-
-  unsigned            begScanLocIdx; // begin the search at this score locations scWnd[begScanLocIdx:begScanLocIdx+p->cn-1]
-  unsigned            begSyncLocIdx; // initial sync location
-
-  unsigned            resN;  // count of records in res[] == 2*cmScoreEvtCount()
-  cmScAlignResult_t*  res;   // res[resN]
-  unsigned            ri;    // 
-
-  int                 stepCnt;    // count of loc[] locations to step ahead/back during a cmScAlignStep() operation.
-  int                 maxStepMissCnt;  // max. consecutive trailing non-positive matches before a scan takes place.
+cmScMeas* cmScMeasAlloc( cmCtx* c, cmScMeas* p, cmScH_t scH );
+cmRC_t    cmScMeasFree(  cmScMeas** pp );
+cmRC_t    cmScMeasInit(  cmScMeas* p, cmScH_t scH );
+cmRC_t    cmScMeasFinal( cmScMeas* p );
+cmRC_t    cmScMeasExec(  cmScMeas* p, unsigned mni,  unsigned locIdx, unsigned smpIdx, unsigned pitch, unsigned vel );
 
 
-} cmScAlign;
-
-cmScAlign* cmScAlignAlloc( cmCtx* ctx, cmScAlign* p, cmScAlignCb_t cbFunc, void* cbArg, cmReal_t srate, cmScH_t scH, unsigned midiN, unsigned scWndN );
-cmRC_t     cmScAlignFree( cmScAlign** pp );
-cmRC_t     cmScAlignInit( cmScAlign* p, cmScAlignCb_t cbFunc, void* cbArg, cmReal_t srate, cmScH_t scH, unsigned midiN, unsigned scWndN );
-cmRC_t     cmScAlignFinal( cmScAlign* p );
-void       cmScAlignReset( cmScAlign* p, unsigned begScanLocIdx );
-
-cmRC_t     cmScAlignExec(  cmScAlign* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
-
-bool       cmScAlignInputMidi(  cmScAlign* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
-
-// Scan from p->begScanLocIdx to the end of the score looking
-// for the best match to p->midiBuf[].
-// Returns the score location index which best matches the 
-// first note p->midiBuf[]. The score associated
-// with this match is stored in s_opt.
-unsigned   cmScAlignScan( cmScAlign* p, unsigned scanCnt );
-
-// Step forward/back by p->stepCnt from p->esi.
-// If more than p->maxStepMissCnt consecutive MIDI events are 
-// missed then automatically run cmScAlignScan().
-// Return cmEofRC if the end of the score is encountered.
-// Return cmSubSysFailRC if an internal scan resync. failed.
-cmRC_t     cmScAlignStep(  cmScAlign* p );
+//=======================================================================================================================
 
 unsigned   cmScAlignScanToTimeLineEvent( cmScMatcher* p, cmTlH_t tlH, cmTlObj_t* top, unsigned endSmpIdx );
 
@@ -493,42 +416,6 @@ unsigned   cmScAlignScanToTimeLineEvent( cmScMatcher* p, cmTlH_t tlH, cmTlObj_t*
 // entire score looking for the best match between the first 'midiN'
 // notes in each marker region and the score. 
 void       cmScAlignScanMarkers(  cmRpt_t* rpt, cmTlH_t tlH, cmScH_t scH );
-
-//=======================================================================================================================
-
-typedef struct
-{
-  unsigned mni;
-  unsigned locIdx;
-  unsigned pitch;
-  unsigned vel;
-  unsigned smpIdx;
-} cmScMeasMidi_t;
-
-typedef struct
-{
-  cmScoreSet_t* set;  // A pointer to defining score set
-  unsigned      bli;  // Begin index into sap->loc[].
-  unsigned      eli;  // End index into sap->loc[].
-  unsigned      bmi;  // Begin index into midi[].
-  unsigned      emi;  // End index into midi[].
-  double*       val;  // val[sap->eleCnt]  
-} cmScMeasSet_t;
-
-typedef struct
-{
-  cmObj            obj;
-  cmScAlign*       sap;
-  unsigned         mn;
-  cmScMeasMidi_t*  midi;
-} cmScMeas;
-
-cmScMeas* cmScMeasAlloc( cmCtx* c, cmScMeas* p, double srate, cmScH_t scH );
-cmRC_t    cmScMeasFree(  cmScMeas** pp );
-cmRC_t    cmScMeasInit(  cmScMeas* p, double srate, cmScH_t scH );
-cmRC_t    cmScMeasFinal( cmScMeas* p );
-cmRC_t    cmScMeasExec( cmScMeas* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1, unsigned scLocIdx );
-
 
 #ifdef __cplusplus
 }
