@@ -61,12 +61,12 @@ extern "C" {
   // The score can be divided into arbitrary non-overlapping sections.
   typedef struct
   {
-    const cmChar_t*         label;      // section label
-    unsigned                index;      // index of this record in the internal section array
-    struct cmScoreLoc_str*  locPtr;     // location where this section starts
-    unsigned                begEvtIndex;   // score element index where this section starts    
-    unsigned                setCnt;     // Count of elements in setArray[]
-    struct cmScoreSet_str** setArray;   // Ptrs to sets which are applied to this section.
+    const cmChar_t*         label;             // section label
+    unsigned                index;             // index of this record in the internal section array
+    struct cmScoreLoc_str*  locPtr;            // location where this section starts
+    unsigned                begEvtIndex;       // score element index where this section starts    
+    unsigned                setCnt;            // Count of elements in setArray[]
+    struct cmScoreSet_str** setArray;          // Ptrs to sets which are applied to this section.
     double                  vars[ kScVarCnt ]; // Set to DBL_MAX by default.
   } cmScoreSection_t;
 
@@ -153,6 +153,9 @@ extern "C" {
   unsigned      cmScoreLocCount( cmScH_t h );
   cmScoreLoc_t* cmScoreLoc( cmScH_t h, unsigned idx );
   void          cmScorePrintLoc( cmScH_t h );
+
+  // Return the count of sets.
+  unsigned      cmScoreSetCount( cmScH_t h );
 
   // Make callbacks for all events in the score. The callbacks
   // contain cmScMsg_t records serialized as a byte stream.

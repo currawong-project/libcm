@@ -1330,6 +1330,12 @@ void cmScorePrintLoc( cmScH_t h )
   }
 }
 
+unsigned cmScoreSetCount( cmScH_t h )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  return p->setCnt;
+}
+
 cmScRC_t      cmScoreSeqNotify( cmScH_t h )
 {
   cmScRC_t  rc = kOkScRC;
