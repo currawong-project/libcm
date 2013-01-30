@@ -131,11 +131,11 @@ typedef struct
 
 typedef struct ed_path_str
 {
-  unsigned     code;
-  unsigned     ri;
-  unsigned     ci;
-  bool         matchFl;
-  bool         transFl;
+  unsigned            code;
+  unsigned            ri;
+  unsigned            ci;
+  bool                matchFl;
+  bool                transFl;
   struct ed_path_str* next;
 } ed_path;
 
@@ -222,17 +222,19 @@ typedef struct
 {
   unsigned v[kSmCnt]; // cost for each operation 
   unsigned flags;     // cmSmMatchFl | cmSmTransFl
+  unsigned scEvtIdx; 
 } cmScMatchVal_t;
 
 // List record used to track a path through the DP matrix p->m[,]
 typedef struct cmScMatchPath_str
 {
-  unsigned                  code;    // kSmXXXIdx
-  unsigned                  ri;      // matrix row index
-  unsigned                  ci;      // matrix col index
-  unsigned                  flags;   // cmSmMatchFl | cmSmTransFl
-  unsigned                  locIdx;  // p->loc index or cmInvalidIdx
-  struct cmScMatchPath_str* next;    //
+  unsigned                  code;     // kSmXXXIdx
+  unsigned                  ri;       // matrix row index
+  unsigned                  ci;       // matrix col index
+  unsigned                  flags;    // cmSmMatchFl | cmSmTransFl
+  unsigned                  locIdx;   // p->loc index or cmInvalidIdx
+  unsigned                  scEvtIdx; // scScore event index
+  struct cmScMatchPath_str* next;     //
 } cmScMatchPath_t;
 
 typedef struct cmScMatchEvt_str
@@ -250,52 +252,70 @@ typedef struct
   int             barNumb;      // bar number of this location
 } cmScMatchLoc_t;
 
+ typedef struct
+ {
+   unsigned mni;    // unique identifier for this MIDI note - used to recognize when the cmScMatcher backtracks.
+   unsigned smpIdx; // time stamp of this event
+   unsigned pitch;  // MIDI note pitch
+   unsigned vel;    //  "    "   velocity
+   unsigned locIdx; // location assoc'd with this MIDI evt (cmInvalidIdx if not a  matching or non-matching 'substitute')
+   unsigned scEvtIdx; // cmScore event index assoc'd with this event
+ } cmScMatchMidi_t;
+
 typedef struct
 {
   cmObj            obj;         // 
   cmScH_t          scH;         // cmScore handle
   unsigned         locN;        //
   cmScMatchLoc_t*  loc;         // loc[locN] 
-  unsigned         mrn;         // max row count (midi)
-  unsigned         rn;          // cur row count
-  unsigned         mcn;         // max column count (score)
-  unsigned         cn;          // cur column count
+  unsigned         mrn;         // max m[] row count (midi)
+  unsigned         rn;          // cur m[] row count
+  unsigned         mcn;         // max m[] column count (score)
+  unsigned         cn;          // cur m[] column count
   unsigned         mmn;         // max length of midiBuf[]    (mrn-1)
   unsigned         msn;         // max length of score window (mcn-1)
   cmScMatchVal_t*  m;           // m[mrn,mcn]  DP matrix
   unsigned         pn;          // mrn+mcn
-  cmScMatchPath_t* p_mem;       // pmem[ 2*pn ];
+  cmScMatchPath_t* p_mem;       // pmem[ 2*pn ] - path memory
   cmScMatchPath_t* p_avl;       // available path record linked list
   cmScMatchPath_t* p_cur;       // current path linked list
-  cmScMatchPath_t* p_opt;       // p_opt[pn] current best alignment 
-  double           opt_cost;    // p_opt cost set by cmScMatchExec() 
+  cmScMatchPath_t* p_opt;       // p_opt[pn] - current best alignment as a linked list
+  double           opt_cost;    // last p_opt cost set by cmScMatchExec() 
 } cmScMatch;
+
+/*
+1) This matcher cannot handle multiple instances of the same pitch occuring 
+at the same 'location'.
+
+2) Because each note of a chord is spread out over multiple locations, and 
+there is no way to indicate that a note in the chord is already 'in-use'.  
+If a MIDI note which is part of the chord is repeated, in error, it will 
+apear to be correct (a positive match will be assigned to
+the second (and possible successive notes)). 
+ */
 
 cmScMatch* cmScMatchAlloc( cmCtx* c, cmScMatch* p, cmScH_t scH, unsigned maxScWndN, unsigned maxMidiWndN );
 cmRC_t     cmScMatchFree(  cmScMatch** pp );
 cmRC_t     cmScMatchInit(  cmScMatch* p, cmScH_t scH, unsigned maxScWndN, unsigned maxMidiWndN );
 cmRC_t     cmScMatchFinal( cmScMatch* p );
 
-// Returns cmEofRC if locIdx + locN > p->locN - note that this is not necessarily an error.
-// The optimal path p_opt[] will only be updated if the edit cost is less than min_cost.
-// Set min_cost to DBL_MAX to force p_opt[] to be updated.
-cmRC_t     cmScMatchExec(  cmScMatch* p, unsigned locIdx, unsigned locN, const unsigned* midiPitchV, unsigned midiPitchN, double min_cost );
+// Locate the position in p->loc[locIdx:locIdx+locN-1] which bests 
+// matches midiV[midiN].
+// The result of this function is to update p_opt[] 
+// The optimal path p_opt[] will only be updated if the edit_cost associated 'midiV[midiN]'.
+// with the best match is less than 'min_cost'.
+// Set 'min_cost' to DBL_MAX to force p_opt[] to be updated.
+// Returns cmEofRC if locIdx + locN > p->locN - note that this is not 
+// necessarily an error.
+cmRC_t     cmScMatchExec(  cmScMatch* p, unsigned locIdx, unsigned locN, const cmScMatchMidi_t* midiV, unsigned midiN, double min_cost );
 
  //=======================================================================================================================
 
- typedef struct
- {
-   unsigned locIdx; // location assoc'd with this MIDI evt (cmInvalidIdx if not a positive-match)
-   //unsigned cbCnt;  // count of times this event has been sent via the callback
-   unsigned mni;    // unique identifier for this event since previous call to cmScAlignReset().
-   unsigned smpIdx; // time stamp of this event
-   unsigned pitch;  // MIDI note pitch
-   unsigned vel;    //  "    "   velocity
- } cmScMatcherMidi_t;
 
  typedef struct
  {
    unsigned locIdx;
+   unsigned scEvtIdx;
    unsigned mni;
    unsigned smpIdx;
    unsigned pitch;
@@ -313,7 +333,7 @@ typedef void (*cmScMatcherCb_t)( struct cmScMatcher_str* p, void* arg, cmScMatch
    void*                cbArg;
    cmScMatch*           mp;
    unsigned             mn;
-   cmScMatcherMidi_t*   midiBuf;  // midiBuf[mn]
+   cmScMatchMidi_t*     midiBuf;  // midiBuf[mn]
 
    cmScMatcherResult_t* res;    // res[rn]
    unsigned             rn;     // length of res[]
@@ -362,24 +382,15 @@ cmRC_t     cmScMatcherExec(  cmScMatcher* p, unsigned smpIdx, unsigned status, c
 
 typedef struct
 {
-  unsigned mni;
-  unsigned scEvtIdx;
-  unsigned locIdx;
-  unsigned smpIdx;
-  unsigned pitch;
-  unsigned vel;
-} cmScMeasMidi_t;
+  cmScoreSet_t* sp;    // ptr to this set in the score
 
-
-typedef struct
-{
   unsigned      bsei;  // begin score event index  
   unsigned      esei;  // end   score event index
 
-  unsigned      bsli;  //
+  unsigned      bsli;  // beg score loc index
   unsigned      esli;  // end score loc index
 
-  unsigned      bli;   //
+  unsigned      bli;   // 
   unsigned      eli;   //
 
 } cmScMeasSet_t;
@@ -387,25 +398,42 @@ typedef struct
 typedef struct
 {
   cmObj            obj;
-  cmScMatch*       mp;
-  unsigned         mi;       // next avail recd in midiBuf[]
+  cmScMatch*       mp;       //
+  unsigned         mii;       // next avail recd in midiBuf[]
   unsigned         mn;       // length of of midiBuf[]
-  cmScMeasMidi_t*  midiBuf;  // midiBuf[mn]
+  cmScMatchMidi_t* midiBuf;  // midiBuf[mn]
 
   unsigned         sn;       // length of set[]
   cmScMeasSet_t*   set;      // set[sn]  
 
+  unsigned         dn;       // length of dynRef[]
+  unsigned*        dynRef;   // dynRef[dn]  
+
   unsigned         nsi;       // next set index
   unsigned         nsli;      // next score location index
   
-
+  double           srate;     // sample rate from schore
 } cmScMeas;
 
-cmScMeas* cmScMeasAlloc( cmCtx* c, cmScMeas* p, cmScH_t scH );
+// Notes:
+// 1) midiBuf[] stores all MIDI notes for the duration of the performance
+// it is initialized to 2*score_event_count.
+// 2) dynRef][ is the gives the MIDI velocity range for each dynamics
+// category: pppp-fff
+// 
+
+
+cmScMeas* cmScMeasAlloc( cmCtx* c, cmScMeas* p, cmScH_t scH, double srate, const unsigned* dynRefArray, unsigned dynRefCnt );
 cmRC_t    cmScMeasFree(  cmScMeas** pp );
-cmRC_t    cmScMeasInit(  cmScMeas* p, cmScH_t scH );
+cmRC_t    cmScMeasInit(  cmScMeas* p, cmScH_t scH, double srate, const unsigned* dynRefArray, unsigned dynRefCnt );
 cmRC_t    cmScMeasFinal( cmScMeas* p );
-cmRC_t    cmScMeasExec(  cmScMeas* p, unsigned mni,  unsigned locIdx, unsigned smpIdx, unsigned pitch, unsigned vel );
+
+// This function is called for each input MIDI note which is assigned a
+// score location by cmScMatcher. 
+// 'mni' is the MIDI event index which uniquely identifies this MIDI event.
+// 'locIdx' is the location index into cmScMatcher.mp->loc[] associated with 
+// this event.
+cmRC_t    cmScMeasExec(  cmScMeas* p, unsigned mni,  unsigned locIdx, unsigned scEvtIdx, unsigned flags, unsigned smpIdx, unsigned pitch, unsigned vel );
 
 
 //=======================================================================================================================
