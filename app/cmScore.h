@@ -137,6 +137,9 @@ extern "C" {
 
   // Filename of last successfuly loaded score file.
   const cmChar_t* cmScoreFileName( cmScH_t h );
+  
+  // Sample rate as set in cmScoreInitialize()
+  double          cmScoreSampleRate( cmScH_t h );
 
   // Validate the score handle
   bool          cmScoreIsValid( cmScH_t h );

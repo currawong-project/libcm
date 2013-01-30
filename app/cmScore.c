@@ -1183,6 +1183,13 @@ const cmChar_t* cmScoreFileName( cmScH_t h )
   return p->fn;
 }
 
+double          cmScoreSampleRate( cmScH_t h )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  return p->srate;
+}
+
+
 bool     cmScoreIsValid( cmScH_t h )
 { return h.h != NULL; }
 
