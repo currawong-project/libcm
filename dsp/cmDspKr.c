@@ -814,18 +814,30 @@ enum
   kD1SfId,
   kSmpIdxSfId,
   kCmdSfId,
-  kOutSfId
+  kOutSfId,
+  kDynSfId,
+  kEvenSfId,
+  kTempoSfId
 };
 
 cmDspClass_t _cmScFolDC;
+struct cmDspScFol_str;
 
 typedef struct
 {
-  cmDspInst_t inst;
-  cmScTrk*    sfp;
-  cmScH_t     scH;
-  unsigned    printSymId;
-  unsigned    quietSymId;
+  cmDspCtx_t*            ctx;
+  struct cmDspScFol_str* sfp;
+} cmDspScFolCbArg_t;
+
+typedef struct cmDspScFol_str
+{
+  cmDspInst_t       inst;
+  cmScMatcher*      sfp;
+  cmScMeas*         smp;
+  cmScH_t           scH;
+  cmDspScFolCbArg_t arg;
+  unsigned          printSymId;
+  unsigned          quietSymId;
 } cmDspScFol_t;
 
 cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
@@ -844,6 +856,9 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     { "smpidx",kSmpIdxSfId,   0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI time tag as a sample index"},
     { "cmd",   kCmdSfId,      0, 0, kInDsvFl | kSymDsvFl,                     "Command input: print | quiet"},
     { "out",   kOutSfId,      0, 0, kOutDsvFl| kUIntDsvFl,                    "Current score index."},
+    { "dyn",   kDynSfId,      0, 0, kOutDsvFl| kDoubleDsvFl,                  "Dynamic value."},
+    { "even",  kEvenSfId,     0, 0, kOutDsvFl| kDoubleDsvFl,                  "Evenness value."},
+    { "tempo", kTempoSfId,    0, 0, kOutDsvFl| kDoubleDsvFl,                  "Tempo value."},
     { NULL,    0,             0, 0, 0, NULL }
   };
 
@@ -852,18 +867,22 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   if((p = cmDspInstAlloc(cmDspScFol_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl)) == NULL )
     return NULL;
   
-
-  p->sfp = cmScTrkAlloc(ctx->cmProcCtx, NULL, 0, cmScNullHandle, 0, 0, 0, 0 );
+  p->sfp        = cmScMatcherAlloc(ctx->cmProcCtx, NULL, 0, cmScNullHandle, 0, 0, NULL, NULL );
+  p->smp        = cmScMeasAlloc(   ctx->cmProcCtx, NULL, cmScNullHandle, 0, NULL, 0 );
   p->printSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"print");
   p->quietSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"quiet");
 
-  cmDspSetDefaultUInt( ctx, &p->inst,  kBufCntSfId,     0,     7);
-  cmDspSetDefaultUInt( ctx, &p->inst,  kMinLkAhdSfId,   0,    10);
-  cmDspSetDefaultUInt( ctx, &p->inst,  kMaxWndCntSfId,  0,    25);
-  cmDspSetDefaultUInt( ctx, &p->inst,  kMinVelSfId,     0,     5);
-  cmDspSetDefaultUInt( ctx, &p->inst,  kIndexSfId,      0,     0);  
-  cmDspSetDefaultUInt( ctx, &p->inst,  kOutSfId,        0,     0);
-  cmDspSetDefaultSymbol(ctx,&p->inst,  kCmdSfId,         p->quietSymId );
+  cmDspSetDefaultUInt(   ctx, &p->inst,  kBufCntSfId,     0,     7);
+  cmDspSetDefaultUInt(   ctx, &p->inst,  kMaxWndCntSfId,  0,    10);
+  cmDspSetDefaultUInt(   ctx, &p->inst,  kMinLkAhdSfId,   0,     3);
+  cmDspSetDefaultUInt(   ctx, &p->inst,  kMinVelSfId,     0,     5);
+  cmDspSetDefaultUInt(   ctx, &p->inst,  kIndexSfId,      0,     0);  
+  cmDspSetDefaultUInt(   ctx, &p->inst,  kOutSfId,        0,     0);
+  cmDspSetDefaultDouble( ctx, &p->inst,  kDynSfId,        0,     0);
+  cmDspSetDefaultDouble( ctx, &p->inst,  kEvenSfId,       0,     0);
+  cmDspSetDefaultDouble( ctx, &p->inst,  kTempoSfId,      0,     0);
+  
+  cmDspSetDefaultSymbol(ctx,&p->inst,  kCmdSfId, p->quietSymId );
 
   return &p->inst;
 }
@@ -871,30 +890,78 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
 cmDspRC_t _cmDspScFolFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
   cmDspScFol_t* p = (cmDspScFol_t*)inst;
-  cmScTrkFree(&p->sfp);
+  cmScMatcherFree(&p->sfp);
+  cmScMeasFree(&p->smp);
   cmScoreFinalize(&p->scH);
   return kOkDspRC;
 }
 
+void _cmScFolMatcherCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
+{
+  cmDspScFolCbArg_t* ap = (cmDspScFolCbArg_t*)arg;
+
+  if( cmScMeasExec(ap->sfp->smp, rp->mni, rp->locIdx, rp->scEvtIdx, rp->flags, rp->smpIdx, rp->pitch, rp->vel ) == cmOkRC )
+  {
+    cmDspInst_t*  inst = (cmDspInst_t*)ap->sfp;
+
+    unsigned i;
+    for(i=ap->sfp->smp->vsi; i<ap->sfp->smp->nsi; i++)
+    {
+      switch( ap->sfp->smp->set[i].sp->varId )
+      {
+        case kEvenVarScId:
+          cmDspSetDouble(ap->ctx,inst,kEvenSfId,ap->sfp->smp->set[i].value);
+          break;
+
+        case kDynVarScId:
+          cmDspSetDouble(ap->ctx,inst,kDynSfId,ap->sfp->smp->set[i].value);
+          break;
+
+        case kTempoVarScId:
+          cmDspSetDouble(ap->ctx,inst,kTempoSfId,ap->sfp->smp->set[i].value);
+          break;
+
+        default:
+          { assert(0); }
+      }           
+    }
+  }
+}
+
+
 cmDspRC_t _cmDspScFolOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
 {
-  cmDspRC_t       rc          = kOkDspRC;
-  cmDspScFol_t*   p           = (cmDspScFol_t*)inst;
-  unsigned*       dynRefArray = NULL;
-  unsigned        dynRefCnt   = 0;
+  cmDspRC_t       rc = kOkDspRC;
+  cmDspScFol_t*   p  = (cmDspScFol_t*)inst;
   const cmChar_t* fn;
 
   if((fn = cmDspStrcz(inst,kFnSfId)) == NULL || strlen(fn)==0 )
     return cmErrMsg(&inst->classPtr->err, kInvalidArgDspRC, "No score file name supplied.");
 
-  if( cmDspRsrcUIntArray(ctx->dspH, &dynRefCnt, &dynRefArray, "dynRef", NULL ) != kOkDspRC )
-  {
-    rc = cmErrMsg(&inst->classPtr->err, kRsrcNotFoundDspRC, "The dynamics reference array resource was not found.");
-    goto errLabel;
-  }
-
   if( cmScoreInitialize(ctx->cmCtx, &p->scH, fn, cmDspSampleRate(ctx), NULL, 0, NULL, NULL ) != kOkScRC )
     return cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Unable to open the score '%s'.",fn);
+
+  if( cmScoreIsValid(p->scH) )
+  {
+    unsigned*       dynRefArray = NULL;
+    unsigned        dynRefCnt   = 0;
+
+    // initialize the cmScMatcher
+    if( cmScMatcherInit(p->sfp, cmDspSampleRate(ctx),  p->scH, cmDspUInt(inst,kMaxWndCntSfId), cmDspUInt(inst,kBufCntSfId), _cmScFolMatcherCb, p->smp ) != cmOkRC )
+      rc = cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Internal score follower allocation failed.");
+
+    // read the dynamics reference array
+    if( cmDspRsrcUIntArray(ctx->dspH, &dynRefCnt, &dynRefArray, "dynRef", NULL ) != kOkDspRC )
+    {
+      rc = cmErrMsg(&inst->classPtr->err, kRsrcNotFoundDspRC, "The dynamics reference array resource was not found.");
+      goto errLabel;
+    }
+
+    // initialize the cmScMeas object.
+    if( cmScMeasInit(p->smp, p->scH, cmDspSampleRate(ctx), dynRefArray, dynRefCnt ) != cmOkRC )
+      rc = cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Internal scMeas object initialization failed.");
+
+  }
 
  errLabel:
   return rc;
@@ -902,18 +969,11 @@ cmDspRC_t _cmDspScFolOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
 
 cmDspRC_t _cmDspScFolReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
-  cmDspRC_t     rc = kOkDspRC;
-  cmDspScFol_t* p  = (cmDspScFol_t*)inst;
-  rc               = cmDspApplyAllDefaults(ctx,inst);
-
-  if((rc = _cmDspScFolOpenScore(ctx,inst)) != kOkDspRC )
+  cmDspRC_t     rc;
+  if((rc = cmDspApplyAllDefaults(ctx,inst)) != kOkDspRC )
     return rc;
 
-  if( cmScoreIsValid(p->scH) )
-    if( cmScTrkInit(p->sfp, cmDspSampleRate(ctx),  p->scH, cmDspUInt(inst,kBufCntSfId), cmDspUInt(inst,kMinLkAhdSfId), cmDspUInt(inst,kMaxWndCntSfId), cmDspUInt(inst,kMinVelSfId) ) != cmOkRC )
-      rc = cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Internal score follower allocation failed.");
-
-  return rc;  
+  return _cmDspScFolOpenScore(ctx,inst);
 }
 
 
@@ -928,16 +988,29 @@ cmDspRC_t _cmDspScFolRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
     {
       case kIndexSfId:
         if( cmScoreIsValid(p->scH) )
-          if( cmScTrkReset( p->sfp, cmDspUInt(inst,kIndexSfId) ) != cmOkRC )
+        {
+          if( cmScMeasReset( p->smp ) != cmOkRC )
+            cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Score measure unit reset to score index '%i' failed.");
+
+          if( cmScMatcherReset( p->sfp, cmDspUInt(inst,kIndexSfId) ) != cmOkRC )
             cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Score follower reset to score index '%i' failed.");
+        }
         break;
 
       case kStatusSfId:
         if( cmScoreIsValid(p->scH))
         {
-          unsigned idx = cmScTrkExec(p->sfp, ctx->cycleCnt, cmDspUInt(inst,kStatusSfId), cmDspUInt(inst,kD0SfId), cmDspUInt(inst,kD1SfId));
-          if( idx != cmInvalidIdx )
-            cmDspSetUInt(ctx,inst,kOutSfId,idx);
+          unsigned scLocIdx = cmInvalidIdx;
+
+          // setup the cmScMeas() callback arg.
+          p->arg.ctx    = ctx;
+          p->arg.sfp    = p;
+          p->sfp->cbArg = &p->arg;
+
+          // this call may result in a callback to _cmScFolMatcherCb()
+          if( cmScMatcherExec(p->sfp, cmDspUInt(inst,kSmpIdxSfId), cmDspUInt(inst,kStatusSfId), cmDspUInt(inst,kD0SfId), cmDspUInt(inst,kD1SfId), &scLocIdx) == cmOkRC )
+            if( scLocIdx != cmInvalidIdx )
+              cmDspSetUInt(ctx,inst,kOutSfId,scLocIdx);
         }
         break;
 
