@@ -103,12 +103,6 @@ cmGrPlRC_t _cmGrPlotObjDelete( cmGrPlotObj_t* op )
   if( cmGrObjDestroy( op->grH, &op->grObjH ) != kOkGrRC )
     return cmErrMsg( &p->err, kGrFailGrPlRC, "Delete failed on the object label='%s' id=%i\n",cmStringNullGuard( op->label ), cmGrObjId(op->grObjH) );
  
-  if( op->userByteCnt != 0 )
-  {
-    cmMemFree(op->userPtr);
-    op->userByteCnt = 0;
-  }
-
   return kOkGrPlRC;
 }
 
@@ -337,6 +331,13 @@ void _cmGrPlotObjDestroy(  cmGrObjFuncArgs_t* args )
   _cmGrPlotObjCb(op,kDestroyedCbSelGrPlId,0);
 
   _cmGrPlotObjUnlink( op );
+  
+  if( op->userByteCnt != 0 )
+  {
+    cmMemFree(op->userPtr);
+    op->userByteCnt = 0;
+  }
+
   cmMemFree(op->label);
   cmMemFree(op);
 }
