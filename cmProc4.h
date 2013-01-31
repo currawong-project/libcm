@@ -335,47 +335,66 @@ typedef void (*cmScMatcherCb_t)( struct cmScMatcher_str* p, void* arg, cmScMatch
    unsigned             mn;
    cmScMatchMidi_t*     midiBuf;  // midiBuf[mn]
 
-   cmScMatcherResult_t* res;    // res[rn]
-   unsigned             rn;     // length of res[]
-   unsigned             ri;     // next avail res[] recd.
+   cmScMatcherResult_t* res;      // res[rn]
+   unsigned             rn;       // length of res[]
+   unsigned             ri;       // next avail res[] recd.
 
    double               s_opt;          // 
    unsigned             missCnt;        // count of consecutive trailing non-matches
-   unsigned             esi;            // index into loc[] of the last positive match. 
+   unsigned             ili;            // index into loc[] to start scan following reset
+   unsigned             eli;            // index into loc[] of the last positive match. 
    unsigned             mni;            // track the count of MIDI events since the last call to cmScMatcherReset()
    unsigned             mbi;            // index of oldest MIDI event in midiBuf[]; 0 when the buffer is full.
    unsigned             begSyncLocIdx;  // start of score window, in mp->loc[], of best match in previous scan
    unsigned             stepCnt;        // count of forward/backward score loc's to examine for a match during cmScMatcherStep().
    unsigned             maxMissCnt;     // max. number of consecutive non-matches during step prior to executing a scan.
    unsigned             scanCnt;        // count of time scan was executed inside cmScMatcherStep()
+
+   bool                 printFl;
 } cmScMatcher;
 
 
 
-cmScMatcher* cmScMatcherAlloc( cmCtx* c, cmScMatcher* p, double srate, cmScH_t scH, unsigned scWndN, unsigned midiWndN );
+cmScMatcher* cmScMatcherAlloc( cmCtx* c, cmScMatcher* p, double srate, cmScH_t scH, unsigned scWndN, unsigned midiWndN, cmScMatcherCb_t cbFunc, void* cbArg );
 cmRC_t       cmScMatcherFree(  cmScMatcher** pp );
-cmRC_t       cmScMatcherInit(  cmScMatcher* p, double srate, cmScH_t scH, unsigned scWndN, unsigned midiWndN );
+cmRC_t       cmScMatcherInit(  cmScMatcher* p, double srate, cmScH_t scH, unsigned scWndN, unsigned midiWndN, cmScMatcherCb_t cbFunc, void* cbArg );
 cmRC_t       cmScMatcherFinal( cmScMatcher* p );
-void         cmScMatcherReset( cmScMatcher* p );
-bool         cmScMatcherInputMidi( cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
 
-// Slide a score window scanCnt times, beginning at 'bsi',
-// looking for the best match to p->midiBuf[].  The score window
-// contain scWndN (p->mp->mcn-1) score locations.
+// 'scLocIdx' is a score index as used by cmScoreLoc(scH) not into p->mp->loc[].
+cmRC_t       cmScMatcherReset( cmScMatcher* p, unsigned scLocIdx );
+
+// Slide a score window scanCnt times, beginning at 'bli' (an
+// index int p->mp->loc[]) looking for the best match to p->midiBuf[].  
+// The score window contain scWndN (p->mp->mcn-1) score locations.
 // Returns the index into p->mp->loc[] of the start of the best
 // match score window. The score associated
 // with this match is stored in s_opt.
-unsigned   cmScMatcherScan( cmScMatcher* p, unsigned bsi, unsigned scanCnt );
+unsigned   cmScMatcherScan( cmScMatcher* p, unsigned bli, unsigned scanCnt );
 
-// Step forward/back by p->stepCnt from p->esi.
-// p->esi must therefore be valid prior to calling this function.
+// Step forward/back by p->stepCnt from p->eli.
+// p->eli must therefore be valid prior to calling this function.
 // If more than p->maxMissCnt consecutive MIDI events are 
 // missed then automatically run cmScAlignScan().
 // Return cmEofRC if the end of the score is encountered.
 // Return cmSubSysFailRC if an internal scan resync. failed.
 cmRC_t     cmScMatcherStep(  cmScMatcher* p );
 
-cmRC_t     cmScMatcherExec(  cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 );
+// This function calls cmScMatcherScan() and cmScMatcherStep() internally.
+// If 'status' is not kNonMidiMdId then the function returns without changing the
+// state of the object.
+// If the MIDI note passed by the call results in a successful match then
+// p->eli will be updated to the location in p->mp->loc[] of the latest 
+// match, the MIDI note in p->midiBuf[] associated with this match
+// will be assigned valid locIdx and scLocIdx values, and *scLocIdxPtr
+// will be set with the matched scLocIdx of the match.
+// If this call does not result in a successful match *scLocIdxPtr is set
+// to cmInvalidIdx.
+// Return:
+// cmOkRC  - Continue processing MIDI events.
+// cmEofRC - The end of the score was encountered.
+// cmInvalidArgRC - scan failed or the object was in an invalid state to attempt a match.
+// cmSubSysFailRC - a scan resync failed in cmScMatcherStep().
+cmRC_t     cmScMatcherExec(  cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1, unsigned* scLocIdxPtr );
 
 
 //=======================================================================================================================
@@ -393,13 +412,17 @@ typedef struct
   unsigned      bli;   // 
   unsigned      eli;   //
 
+  double        value; // DBL_MAX if the value has not yet been set
+  double        tempo; // DBL_MAX until set
+
 } cmScMeasSet_t;
 
 typedef struct
 {
   cmObj            obj;
+  double           srate;    // 
   cmScMatch*       mp;       //
-  unsigned         mii;       // next avail recd in midiBuf[]
+  unsigned         mii;      // next avail recd in midiBuf[]
   unsigned         mn;       // length of of midiBuf[]
   cmScMatchMidi_t* midiBuf;  // midiBuf[mn]
 
@@ -409,15 +432,19 @@ typedef struct
   unsigned         dn;       // length of dynRef[]
   unsigned*        dynRef;   // dynRef[dn]  
 
-  unsigned         nsi;       // next set index
-  unsigned         nsli;      // next score location index
+  unsigned         nsi;      // next set index
+  unsigned         nsli;     // next score location index
+
+  unsigned         vsi;      // set[vsi:nsi-1] indicates sets with new values following a call to cmScMeasExec()
   
-  double           srate;     // sample rate from schore
 } cmScMeas;
 
+//
 // Notes:
+//
 // 1) midiBuf[] stores all MIDI notes for the duration of the performance
 // it is initialized to 2*score_event_count.
+//
 // 2) dynRef][ is the gives the MIDI velocity range for each dynamics
 // category: pppp-fff
 // 
@@ -427,6 +454,9 @@ cmScMeas* cmScMeasAlloc( cmCtx* c, cmScMeas* p, cmScH_t scH, double srate, const
 cmRC_t    cmScMeasFree(  cmScMeas** pp );
 cmRC_t    cmScMeasInit(  cmScMeas* p, cmScH_t scH, double srate, const unsigned* dynRefArray, unsigned dynRefCnt );
 cmRC_t    cmScMeasFinal( cmScMeas* p );
+
+// Empty MIDI buffer and set the next set nsi and nsli to zero.
+cmRC_t    cmScMeasReset( cmScMeas* p );
 
 // This function is called for each input MIDI note which is assigned a
 // score location by cmScMatcher. 
