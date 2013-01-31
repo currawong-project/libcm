@@ -373,6 +373,7 @@ cmScRC_t _cmScFinalize( cmSc_t* p )
     cmMemFree(p->loc);
   }
 
+  cmMemPtrFree(&p->dynRefArray);
 
   cmMemFree(p->sect);
   cmMemFree(p->fn);
