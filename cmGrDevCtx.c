@@ -8,6 +8,8 @@
 #include "cmGr.h"
 #include "cmGrDevCtx.h"
 
+#define _cmGrDcOffsX(p,xx) (xx) // ((p)->pext.loc.x + (xx))
+#define _cmGrDcOffsY(p,yy) (yy) // ((p)->pext.loc.y + (yy))
 
 cmGrDcH_t cmGrDcNullHandle = cmSTATIC_NULL_HANDLE;
 
@@ -212,7 +214,7 @@ cmGrDcRC_t      cmGrDevCtxResize(   cmGrDcH_t h, int x, int y, int  ww, int hh )
     goto errLabel;
   }
 
-  cmGrPExtSet(&p->pext,-x,-y,ww,hh);
+  cmGrPExtSet(&p->pext,x,y,ww,hh);
 
  errLabel:
   // force the current state to be reapplied to the new drawing context
@@ -346,13 +348,13 @@ void            cmGrDcSetPenStyle(   cmGrDcH_t h, unsigned style )
 void            cmGrDcDrawLine(  cmGrDcH_t h, int x0, int y0, int x1, int y1 )
 { 
   cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
-  p->dd->draw_line( p->ddArg, x0+p->pext.loc.x, y0+p->pext.loc.y, x1+p->pext.loc.x, y1+p->pext.loc.y );
+  p->dd->draw_line( p->ddArg, _cmGrDcOffsX(p,x0), _cmGrDcOffsY(p,y0), _cmGrDcOffsX(p,x1), _cmGrDcOffsY(p,y1) );
 }
 
 void            cmGrDcDrawRect(  cmGrDcH_t h, int x,  int y,  unsigned ww, unsigned hh )
 {
   cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
-  p->dd->draw_rect( p->ddArg, x+p->pext.loc.x, y+p->pext.loc.y, ww, hh );
+  p->dd->draw_rect( p->ddArg, _cmGrDcOffsX(p,x), _cmGrDcOffsY(p,y), ww, hh );
 }
 
 void            cmGrDcDrawRectPExt(     cmGrDcH_t h, const cmGrPExt_t* pext )
@@ -361,43 +363,43 @@ void            cmGrDcDrawRectPExt(     cmGrDcH_t h, const cmGrPExt_t* pext )
 void            cmGrDcFillRect(  cmGrDcH_t h, int x,  int y,  unsigned ww, unsigned hh )
 {
   cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
-  p->dd->fill_rect( p->ddArg, x+p->pext.loc.x, y+p->pext.loc.y, ww, hh );
+  p->dd->fill_rect( p->ddArg, _cmGrDcOffsX(p,x), _cmGrDcOffsY(p,y), ww, hh );
 }
 
 void            cmGrDcDrawEllipse(  cmGrDcH_t h, int x,  int y,  unsigned ww, unsigned hh )
 {
   cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
-  p->dd->draw_ellipse( p->ddArg, x+p->pext.loc.x, y+p->pext.loc.y, ww, hh );
+  p->dd->draw_ellipse( p->ddArg, _cmGrDcOffsX(p,x), _cmGrDcOffsY(p,y), ww, hh );
 }
 
 void            cmGrDcFillEllipse(  cmGrDcH_t h, int x,  int y,  unsigned ww, unsigned hh )
 {
   cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
-  p->dd->fill_ellipse( p->ddArg, x+p->pext.loc.x, y+p->pext.loc.y, ww, hh );
+  p->dd->fill_ellipse( p->ddArg, _cmGrDcOffsX(p,x), _cmGrDcOffsY(p,y), ww, hh );
 }
 
 void            cmGrDcDrawDiamond(  cmGrDcH_t h, int x,  int y,  unsigned ww, unsigned hh )
 {
   cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
-  p->dd->draw_diamond( p->ddArg, x+p->pext.loc.x, y+p->pext.loc.y, ww, hh );
+  p->dd->draw_diamond( p->ddArg, _cmGrDcOffsX(p,x), _cmGrDcOffsY(p,y), ww, hh );
 }
 
 void            cmGrDcFillDiamond(  cmGrDcH_t h, int x,  int y,  unsigned ww, unsigned hh )
 {
   cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
-  p->dd->fill_diamond( p->ddArg, x+p->pext.loc.x, y+p->pext.loc.y, ww, hh );
+  p->dd->fill_diamond( p->ddArg, _cmGrDcOffsX(p,x), _cmGrDcOffsY(p,y), ww, hh );
 }
 
 void            cmGrDcDrawTriangle( cmGrDcH_t h, int x,  int y,  unsigned ww, unsigned hh, unsigned dirFlag )
 {
   cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
-  p->dd->draw_triangle( p->ddArg, x+p->pext.loc.x, y+p->pext.loc.y, ww, hh, dirFlag );
+  p->dd->draw_triangle( p->ddArg, _cmGrDcOffsX(p,x), _cmGrDcOffsY(p,y), ww, hh, dirFlag );
 }
 
 void            cmGrDcFillTriangle( cmGrDcH_t h, int x,  int y,  unsigned ww, unsigned hh, unsigned dirFlag )
 {
   cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
-  p->dd->fill_triangle( p->ddArg, x+p->pext.loc.x, y+p->pext.loc.y, ww, hh, dirFlag );
+  p->dd->fill_triangle( p->ddArg, _cmGrDcOffsX(p,x), _cmGrDcOffsY(p,y), ww, hh, dirFlag );
 }
 
 
@@ -419,26 +421,26 @@ void            cmGrDcMeasure(     cmGrDcH_t h, const cmChar_t* text, cmGrPSz_t*
 void            cmGrDcDrawText(    cmGrDcH_t h, const cmChar_t* text, int x, int y )
 {
   cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
-  p->dd->draw_text( p->ddArg, text, x+p->pext.loc.x, y+p->pext.loc.y );
+  p->dd->draw_text( p->ddArg, text, _cmGrDcOffsX(p,x), _cmGrDcOffsY(p,y) );
 }
 
 void            cmGrDcDrawTextRot( cmGrDcH_t h, const cmChar_t* text, int x, int y, int angle )
 {
   cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
-  p->dd->draw_text_rot( p->ddArg, text, x+p->pext.loc.x, y+p->pext.loc.y, angle );
+  p->dd->draw_text_rot( p->ddArg, text, _cmGrDcOffsX(p,x), _cmGrDcOffsY(p,y), angle );
 }
 
 
 void            cmGrDcReadImage(   cmGrDcH_t h, unsigned char* a, const cmGrPExt_t* pext )
 {
   cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
-  p->dd->read_image( p->ddArg, a, pext->loc.x+p->pext.loc.x, pext->loc.y+p->pext.loc.y, pext->sz.w, pext->sz.h );
+  p->dd->read_image( p->ddArg, a, _cmGrDcOffsX(p,pext->loc.x), _cmGrDcOffsY(p,pext->loc.y), pext->sz.w, pext->sz.h );
 }
 
 void            cmGrDcDrawImage(  cmGrDcH_t h, const unsigned char* a, const cmGrPExt_t* pext )
 {
   cmGrDc_t* p = _cmGrDcHandleToPtr(h);  
-  p->dd->draw_image( p->ddArg, a, pext->loc.x+p->pext.loc.x, pext->loc.y+p->pext.loc.y, pext->sz.w, pext->sz.h );
+  p->dd->draw_image( p->ddArg, a, _cmGrDcOffsX(p,pext->loc.x), _cmGrDcOffsY(p,pext->loc.y), pext->sz.w, pext->sz.h );
 }
 
 
