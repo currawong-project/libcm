@@ -637,6 +637,7 @@ extern "C" {
 
 
   // Create a graphic object. This function calls the user defined (*create)() function.
+  // ('flags' is not used)
   cmGrRC_t   cmGrObjCreate(     cmGrH_t h, cmGrObjH_t* hp, cmGrObjH_t parentH, cmGrObjFunc_t* f, unsigned id, unsigned flags, const cmGrVExt_t* wext );
 
   // Destroy a graphic object and all of it's children. 

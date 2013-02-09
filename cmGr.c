@@ -15,21 +15,10 @@ enum
   kDirtyGrFl = 0x01 // the cmGr object is dirty
 };
 
-// cmGrObj_t state flags
-enum
-{
-  kDirtyObjFl   = 0x0001, // this object is dirty
-  kFocusObjFl   = 0x0002, // this object has focus
-  kSelectObjFl  = 0x0004, // this object is selected
-  kPhysRelObjFl = 0x0008, // use physical instead of virtual offset
-  
-};
 
 typedef struct cmGrObj_str
 {
   unsigned      id;          //
-  unsigned      cfgFlags;    // 
-  unsigned      stateFlags;  // 
   cmGrObjFunc_t f;           // 
   cmGrVExt_t    wext;        // world coord's contained within this object (children of this object are contained by these extents)
   unsigned      wlimitFlags; // kLeftGrFl | kRightGrFl | kTopGrFl | kBottomGrFl
@@ -1028,7 +1017,8 @@ cmGrRC_t _cmGrObjSetWorldExt( cmGr_t* p, cmGrObj_t* op, const cmGrVExt_t* wext )
   {
     // update the world extents for this object
     op->wext       = we;
-    op->stateFlags = cmSetFlag(op->stateFlags,kDirtyObjFl);
+
+    //op->stateFlags = cmSetFlag(op->stateFlags,kDirtyObjFl);
 
     //cmGrVExtPrint(cmTsPrintf("set w: %i ",op->id),&we);
 
@@ -1048,7 +1038,7 @@ cmGrRC_t _cmGrObjSetWorldExt( cmGr_t* p, cmGrObj_t* op, const cmGrVExt_t* wext )
 void  _cmGrObjReport( cmGr_t* p, cmGrObj_t* op, cmRpt_t* rpt )
 {
   cmGrVExt_t vext;
-  cmRptPrintf(rpt,"id:0x%x cfg:0x%x state:0x%x\n",op->id,op->cfgFlags,op->stateFlags);
+  cmRptPrintf(rpt,"id:0x%x \n",op->id);
 
   _cmGrObjCbVExt( p, op, &vext);  
   cmGrVExtRpt(&vext,rpt);
@@ -1081,8 +1071,6 @@ cmGrRC_t cmGrObjCreate(  cmGrH_t h, cmGrObjH_t* ohp, cmGrObjH_t parentH, cmGrObj
   cmGrObj_t* op = cmMemAllocZ(cmGrObj_t,1);
 
   op->id         = id;
-  op->cfgFlags   = flags;
-  op->stateFlags = 0;
   op->f          = *f;
   
   if( wext != NULL )
@@ -1147,8 +1135,8 @@ cmGrRC_t cmGrObjCreate(  cmGrH_t h, cmGrObjH_t* ohp, cmGrObjH_t parentH, cmGrObj
 
       // if the new object is inside the view extents then mark
       // the object as dirty
-      if( cmGrVExtIsExtInside(&p->vext,&vext) )
-        op->stateFlags = cmSetFlag(op->stateFlags,kDirtyObjFl);
+      //if( cmGrVExtIsExtInside(&p->vext,&vext) )
+      //  op->stateFlags = cmSetFlag(op->stateFlags,kDirtyObjFl);
     }
   }
 
