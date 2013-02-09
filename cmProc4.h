@@ -436,7 +436,7 @@ typedef struct
   unsigned         nsli;     // next score location index
 
   unsigned         vsi;      // set[vsi:nsi-1] indicates sets with new values following a call to cmScMeasExec()
-  
+  unsigned         vsli;     // vsli:nsli-1 indicates cmScore loc's to check for section triggers following a call to cmScMeasExec()
 } cmScMeas;
 
 //
@@ -448,7 +448,9 @@ typedef struct
 // 2) dynRef][ is the gives the MIDI velocity range for each dynamics
 // category: pppp-fff
 // 
-
+// 3) See a cmDspKr.c _cmScFolMatcherCb() for an example of how 
+// cmScMeas.vsi and cmScMeas.vsli are used to act on the results of
+// a call to cmMeasExec().
 
 cmScMeas* cmScMeasAlloc( cmCtx* c, cmScMeas* p, cmScH_t scH, double srate, const unsigned* dynRefArray, unsigned dynRefCnt );
 cmRC_t    cmScMeasFree(  cmScMeas** pp );
@@ -474,6 +476,75 @@ unsigned   cmScAlignScanToTimeLineEvent( cmScMatcher* p, cmTlH_t tlH, cmTlObj_t*
 // entire score looking for the best match between the first 'midiN'
 // notes in each marker region and the score. 
 void       cmScAlignScanMarkers(  cmRpt_t* rpt, cmTlH_t tlH, cmScH_t scH );
+
+//=======================================================================================================================
+enum
+{
+  kInvalidModTId,
+  kSetModTId,      // set variable to parray[0] at scLocIdx
+  kLineModTId,     // linear ramp variable to parray[0] over parray[1] seconds
+  kSetLineModTId,  // set variable to parray[0] and ramp to parray[1] over parray[2] seconds
+};
+
+enum
+{
+  kActiveModFl = 0x01
+};
+
+struct cmScModEntry_str;
+
+typedef struct cmScModVar_str
+{
+  unsigned                 flags;    // see kXXXModFl flags above.
+  unsigned                 varSymId; // variable name 
+  double                   value;    // current value 
+  double                   v0;       // reserved internal variable
+  unsigned                 phase;    // cycle phase since activation
+  struct cmScModEntry_str* entry;    // last entry assoc'd with this value
+  struct cmScModVar_str*   vlink;    // p->vlist link
+  struct cmScModVar_str*   alink;    // p->alist link
+} cmScModVar_t;
+
+typedef struct cmScModEntry_str
+{
+  unsigned        scLocIdx;     // entry start time
+  unsigned        typeId;       // variable type
+  double*         parray;       // parray[pn] - parameter array
+  unsigned        pn;           // parameter count
+  cmScModVar_t*   valPtr;       // target variable 
+} cmScModEntry_t;
+
+typedef void (*cmScModCb_t)( void* cbArg, unsigned varSymId, double value );
+
+typedef struct
+{
+  cmObj           obj;
+  unsigned        modSymId;     // modulator name
+  cmScModCb_t     cbFunc;       // active value callback function
+  void*           cbArg;        // first arg to cbFunc()
+  unsigned        samplesPerCycle; // interval in samples between calls to cmScModulatorExec()
+  double          srate;        // system sample rate
+  cmScModEntry_t* earray;       // earray[en] - entry array sorted on ascending cmScModEntry_t.scLocIdx
+  unsigned        en;           // count 
+  cmScModVar_t*   vlist;        // variable list
+  cmScModVar_t*   alist;        // active variable list
+  unsigned        nei;          // next entry index
+} cmScModulator;
+
+
+cmScModulator* cmScModulatorAlloc( cmCtx* c, cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, double srate, unsigned samplesPerCycle, const cmChar_t* fn, const cmChar_t* modLabel, cmScModCb_t cbFunc, void* cbArg );
+cmRC_t         cmScModulatorFree(  cmScModulator** pp );
+cmRC_t         cmScModulatorInit(  cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, double srate, unsigned samplesPerCycle, const cmChar_t* fn, const cmChar_t* modLabel, cmScModCb_t cbFunc, void* cbArg );
+cmRC_t         cmScModulatorFinal( cmScModulator* p );
+
+// Return count of variables.
+unsigned        cmScModulatorVarCount( cmScModulator* p );
+
+// Return a pointer to the variable at vlist[idx].
+cmScModVar_t* cmScModulatorVar( cmScModulator* p, unsigned idx ); 
+
+cmRC_t         cmScModulatorReset( cmScModulator* p, unsigned scLocIdx );
+cmRC_t         cmScModulatorExec(  cmScModulator* p, unsigned scLocIdx );
 
 #ifdef __cplusplus
 }

@@ -11,6 +11,7 @@
 #include "cmFile.h"
 #include "cmSymTbl.h"
 #include "cmJson.h"
+#include "cmText.h"
 #include "cmPrefs.h"
 #include "cmDspValue.h"
 #include "cmMsgProtocol.h"
@@ -154,6 +155,10 @@ cmDspRC_t _cmDspKrExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt
   unsigned          iChIdx  = 0;
   const cmSample_t* ip      = cmDspAudioBuf(ctx,inst,kAudioInKrId,iChIdx);
   unsigned          iSmpCnt = cmDspVarRows(inst,kAudioInKrId);
+
+  // if no connected
+  if( iSmpCnt == 0 )
+    return rc;
   
   unsigned          oChIdx  = 0;
   cmSample_t*       op      = cmDspAudioBuf(ctx,inst,kAudioOutKrId,oChIdx);
@@ -896,16 +901,20 @@ cmDspRC_t _cmDspScFolFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   return kOkDspRC;
 }
 
+// This is a callback function from cmScMatcherExec() which is called when
+// this cmDspFol object receives a new score location index.
 void _cmScFolMatcherCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
 {
   cmDspScFolCbArg_t* ap = (cmDspScFolCbArg_t*)arg;
 
+  
   if( cmScMeasExec(ap->sfp->smp, rp->mni, rp->locIdx, rp->scEvtIdx, rp->flags, rp->smpIdx, rp->pitch, rp->vel ) == cmOkRC )
   {
-    cmDspInst_t*  inst = (cmDspInst_t*)ap->sfp;
+    cmDspInst_t*  inst = &(ap->sfp->inst);
 
+    // send 'set' values that were calculated on the previous call to cmScMeasExec()
     unsigned i;
-    for(i=ap->sfp->smp->vsi; i<ap->sfp->smp->nsi; i++)
+    for(i=ap->sfp->smp->vsi; i<ap->sfp->smp->nsi; ++i)
     {
       switch( ap->sfp->smp->set[i].sp->varId )
       {
@@ -925,6 +934,16 @@ void _cmScFolMatcherCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
           { assert(0); }
       }           
     }
+
+    /*
+    // trigger 'section' starts 
+    for(i=ap->sfp->smp->vsli; i<ap->sfp->smp->nsli; ++i)
+    {
+      const cmScoreLoc_t* locPtr = cmScoreLoc(ap->sfp->smp->mp->scH,i);
+      if( locPtr->begSectPtr != NULL )
+        cmDspSetUInt(ap->ctx,inst,kSectIndexSfId,locPtr->begSectPtr->index);
+    }
+    */
   }
 }
 
@@ -1047,3 +1066,149 @@ struct cmDspClass_str* cmScFolClassCons( cmDspCtx_t* ctx )
   return &_cmScFolDC;
 }
 
+//==========================================================================================================================================
+
+enum
+{
+  kScLocIdxMdId
+};
+
+cmDspClass_t _cmModulatorDC;
+
+typedef struct
+{
+  cmDspInst_t    inst;
+  cmScModulator* mp;
+  cmDspCtx_t*    tmp_ctx;       // used to temporarily hold the current cmDspCtx during callback
+} cmDspScMod_t;
+
+void _cmDspScModCb( void* arg, unsigned varSymId, double value )
+{
+  cmDspScMod_t* p = (cmDspScMod_t*)arg;
+
+  cmDspVar_t* varPtr;
+  if((varPtr = cmDspVarSymbolToPtr( p->tmp_ctx, &p->inst, varSymId, 0 )) == NULL )
+    return;
+
+  cmDspSetDouble(p->tmp_ctx,&p->inst,varPtr->constId,value);
+  
+}
+
+cmDspInst_t*  _cmDspScModAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  va_list vl1;
+  va_copy(vl1,vl);
+
+  cmDspVarArg_t args[] =
+  {
+    { "index",   kScLocIdxMdId,0,0, kInDsvFl  | kUIntDsvFl,                "Score follower index input."},
+    { NULL, 0, 0, 0, 0 }
+  };
+
+  // validate the argument count
+  if( va_cnt != 2 )
+  {
+    cmDspClassErr(ctx,classPtr,kInvalidArgDspRC,"The Modulator requires at least two arguments.");
+    return NULL;
+  }    
+
+  // read the modulator file and label strings
+  const cmChar_t* fn       = va_arg(vl1,const cmChar_t*);
+  const cmChar_t* modLabel = va_arg(vl1,const cmChar_t*);
+
+  // validate the file
+  if( fn==NULL || cmFsIsFile(fn)==false )
+  {
+    cmDspClassErr(ctx,classPtr,kInvalidArgDspRC,"The Modulator file '%s' is not valid.",cmStringNullGuard(fn));
+    return NULL;
+  }
+
+  // allocate the internal modulator object
+  cmScModulator* mp = cmScModulatorAlloc(ctx->cmProcCtx, NULL, ctx->cmCtx, ctx->stH, cmDspSampleRate(ctx), cmDspSamplesPerCycle(ctx), fn, modLabel, _cmDspScModCb, NULL );
+  
+  if(mp == NULL )
+  {
+    cmDspClassErr(ctx,classPtr,kInvalidArgDspRC,"The internal modulator object initialization failed.");
+    return NULL;
+  }
+  unsigned      fixArgCnt = 1;
+  unsigned      argCnt    = fixArgCnt + cmScModulatorVarCount(mp);
+  cmDspVarArg_t a[ argCnt+1 ];
+  unsigned      i;
+
+  cmDspArgCopy( a, argCnt, 0, args, fixArgCnt );
+
+  for(i=fixArgCnt; i<argCnt; ++i)
+  {
+    unsigned            varIdx    = i - fixArgCnt;
+    const cmScModVar_t* vp        = cmScModulatorVar(mp,varIdx);
+    const cmChar_t*     label     = cmSymTblLabel( ctx->stH, vp->varSymId );
+    const cmChar_t*     docStr    = cmTsPrintfS("Variable output for %s",label);
+
+    cmDspArgSetup(ctx, a + i, label, cmInvalidId, i, 0, 0, kOutDsvFl | kDoubleDsvFl, docStr ); 
+  }
+  cmDspArgSetupNull(a+argCnt); // set terminating arg. flags
+
+  cmDspScMod_t* p = cmDspInstAlloc(cmDspScMod_t,ctx,classPtr,a,instSymId,id,storeSymId,0,vl);
+
+  p->mp = mp;
+  mp->cbArg = p;  // set the modulator callback arg
+
+  cmDspSetDefaultUInt(ctx,&p->inst,kScLocIdxMdId,0,0);
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspScModFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t        rc = kOkDspRC;
+  cmDspScMod_t* p = (cmDspScMod_t*)inst;
+
+  if( cmScModulatorFree(&p->mp) != kOkTlRC )
+    return cmErrMsg(&inst->classPtr->err, kInstFinalFailDspRC, "Modulator release failed.");
+
+  return rc;
+}
+
+
+cmDspRC_t _cmDspScModReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t       rc          = kOkDspRC;
+
+  cmDspApplyAllDefaults(ctx,inst);
+
+  return rc;
+}
+
+cmDspRC_t _cmDspScModRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+
+  cmDspSetEvent(ctx,inst,evt);
+
+  return kOkDspRC;
+}
+
+cmDspRC_t _cmDspScModExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t         rc = kOkDspRC;
+  cmDspScMod_t* p  = (cmDspScMod_t*)inst;
+  
+  p->tmp_ctx = ctx;
+  cmScModulatorExec(p->mp,cmDspUInt(inst,kScLocIdxMdId));
+  return rc;
+}
+
+struct cmDspClass_str* cmScModClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmModulatorDC,ctx,"ScMod",
+    NULL,
+    _cmDspScModAlloc,
+    _cmDspScModFree,
+    _cmDspScModReset,
+    _cmDspScModExec,
+    _cmDspScModRecv,
+    NULL,NULL,
+    "Score Driven Variable Modulator.");
+
+  return &_cmModulatorDC;
+}

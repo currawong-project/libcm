@@ -1442,6 +1442,7 @@ void _cmScMatchPathPop( cmScMatch* r )
   r->p_cur       = tp;
 }
 
+
 double _cmScMatchCalcCandidateCost( cmScMatch* r )
 {
   cmScMatchPath_t* cp = r->p_cur;
@@ -1959,7 +1960,7 @@ cmRC_t cmScMatcherInit(  cmScMatcher* p, double srate, cmScH_t scH, unsigned scW
   p->cbFunc     = cbFunc;
   p->cbArg      = cbArg;
   p->mn         = midiWndN;
-  p->midiBuf    = cmMemResize(cmScMatchMidi_t,p->midiBuf,p->mn);
+  p->midiBuf    = cmMemResizeZ(cmScMatchMidi_t,p->midiBuf,p->mn);
   p->stepCnt    = 3;
   p->maxMissCnt = p->stepCnt+1;
   p->rn         = 2 * cmScoreEvtCount(scH);
@@ -2552,8 +2553,8 @@ cmRC_t    cmScMeasInit(  cmScMeas* p, cmScH_t scH, double srate, const unsigned*
   p->mn      = 2 * cmScoreEvtCount(scH);
   p->midiBuf = cmMemResizeZ(cmScMatchMidi_t,p->midiBuf,p->mn);
   p->sn      = cmScoreSetCount(scH);
-  p->set     = cmMemResize(cmScMeasSet_t,p->set,p->sn);
-  p->dynRef  = cmMemResize(unsigned,p->dynRef,dynRefCnt);
+  p->set     = cmMemResizeZ(cmScMeasSet_t,p->set,p->sn);
+  p->dynRef  = cmMemResizeZ(unsigned,p->dynRef,dynRefCnt);
   p->dn      = dynRefCnt;
   p->srate   = srate;
 
@@ -2753,7 +2754,7 @@ unsigned _cmScMeasTimeAlign( cmScMeas* p, cmScMeasSet_t* sp, cmScMatchMidi_t* m,
 
   assert(b[0].smpIdx != cmInvalidIdx && b[bn-1].smpIdx != cmInvalidIdx);
 
-  // calc avg. smpIdx and insert missing values
+  // calc avg. smpIdx, insert missing values, and convert b[].smpIdx to delta smp index
   for(i=0,j=0; i<bn; ++i)
   {
     if( b[i].cnt > 1 )
@@ -2820,7 +2821,7 @@ double _cmScMeasEven( cmScMeas* p, cmScMeasSet_t* sp, cmScMatchMidi_t* m, unsign
   // calc std-dev of delta time
   double d_sd  = 0;    
   for(i=0; i<bn-1; ++i)
-    d_sd      += (b[i].val-d_avg) * (b[i].val-d_avg);
+    d_sd  += (b[i].val-d_avg) * (b[i].val-d_avg);
   
   // if there is no deviation then we can't compute a z-score
   // (this will happen if we fill in all the missing values based on 2 values)
@@ -2832,7 +2833,7 @@ double _cmScMeasEven( cmScMeas* p, cmScMeasSet_t* sp, cmScMatchMidi_t* m, unsign
   // calc avg. z-score
   double z  = 0;
   for(i=0; i<bn-1; ++i)
-    z      += fabs(b[i].val - d_avg)/d_sd;
+    z  += fabs(b[i].val - d_avg)/d_sd;
 
   double val = z / (bn-1);
 
@@ -3063,6 +3064,7 @@ cmRC_t cmScMeasExec( cmScMeas* p, unsigned mni, unsigned locIdx, unsigned scEvtI
     return cmCtxRtCondition( &p->obj, cmEofRC, "The MIDI buffer is full."); 
 
   int n_mii = cmInvalidIdx;
+
   // locate the MIDI event assoc'd with 'mni'  ...
   if( p->mii>0 && mni <= p->midiBuf[p->mii-1].mni )
   {
@@ -3115,6 +3117,7 @@ cmRC_t cmScMeasExec( cmScMeas* p, unsigned mni, unsigned locIdx, unsigned scEvtI
   }
 
   p->vsi = p->nsi;
+  p->vsli = p->nsli;
 
   // for each cmScore location between p->nsli and scLocIdx 
   for(; p->nsli<=scLocIdx && p->nsi < p->sn; ++p->nsli)
@@ -3123,7 +3126,6 @@ cmRC_t cmScMeasExec( cmScMeas* p, unsigned mni, unsigned locIdx, unsigned scEvtI
     // ahead of the next sets ending location.
     while( cmMin(maxScLocIdx,p->set[p->nsi].esli+1) == p->nsli )
     {
-
       // calculate the value assoc'd with p->set[p->nsi]
       _cmScMeasCalcVal(p, p->set + p->nsi, n_mii );
 
@@ -3158,10 +3160,10 @@ cmRC_t cmScAlignScanToTimeLineEvent( cmScMatcher* p, cmTlH_t tlH, cmTlObj_t* top
 
       switch( rc )
       {
-        case cmOkRC:        // continue processing MIDI events
+        case cmOkRC:         // continue processing MIDI events
           break;
 
-        case cmEofRC:       // end of the score was encountered
+        case cmEofRC:        // end of the score was encountered
           break;
 
         case cmInvalidArgRC: // p->eli was not set correctly
@@ -3322,4 +3324,400 @@ void       cmScAlignScanMarkers(  cmRpt_t* rpt, cmTlH_t tlH, cmScH_t scH )
   cmScMatcherFree(&p);  
   cmScMeasFree(&mp);
   cmCtxFree(&ctx);
+}
+
+//=======================================================================================================================
+cmScModulator* cmScModulatorAlloc( cmCtx* c, cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, double srate, unsigned samplesPerCycle, const cmChar_t* fn, const cmChar_t* modLabel, cmScModCb_t cbFunc, void* cbArg )
+{
+  cmScModulator* op = cmObjAlloc(cmScModulator,c,p);
+
+  if( ctx != NULL )
+    if( cmScModulatorInit(op,ctx,stH,srate,samplesPerCycle,fn,modLabel,cbFunc,cbArg) != cmOkRC )
+      cmScModulatorFree(&op);
+
+  return op;
+}
+
+cmRC_t cmScModulatorFree(  cmScModulator** pp )
+{
+  cmRC_t rc = cmOkRC;
+  if( pp==NULL || *pp==NULL )
+    return rc;
+
+  cmScModulator* p = *pp;
+  if((rc = cmScModulatorFinal(p)) != cmOkRC )
+    return rc;
+
+  cmMemFree(p->earray);
+  cmObjFree(pp);
+  return rc;
+}
+
+typedef struct
+{
+  unsigned        typeId;
+  unsigned        minArgCnt;
+  const cmChar_t* label;
+} _cmScModTypeMap_t;
+
+_cmScModTypeMap_t _cmScModTypeArray[] =
+{
+  { kSetModTId,     1, "set" },
+  { kLineModTId,    2, "line" },
+  { kSetLineModTId, 3, "sline" },
+  { kInvalidModTId, 0, "<invalid>"}
+};
+
+const _cmScModTypeMap_t*  _cmScModTypeLabelToMap( const cmChar_t* label )
+{
+  unsigned i;
+  for(i=0; _cmScModTypeArray[i].typeId!=kInvalidModTId; ++i)
+    if( strcmp(_cmScModTypeArray[i].label,label) == 0 )
+      return _cmScModTypeArray + i;
+
+  return NULL;
+}
+
+cmScModVar_t* _cmScModulatorInsertValue( cmScModulator* p, unsigned varSymId )
+{
+  cmScModVar_t* vp = p->vlist;  
+  for(; vp!=NULL; vp=vp->vlink)
+    if( varSymId == vp->varSymId )
+      return vp;
+
+  vp = cmMemAllocZ(cmScModVar_t,1);
+  vp->varSymId = varSymId;
+  vp->vlink    = p->vlist;
+  p->vlist     = vp;
+  return vp;
+}
+
+cmRC_t _cmScModulatorInsertEntry(cmScModulator* p, unsigned idx, unsigned scLocIdx, unsigned modSymId, unsigned varSymId, unsigned typeId, const double* av, unsigned an)
+{
+  assert( idx < p->en );
+
+  if( p->modSymId != modSymId )
+    return cmOkRC;
+
+  p->earray[idx].scLocIdx = scLocIdx;
+  p->earray[idx].typeId   = typeId;
+  p->earray[idx].parray   = an==0 ? NULL : cmMemAllocZ(double,an);
+  p->earray[idx].pn       = an;
+  p->earray[idx].valPtr   = _cmScModulatorInsertValue(p,varSymId);
+
+  unsigned i;
+  for(i=0; i<an; ++i)
+    p->earray[idx].parray[i] = av[i];
+
+  return cmOkRC;
+}
+
+
+/*
+{
+  [
+  { loc:123, mod:modlabel, var:varlabel, param:[ ] }
+  ]
+}
+ */
+
+  cmRC_t _cmScModulatorParse( cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, const cmChar_t* fn )
+{
+  cmRC_t        rc  = cmOkRC;
+  cmJsonNode_t* jnp = NULL;
+  cmJsonH_t     jsH = cmJsonNullHandle;
+  unsigned      i;
+
+  // read the JSON file
+  if( cmJsonInitializeFromFile(&jsH, fn, ctx ) != kOkJsRC )
+    return cmCtxRtCondition( &p->obj, cmInvalidArgRC, "JSON file parse failed on the modulator file: %s.",cmStringNullGuard(fn) );
+
+  jnp = cmJsonRoot(jsH);
+
+  // validate that the first child as an array
+  if( jnp==NULL || ((jnp = cmJsonNodeMemberValue(jnp,"array")) == NULL) || cmJsonIsArray(jnp)==false )
+  {
+    rc = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Modulator file header syntax error in file:%s",cmStringNullGuard(fn) );
+    goto errLabel;
+  }
+
+  // allocate the entry array
+  p->en     = cmJsonChildCount(jnp);
+  p->earray = cmMemResizeZ(cmScModEntry_t,p->earray,p->en);
+
+  for(i=0; i<p->en; ++i)
+  {
+    cmJsRC_t        jsRC;
+    const char*              errLabelPtr = NULL;
+    unsigned                 scLocIdx    = cmInvalidIdx;
+    const cmChar_t*          modLabel    = NULL;
+    const cmChar_t*          varLabel    = NULL;
+    const cmChar_t*          typeLabel   = NULL;
+    cmJsonNode_t*            onp         = cmJsonArrayElement(jnp,i);
+    cmJsonNode_t*            dnp         = NULL;
+    const _cmScModTypeMap_t* map         = NULL;
+
+    if((jsRC = cmJsonMemberValues( onp, &errLabelPtr, 
+          "loc", kIntTId,    &scLocIdx,
+          "mod", kStringTId, &modLabel,
+          "var", kStringTId, &varLabel,
+          "type",kStringTId, &typeLabel,
+          NULL )) != kOkJsRC )
+    {
+      if( errLabelPtr == NULL )
+        rc = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Error:%s on record at index %i in file:%s",errLabelPtr,i,cmStringNullGuard(fn) );
+      else
+        rc = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Synax error in Modulator record at index %i in file:%s",i,cmStringNullGuard(fn) );
+      goto errLabel;
+    }
+
+    // validate the entry type label
+    if((map = _cmScModTypeLabelToMap(typeLabel)) == NULL )
+    {
+      rc = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Unknown entry type '%s' in Modulator record at index %i in file:%s",cmStringNullGuard(typeLabel),i,cmStringNullGuard(fn) );
+      goto errLabel;
+    }
+    
+    // get a data pointer to the data node
+    if((dnp = cmJsonNodeMemberValue(onp,"data")) == NULL )
+    {
+      rc = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Synax error in Modulator 'data' record at index %i in file:%s",i,cmStringNullGuard(fn) );
+      goto errLabel;
+    }
+
+    unsigned modSymId = cmSymTblRegisterSymbol(stH,modLabel);
+    unsigned varSymId = cmSymTblRegisterSymbol(stH,varLabel);
+
+    // the data may be an array of doubles ....
+    if( cmJsonIsArray(dnp) )
+    {
+      unsigned an = cmJsonChildCount(dnp);
+      double   av[an];
+      unsigned j;
+
+      // read each element in the data array
+      for(j=0; j<an; ++j)
+        if( cmJsonRealValue(cmJsonArrayElement(dnp,j), av+j ) != kOkJsRC )
+        {
+          rc = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Error parsing in Modulator 'data' record at index %i value index %i in file:%s",i,j,cmStringNullGuard(fn) );    
+          goto errLabel;
+        }
+
+      _cmScModulatorInsertEntry(p,i,scLocIdx,modSymId,varSymId,map->typeId,av,an);
+    }
+    else  // ... or a scalar
+    {
+      double v;
+      if( cmJsonRealValue(dnp,&v) !=  kOkJsRC )
+      {
+        rc = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Error paring in Modulator 'data' on record index %i.",i,cmStringNullGuard(fn));
+        goto errLabel;
+      }
+
+      _cmScModulatorInsertEntry(p,i,scLocIdx,modSymId,varSymId,map->typeId,&v,1);
+
+    }
+  }
+
+ errLabel:
+
+  // release the JSON tree
+  if( cmJsonIsValid(jsH) )
+    cmJsonFinalize(&jsH);
+
+  return rc;
+}
+
+cmRC_t cmScModulatorInit(  cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, double srate, unsigned samplesPerCycle, const cmChar_t* fn, const cmChar_t* modLabel, cmScModCb_t cbFunc, void* cbArg )
+{
+  cmRC_t rc;
+
+  if((rc = cmScModulatorFinal(p)) != cmOkRC )
+    return rc;
+
+  p->modSymId        = cmSymTblRegisterSymbol(stH,modLabel);
+  p->cbFunc          = cbFunc;
+  p->cbArg           = cbArg;
+  p->samplesPerCycle = samplesPerCycle;
+  p->srate           = srate;
+
+  if((rc = _cmScModulatorParse(p,ctx,stH,fn)) != cmOkRC )
+    goto errLabel;
+
+ errLabel:
+  if( rc != cmOkRC )
+    cmScModulatorFinal(p);
+  else
+    cmScModulatorReset(p,0);
+
+  return rc;
+}
+
+cmRC_t cmScModulatorFinal( cmScModulator* p )
+{
+  unsigned i;
+
+  // release each value record
+  cmScModVar_t* vp = p->vlist;
+  while( vp!=NULL )
+  {
+    cmScModVar_t* np = vp->vlink;
+    cmMemFree(vp);
+    vp=np;
+  }
+
+  // release each entry record
+  for(i=0; i<p->en; ++i)
+    cmMemFree(p->earray[i].parray);
+
+  return cmOkRC;
+}
+
+unsigned        cmScModulatorVarCount( cmScModulator* p )
+{
+  unsigned n = 0;
+  const cmScModVar_t* vp = p->vlist;
+  for(; vp!=NULL; vp=vp->vlink)
+    ++n;
+
+  return n;
+}
+
+cmScModVar_t* cmScModulatorVar( cmScModulator* p, unsigned idx )
+{
+  unsigned n = 0;
+  cmScModVar_t* vp = p->vlist;
+  for(; vp!=NULL; vp=vp->vlink,++n)
+    if( n == idx )
+      return vp;
+
+  assert(0);
+  return NULL;
+}
+
+cmRC_t cmScModulatorReset( cmScModulator* p, unsigned scLocIdx )
+{
+  p->alist = NULL;
+  p->nei   = 0;
+
+  return cmScModulatorExec(p,scLocIdx);
+}
+
+void  _cmScModUnlink( cmScModulator* p, cmScModVar_t* vp, cmScModVar_t* pp )
+{
+  if( pp == NULL )
+    p->alist = vp->alink;
+  else
+    pp->alink = vp->alink;  
+
+  vp->flags = 0;
+  vp->alink = NULL;  
+  vp->entry = NULL;
+}
+
+// Type specific variable activation
+cmRC_t _cmScModActivate(cmScModulator* p, cmScModEntry_t* ep )
+{
+  cmRC_t rc = cmOkRC;
+
+  cmScModVar_t* vp = ep->valPtr;
+
+  switch( ep->typeId )
+  {
+    case kSetModTId:
+      break;
+
+    case kLineModTId:
+      vp->v0    = vp->value;
+      vp->phase = 0;
+      break;
+
+    case kSetLineModTId:
+      vp->value     = ep->parray[0];
+      vp->v0        = ep->parray[0];
+      vp->phase     = 0;
+      ep->parray[0] = ep->parray[1];
+      ep->parray[1] = ep->parray[2];
+      break;
+
+    default:
+      { assert(0); }
+  }
+
+  return rc;
+}
+
+// Return true if vp should be deactivated otherwise return false.
+bool  _cmScModExec( cmScModulator* p, cmScModVar_t* vp )
+{
+  bool fl = false;
+  switch( vp->entry->typeId )
+  {
+    case kSetModTId:
+      p->cbFunc(p->cbArg,vp->varSymId,vp->entry->parray[0]);
+      fl = true;
+      break;
+
+    case kSetLineModTId:
+    case kLineModTId:
+      {
+        double v1 = vp->entry->parray[0];
+        double v  = vp->value + (v1-vp->v0) * (vp->phase * p->samplesPerCycle) / (p->srate * vp->entry->parray[1]);        
+
+        if((fl =  (vp->value <= v1 && v >= v1) || (vp->value >= v1 && v <= v1 )) == true )
+          v  = v1;
+       
+        vp->phase += 1;
+        vp->value  = v;
+        p->cbFunc(p->cbArg,vp->varSymId,v);
+      }
+      break;
+
+    default:
+      { assert(0); }
+  }
+  return fl;
+}
+
+
+cmRC_t cmScModulatorExec( cmScModulator* p, unsigned scLocIdx )
+{
+  cmRC_t trc;
+  cmRC_t rc = cmOkRC;
+
+  // trigger entries that have expired since the last call to this function
+  for(; p->nei<p->en && p->earray[p->nei].scLocIdx<=scLocIdx; ++p->nei)
+  {
+    cmScModEntry_t* ep = p->earray + p->nei;
+
+    // if the variable assoc'd with this entry is not on the active list ...
+    if( cmIsFlag(ep->valPtr->flags,kActiveModFl) == false )
+    {
+      // ... then push it onto the front of the active list ...
+      ep->valPtr->flags = kActiveModFl; 
+      ep->valPtr->alink = p->alist;
+      p->alist          = ep->valPtr;
+    }
+
+
+    // do type specific activation
+    if((trc = _cmScModActivate(p,ep)) != cmOkRC )
+      rc = trc;
+
+    ep->valPtr->entry = ep;
+
+  }
+    
+  
+  cmScModVar_t* pp = NULL;
+  cmScModVar_t* vp = p->alist;
+  for(; vp!=NULL; vp=vp->alink)
+  {
+    if( _cmScModExec(p,vp) )
+      _cmScModUnlink(p,vp,pp);
+    else
+      pp = vp;
+  }
+
+  return rc;
 }

@@ -5019,7 +5019,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmScoreClassCons,
   cmMidiFilePlayClassCons,
   cmScFolClassCons,
-
+  cmScModClassCons,
   NULL,
 };
 
