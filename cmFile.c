@@ -193,6 +193,65 @@ unsigned   cmFileByteCount(  cmFileH_t h )
   return sr.st_size;
 }
 
+cmFileRC_t   cmFileByteCountFn( const cmChar_t* fn, cmRpt_t* rpt, unsigned* fileByteCntPtr )
+{
+  assert( fileByteCntPtr != NULL );
+  cmFileRC_t rc;
+  cmFileH_t h = cmFileNullHandle;
+  if((rc = cmFileOpen(&h,fn,kReadFileFl,rpt)) != kOkFileRC )
+    return rc;
+
+  if( fileByteCntPtr != NULL)
+    *fileByteCntPtr = cmFileByteCount(h);
+
+  cmFileClose(&h);
+
+  return rc;    
+}
+
+cmFileRC_t cmFileCompare( const cmChar_t* fn0, const cmChar_t* fn1, cmRpt_t* rpt, bool* isEqualPtr )
+{
+  cmFileRC_t rc         = kOkFileRC;
+  unsigned   bufByteCnt = 2048;
+  cmFileH_t  h0         = cmFileNullHandle;
+  cmFileH_t  h1         = cmFileNullHandle;
+
+  char       b0[ bufByteCnt ];
+  char       b1[ bufByteCnt ];
+
+  assert(isEqualPtr != NULL );
+  *isEqualPtr = true;
+
+  if((rc = cmFileOpen(&h0,fn0,kReadFileFl,rpt)) != kOkFileRC )
+    goto errLabel;
+
+  if((rc = cmFileOpen(&h1,fn1,kReadFileFl,rpt)) != kOkFileRC )
+    goto errLabel;
+
+  cmFile_t*   p0 = _cmFileHandleToPtr(h0);
+  cmFile_t*   p1 = _cmFileHandleToPtr(h1);
+
+  while(1)
+  {
+    size_t n0 = fread(b0,1,bufByteCnt,p0->fp);
+    size_t n1 = fread(b1,1,bufByteCnt,p1->fp);
+    if( n0 != n1 || memcmp(b0,b1,n0)!=0 )
+    {
+      *isEqualPtr = false;
+      break;
+    }
+
+    if( n0 != bufByteCnt || n1 != bufByteCnt )
+      break;
+  }
+
+ errLabel:
+  cmFileClose(&h0);
+  cmFileClose(&h1);
+  return rc;
+}
+
+
 const cmChar_t* cmFileName( cmFileH_t h )
 {
   cmFile_t* p = _cmFileHandleToPtr(h);
