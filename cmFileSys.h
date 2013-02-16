@@ -146,16 +146,18 @@ extern "C" {
   // Flags used by cmFileSysDirEntries 'includeFlags' parameter.
   enum
   {
-    kFileFsFl      = 0x01,  //< include all visible files
-    kDirFsFl       = 0x02,  //< include all visible directory 
-    kInvisibleFsFl = 0x04,  //< include file/dir name beginning with a '.'
-    kCurDirFsFl    = 0x08,  //< include '.' directory
-    kParentDirFsFl = 0x10,  //< include '..' directory
+    kFileFsFl         = 0x001,   //< include all visible files
+    kDirFsFl          = 0x002,   //< include all visible directory 
+    kLinkFsFl         = 0x004,   //< include all symbolic links
+    kInvisibleFsFl    = 0x008,   //< include file/dir name beginning with a '.'
+    kCurDirFsFl       = 0x010,   //< include '.' directory
+    kParentDirFsFl    = 0x020,   //< include '..' directory
 
-    kAllFsFl       = 0x1f,  //< all type flags
+    kAllFsFl          = 0x02f,   //< all type flags
 
-    kFullPathFsFl = 0x40, //< return the full path in the 'name' field of cmFileSysDirEntry_t;
-    kRecurseFsFl  = 0x80  //< recurse into directories
+    kFullPathFsFl     = 0x040,   //< return the full path in the 'name' field of cmFileSysDirEntry_t;
+    kRecurseFsFl      = 0x080,   //< recurse into directories
+    kRecurseLinksFsFl = 0x100    //< recurse into symbol link directories 
 
   };
 

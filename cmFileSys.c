@@ -273,7 +273,7 @@ bool _cmFileSysIsLink( cmFs_t* p, const cmChar_t* fnStr )
   struct stat s;
   errno = 0;
 
-  if( stat(fnStr,&s)  != 0 )
+  if( lstat(fnStr,&s)  != 0 )
   {
 
     // if the file does not exist
@@ -293,6 +293,26 @@ bool cmFileSysIsLink( cmFileSysH_t h, const cmChar_t* fnStr )
 
   return _cmFileSysIsLink(p,fnStr);
 }
+
+bool _cmFileSysIsSocket( cmFs_t* p, const cmChar_t* fnStr )
+{
+  struct stat s;
+  errno = 0;
+
+  if( stat(fnStr,&s)  != 0 )
+  {
+
+    // if the file does not exist
+    if( errno == ENOENT )
+      return false;
+
+    _cmFileSysError( p, kStatFailFsRC, errno, "'stat' failed on '%s'.",fnStr);
+    return false;
+  }
+ 
+  return S_ISSOCK(s.st_mode);
+}
+
 
 bool _cmFileSysConcat( cmChar_t* rp, unsigned rn, char sepChar, const cmChar_t* suffixStr )
 {
@@ -777,8 +797,8 @@ typedef struct
   cmFs_t*              p;
   unsigned             filterFlags;
   cmFileSysDirEntry_t* rp;
-  cmChar_t*                dataPtr;
-  cmChar_t*                endPtr;
+  cmChar_t*            dataPtr;
+  cmChar_t*            endPtr;
   unsigned             entryCnt;
   unsigned             entryIdx;
   unsigned             dataByteCnt;
@@ -797,6 +817,9 @@ cmFsRC_t _cmFileSysDirGetEntries(  cmFileSysDeRecd_t* drp, const cmChar_t* dirSt
 
   if( dirStr == NULL || strlen(dirStr) == 0 )
     dirStr = curDirPtr;
+
+  if( _cmFileSysIsDir(drp->p,dirStr) == false )
+    return rc;
 
   unsigned       fnCharCnt= strlen(dirStr) + PATH_MAX;
   char           fn[ fnCharCnt + 1 ];
@@ -821,9 +844,9 @@ cmFsRC_t _cmFileSysDirGetEntries(  cmFileSysDeRecd_t* drp, const cmChar_t* dirSt
   if((dirp = opendir(dirStr)) == NULL)
   {
     rc = _cmFileSysError(drp->p,kOpenDirFailFsRC,errno,"Unable to open the directory:'%s'.",dirStr);
+
     goto errLabel;
   }
-
 
   // get the next directory entry
   while((dp = readdir(dirp)) != NULL )
@@ -873,6 +896,7 @@ cmFsRC_t _cmFileSysDirGetEntries(  cmFileSysDeRecd_t* drp, const cmChar_t* dirSt
         goto errLabel;
       }
 
+
       // is the entry a file
       if( _cmFileSysIsFile(drp->p,fn) )
       {
@@ -895,9 +919,27 @@ cmFsRC_t _cmFileSysDirGetEntries(  cmFileSysDeRecd_t* drp, const cmChar_t* dirSt
             if((rc = _cmFileSysDirGetEntries(drp,fn)) != kOkFsRC )
               goto errLabel;
         }
+        else
+        {
+          if( _cmFileSysIsLink(drp->p,fn) )
+          {
+            if( cmIsFlag(drp->filterFlags,kLinkFsFl) == false )
+              continue;
+
+            flags |= kLinkFsFl;
+
+            if( cmIsFlag(drp->filterFlags,kRecurseLinksFsFl) )
+              if((rc = _cmFileSysDirGetEntries(drp,fn)) != kOkFsRC )
+                goto errLabel;
+          }
+          else
+          {
+            continue;
+          }
+        }
       }
 
-      assert(flags != 0);
+      //assert(flags != 0);
 
       if( drp->passIdx == 0 )
       {
@@ -941,6 +983,9 @@ cmFsRC_t _cmFileSysDirGetEntries(  cmFileSysDeRecd_t* drp, const cmChar_t* dirSt
   }
 
  errLabel:
+  if( dirp != NULL )
+    closedir(dirp);
+
   return rc;
 }
 
@@ -962,7 +1007,7 @@ cmFileSysDirEntry_t* cmFileSysDirEntries(  cmFileSysH_t h, const cmChar_t* dirSt
     if((rc = _cmFileSysDirGetEntries( &r, dirStr )) != kOkFsRC )
       goto errLabel;
 
-    if( r.passIdx == 0 )
+    if( r.passIdx == 0 && r.dataByteCnt>0 )
     {
       // allocate memory to hold the return values
       if(( r.rp = (cmFileSysDirEntry_t *)cmLHeapAllocZ( r.p->heapH, r.dataByteCnt )) == NULL )
