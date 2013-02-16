@@ -6,7 +6,21 @@
 #include "cmMallocDebug.h"
 #include "cmLinkedHeap.h"
 #include "cmPgmOpts.h"
+#include "cmText.h"
 #include "config.h"
+
+enum { 
+  kFlagPoFl  = 0x001,
+  kBoolPoFl  = 0x002,  // this parameter does not take a value
+  kCharPoFl  = 0x004,  // parm. value is a character
+  kIntPoFl   = 0x008,  // parm. value is a decimal int
+  kUIntPoFl  = 0x010,  // parm. value is a decimal unsigned int
+  kDblPoFl   = 0x040,  // parm. value is a decimal double
+  kStrPoFl   = 0x080,  // parm. value is a string (default)
+  kEnumPoFl  = 0x100,  // parm. valus is a enum type (automatically set by a non-zero enumId)
+
+  kTypeMaskPoFl = 0x1ff
+};
 
 cmPgmOptH_t cmPgmOptNullHandle = cmSTATIC_NULL_HANDLE;
 
@@ -39,13 +53,15 @@ typedef struct _cmPoOpt_str
   unsigned              numId;      // 
   cmChar_t              charId;     // 
   cmChar_t*             wordId;     //
-  unsigned              flags;      // 
-  unsigned              enumId;     //
-  struct _cmPoOpt_str*  enumPtr;    // pointer to mast enum recd
+  unsigned              sflags;     // state flags (type flags)
+  unsigned              cflags;     // cfg flags (user settable cfg flag)
+  unsigned              enumId;     // enumerated set element id (numId is the group id)
+  struct _cmPoOpt_str*  enumPtr;    // pointer to mast enum recd (the master is the first param. rcvd for a given enum set - so this field is NULL for the master record)
   unsigned              maxInstCnt; //
   _cmPoValue_t          dfltVal;    // default value for this parm 
   _cmPoValPtr_t         retVal;     // client supplied variable which recieves the value of the last arg. parsed for this parm.
   cmChar_t*             helpStr;    //
+  cmChar_t*             mstrStr;
   struct _cmPoOpt_str*  link;       // link used by the _cmPo_t.list linked list
   struct _cmPoArg_str*  inst;       // arg's belonging to this opt record formed by _cmPoArg_t.inst links
 } _cmPoOpt_t;
@@ -72,6 +88,45 @@ typedef struct
   _cmPoArg_t* args;         // list of arg. records formed by _cmPoArg_t.link links
   bool        execFl;       // set to false in cmPgmOptParse() if only built-in options were selected
 } _cmPo_t;
+
+typedef struct
+{
+  unsigned        id;
+  const cmChar_t* label;
+} _cmPoMap_t;
+
+_cmPoMap_t _cmPoTypeMap[] = 
+{
+  { kFlagPoFl, "" },
+  { kBoolPoFl, "" },
+  { kCharPoFl, "<char>" },
+  { kIntPoFl,  "<int>" },
+  { kUIntPoFl, "<uint>" },
+  { kDblPoFl,  "<real>" },
+  { kStrPoFl,  "<text>" },
+  { kEnumPoFl, "<enum>" },
+  { 0,         "<unknown>"}
+};
+
+const cmChar_t* _cmPoTypeFlagToLabel( unsigned flag, unsigned cflags )
+{
+  if( cmIsFlag(cflags,kHexPoFl) )
+    return "<hex>";
+
+  const _cmPoMap_t* m = _cmPoTypeMap;
+  for(; m->id != 0; ++m)
+    if( m->id == flag )
+      break;
+  return m->label;
+}
+
+bool _cmPoOptUsesValue( const _cmPoOpt_t* r )
+{ 
+  return 
+    cmIsNotFlag(r->sflags,kEnumPoFl) && 
+    cmIsNotFlag(r->sflags,kBoolPoFl) && 
+    cmIsNotFlag(r->sflags,kFlagPoFl);
+}
 
 _cmPo_t* _cmPoHandleToPtr( cmPgmOptH_t h )
 {
@@ -107,10 +162,6 @@ cmPoRC_t cmPgmOptInitialize(cmCtx_t* c, cmPgmOptH_t* hp, const cmChar_t* helpBeg
 
   hp->h = p;
 
-  cmPgmOptInstallBool(*hp, kPrintHelpPoId, 'h', "help",    0, false, NULL,0,"Print this usage information." );
-  cmPgmOptInstallBool(*hp, kVersionPoId,   'v', "version", 0, false, NULL,0,"Print version information." );
-  cmPgmOptInstallBool(*hp, kPrintParmsPoId,'p', "parms",   0, false, NULL,0,"Print the parameter information."); 
-
   return cmErrLastRC(&p->err);
 }
 
@@ -138,7 +189,7 @@ _cmPoOpt_t* _cmPgmOptNumIdToOptRecd( _cmPo_t* p, unsigned numId )
     if( r->numId == numId )
     {
 
-      if( cmIsFlag(r->flags,kEnumPoFl) && r->enumPtr!=NULL )
+      if( cmIsFlag(r->sflags,kEnumPoFl) && r->enumPtr!=NULL )
         r = r->enumPtr;
 
       return r;
@@ -190,10 +241,10 @@ _cmPoOpt_t* _cmPgmOptWordIdToOptRecd( _cmPo_t* p, const cmChar_t* wordId )
 }
 
 
-cmPoRC_t _cmPgmOptInstall( _cmPo_t* p, unsigned numId, const cmChar_t charId, const cmChar_t* wordId, unsigned flags, unsigned enumId, unsigned cnt, const cmChar_t* helpStr, _cmPoOpt_t** rpp )
+cmPoRC_t _cmPgmOptInstall( _cmPo_t* p, unsigned numId, const cmChar_t charId, const cmChar_t* wordId, unsigned cflags, unsigned sflags, unsigned enumId, unsigned cnt, const cmChar_t* helpStr, _cmPoOpt_t** rpp )
 {
   // validate the num. id
-  if( enumId==0 && _cmPgmOptNumIdToOptRecd(p,numId) != NULL )
+  if( cmIsNotFlag(sflags,kEnumPoFl) && _cmPgmOptNumIdToOptRecd(p,numId) != NULL )
     return cmErrMsg(&p->err,kDuplicateIdPoRC,"The numeric id '%i' was already used by another parameter.",numId);
 
   // validate the char. id
@@ -204,15 +255,18 @@ cmPoRC_t _cmPgmOptInstall( _cmPo_t* p, unsigned numId, const cmChar_t charId, co
   if( _cmPgmOptWordIdToOptRecd(p,wordId) != NULL )
     return cmErrMsg(&p->err,kDuplicateIdPoRC,"The word id --'%s' was already used by another parameter.",wordId);
 
+  // clear the kHexPoFl if this is not an int or uint.
+  if( cmIsNotFlag(sflags,kFlagPoFl) && cmIsNotFlag(sflags,kIntPoFl) && cmIsNotFlag(sflags,kUIntPoFl) )
+    cflags = cmClrFlag(cflags,kHexPoFl);
 
   // allocate the new parm recd
   _cmPoOpt_t* r = cmLhAllocZ( p->lH, _cmPoOpt_t, 1 );
 
 
-  // if enumId != 0 then this is automatically an enum type.
-  if( enumId != 0 )
+  // if this is an enum type.
+  if( cmIsFlag(sflags,kEnumPoFl) )
   {
-    flags = cmClrFlag(flags,kTypeMaskPoFl) | kEnumPoFl;
+    sflags = cmClrFlag(sflags,kTypeMaskPoFl) | kEnumPoFl;
 
     // set the master recd for this enum ptr
     _cmPoOpt_t* erp;
@@ -221,25 +275,37 @@ cmPoRC_t _cmPgmOptInstall( _cmPo_t* p, unsigned numId, const cmChar_t charId, co
       r->enumPtr = erp->enumPtr==NULL ? erp : erp->enumPtr;  
 
       // if this child enum has it's required flags set 
-      if( cmIsFlag(flags,kReqPoFl) )
+      if( cmIsFlag(cflags,kReqPoFl) )
       {
         // then set the required flag in the parent and clear it in the child
         // (this way both the parent and child will not be required (which would be impossible for an enum))
-        r->enumPtr->flags = cmSetFlag(r->enumPtr->flags,kReqPoFl);
-        flags = cmClrFlag(flags,kReqPoFl);
+        r->enumPtr->cflags = cmSetFlag(r->enumPtr->cflags,kReqPoFl);
+        cflags = cmClrFlag(cflags,kReqPoFl);
       }
     }
   }
 
-  r->flags      = flags; 
+  r->cflags     = cflags; 
+  r->sflags     = sflags;
   r->numId      = numId;
   r->charId     = charId;
   r->wordId     = cmLhAllocStr( p->lH, wordId );
   r->enumId     = enumId;
   r->maxInstCnt = cnt;
   r->helpStr    = helpStr==NULL ? NULL : cmLhAllocStr( p->lH, helpStr );
-  r->link       = p->list;
-  p->list       = r;
+
+
+  _cmPoOpt_t* rp = p->list;
+  while( rp != NULL && rp->link != NULL )
+    rp = rp->link;
+
+  if( rp == NULL )
+    p->list = r;
+  else
+    rp->link = r;
+
+  //r->link       = p->list;
+  //p->list       = r;
 
   *rpp = r;
 
@@ -252,9 +318,7 @@ cmPoRC_t cmPgmOptInstallChar(cmPgmOptH_t h, unsigned numId, cmChar_t charId, con
   _cmPoOpt_t* r     = NULL;
   _cmPo_t*    p     = _cmPoHandleToPtr(h);
 
-  flags = cmClrFlag(flags,kTypeMaskPoFl) | kCharPoFl;
-
-  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, 0, cnt, helpStr, &r )) != kOkPoRC )
+  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, kCharPoFl, 0, cnt, helpStr, &r )) != kOkPoRC )
     return rc;
 
   r->dfltVal.c = dfltVal;
@@ -272,9 +336,7 @@ cmPoRC_t cmPgmOptInstallBool(cmPgmOptH_t h, unsigned numId, cmChar_t charId, con
   _cmPoOpt_t* r     = NULL;
   _cmPo_t*    p     = _cmPoHandleToPtr(h);
 
-  flags = cmClrFlag(flags,kTypeMaskPoFl) | kBoolPoFl;
-
-  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, 0, cnt, helpStr, &r )) != kOkPoRC )
+  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, kBoolPoFl, 0, cnt, helpStr, &r )) != kOkPoRC )
     return rc;
 
   r->dfltVal.b = dfltVal;
@@ -292,9 +354,7 @@ cmPoRC_t cmPgmOptInstallInt( cmPgmOptH_t h, unsigned numId, cmChar_t charId, con
   _cmPoOpt_t* r     = NULL;
   _cmPo_t*    p     = _cmPoHandleToPtr(h);
 
-  flags = cmClrFlag(flags,kTypeMaskPoFl) | kIntPoFl;
-
-  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, 0, cnt, helpStr, &r )) != kOkPoRC )
+  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, kIntPoFl, 0, cnt, helpStr, &r )) != kOkPoRC )
     return rc;
 
   r->dfltVal.i = dfltVal;
@@ -312,9 +372,7 @@ cmPoRC_t cmPgmOptInstallUInt(cmPgmOptH_t h, unsigned numId, cmChar_t charId, con
   _cmPoOpt_t* r     = NULL;
   _cmPo_t*    p     = _cmPoHandleToPtr(h);
 
-  flags = cmClrFlag(flags,kTypeMaskPoFl) | kUIntPoFl;
-
-  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, 0, cnt, helpStr, &r )) != kOkPoRC )
+  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, kUIntPoFl, 0, cnt, helpStr, &r )) != kOkPoRC )
     return rc;
 
   r->dfltVal.u = dfltVal;
@@ -332,9 +390,7 @@ cmPoRC_t cmPgmOptInstallDbl( cmPgmOptH_t h, unsigned numId, cmChar_t charId, con
   _cmPoOpt_t* r     = NULL;
   _cmPo_t*    p     = _cmPoHandleToPtr(h);
 
-  flags = cmClrFlag(flags,kTypeMaskPoFl) | kDblPoFl;
-
-  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, 0, cnt, helpStr, &r )) != kOkPoRC )
+  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, kDblPoFl, 0, cnt, helpStr, &r )) != kOkPoRC )
     return rc;
 
   r->dfltVal.d = dfltVal;
@@ -352,9 +408,8 @@ cmPoRC_t cmPgmOptInstallStr( cmPgmOptH_t h, unsigned numId, cmChar_t charId, con
   _cmPoOpt_t* r     = NULL;
   _cmPo_t*    p     = _cmPoHandleToPtr(h);
 
-  flags = cmClrFlag(flags,kTypeMaskPoFl) | kStrPoFl;
 
-  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, 0, cnt, helpStr, &r )) != kOkPoRC )
+  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, kStrPoFl, 0, cnt, helpStr, &r )) != kOkPoRC )
     return rc;
 
   r->dfltVal.s = dfltVal;
@@ -366,15 +421,13 @@ cmPoRC_t cmPgmOptInstallStr( cmPgmOptH_t h, unsigned numId, cmChar_t charId, con
   return rc;
 }
 
-cmPoRC_t cmPgmOptInstallEnum(cmPgmOptH_t h, unsigned numId, cmChar_t charId, const cmChar_t* wordId, unsigned flags, unsigned enumId, unsigned dfltVal, unsigned* retValPtr, unsigned cnt, const cmChar_t* helpStr  )
+cmPoRC_t cmPgmOptInstallEnum(cmPgmOptH_t h, unsigned numId, cmChar_t charId, const cmChar_t* wordId, unsigned flags, unsigned enumId, unsigned dfltVal, unsigned* retValPtr, unsigned cnt, const cmChar_t* helpStr, const cmChar_t* mstrHelpStr  )
 {
   cmPoRC_t    rc;
   _cmPoOpt_t* r     = NULL;
   _cmPo_t*    p     = _cmPoHandleToPtr(h);
 
-  flags = cmClrFlag(flags,kTypeMaskPoFl) | kEnumPoFl;
-
-  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, enumId, cnt, helpStr, &r )) != kOkPoRC )
+  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, kEnumPoFl, enumId, cnt, helpStr, &r )) != kOkPoRC )
     return rc;
 
   r->dfltVal.u = dfltVal;
@@ -383,6 +436,32 @@ cmPoRC_t cmPgmOptInstallEnum(cmPgmOptH_t h, unsigned numId, cmChar_t charId, con
     r->retVal.u  = retValPtr;
     *r->retVal.u = dfltVal;
   }
+
+  if( mstrHelpStr != NULL )
+  {
+    _cmPoOpt_t* rp = r->enumPtr == NULL ? r : r->enumPtr;
+    rp->mstrStr = cmLhAllocStr(p->lH,mstrHelpStr);
+  }
+  return rc;
+}
+
+cmPoRC_t cmPgmOptInstallFlag(cmPgmOptH_t h, unsigned numId, cmChar_t charId, const cmChar_t* wordId, unsigned flags, unsigned         dfltVal, unsigned*       retValPtr, unsigned cnt, const cmChar_t* helpStr )
+{
+  cmPoRC_t    rc;
+  _cmPoOpt_t* r     = NULL;
+  _cmPo_t*    p     = _cmPoHandleToPtr(h);
+
+  if((rc= _cmPgmOptInstall(p, numId, charId, wordId, flags, kFlagPoFl, 0, cnt, helpStr, &r )) != kOkPoRC )
+    return rc;
+
+  r->dfltVal.u = dfltVal;
+  if( retValPtr != NULL )
+  {
+    r->retVal.u  = retValPtr;
+    // Unlike other parameters we don't set the initial value of flag parameter 
+    // because we don't want to destroy any default flag that may be set there
+  }
+
   return rc;
 }
 
@@ -411,7 +490,7 @@ _cmPoArg_t* _cmPgmOptInsertArg( _cmPo_t* p,  _cmPoOpt_t* r )
   //  a->u.b = true;
 
   // if this is an enumerated type
-  if( cmIsFlag(r->flags,kEnumPoFl) )
+  if( cmIsFlag(r->sflags,kEnumPoFl) )
   {
     a->u.u = enumId;
 
@@ -420,6 +499,14 @@ _cmPoArg_t* _cmPgmOptInsertArg( _cmPo_t* p,  _cmPoOpt_t* r )
 
     if( e->retVal.u != NULL )
       *e->retVal.u = enumId;
+  }
+
+  // if this is a flag type
+  if( cmIsFlag(r->sflags,kFlagPoFl) )
+  {
+    a->u.u = r->dfltVal.u;
+    if( r->retVal.u != NULL )
+      *r->retVal.u |= a->u.u;
   }
   return a;
 }
@@ -453,8 +540,12 @@ cmPoRC_t _cmPgmOptParseValue( _cmPo_t* p, _cmPoOpt_t* r, _cmPoArg_t* a, const cm
   a->valStr = valStr;
 
   errno = 0;
-  switch( r->flags & kTypeMaskPoFl )
+  switch( r->sflags & kTypeMaskPoFl )
   {
+    // case kFlagPoFl: 
+    // enum values get set in _cmPgmOptInsertArg()
+
+
     case kBoolPoFl: 
       //rc = _cmPgmOptParseBool(p,valStr,&a->u.b); 
       a->u.b = true;
@@ -469,25 +560,19 @@ cmPoRC_t _cmPgmOptParseValue( _cmPo_t* p, _cmPoOpt_t* r, _cmPoArg_t* a, const cm
       break;
 
     case kIntPoFl:  
-      a->u.i = strtol(valStr,NULL,10); 
+      a->u.i = strtol(valStr,NULL, cmIsFlag(r->cflags,kHexPoFl) ? 16 : 10); 
       if( r->retVal.i != NULL )
         *r->retVal.i = a->u.i;
       break;
 
     case kUIntPoFl: 
-      a->u.u = strtol(valStr,NULL,10); 
+      a->u.u = strtol(valStr,NULL, cmIsFlag(r->cflags,kHexPoFl) ? 16 : 10); 
       if( r->retVal.u != NULL )
         *r->retVal.u = a->u.u;
       break;
       
       // case kEnumPoFl: 
       // enum values get set in _cmPgmOptInsertArg()
-
-    case kHexPoFl:  
-      a->u.u = strtol(valStr,NULL,16); 
-      if( r->retVal.u != NULL )
-        *r->retVal.u = a->u.u;
-      break;
 
     case kDblPoFl:  
       a->u.d = strtod(valStr,NULL);    
@@ -500,6 +585,9 @@ cmPoRC_t _cmPgmOptParseValue( _cmPo_t* p, _cmPoOpt_t* r, _cmPoArg_t* a, const cm
       if( r->retVal.s != NULL )
         *r->retVal.s = a->u.s;
       break;
+
+    default:
+      { assert(0); }
   }
 
 
@@ -540,6 +628,28 @@ bool _cmPgmOptCheckNoExec( _cmPo_t* p )
   return false;
 }
 
+cmPoRC_t  _cmPgmOptMissingEnumError( _cmPo_t* p, _cmPoOpt_t* r )
+{
+  _cmPoOpt_t* mstr = r->enumPtr==NULL ? r : r->enumPtr;
+  _cmPoOpt_t* rp  = p->list;
+  cmChar_t*   msg = cmTsPrintfP(NULL,"No argument was supplied for the required enumerated parameter containing the following set of possible flags: { ");
+  
+  for(; rp!=NULL; rp=rp->link)
+    if( cmIsFlag(rp->sflags,kEnumPoFl) && (rp==mstr || rp->enumPtr==mstr) )
+    {
+      msg = cmTextAppendSS(msg,rp->wordId);
+      msg = cmTextAppendSS(msg," ");
+    }
+
+  msg = cmTextAppendSS(msg,"}");
+  
+  cmPoRC_t rc = cmErrMsg(&p->err,kNoReqArgPoRC,msg);
+
+  cmMemFree(msg);
+  
+  return rc;
+}
+
 // check that all required arg.s were actually given and that the actual
 // number of instances does not exceed the defined limit
 cmPoRC_t _cmPgmOptCheckReqArgs( _cmPo_t* p )
@@ -549,7 +659,7 @@ cmPoRC_t _cmPgmOptCheckReqArgs( _cmPo_t* p )
   _cmPoOpt_t* r = p->list;
   while( r != NULL )
   {
-    if( cmIsFlag(r->flags, kReqPoFl ) )
+    if( cmIsFlag(r->cflags, kReqPoFl ) )
     {
       _cmPoArg_t* a = p->args;
       while( a != NULL )
@@ -560,7 +670,12 @@ cmPoRC_t _cmPgmOptCheckReqArgs( _cmPo_t* p )
       }
     
       if( a == NULL )
-        rc = cmErrMsg(&p->err,kNoReqArgPoRC,"No argument was supplied for the required parameter '%s'.",r->wordId);
+      {
+        if( cmIsFlag(r->sflags, kEnumPoFl ) )
+          rc =  _cmPgmOptMissingEnumError(p,r);
+        else
+          rc = cmErrMsg(&p->err,kNoReqArgPoRC,"No argument was supplied for the required parameter '%s'.",r->wordId);
+      }
 
     }
 
@@ -585,6 +700,17 @@ cmPoRC_t cmPgmOptParse( cmPgmOptH_t h, unsigned argCnt,  char* argArray[] )
   _cmPoArg_t* a     = NULL;
   int         i     = 0; // arg index
   int         j     = 0; // arg label character index
+
+
+  if( _cmPgmOptNumIdToOptRecd(p,kPrintHelpPoId) == NULL )
+    cmPgmOptInstallBool(h, kPrintHelpPoId, 'h', "help",    0, false, NULL,0,"Print this usage information." );
+
+  if( _cmPgmOptNumIdToOptRecd(p,kVersionPoId) == NULL )
+    cmPgmOptInstallBool(h, kVersionPoId,   'v', "version", 0, false, NULL,0,"Print version information." );
+
+  if( _cmPgmOptNumIdToOptRecd(p,kPrintParmsPoId) == NULL )
+    cmPgmOptInstallBool(h, kPrintParmsPoId,'p', "parms",   0, false, NULL,0,"Print the arguments."); 
+
   
   while(i<argCnt)
   {
@@ -628,8 +754,8 @@ cmPoRC_t cmPgmOptParse( cmPgmOptH_t h, unsigned argCnt,  char* argArray[] )
           if((r = _cmPgmOptCharIdToOptRecd(p,argArray[i][j])) == NULL )
             return cmErrMsg(&p->err,kSyntaxErrPoRC,"The program option selector char '%c' is not valid.",argArray[i][j]);
 
-          // if this charId is not a bool or enum then it must be followed by a value.
-          if( cmIsFlag(r->flags,kBoolPoFl)==false && cmIsFlag(r->flags,kEnumPoFl)==false )
+          // if this charId is not a flag,bool or enum then it must be followed by a value.
+          if( _cmPoOptUsesValue(r) )
             ++i;
           else // otherwise process the next char id in this charId token            
             ++j;
@@ -669,8 +795,8 @@ cmPoRC_t cmPgmOptParse( cmPgmOptH_t h, unsigned argCnt,  char* argArray[] )
         // create an arg record for the cur char or word id.
         a = _cmPgmOptInsertArg(p, r );
 
-        // and the value type is not 'bool' or 'enum'
-        if( cmIsFlag(r->flags,kBoolPoFl)== false && cmIsFlag(r->flags,kEnumPoFl)==false )
+        // and the value type is not 'flag','bool' or 'enum'
+        if( _cmPoOptUsesValue(r) )
           state = kArgVal;
 
         switch(state)
@@ -718,7 +844,7 @@ cmPoRC_t  _cmPgmOptIndexToPtr( _cmPo_t* p, unsigned idx, const _cmPoArg_t** app 
   unsigned          n = 0;
   const _cmPoArg_t* a = p->args;
 
-  while( a != NULL && idx < n )
+  while( a != NULL && n < idx )
   {
     ++n;
     a = a->link;
@@ -732,13 +858,31 @@ cmPoRC_t  _cmPgmOptIndexToPtr( _cmPo_t* p, unsigned idx, const _cmPoArg_t** app 
   return kOkPoRC;
 }
   
-unsigned cmPgmOptSelId( cmPgmOptH_t h, unsigned argIdx )
+unsigned cmPgmOptNumId( cmPgmOptH_t h, unsigned argIdx )
 {
   const _cmPoArg_t* a;
   cmPoRC_t          rc;
   if((rc = _cmPgmOptIndexToPtr(_cmPoHandleToPtr(h),argIdx,&a)) != kOkPoRC )
     return cmInvalidId;
   return a->opt->numId;
+}
+
+unsigned cmPgmOptCharId( cmPgmOptH_t h, unsigned argIdx )
+{
+  const _cmPoArg_t* a;
+  cmPoRC_t          rc;
+  if((rc = _cmPgmOptIndexToPtr(_cmPoHandleToPtr(h),argIdx,&a)) != kOkPoRC )
+    return cmInvalidId;
+  return a->opt->charId;
+}
+
+const cmChar_t* cmPgmOptWordId( cmPgmOptH_t h, unsigned argIdx )
+{
+  const _cmPoArg_t* a;
+  cmPoRC_t          rc;
+  if((rc = _cmPgmOptIndexToPtr(_cmPoHandleToPtr(h),argIdx,&a)) != kOkPoRC )
+    return NULL;
+  return a->opt->wordId;
 }
 
 cmPoRC_t  _cmPgmOptArgPtr( _cmPo_t* p, unsigned argIdx, const _cmPoArg_t** app )
@@ -903,7 +1047,7 @@ char        cmPgmOptArgChar( cmPgmOptH_t h, unsigned numId, unsigned instIdx )
   if(_cmPgmOptInstPtr(p,numId,instIdx,&rp,&vp) != kOkPoRC )
     return 0;
 
-  if( cmIsFlag(rp->flags,kCharPoFl) )
+  if( cmIsFlag(rp->sflags,kCharPoFl) )
   {
     cmErrMsg(&p->err,kTypeErrPoRC,"The parameter '%s' is not a 'char'.",rp->wordId);
     return 0;
@@ -938,14 +1082,14 @@ int         cmPgmOptArgInt(    cmPgmOptH_t h, unsigned numId, unsigned instIdx )
   if((rc = _cmPgmOptInstPtr(p,numId,instIdx,&rp,&vp)) != kOkPoRC )
     return rc;
  
-  switch( rp->flags & kTypeMaskPoFl )
+  switch( rp->sflags & kTypeMaskPoFl )
   {
+    case kFlagPoFl: v = vp->u; break;
     case kBoolPoFl: v = vp->b; break;
     case kCharPoFl: v = vp->c; break;
     case kIntPoFl:
     case kEnumPoFl: v = vp->i; break;
     case kUIntPoFl:
-    case kHexPoFl:  v = vp->u; break;
     case kDblPoFl:  v = roundl(vp->d); break;
     case kStrPoFl:  
       cmErrMsg(&p->err,kTypeErrPoRC,"The string parameter '%s' cannot be converted to an integer.",rp->wordId);
@@ -972,13 +1116,13 @@ double      cmPgmOptArgDbl( cmPgmOptH_t h, unsigned numId, unsigned instIdx )
   if((rc = _cmPgmOptInstPtr(p,numId,instIdx,&rp,&vp)) != kOkPoRC )
     return rc;
  
-  switch( rp->flags & kTypeMaskPoFl )
+  switch( rp->sflags & kTypeMaskPoFl )
   {
+    case kFlagPoFl: v = vp->u; break;
     case kBoolPoFl: v = vp->b; break;
     case kCharPoFl: v = vp->c; break;
     case kEnumPoFl:
     case kIntPoFl:  v = vp->i; break;
-    case kHexPoFl:  
     case kUIntPoFl: v = vp->u; break;
     case kDblPoFl:  v = vp->d; break;
     case kStrPoFl:  
@@ -1003,7 +1147,7 @@ const char* cmPgmOptArgStr(    cmPgmOptH_t h, unsigned numId, unsigned instIdx )
     return NULL;
 
   // if the requested param is a defined as a string
-  if( cmIsFlag(rp->flags,kStrPoFl) )
+  if( cmIsFlag(rp->sflags,kStrPoFl) )
     return vp->s;
 
   // otherwise the requested param is not defined as a string - so try to return the instance string value
@@ -1065,14 +1209,36 @@ void cmPgmOptPrintHelp( cmPgmOptH_t h, cmRpt_t* rpt )
   if( p->helpBegStr != NULL )
     cmRptPrintf(rpt,"%s\n",p->helpBegStr);
 
-  while( r != NULL )
+  for(; r != NULL; r=r->link )
   {
-    cmRptPrintf(rpt,"-%c --%-20s ",r->charId,r->wordId);
+    const cmChar_t* reqStr = "(required)";
+    const cmChar_t* valueTypeLabel = "";
+    const cmChar_t* reqLabel = "";
+    const cmChar_t* indentStr = "";
+
+    const _cmPoOpt_t* mstr = NULL;
+
+    if( cmIsFlag(r->sflags,kEnumPoFl) )
+    {
+      if( r->enumPtr == NULL )
+        mstr     = r;
+      indentStr = "    ";
+    }
+
+    if( _cmPoOptUsesValue(r) ) 
+      valueTypeLabel = _cmPoTypeFlagToLabel(r->sflags & kTypeMaskPoFl,r->cflags);
+
+    if( cmIsNotFlag(r->sflags,kEnumPoFl)  && cmIsFlag(r->sflags,kReqPoFl) )
+      reqLabel = reqStr;
+
+    if( mstr != NULL )
+      cmRptPrintf(rpt,"Enumerated group: %s %s",mstr->mstrStr==NULL ? "" : mstr->mstrStr, cmIsFlag(mstr->cflags,kReqPoFl) ? reqStr : "" );
+   
+    cmRptPrintf(rpt,"%s-%c --%s %s %s",indentStr,r->charId,r->wordId,valueTypeLabel,reqLabel);
 
     if( r->helpStr != NULL )
       cmRptPrintf(rpt,"    %s\n",r->helpStr);
 
-    r = r->link;
   }
   
 
@@ -1090,7 +1256,7 @@ void cmPgmOptPrintVersion( cmPgmOptH_t h, cmRpt_t* rpt )
 bool _cmPgmOptPrint( _cmPo_t* p, cmRpt_t* rpt, const _cmPoOpt_t* r, const _cmPoValue_t* v, const cmChar_t* valStr )
 {
   const _cmPoOpt_t* e = r;
-  if( cmIsFlag(r->flags,kEnumPoFl) )
+  if( cmIsFlag(r->sflags,kEnumPoFl) )
   {
     if( r->enumPtr != NULL )
       return false;
@@ -1103,13 +1269,13 @@ bool _cmPgmOptPrint( _cmPo_t* p, cmRpt_t* rpt, const _cmPoOpt_t* r, const _cmPoV
   }
 
   cmRptPrintf(rpt,"-%c --%-20s %i ",e->charId,e->wordId, _cmPgmOptInstCount(r));
-  switch(r->flags & kTypeMaskPoFl)
+  switch(r->sflags & kTypeMaskPoFl)
   {
+    case kFlagPoFl: cmRptPrintf(rpt,r->cflags & kHexPoFl ? "0x%x ": "%u ",v->u ); break;
     case kBoolPoFl: cmRptPrintf(rpt,"%c ",  v->b ? 'T' : 'F'); break;
     case kCharPoFl: cmRptPrintf(rpt,"%c ",  v->c); break;
-    case kIntPoFl:  cmRptPrintf(rpt,"%i ",  v->i); break;
-    case kUIntPoFl: cmRptPrintf(rpt,"%u ",  v->u); break;
-    case kHexPoFl:  cmRptPrintf(rpt,"0x%x ",v->u); break;
+    case kIntPoFl:  cmRptPrintf(rpt,r->cflags & kHexPoFl ? "0x%x ": "%i ",  v->i); break;
+    case kUIntPoFl: cmRptPrintf(rpt,r->cflags & kHexPoFl ? "0x%x ": "%u ",  v->u); break;
     case kDblPoFl:  cmRptPrintf(rpt,"%f ",  v->d); break;
     case kStrPoFl:  cmRptPrintf(rpt,"%s ",  v->s); break;
     case kEnumPoFl: cmRptPrintf(rpt,"%i ",  v->u); break;

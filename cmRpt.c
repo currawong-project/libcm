@@ -1,6 +1,10 @@
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmRpt.h"
+#include "cmErr.h"
+#include "cmCtx.h"
+#include "cmMem.h"
+#include "cmMallocDebug.h"
 
 cmRpt_t cmRptNull = { NULL, NULL, NULL };
 
@@ -26,15 +30,31 @@ void _cmOut( cmRptPrintFunc_t printFunc, void* userData, const cmChar_t* text )
 
 void _cmVOut( cmRptPrintFunc_t printFunc, void* userData, const cmChar_t* fmt, va_list vl )
 {
-  unsigned bufN = 511;
- 
-  cmChar_t buf[bufN+1];
-  buf[0]=0;
+  va_list vl1;
+  va_copy(vl1,vl);
+  unsigned  n    = vsnprintf(NULL,0,fmt,vl1);
+  va_end(vl1);
+
+  unsigned  bufN = 511;
+  cmChar_t  buf[bufN+1];
+  cmChar_t* b    = buf;
+  unsigned  bn   = bufN;
+
+  if( n > bufN )
+  {
+    b  = cmMemAllocZ(cmChar_t,n+1); 
+    bn = n;
+  }
+
+  b[0]=0;
   if( fmt != NULL )
-    if( vsnprintf(buf,bufN,fmt,vl) > bufN )
+    if( vsnprintf(b,bn,fmt,vl) > bn )
     _cmOut(printFunc,userData,"The following error message was truncated because the character buffer in cmRpt::_cmVOut() was too small.");
 
-  _cmOut(printFunc,userData,buf);
+  _cmOut(printFunc,userData,b);
+
+  if( n > bufN )
+    cmMemFree(b);
 }
 
 void cmRptSetup( cmRpt_t* rpt, cmRptPrintFunc_t printFunc, cmRptPrintFunc_t errorFunc, void* userPtr )

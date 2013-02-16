@@ -89,6 +89,10 @@ extern "C" {
 
   // Return the length of the file in bytes
   unsigned   cmFileByteCount(  cmFileH_t h );
+  cmFileRC_t cmFileByteCountFn( const cmChar_t* fn, cmRpt_t* rpt, unsigned* fileByteCntPtr );
+
+  // Set *isEqualPtr=true if the two files are identical.
+  cmFileRC_t cmFileCompare( const cmChar_t* fn0, const cmChar_t* fn1, cmRpt_t* rpt, bool* isEqualFlPtr );
 
   // Return the file name associated with a file handle.
   const cmChar_t* cmFileName( cmFileH_t h );
