@@ -84,6 +84,12 @@ typedef unsigned (*cmLexUserMatcherPtr_t)( const cmChar_t* cp, unsigned cn );
 
 cmRC_t             cmLexRegisterMatcher( cmLexH h, unsigned id, cmLexUserMatcherPtr_t funcPtr );
 
+// Get and set the lexer filter flags kReturnXXXLexFl.
+// These flags can be safely enabled and disabled between
+// calls to cmLexGetNextToken().
+unsigned           cmLexFilterFlags( cmLexH h );
+void               cmLexSetFilterFlags( cmLexH h, unsigned flags );
+
 // Return the type id of the current token and advances to the next token
 unsigned           cmLexGetNextToken( cmLexH h );
 

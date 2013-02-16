@@ -637,6 +637,18 @@ cmRC_t             cmLexRegisterMatcher( cmLexH h, unsigned id, cmLexUserMatcher
   return _cmLexInstallMatcher( p, id, NULL, NULL, userPtr );
 }
 
+unsigned           cmLexFilterFlags( cmLexH h )
+{
+  cmLex* p = _cmLexHandleToPtr(h);
+  return p->flags;
+}
+
+void               cmLexSetFilterFlags( cmLexH h, unsigned flags )
+{
+  cmLex* p = _cmLexHandleToPtr(h);
+  p->flags = flags;
+}
+
 
 unsigned           cmLexGetNextToken( cmLexH h )
 {
