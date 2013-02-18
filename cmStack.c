@@ -238,6 +238,14 @@ cmStRC_t cmStackPop(   cmStackH_t h, unsigned eleCnt )
   return rc;
 }
 
+const void* cmStackTop(     cmStackH_t h )
+{
+  unsigned n = cmStackCount(h);
+  if( n == 0 )
+    return NULL;
+  return cmStackGet(h,n-1);
+}
+
 cmStRC_t _cmStackSetGet( cmStack_t* p, unsigned index, char* data, unsigned dataEleCnt, bool setFl )
 {
   cmStRC_t   rc = kOkStRC;

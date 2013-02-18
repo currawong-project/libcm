@@ -18,7 +18,7 @@ extern "C" {
 
   extern cmStackH_t cmStackNullHandle;
 
-  // Allocate a stack to hold fixed data elements of size 'eleByteCnt'.
+  // Allocate a stack to hold data elements each of size 'eleByteCnt'.
   // The stack will be initialized with 'initCnt' empty slots. Once these
   // slots are filled 'expandCnt' additional slots will be added as necessary.
   cmStRC_t    cmStackAlloc( cmCtx_t* ctx, cmStackH_t* hp, unsigned initCnt, unsigned expandCnt, unsigned eleByteCnt );
@@ -36,6 +36,10 @@ extern "C" {
 
   // Remove 'eleCnt' elements from the stack.
   cmStRC_t    cmStackPop(     cmStackH_t h, unsigned eleCnt );
+
+  // Return a pointer to the top element on the stack. This is the one which will be
+  // lost with the next call to cmStackPop(h,1).
+  const void* cmStackTop(     cmStackH_t h );
 
   // Set the value of 'dataEleCnt' elements on the stack.
   cmStRC_t    cmStackSet(     cmStackH_t h, unsigned index, const void* data, unsigned dataEleCnt );
