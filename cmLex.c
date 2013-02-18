@@ -28,6 +28,7 @@ cmLexErrorRecd cmLexErrorArray[] =
   { kFileCloseErrLexRC,    "File close failed on cmLexSetFile()"},
   { kMemAllocErrLexRC,     "An attempted memory allocation failed"},
   { kEofRC,                "The end of the input text was encountered (this is a normal condition not an error)"},
+  { kInvalidLexTIdLexRC,   "An invalid token id was encountered."},
   { kInvalidLexRC,         "Unknown lexer error code." }
 };
 
@@ -42,6 +43,7 @@ typedef struct
   cmLexMatcherFuncPtr_t funcPtr;  // recognizer function (only used if userPtr==NULL)
   cmChar_t*             tokenStr; // fixed string data used by the recognizer (only used if userPtr==NULL)
   cmLexUserMatcherPtr_t userPtr;  // user defined recognizer function (only used if funcPtr==NULL)
+  bool                  enableFl; // true if this matcher is enabled
 } cmLexMatcher;
 
 
@@ -325,6 +327,7 @@ cmRC_t  _cmLexInstallMatcher( cmLex* p, unsigned typeId, cmLexMatcherFuncPtr_t f
   p->mfp[p->mfi].typeId   = typeId;
   p->mfp[p->mfi].funcPtr  = funcPtr;
   p->mfp[p->mfi].userPtr  = userPtr;
+  p->mfp[p->mfi].enableFl = true;
 
   if( keyStr != NULL )
   {
@@ -637,6 +640,21 @@ cmRC_t             cmLexRegisterMatcher( cmLexH h, unsigned id, cmLexUserMatcher
   return _cmLexInstallMatcher( p, id, NULL, NULL, userPtr );
 }
 
+cmRC_t             cmLexEnableToken( cmLexH h, unsigned id, bool enableFl )
+{
+  cmLex* p = _cmLexHandleToPtr(h);
+
+  unsigned mi = 0;
+  for(; mi<p->mfi; ++mi)
+    if( p->mfp[mi].typeId == id )
+    {
+      p->mfp[mi].enableFl = enableFl;
+      return cmOkRC;
+    }
+
+  return _cmLexError( p, kInvalidLexTIdLexRC, "%i is not a valid token type id.",id);
+}
+
 unsigned           cmLexFilterFlags( cmLexH h )
 {
   cmLex* p = _cmLexHandleToPtr(h);
@@ -669,32 +687,44 @@ unsigned           cmLexGetNextToken( cmLexH h )
     p->curTokenCharCnt = 0;
 
 
+    // try each mater
     for(; mi<p->mfi; ++mi)
-    {
-      unsigned charCnt = 0;
-      if( p->mfp[mi].funcPtr != NULL )
-        charCnt = p->mfp[mi].funcPtr(p, p->cp + p->ci, p->cn - p->ci, p->mfp[mi].tokenStr );
-      else
-        charCnt = p->mfp[mi].userPtr( p->cp + p->ci, p->cn - p->ci);
-
-      if( cmErrLastRC(&p->err) != kOkLexRC )
-        return kErrorLexTId;
-
-      // if this matched token is longer then the prev. matched token or
-      // if the prev matched token was an identifier and this matched token is an equal length user defined token
-      if( (charCnt > maxCharCnt) || (charCnt>0 && charCnt==maxCharCnt && p->mfp[maxIdx].typeId==kIdentLexTId && p->mfp[mi].typeId >=kUserLexTId ) )
+      if( p->mfp[mi].enableFl )
       {
-        maxCharCnt = charCnt;
-        maxIdx     = mi;
-      }
+        unsigned charCnt = 0;
+        if( p->mfp[mi].funcPtr != NULL )
+          charCnt = p->mfp[mi].funcPtr(p, p->cp + p->ci, p->cn - p->ci, p->mfp[mi].tokenStr );
+        else
+          charCnt = p->mfp[mi].userPtr( p->cp + p->ci, p->cn - p->ci);
 
-    }
+        if( cmErrLastRC(&p->err) != kOkLexRC )
+          return kErrorLexTId;
+
+        // if this matched token is longer then the prev. matched token or
+        // if the prev matched token was an identifier and this matched token is an equal length user defined token
+        if( (charCnt > maxCharCnt) 
+          || (charCnt>0 && charCnt==maxCharCnt && p->mfp[maxIdx].typeId==kIdentLexTId && p->mfp[mi].typeId >=kUserLexTId ) 
+          || (charCnt>0 && charCnt<maxCharCnt  && p->mfp[maxIdx].typeId==kIdentLexTId && p->mfp[mi].typeId >=kUserLexTId && cmIsFlag(p->flags,kUserDefPriorityLexFl))
+            )
+        {
+          maxCharCnt = charCnt;
+          maxIdx     = mi;
+        }
+
+      }
 
     // no token was matched
     if( maxIdx == cmInvalidIdx )
     {
-      _cmLexError( p, kNoMatchLexRC, "Unable to recognize token:'%c'.",*(p->cp+p->ci));
-      return kErrorLexTId;     
+      if( cmIsFlag(p->flags,kReturnUnknownLexFl) )
+      {
+        maxCharCnt = 1;
+      }
+      else
+      {
+        _cmLexError( p, kNoMatchLexRC, "Unable to recognize token:'%c'.",*(p->cp+p->ci));
+        return kErrorLexTId;     
+      }
     }
 
     // update the current line and column position    
@@ -716,16 +746,19 @@ unsigned           cmLexGetNextToken( cmLexH h )
 
     bool returnFl = true;
 
-    // check the space token filter
-    if( (p->mfp[ maxIdx ].typeId == kSpaceLexTId) && (cmIsFlag(p->flags,kReturnSpaceLexFl)==0) )
-      returnFl = false;
+    if( maxIdx != cmInvalidIdx )
+    {
+      // check the space token filter
+      if( (p->mfp[ maxIdx ].typeId == kSpaceLexTId) && (cmIsFlag(p->flags,kReturnSpaceLexFl)==0) )
+        returnFl = false;
 
-    // check the comment token filter
-    if( _cmLexIsCommentTypeId(p->mfp[ maxIdx ].typeId) && (cmIsFlag(p->flags,kReturnCommentsLexFl)==0) )
-      returnFl = false;
+      // check the comment token filter
+      if( _cmLexIsCommentTypeId(p->mfp[ maxIdx ].typeId) && (cmIsFlag(p->flags,kReturnCommentsLexFl)==0) )
+        returnFl = false;
+    }
 
     // update the lexer state
-    p->curTokenId      = p->mfp[ maxIdx ].typeId;    
+    p->curTokenId      = maxIdx==cmInvalidIdx ? kUnknownLexTId : p->mfp[ maxIdx ].typeId;    
     p->curTokenCharIdx = p->ci;
     p->curTokenCharCnt = maxCharCnt;
       

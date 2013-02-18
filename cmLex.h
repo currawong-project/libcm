@@ -12,23 +12,26 @@
 enum
 {
   kErrorLexTId,    // 0  the lexer was unable to identify the current token
-  kEofLexTId,      // 1  the lexer reached the end of input
-  kSpaceLexTId,    // 2  white space
-  kRealLexTId,     // 3  real number (contains a decimal point or is in scientific notation) 
-  kIntLexTId,      // 4  decimal integer
-  kHexLexTId,      // 5  hexidecimal integer
-  kIdentLexTId,    // 6  identifier
-  kQStrLexTId,     // 7  quoted string
-  kBlockCmtLexTId, // 8  block comment
-  kLineCmtLexTId,  // 9  line comment
-  kUserLexTId      // 10 user registered token (See cmLexRegisterToken().)
+  kUnknownLexTId,  // 1  the token is of an unknown type (only used when kReturnUnknownLexFl is set)
+  kEofLexTId,      // 2  the lexer reached the end of input
+  kSpaceLexTId,    // 3  white space
+  kRealLexTId,     // 4  real number (contains a decimal point or is in scientific notation) 
+  kIntLexTId,      // 5  decimal integer
+  kHexLexTId,      // 6  hexidecimal integer
+  kIdentLexTId,    // 7  identifier
+  kQStrLexTId,     // 8  quoted string
+  kBlockCmtLexTId, // 9  block comment
+  kLineCmtLexTId,  // 10  line comment
+  kUserLexTId      // 11 user registered token (See cmLexRegisterToken().)
 };
 
 // Lexer control flags used with cmLexInit().
 enum
 {
   kReturnSpaceLexFl    = 0x01, //< Return space tokens
-  kReturnCommentsLexFl = 0x02  //< Return comment tokens
+  kReturnCommentsLexFl = 0x02, //< Return comment tokens
+  kReturnUnknownLexFl  = 0x04, //< Return unknown tokens
+  kUserDefPriorityLexFl= 0x08  //< User defined tokens take priority even if a kIdentLexTId token has a longer match
 };
 
 // cmLex result codes.
@@ -46,7 +49,8 @@ enum
   kFileCloseErrLexRC,      //< 9  File close failed on cmLexSetFile()
   kMemAllocErrLexRC,       //< 10  An attempted memory allocation failed
   kEofRC,                  //< 11 The end of the input text was encountered (this is a normal condition not an error)
-  kInvalidLexRC            //< 12 Sentinal value.
+  kInvalidLexTIdLexRC,     //< 12 An invalid lex token id was encountered.
+  kInvalidLexRC            //< 13 Sentinal value.
 
 };
 
@@ -83,6 +87,9 @@ cmRC_t             cmLexRegisterToken( cmLexH h, unsigned id, const cmChar_t* to
 typedef unsigned (*cmLexUserMatcherPtr_t)( const cmChar_t* cp, unsigned cn );
 
 cmRC_t             cmLexRegisterMatcher( cmLexH h, unsigned id, cmLexUserMatcherPtr_t funcPtr );
+
+// Enable or disable the specified token type.
+cmRC_t             cmLexEnableToken( cmLexH h, unsigned id, bool enableFl );
 
 // Get and set the lexer filter flags kReturnXXXLexFl.
 // These flags can be safely enabled and disabled between
