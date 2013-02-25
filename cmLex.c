@@ -200,10 +200,14 @@ unsigned _cmLexRealMatcher(  cmLex* p, const cmChar_t* cp, unsigned cn, const cm
 unsigned _cmLexIntMatcher(   cmLex* p, const cmChar_t* cp, unsigned cn, const cmChar_t* keyStr )
 {
   unsigned i = 0;
+  bool signFl = false;
   for(; i<cn; ++i)
   {
     if( i==0 && cp[i]=='-' )
+    {
+      signFl = true;
       continue;
+    }
 
     if( !isdigit(cp[i]) )
       break;
@@ -220,7 +224,7 @@ unsigned _cmLexIntMatcher(   cmLex* p, const cmChar_t* cp, unsigned cn, const cm
   // containing a decimal point as reals. 
  
 
-  return i;
+  return signFl && i==1 ? 0 : i;
 }
 
 unsigned _cmLexHexMatcher(   cmLex* p, const cmChar_t* cp, unsigned cn, const cmChar_t* keyStr )
