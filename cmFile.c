@@ -60,6 +60,27 @@ cmFileRC_t cmFileOpen(    cmFileH_t* hp, const cmChar_t* fn, enum cmFileOpenFlag
   if( cmIsFlag(flags,kUpdateFileFl) )
     mode[1]='+';
 
+  // handle requests to use stdin,stdout,stderr
+  FILE*           sfp = NULL;
+  if( cmIsFlag(flags,kStdoutFileFl) )
+  {
+    sfp = stdout;
+    fn  = "stdout";
+  }
+  else
+    if( cmIsFlag(flags,kStderrFileFl) )
+    {
+      sfp = stderr;
+      fn  = "stderr";
+    }
+    else
+      if( cmIsFlag(flags,kStdinFileFl) )
+      {
+        sfp = stdin;
+        fn  = "stdin";
+      }
+
+
   if( fn == NULL )
     return cmErrMsg(&err,kObjAllocFailFileRC,"File object allocation failed due to empty file name.");
 
@@ -73,13 +94,17 @@ cmFileRC_t cmFileOpen(    cmFileH_t* hp, const cmChar_t* fn, enum cmFileOpenFlag
   p->fnStr = (cmChar_t*)(p+1);
   strcpy(p->fnStr,fn);
   
-
-  errno = 0;
-  if((p->fp = fopen(fn,mode)) == NULL )
+  if( sfp != NULL )
+    p->fp = sfp;
+  else
   {
-    cmFileRC_t rc = _cmFileError(p,kOpenFailFileRC,errno,"File open failed");
-    cmMemFree(p);
-    return rc;
+    errno = 0;
+    if((p->fp = fopen(fn,mode)) == NULL )
+    {
+      cmFileRC_t rc = _cmFileError(p,kOpenFailFileRC,errno,"File open failed");
+      cmMemFree(p);
+      return rc;
+    }
   }
  
   hp->h    = p;

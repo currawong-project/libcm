@@ -42,7 +42,10 @@ extern "C" {
     kWriteFileFl  = 0x02, //< Create an empty file for writing
     kAppendFileFl = 0x04, //< Open a file for writing at the end of the file.
     kUpdateFileFl = 0x08, //< Open a file for reading and writing.
-    kBinaryFileFl = 0x10  //< Open a file for binary (not text) input/output.
+    kBinaryFileFl = 0x10, //< Open a file for binary (not text) input/output.
+    kStdoutFileFl = 0x20, //< Ignore fn use 'stdout'
+    kStderrFileFl = 0x40, //< Ignore fn use 'stderr'
+    kStdinFileFl  = 0x80, //< Ignore fn use 'stdin'
   };
 
   // Open or create a file.    
@@ -51,6 +54,9 @@ extern "C" {
   // be set to cmFileNullHandle prior to calling this function. If *hp is a valid handle
   // then it is automatically finalized by an internal call to cmFileClose() prior to
   // being re-iniitalized.
+  //
+  // If kStdoutFileFl, kStderrFileFl or kStdinFileFl are set then 
+  // file name argument 'fn' is ignored.
   cmFileRC_t cmFileOpen(    
     cmFileH_t*             hp,    // Pointer to a client supplied cmFileHandle_t to recieve the handle for the new object.
     const cmChar_t*        fn,    // The name of the file to open or create. 
