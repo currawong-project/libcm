@@ -48,7 +48,7 @@ extern "C" {
   {
     cmObj       obj;
     unsigned    bufSmpCnt;  // wndSmpCnt + hopSmpCnt
-    cmSample_t* bufV;
+    cmSample_t* bufV;       // bufV[bufSmpCnt] all other pointers use this memory
     cmSample_t* outV;       // output window outV[ outN ]
     unsigned    outN;       // outN == wndSmpCnt
     unsigned    procSmpCnt; // input sample count

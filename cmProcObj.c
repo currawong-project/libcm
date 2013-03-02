@@ -182,7 +182,7 @@ cmRC_t      cmMtxFileClose( cmMtxFile* p )
   return cmOkRC;
 }
 
-cmRC_t      cmMtxFileFloatExec(  cmMtxFile* p, const float*      inPtr, unsigned inCnt, unsigned inStride )
+cmRC_t      cmMtxFileFloatExec(  cmMtxFile* p, const float* inPtr, unsigned inCnt, unsigned inStride )
 {
   const float* ep = inPtr + (inCnt * inStride);
   for(; inPtr < ep; inPtr+=inStride )
@@ -191,7 +191,7 @@ cmRC_t      cmMtxFileFloatExec(  cmMtxFile* p, const float*      inPtr, unsigned
   return cmOkRC;
 }
 
-cmRC_t      cmMtxFileDoubleExec( cmMtxFile* p, const double*     inPtr, unsigned inCnt, unsigned inStride )
+cmRC_t      cmMtxFileDoubleExec( cmMtxFile* p, const double* inPtr, unsigned inCnt, unsigned inStride )
 {
   const double* ep = inPtr + (inCnt * inStride);
   for(; inPtr < ep; inPtr+=inStride )
@@ -201,7 +201,7 @@ cmRC_t      cmMtxFileDoubleExec( cmMtxFile* p, const double*     inPtr, unsigned
   return cmOkRC;
 }
 
-cmRC_t      cmMtxFileComplexExec( cmMtxFile* p, const cmComplexR_t*     inPtr, unsigned inCnt, unsigned inStride )
+cmRC_t      cmMtxFileComplexExec( cmMtxFile* p, const cmComplexR_t* inPtr, unsigned inCnt, unsigned inStride )
 {
   const cmComplexR_t* sp = inPtr;
   const cmComplexR_t* ep = inPtr + (inCnt * inStride);
