@@ -261,6 +261,22 @@ unsigned    cmSymTblRegisterSymbol(       cmSymTblH_t h, const char* label )
 unsigned    cmSymTblRegisterStaticSymbol( cmSymTblH_t h, const char* label )
 { return cmSymTblRegister( h, label, true ); }
 
+unsigned    cmSymTblRegisterVFmt( cmSymTblH_t h, const cmChar_t* fmt, va_list vl )
+{
+  unsigned n = vsnprintf(NULL,0,fmt,vl);
+  cmChar_t b[n+1];
+  vsnprintf(b,n,fmt,vl);
+  return cmSymTblRegister(h,fmt,vl);
+
+}
+
+unsigned    cmSymTblRegisterFmt( cmSymTblH_t h, const cmChar_t* fmt, ... )
+{
+  va_list vl;
+  va_start(vl,fmt);
+  cmSymTblRegisterVFmt(h,fmt,vl);
+  va_end(vl);
+}
 
 
 bool        cmSymTblRemove( cmSymTblH_t h, unsigned symId )

@@ -37,6 +37,9 @@ extern "C" {
   unsigned    cmSymTblRegisterSymbol( cmSymTblH_t h, const char* label );
   unsigned    cmSymTblRegisterStaticSymbol( cmSymTblH_t h, const char* label );
 
+  unsigned    cmSymTblRegisterVFmt( cmSymTblH_t h, const cmChar_t* fmt, va_list vl );
+  unsigned    cmSymTblRegisterFmt( cmSymTblH_t h, const cmChar_t* fmt, ... );
+
   bool        cmSymTblRemove(    cmSymTblH_t h, unsigned symId );
 
   // Given a symbol id return the associated label.
