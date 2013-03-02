@@ -2300,11 +2300,10 @@ cmRC_t     cmPvAnlInit( cmPvAnl* p, unsigned procSmpCnt, double srate, unsigned 
 cmRC_t     cmPvAnlFinal(cmPvAnl* p )
 { return cmOkRC; }
 
-
 bool     cmPvAnlExec( cmPvAnl* p, const cmSample_t* x, unsigned xN )
 {
   bool fl = false;
-  if( cmShiftBufExec(&p->sb,x,xN) )
+  while( cmShiftBufExec(&p->sb,x,xN) )
   {
     cmWndFuncExec(&p->wf, p->sb.outV, p->sb.wndSmpCnt );
 
@@ -2421,13 +2420,12 @@ cmRC_t     cmPvSynExec( cmPvSyn* p, const cmReal_t* magV, const cmReal_t* phsV )
   double   twoPi     = 2.0 * M_PI;
   unsigned k;
 
- 
   for(k=0; k<p->binCnt; ++k)
   {
     // phase dist between cur and prv frame
     cmReal_t dp = phsV[k] - p->phs0V[k];
 
-    // dist must be positive (cmcum phase always increases)
+    // dist must be positive (accum phase always increases)
     if( dp < -0.00001 )
       dp += twoPi;
 
@@ -2449,8 +2447,9 @@ cmRC_t     cmPvSynExec( cmPvSyn* p, const cmReal_t* magV, const cmReal_t* phsV )
     p->phs0V[k] = phsV[k];
     p->mag0V[k] = magV[k];
   }
-
-  cmIFftExecPolarRS( &p->ft, p->magV, p->phsV );
+  
+  cmIFftExecPolarRS( &p->ft, magV, phsV );
+  
   cmOlaExecS( &p->ola, p->ft.outV, p->ft.outN ); 
 
   //printf("%i %i\n",p->binCnt,p->ft.binCnt );
@@ -2461,6 +2460,16 @@ cmRC_t     cmPvSynExec( cmPvSyn* p, const cmReal_t* magV, const cmReal_t* phsV )
 
   return cmOkRC;
 }
+
+cmRC_t  cmPvSynDoIt( cmPvSyn* p, const cmSample_t* v )
+{
+  cmOlaExecS( &p->ola, v, p->wndSmpCnt ); 
+
+  //printf("%f\n",cmVOS_RMS(s,p->wndSmpCnt,p->wndSmpCnt));
+
+  return cmOkRC;
+}
+
 
 const cmSample_t* cmPvSynExecOut(cmPvSyn* p )
 { return cmOlaExecOut(&p->ola); }
@@ -3653,9 +3662,14 @@ cmRC_t   cmNmfExec( cmNmf_t* p, const cmReal_t* vM, unsigned cn )
 cmSpecDist_t* cmSpecDistAlloc( cmCtx* ctx,cmSpecDist_t* ap, unsigned procSmpCnt, double srate, unsigned wndSmpCnt, unsigned hopFcmt, unsigned olaWndTypeId  )
 {
   cmSpecDist_t* p = cmObjAlloc( cmSpecDist_t, ctx, ap );
+
+
   if( procSmpCnt != 0 )
+  {
     if( cmSpecDistInit( p, procSmpCnt, srate, wndSmpCnt, hopFcmt, olaWndTypeId ) != cmOkRC )
       cmSpecDistFree(&p);
+  }
+
   return p;
 
 }
@@ -3666,7 +3680,7 @@ cmRC_t cmSpecDistFree( cmSpecDist_t** pp )
     return cmOkRC;
 
   cmSpecDist_t* p = *pp;
-
+  
   cmSpecDistFinal(p);
   cmMemPtrFree(&p->hzV);
   cmObjFree(pp);
@@ -3713,7 +3727,9 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
   p->aeMin  = 1000;
   p->aeMax  = -1000;
 
+
   //p->bypOut = cmMemResizeZ(cmSample_t, p->bypOut, procSmpCnt );
+
 
   return rc;
 }
@@ -3723,6 +3739,7 @@ cmRC_t cmSpecDistFinal(cmSpecDist_t* p )
   cmRC_t rc = cmOkRC;
   cmPvAnlFree(&p->pva);
   cmPvSynFree(&p->pvs);
+
   return rc;
 }
 
@@ -3745,6 +3762,7 @@ void _cmSpecDistBasicMode0(cmSpecDist_t* p, cmReal_t* X1m, unsigned binCnt, cmRe
       X1m[i] -= 2*d;
 
   }
+
 
 }
 
@@ -3856,19 +3874,18 @@ void _cmSpecDistAmpEnvMode( cmSpecDist_t* p, cmReal_t* X1m )
 
 }
 
-
 cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
 {
 
   assert( sn == p->procSmpCnt );
-  
+
   // cmPvAnlExec() returns true when it calc's a new spectral output frame
   if( cmPvAnlExec( p->pva, sp, sn ) )
   {
     cmReal_t X1m[p->pva->binCnt]; 
 
     cmVOR_AmplToDbVV(X1m, p->pva->binCnt, p->pva->magV, -1000.0 );
-
+   
     switch( p->mode )
     {
       case kBypassModeSdId:
@@ -3904,17 +3921,21 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
       default:
         break;
     }
-
+    
     cmVOR_DbToAmplVV(X1m, p->pva->binCnt, X1m );
 
     cmPvSynExec(p->pvs, X1m, p->pva->phsV );
-
+  
   }
+ 
   return cmOkRC;
 }
 
+
 const cmSample_t* cmSpecDistOut(  cmSpecDist_t* p )
-{ return cmPvSynExecOut(p->pvs); }
+{ 
+  return cmPvSynExecOut(p->pvs); 
+}
 
 //------------------------------------------------------------------------------------------------------------
 
