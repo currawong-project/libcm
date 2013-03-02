@@ -21,6 +21,7 @@
 #include "cmAudioSys.h"
 #include "cmDspCtx.h"
 #include "cmDspClass.h"
+#include "cmDspStore.h"
 #include "cmDspUi.h"
 #include "cmDspSys.h"
 #include "cmMath.h"
@@ -51,6 +52,8 @@ enum
   kUprSlopeKrId,
   kOffsetKrId,
   kInvertKrId,
+  kBypassKrId,
+  kWetKrId,
   kAudioInKrId,
   kAudioOutKrId
 };
@@ -79,6 +82,8 @@ cmDspClass_t _cmKrDC;
     { "uprs",    kUprSlopeKrId,    0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl,   "Upper Slope"},
     { "offs",    kOffsetKrId,      0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl,   "Offset"},
     { "invt",    kInvertKrId,      0, 0,   kInDsvFl  | kUIntDsvFl   | kOptArgDsvFl,   "Invert"},
+    { "bypass",  kBypassKrId,      0, 0,   kInDsvFl  | kBoolDsvFl   | kOptArgDsvFl,   "Bypass enable flag." },
+    { "wet",     kWetKrId,         0, 0,   kInDsvFl  | kSampleDsvFl,                  "Wet mix level."},
     { "in",      kAudioInKrId,     0, 0,   kInDsvFl  | kAudioBufDsvFl, "Audio Input" },
     { "out",     kAudioOutKrId,    0, 1,   kOutDsvFl | kAudioBufDsvFl, "Audio Output" },
     { NULL, 0, 0, 0, 0 }
@@ -96,6 +101,9 @@ cmDspClass_t _cmKrDC;
   cmDspSetDefaultDouble( ctx,&p->inst, kUprSlopeKrId, 0, 0.0 );
   cmDspSetDefaultDouble( ctx,&p->inst, kOffsetKrId,   0, 30.0);
   cmDspSetDefaultUInt(   ctx,&p->inst, kInvertKrId,   0, 0 );
+  cmDspSetDefaultUInt(   ctx,&p->inst, kBypassKrId,   0, 0 );
+  cmDspSetDefaultSample( ctx,&p->inst, kWetKrId,      0, 1.0);
+
   //_cmDspKrCmInit(ctx,p); // initialize the cm library
 
   p->ctx = cmCtxAlloc(NULL,ctx->rpt,ctx->lhH,ctx->stH);
@@ -122,9 +130,10 @@ cmDspRC_t _cmDspKrSetup(cmDspCtx_t* ctx, cmDspKr_t* p )
   cmDspRC_t rc           = kOkDspRC;
   unsigned  wndSmpCnt    = cmDspUInt(&p->inst,kWndSmpCntKrId);
   unsigned  hopFact      = cmDspUInt(&p->inst,kHopFactKrId);
-  unsigned  olaWndTypeId = kHannWndId;
+  unsigned  olaWndTypeId =kHannWndId;
 
   cmSpecDistFree(&p->sdp);
+
   p->sdp = cmSpecDistAlloc(p->ctx, NULL, cmDspSamplesPerCycle(ctx), cmDspSampleRate(ctx), wndSmpCnt, hopFact, olaWndTypeId);
 
   assert(p->sdp != NULL );
@@ -165,11 +174,18 @@ cmDspRC_t _cmDspKrExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt
   unsigned          oSmpCnt = cmDspVarRows(inst,kAudioOutKrId);
   const cmSample_t* sp;
 
+  cmSample_t wet = cmDspSample(inst,kWetKrId);
+
   cmSpecDistExec(p->sdp,ip,iSmpCnt);
   
   if((sp = cmSpecDistOut(p->sdp)) != NULL )
-    cmVOS_Copy(op,oSmpCnt,sp);
-  
+  {
+    cmVOS_MultVVS(op,oSmpCnt,sp,wet);
+  }
+
+  if( wet<1.0 )
+    cmVOS_MultSumVVS(op,oSmpCnt,ip,1.0-wet);
+
   return rc;
 }
 
@@ -178,6 +194,7 @@ cmDspRC_t _cmDspKrRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt
   cmDspKr_t* p = (cmDspKr_t*)inst;
   cmDspRC_t rc = kOkDspRC;
 
+
   cmDspSetEvent(ctx,inst,evt);
 
   switch( evt->dstVarId )
@@ -185,6 +202,22 @@ cmDspRC_t _cmDspKrRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt
     case kWndSmpCntKrId:
     case kHopFactKrId:
       _cmDspKrSetup(ctx,p);
+
+      // THIS IS A HACK
+      // WHEN WND OR HOP CHANGE THE RESULTING CHANGES
+      // SHOULD BE ISOLATED IN cmSpecDist() AND THE
+      // CURRENT STATE OF THE PARAMETERS SHOULD NOT BE
+      // LOST - IF THE CHANGES WERE ISOLATED WITHIN PVANL 
+      // AND PVSYN IT MIGHT BE POSSIBLE TO DO WITH 
+      // MINIMAL AUDIO INTERUPTION.
+
+      p->sdp->mode = cmDspUInt(inst,kModeKrId);
+      p->sdp->thresh   = cmDspDouble(inst,kThreshKrId);   
+      p->sdp->uprSlope = cmDspDouble(inst,kUprSlopeKrId); 
+      p->sdp->lwrSlope = cmDspDouble(inst,kLwrSlopeKrId); 
+      p->sdp->offset   = cmDspDouble(inst,kOffsetKrId);   
+      p->sdp->invertFl = cmDspUInt(inst,kInvertKrId)!=0;  
+
       printf("wsn:%i hsn:%i\n",p->sdp->wndSmpCnt,p->sdp->hopSmpCnt);
       break;
 
@@ -195,16 +228,17 @@ cmDspRC_t _cmDspKrRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt
       
     case kThreshKrId:     
       p->sdp->thresh   = cmDspDouble(inst,kThreshKrId);   
+      //printf("thr:p:%p sdp:%p %f\n",p,p->sdp,p->sdp->thresh);
       break;
 
     case kUprSlopeKrId:   
       p->sdp->uprSlope = cmDspDouble(inst,kUprSlopeKrId); 
-      printf("upr slope:%f\n",p->sdp->uprSlope);
+      //printf("upr slope:%f\n",p->sdp->uprSlope);
       break;
 
     case kLwrSlopeKrId:   
       p->sdp->lwrSlope = cmDspDouble(inst,kLwrSlopeKrId); 
-      printf("upr slope:%f\n",p->sdp->lwrSlope);
+      //printf("upr slope:%f\n",p->sdp->lwrSlope);
       break;
 
     case kOffsetKrId:     
@@ -213,6 +247,9 @@ cmDspRC_t _cmDspKrRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt
 
     case kInvertKrId:     
       p->sdp->invertFl = cmDspUInt(inst,kInvertKrId)!=0;  
+      break;
+
+    case kWetKrId:
       break;
 
     default:
@@ -517,7 +554,7 @@ cmDspRC_t _cmDspScoreReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   }
 
   if((tlFn =  cmDspStrcz(inst, kFnScId )) !=  NULL )
-    if( cmScoreInitialize(ctx->cmCtx, &p->scH, tlFn, cmDspSampleRate(ctx), dynRefArray, dynRefCnt, _cmDspScoreCb, p ) != kOkTlRC )
+    if( cmScoreInitialize(ctx->cmCtx, &p->scH, tlFn, cmDspSampleRate(ctx), dynRefArray, dynRefCnt, _cmDspScoreCb, p, cmSymTblNullHandle ) != kOkTlRC )
       rc = cmErrMsg(&inst->classPtr->err, kInstResetFailDspRC, "Score file open failed.");
 
  errLabel:
@@ -822,7 +859,9 @@ enum
   kOutSfId,
   kDynSfId,
   kEvenSfId,
-  kTempoSfId
+  kTempoSfId,
+  kCostSfId,
+  kSymSfId
 };
 
 cmDspClass_t _cmScFolDC;
@@ -864,6 +903,8 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     { "dyn",   kDynSfId,      0, 0, kOutDsvFl| kDoubleDsvFl,                  "Dynamic value."},
     { "even",  kEvenSfId,     0, 0, kOutDsvFl| kDoubleDsvFl,                  "Evenness value."},
     { "tempo", kTempoSfId,    0, 0, kOutDsvFl| kDoubleDsvFl,                  "Tempo value."},
+    { "cost",  kCostSfId,     0, 0, kOutDsvFl| kDoubleDsvFl,                  "Match cost value."},
+    { "sym",   kSymSfId,      0, 0, kOutDsvFl| kSymDsvFl,                     "Symbol associated with a global variable which has changed value."},
     { NULL,    0,             0, 0, 0, NULL }
   };
 
@@ -886,6 +927,7 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   cmDspSetDefaultDouble( ctx, &p->inst,  kDynSfId,        0,     0);
   cmDspSetDefaultDouble( ctx, &p->inst,  kEvenSfId,       0,     0);
   cmDspSetDefaultDouble( ctx, &p->inst,  kTempoSfId,      0,     0);
+  cmDspSetDefaultDouble( ctx, &p->inst,  kCostSfId,       0,     0);
   
   cmDspSetDefaultSymbol(ctx,&p->inst,  kCmdSfId, p->quietSymId );
 
@@ -916,6 +958,7 @@ void _cmScFolMatcherCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
     unsigned i;
     for(i=ap->sfp->smp->vsi; i<ap->sfp->smp->nsi; ++i)
     {
+
       switch( ap->sfp->smp->set[i].sp->varId )
       {
         case kEvenVarScId:
@@ -933,6 +976,26 @@ void _cmScFolMatcherCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
         default:
           { assert(0); }
       }           
+
+      cmDspSetDouble(ap->ctx,inst,kCostSfId,ap->sfp->smp->set[i].match_cost);
+
+
+      // Set the values in the global variable storage
+      cmDspValue_t vv,cv;
+      unsigned     j;
+      cmDsvSetDouble(&vv,ap->sfp->smp->set[i].value);
+      cmDsvSetDouble(&cv,ap->sfp->smp->set[i].match_cost);
+
+      for(j=0; j<ap->sfp->smp->set[i].sp->sectCnt; ++j)
+      {
+        cmDspStoreSetValueViaSym(ap->ctx->dsH, ap->sfp->smp->set[i].sp->symArray[j], &vv );
+        cmDspStoreSetValueViaSym(ap->ctx->dsH, ap->sfp->smp->set[i].sp->costSymArray[j], &cv );
+
+        cmDspSetSymbol(ap->ctx,inst,kSymSfId,ap->sfp->smp->set[i].sp->symArray[j]);
+        cmDspSetSymbol(ap->ctx,inst,kSymSfId,ap->sfp->smp->set[i].sp->costSymArray[j]);
+      }
+
+
     }
 
     /*
@@ -957,7 +1020,7 @@ cmDspRC_t _cmDspScFolOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
   if((fn = cmDspStrcz(inst,kFnSfId)) == NULL || strlen(fn)==0 )
     return cmErrMsg(&inst->classPtr->err, kInvalidArgDspRC, "No score file name supplied.");
 
-  if( cmScoreInitialize(ctx->cmCtx, &p->scH, fn, cmDspSampleRate(ctx), NULL, 0, NULL, NULL ) != kOkScRC )
+  if( cmScoreInitialize(ctx->cmCtx, &p->scH, fn, cmDspSampleRate(ctx), NULL, 0, NULL, NULL, ctx->stH ) != kOkScRC )
     return cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Unable to open the score '%s'.",fn);
 
   if( cmScoreIsValid(p->scH) )
@@ -1070,7 +1133,9 @@ struct cmDspClass_str* cmScFolClassCons( cmDspCtx_t* ctx )
 
 enum
 {
-  kScLocIdxMdId
+  kScLocIdxMdId,
+  kResetIdxMdId,
+  kCmdMdId
 };
 
 cmDspClass_t _cmModulatorDC;
@@ -1080,6 +1145,10 @@ typedef struct
   cmDspInst_t    inst;
   cmScModulator* mp;
   cmDspCtx_t*    tmp_ctx;       // used to temporarily hold the current cmDspCtx during callback
+  cmChar_t*      fn;
+  cmChar_t*      modLabel;
+  unsigned       onSymId;
+  unsigned       offSymId;
 } cmDspScMod_t;
 
 void _cmDspScModCb( void* arg, unsigned varSymId, double value )
@@ -1101,7 +1170,9 @@ cmDspInst_t*  _cmDspScModAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
 
   cmDspVarArg_t args[] =
   {
-    { "index",   kScLocIdxMdId,0,0, kInDsvFl  | kUIntDsvFl,                "Score follower index input."},
+    { "index",   kScLocIdxMdId, 0,0, kInDsvFl  | kUIntDsvFl,  "Score follower index input."},
+    { "reset",   kResetIdxMdId, 0,0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "Reset the modulator and go to the score index."},
+    { "cmd",     kCmdMdId,      0,0, kInDsvFl  | kSymDsvFl  | kOptArgDsvFl, "on | off."},
     { NULL, 0, 0, 0, 0 }
   };
 
@@ -1115,6 +1186,8 @@ cmDspInst_t*  _cmDspScModAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   // read the modulator file and label strings
   const cmChar_t* fn       = va_arg(vl1,const cmChar_t*);
   const cmChar_t* modLabel = va_arg(vl1,const cmChar_t*);
+
+  va_end(vl1);
 
   // validate the file
   if( fn==NULL || cmFsIsFile(fn)==false )
@@ -1131,8 +1204,8 @@ cmDspInst_t*  _cmDspScModAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     cmDspClassErr(ctx,classPtr,kInvalidArgDspRC,"The internal modulator object initialization failed.");
     return NULL;
   }
-  unsigned      fixArgCnt = 1;
-  unsigned      argCnt    = fixArgCnt + cmScModulatorVarCount(mp);
+  unsigned      fixArgCnt = sizeof(args)/sizeof(args[0]) - 1;
+  unsigned      argCnt    = fixArgCnt + cmScModulatorOutVarCount(mp);
   cmDspVarArg_t a[ argCnt+1 ];
   unsigned      i;
 
@@ -1141,7 +1214,7 @@ cmDspInst_t*  _cmDspScModAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   for(i=fixArgCnt; i<argCnt; ++i)
   {
     unsigned            varIdx    = i - fixArgCnt;
-    const cmScModVar_t* vp        = cmScModulatorVar(mp,varIdx);
+    const cmScModVar_t* vp        = cmScModulatorOutVar(mp,varIdx);
     const cmChar_t*     label     = cmSymTblLabel( ctx->stH, vp->varSymId );
     const cmChar_t*     docStr    = cmTsPrintfS("Variable output for %s",label);
 
@@ -1149,13 +1222,21 @@ cmDspInst_t*  _cmDspScModAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   }
   cmDspArgSetupNull(a+argCnt); // set terminating arg. flags
 
-  cmDspScMod_t* p = cmDspInstAlloc(cmDspScMod_t,ctx,classPtr,a,instSymId,id,storeSymId,0,vl);
+  cmDspScMod_t* p = cmDspInstAlloc(cmDspScMod_t,ctx,classPtr,a,instSymId,id,storeSymId,va_cnt,vl);
 
-  p->mp = mp;
+
+  p->fn       = cmMemAllocStr(fn);
+  p->modLabel = cmMemAllocStr(modLabel);
+  p->mp       = mp;
+  p->onSymId  = cmSymTblId(ctx->stH,"on");
+  p->offSymId = cmSymTblId(ctx->stH,"off");
+
   mp->cbArg = p;  // set the modulator callback arg
 
-  cmDspSetDefaultUInt(ctx,&p->inst,kScLocIdxMdId,0,0);
+  
 
+  cmDspSetDefaultUInt(ctx,&p->inst,kScLocIdxMdId,0,0);
+  cmDspSetDefaultSymbol(ctx,&p->inst,kCmdMdId,p->offSymId);
   return &p->inst;
 }
 
@@ -1164,9 +1245,12 @@ cmDspRC_t _cmDspScModFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   cmDspRC_t        rc = kOkDspRC;
   cmDspScMod_t* p = (cmDspScMod_t*)inst;
 
+
   if( cmScModulatorFree(&p->mp) != kOkTlRC )
     return cmErrMsg(&inst->classPtr->err, kInstFinalFailDspRC, "Modulator release failed.");
 
+  cmMemFree(p->fn);
+  cmMemFree(p->modLabel);
   return rc;
 }
 
@@ -1182,8 +1266,25 @@ cmDspRC_t _cmDspScModReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 
 cmDspRC_t _cmDspScModRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
+  cmDspScMod_t* p  = (cmDspScMod_t*)inst;
 
   cmDspSetEvent(ctx,inst,evt);
+  
+  switch( evt->dstVarId )
+  {
+    case kResetIdxMdId:
+      cmDspSetUInt(ctx,inst,kScLocIdxMdId,cmDspUInt(inst,kResetIdxMdId));
+      break;
+
+    case kCmdMdId:
+      {
+        unsigned symId = cmDspSymbol(inst,kCmdMdId);
+        if( symId == p->onSymId )
+          cmScModulatorReset(p->mp, ctx->cmCtx, cmDspUInt(inst,kScLocIdxMdId));
+      }
+      break;
+
+  }
 
   return kOkDspRC;
 }
@@ -1193,8 +1294,12 @@ cmDspRC_t _cmDspScModExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   cmDspRC_t         rc = kOkDspRC;
   cmDspScMod_t* p  = (cmDspScMod_t*)inst;
   
-  p->tmp_ctx = ctx;
-  cmScModulatorExec(p->mp,cmDspUInt(inst,kScLocIdxMdId));
+  if( cmDspSymbol(inst,kCmdMdId) != p->offSymId )
+  {
+    p->tmp_ctx = ctx;
+    cmScModulatorExec(p->mp,cmDspUInt(inst,kScLocIdxMdId));
+  }
+
   return rc;
 }
 
@@ -1211,4 +1316,202 @@ struct cmDspClass_str* cmScModClassCons( cmDspCtx_t* ctx )
     "Score Driven Variable Modulator.");
 
   return &_cmModulatorDC;
+}
+
+//==========================================================================================================================================
+
+enum
+{
+  kInChCntGsId,
+  kOutGroupCntGsId,
+  kGroupSelIdxGsId,
+  kBaseInFloatGsId
+};
+
+cmDspClass_t _cmGSwitchDC;
+
+typedef struct
+{
+  cmDspInst_t    inst;
+
+  unsigned iChCnt;
+  unsigned oGroupCnt;
+
+  unsigned baseInFloatGsId;
+  unsigned baseInSymGsId;
+  unsigned baseInBoolGsId;
+
+  unsigned baseOutFloatGsId;
+  unsigned baseOutSymGsId;
+  unsigned baseOutBoolGsId;
+
+} cmDspGSwitch_t;
+
+
+cmDspInst_t*  _cmDspGSwitchAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  va_list vl1;
+  va_copy(vl1,vl);
+
+  cmDspVarArg_t args[] =
+  {
+    { "ichs",   kInChCntGsId,     0,0,            kUIntDsvFl | kReqArgDsvFl, "Input channel count."},
+    { "ochs",   kOutGroupCntGsId, 0,0,            kUIntDsvFl | kReqArgDsvFl, "Output group count."},
+    { "sel",    kGroupSelIdxGsId, 0,0, kInDsvFl | kUIntDsvFl,                "Group select index."},
+    { NULL, 0, 0, 0, 0 }
+  };
+
+  // validate the argument count
+  if( va_cnt != 2 )
+  {
+    cmDspClassErr(ctx,classPtr,kInvalidArgDspRC,"The GSwitch requires at least two arguments.");
+    return NULL;
+  }    
+
+  // read the input ch and output group count
+  unsigned iChCnt     = va_arg(vl1,unsigned);
+  unsigned oGroupCnt  = va_arg(vl1,unsigned);
+
+  va_end(vl1);
+  
+  // validate the channel counts
+  if( iChCnt == 0 || oGroupCnt==0 )
+  {
+    cmDspClassErr(ctx,classPtr,kInvalidArgDspRC,"The GSwitch input channel count and group count must be greater than zero.");
+    return NULL;
+  }
+
+  unsigned typeCnt          = 3; // i.e. float,sym,bool
+  unsigned baseInFloatGsId  = kBaseInFloatGsId;
+  unsigned baseInSymGsId    = baseInFloatGsId  + iChCnt;
+  unsigned baseInBoolGsId   = baseInSymGsId    + iChCnt;
+  unsigned baseOutFloatGsId = baseInBoolGsId   + iChCnt;
+  unsigned baseOutSymGsId   = baseOutFloatGsId + (iChCnt * oGroupCnt);
+  unsigned baseOutBoolGsId  = baseOutSymGsId   + (iChCnt * oGroupCnt);
+
+  unsigned      fixArgCnt        = 3;
+  unsigned      varArgCnt        = (iChCnt * typeCnt) + (iChCnt * typeCnt * oGroupCnt);
+  unsigned      argCnt           = fixArgCnt + varArgCnt;
+  cmDspVarArg_t a[ argCnt+1 ];
+  unsigned      i;
+
+  cmDspArgCopy( a, argCnt, 0, args, fixArgCnt );
+  cmDspArgSetupN( ctx, a, argCnt, baseInFloatGsId, iChCnt, "f-in", baseInFloatGsId, 0, 0, kInDsvFl | kDoubleDsvFl, "Float input");
+  cmDspArgSetupN( ctx, a, argCnt, baseInSymGsId,   iChCnt, "s-in", baseInSymGsId,   0, 0, kInDsvFl | kSymDsvFl,    "Symbol input");
+  cmDspArgSetupN( ctx, a, argCnt, baseInBoolGsId,  iChCnt, "b-in", baseInBoolGsId,  0, 0, kInDsvFl | kBoolDsvFl,   "Bool input");
+
+  unsigned labelCharCnt = 63;
+  cmChar_t label[labelCharCnt+1];
+  label[labelCharCnt] = 0;
+
+  unsigned gsid = baseOutFloatGsId;
+  for(i=0; i<oGroupCnt; ++i, gsid+=iChCnt)
+  {
+    snprintf(label,labelCharCnt,"f-out-%i",i);
+    cmDspArgSetupN( ctx, a, argCnt, gsid, iChCnt, label, gsid, 0, 0, kInDsvFl | kDoubleDsvFl, "Float output");
+  }
+
+  gsid = baseOutSymGsId;
+  for(i=0; i<oGroupCnt; ++i, gsid+=iChCnt)
+  {
+    snprintf(label,labelCharCnt,"s-out-%i",i);
+    cmDspArgSetupN( ctx, a, argCnt, gsid, iChCnt, label, gsid, 0, 0, kInDsvFl | kSymDsvFl, "Symbol output");
+  }
+
+  gsid = baseOutBoolGsId;
+  for(i=0; i<oGroupCnt; ++i, gsid+=iChCnt)
+  {
+    snprintf(label,labelCharCnt,"b-out-%i",i);
+    cmDspArgSetupN( ctx,a, argCnt, gsid, iChCnt, label, gsid, 0, 0, kInDsvFl | kBoolDsvFl, "Bool output");
+  }
+
+  cmDspArgSetupNull(a+argCnt); // set terminating arg. flags  
+
+  cmDspGSwitch_t* p = cmDspInstAlloc(cmDspGSwitch_t,ctx,classPtr,a,instSymId,id,storeSymId,va_cnt,vl);
+
+  p->iChCnt           = iChCnt;
+  p->oGroupCnt        = oGroupCnt;
+  p->baseInFloatGsId  = baseInFloatGsId;
+  p->baseInSymGsId    = baseInSymGsId;
+  p->baseInBoolGsId   = baseInBoolGsId;
+  p->baseOutFloatGsId = baseOutFloatGsId;
+  p->baseOutSymGsId   = baseOutSymGsId;
+  p->baseOutBoolGsId  = baseOutBoolGsId;
+
+  cmDspSetDefaultUInt(ctx,&p->inst,kGroupSelIdxGsId,0,0);
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspGSwitchReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t       rc          = kOkDspRC;
+
+  cmDspApplyAllDefaults(ctx,inst);
+
+  return rc;
+}
+
+cmDspRC_t _cmDspGSwitchRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t       rc = kOkDspRC;
+  cmDspGSwitch_t* p  = (cmDspGSwitch_t*)inst;
+
+  // if this is the group selector
+  if( evt->dstVarId == kGroupSelIdxGsId )
+  {
+    unsigned idx;
+    if( (idx = cmDsvGetUInt(evt->valuePtr)) > p->oGroupCnt )
+      cmDspInstErr(ctx,inst,kInvalidArgDspRC,"The GSwitch group select index %i is out of range %i.",idx,p->oGroupCnt);
+    else
+      cmDspSetEvent(ctx,inst,evt);
+    return rc;
+  }
+
+  // get the group selector
+  unsigned groupIdx = cmDspUInt(inst,kGroupSelIdxGsId);
+  assert( groupIdx < p->oGroupCnt);
+
+
+  // if this is a float input
+  if( p->baseInFloatGsId <= evt->dstVarId && evt->dstVarId < p->baseInFloatGsId + p->iChCnt )
+  {
+    unsigned outVarId = p->baseOutFloatGsId + (groupIdx * p->iChCnt) + (evt->dstVarId - p->baseInFloatGsId);
+    cmDspValueSet(ctx, inst, outVarId, evt->valuePtr, 0 );
+    return rc;
+  }
+
+  // if this is a symbol input
+  if( p->baseInSymGsId <= evt->dstVarId && evt->dstVarId < p->baseInSymGsId + p->iChCnt )
+  {
+    unsigned outVarId = p->baseOutSymGsId + (groupIdx * p->iChCnt) + (evt->dstVarId - p->baseInSymGsId);
+    cmDspValueSet(ctx, inst, outVarId, evt->valuePtr, 0 );    
+    return rc;
+  }
+
+  // if this is a bool input
+  if( p->baseInBoolGsId <= evt->dstVarId && evt->dstVarId < p->baseInBoolGsId + p->iChCnt )
+  {
+    unsigned outVarId = p->baseOutBoolGsId + (groupIdx * p->iChCnt) + (evt->dstVarId - p->baseInBoolGsId);
+    cmDspValueSet(ctx, inst, outVarId, evt->valuePtr, 0 );        
+    return rc;
+  }
+
+  return rc;
+}
+
+
+struct cmDspClass_str* cmGSwitchClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmGSwitchDC,ctx,"GSwitch",
+    NULL,
+    _cmDspGSwitchAlloc,
+    NULL,
+    _cmDspGSwitchReset,
+    NULL,
+    _cmDspGSwitchRecv,
+    NULL,NULL,
+    "Ganged switch.");
+
+  return &_cmGSwitchDC;
 }

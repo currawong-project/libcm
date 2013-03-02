@@ -5,8 +5,6 @@
 extern "C" {
 #endif
 
-
-
 typedef struct
 {
   unsigned     smpIdx;  // time tag sample index for val
@@ -340,16 +338,17 @@ typedef void (*cmScMatcherCb_t)( struct cmScMatcher_str* p, void* arg, cmScMatch
    unsigned             ri;       // next avail res[] recd.
 
    double               s_opt;          // 
-   unsigned             missCnt;        // count of consecutive trailing non-matches
+   unsigned             missCnt;        // current count of consecutive trailing non-matches
    unsigned             ili;            // index into loc[] to start scan following reset
    unsigned             eli;            // index into loc[] of the last positive match. 
-   unsigned             mni;            // track the count of MIDI events since the last call to cmScMatcherReset()
-   unsigned             mbi;            // index of oldest MIDI event in midiBuf[]; 0 when the buffer is full.
+   unsigned             mni;            // current count of MIDI events since the last call to cmScMatcherReset()
+   unsigned             mbi;            // index of oldest MIDI event in midiBuf[]; stays at 0 when the buffer is full.
    unsigned             begSyncLocIdx;  // start of score window, in mp->loc[], of best match in previous scan
+   unsigned             initHopCnt;     // max window hops during the initial (when the MIDI buffer fills for first time) sync scan 
    unsigned             stepCnt;        // count of forward/backward score loc's to examine for a match during cmScMatcherStep().
    unsigned             maxMissCnt;     // max. number of consecutive non-matches during step prior to executing a scan.
-   unsigned             scanCnt;        // count of time scan was executed inside cmScMatcherStep()
-
+   unsigned             scanCnt;        // current count of times a resync-scan was executed during cmScMatcherStep()
+ 
    bool                 printFl;
 } cmScMatcher;
 
@@ -363,13 +362,13 @@ cmRC_t       cmScMatcherFinal( cmScMatcher* p );
 // 'scLocIdx' is a score index as used by cmScoreLoc(scH) not into p->mp->loc[].
 cmRC_t       cmScMatcherReset( cmScMatcher* p, unsigned scLocIdx );
 
-// Slide a score window scanCnt times, beginning at 'bli' (an
+// Slide a score window hopCnt times, beginning at 'bli' (an
 // index int p->mp->loc[]) looking for the best match to p->midiBuf[].  
 // The score window contain scWndN (p->mp->mcn-1) score locations.
 // Returns the index into p->mp->loc[] of the start of the best
 // match score window. The score associated
 // with this match is stored in s_opt.
-unsigned   cmScMatcherScan( cmScMatcher* p, unsigned bli, unsigned scanCnt );
+unsigned   cmScMatcherScan( cmScMatcher* p, unsigned bli, unsigned hopCnt );
 
 // Step forward/back by p->stepCnt from p->eli.
 // p->eli must therefore be valid prior to calling this function.
@@ -385,7 +384,7 @@ cmRC_t     cmScMatcherStep(  cmScMatcher* p );
 // If the MIDI note passed by the call results in a successful match then
 // p->eli will be updated to the location in p->mp->loc[] of the latest 
 // match, the MIDI note in p->midiBuf[] associated with this match
-// will be assigned valid locIdx and scLocIdx values, and *scLocIdxPtr
+// will be assigned a valid locIdx and scLocIdx values, and *scLocIdxPtr
 // will be set with the matched scLocIdx of the match.
 // If this call does not result in a successful match *scLocIdxPtr is set
 // to cmInvalidIdx.
@@ -413,7 +412,9 @@ typedef struct
   unsigned      eli;   //
 
   double        value; // DBL_MAX if the value has not yet been set
-  double        tempo; // DBL_MAX until set
+  double        tempo; //
+  double        match_cost; // cost of the match to the performance divided by sp->eleCnt
+
 
 } cmScMeasSet_t;
 
@@ -488,30 +489,57 @@ enum
 
 enum
 {
-  kActiveModFl = 0x01
+  kActiveModFl = 0x01,  // this variable is on the 'active' list
+  kCalcModFl   = 0x02   // when this variable is used as a parameter it's value must be calculated rather than used directly.
 };
 
 struct cmScModEntry_str;
+
+typedef enum
+{
+  kInvalidModPId,
+  kLiteralModPId,  // this is a literal value
+  kSymbolModPId    // 
+} cmScModPId_t;
+
+typedef struct cmScModParam_str
+{
+  cmScModPId_t pid;     // parameter type: literal or symbol
+  unsigned     symId;   // symbol of external and internal variables
+  double       val;     // value of literals
+} cmScModParam_t;
 
 typedef struct cmScModVar_str
 {
   unsigned                 flags;    // see kXXXModFl flags above.
   unsigned                 varSymId; // variable name 
-  double                   value;    // current value 
+  unsigned                 outVarId; // output var id
+  double                   value;    // current value of this variable
   double                   v0;       // reserved internal variable
-  unsigned                 phase;    // cycle phase since activation
+  unsigned                 phase;    // cycle phase since activation  
+  double                   min;
+  double                   max;
+  double                   rate;     // output rate in milliseconds
   struct cmScModEntry_str* entry;    // last entry assoc'd with this value
   struct cmScModVar_str*   vlink;    // p->vlist link
   struct cmScModVar_str*   alink;    // p->alist link
 } cmScModVar_t;
 
+
+
+// Each entry gives a time tagged location and some parameters 
+// for an algorthm which is used to set/modulate a value.
 typedef struct cmScModEntry_str
 {
-  unsigned        scLocIdx;     // entry start time
-  unsigned        typeId;       // variable type
-  double*         parray;       // parray[pn] - parameter array
-  unsigned        pn;           // parameter count
-  cmScModVar_t*   valPtr;       // target variable 
+  unsigned       scLocIdx;      // entry start time
+  unsigned       typeId;        // variable type
+  cmScModParam_t beg;           // parameter values
+  cmScModParam_t end;           //
+  cmScModParam_t dur;           //
+  cmScModParam_t min;           // min value for this variable
+  cmScModParam_t max;           // max value for this variable
+  cmScModParam_t rate;          // update rate in milliseconds (DBL_MAX to disable)
+  cmScModVar_t*  varPtr;        // target variable 
 } cmScModEntry_t;
 
 typedef void (*cmScModCb_t)( void* cbArg, unsigned varSymId, double value );
@@ -519,7 +547,9 @@ typedef void (*cmScModCb_t)( void* cbArg, unsigned varSymId, double value );
 typedef struct
 {
   cmObj           obj;
+  cmChar_t*       fn;           // modulator score file
   unsigned        modSymId;     // modulator name
+  cmSymTblH_t     stH;          // symbol table used by this modulator
   cmScModCb_t     cbFunc;       // active value callback function
   void*           cbArg;        // first arg to cbFunc()
   unsigned        samplesPerCycle; // interval in samples between calls to cmScModulatorExec()
@@ -528,7 +558,9 @@ typedef struct
   unsigned        en;           // count 
   cmScModVar_t*   vlist;        // variable list
   cmScModVar_t*   alist;        // active variable list
+  cmScModVar_t*   elist;        // last element on the active list
   unsigned        nei;          // next entry index
+  unsigned        outVarCnt;    // count of unique vars that are targets of entry recds
 } cmScModulator;
 
 
@@ -538,13 +570,16 @@ cmRC_t         cmScModulatorInit(  cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t s
 cmRC_t         cmScModulatorFinal( cmScModulator* p );
 
 // Return count of variables.
-unsigned        cmScModulatorVarCount( cmScModulator* p );
+unsigned       cmScModulatorOutVarCount( cmScModulator* p );
 
 // Return a pointer to the variable at vlist[idx].
-cmScModVar_t* cmScModulatorVar( cmScModulator* p, unsigned idx ); 
+cmScModVar_t*  cmScModulatorOutVar( cmScModulator* p, unsigned idx ); 
 
-cmRC_t         cmScModulatorReset( cmScModulator* p, unsigned scLocIdx );
+cmRC_t         cmScModulatorSetValue( cmScModulator* p, unsigned varSymId, double value, double min, double max );
+
+cmRC_t         cmScModulatorReset( cmScModulator* p, cmCtx_t* ctx, unsigned scLocIdx );
 cmRC_t         cmScModulatorExec(  cmScModulator* p, unsigned scLocIdx );
+cmRC_t         cmScModulatorDump(  cmScModulator* p );
 
 #ifdef __cplusplus
 }
