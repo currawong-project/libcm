@@ -62,6 +62,7 @@ extern "C" {
     cmDspCtx_t          ctx;
     cmLHeapH_t          lhH;      // DSP system lHeap used for system memory (DSP instance memory uses ctx->lhH so that it can be removed independent of the DSP system memory)
     cmSymTblH_t         stH;      // DSP system symbol table (holds class based symbols) (DSP instances use ctx->stH)
+    cmDspStoreH_t       dsH;      // DSP system global variable storate table
     cmJsonH_t           jsH;      // DSP json for use by the system 
     const cmChar_t*     rsrcFn;   // name of the JSON file containing resource specific resource      
     _cmDspClass_t*      classList;

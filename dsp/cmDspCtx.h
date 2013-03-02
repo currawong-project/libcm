@@ -6,8 +6,11 @@ extern "C" {
 #endif
 
   typedef cmHandle_t cmDspSysH_t;
+  typedef cmHandle_t cmDspStoreH_t;
+  
 
   struct cmAudioSysCtx_str;
+  struct cmDspGlobalVar_str;
 
   // DSP system context passed to many DSP instance functions
   typedef struct
@@ -20,8 +23,10 @@ extern "C" {
     cmLHeapH_t                lhH;
     cmJsonH_t                 jsH;
     cmSymTblH_t               stH;
+    cmDspStoreH_t             dsH;
     cmJsonH_t                 rsrcJsH;
     unsigned                  cycleCnt;  // count of DSP execution cycles (multiply by cmDspSamplesPerCycle() to get time since start of DSP system in samples)
+
 
     unsigned _disableSymId;
     unsigned _enableSymId;

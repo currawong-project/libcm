@@ -21,6 +21,7 @@
 #include "cmProcObj.h"
 #include "cmDspCtx.h"
 #include "cmDspClass.h"
+#include "cmDspStore.h"
 #include "cmDspSys.h"
 #include "cmDspBuiltIn.h"
 #include "cmDspPgm.h"
@@ -140,6 +141,8 @@ cmDspRC_t _cmDspSysFinalize( cmDsp_t* p )
     if( cmCtxFree(&p->ctx.cmProcCtx) != cmOkRC )
       rc = cmErrMsg(&p->err,kProcFailDspRC,"The proc context finalizatoin failed.");
 
+  cmDspStoreFree(&p->dsH);
+
   if( cmSymTblIsValid(p->stH) ) 
     cmSymTblDestroy(&p->stH);
 
@@ -195,6 +198,13 @@ cmDspRC_t cmDspSysInitialize( cmCtx_t* ctx, cmDspSysH_t* hp, cmUdpNetH_t netH )
     goto errLabel;
   }
 
+  // allocate the DSP system variable storage object
+  if( cmDspStoreAlloc(ctx,&p->dsH,10,10) != kOkDspRC )
+  {
+    rc = cmErrMsg(&p->err,kDspStoreFailDspRC,"DSP store allocation failed.");
+    goto errLabel;
+  }
+
   // initialize the proc context
   if( (p->ctx.cmProcCtx = cmCtxAlloc(NULL,&ctx->rpt,p->lhH,p->stH)) == NULL )
   {
@@ -214,6 +224,7 @@ cmDspRC_t cmDspSysInitialize( cmCtx_t* ctx, cmDspSysH_t* hp, cmUdpNetH_t netH )
   p->ctx.lhH     = p->lhH;
   p->ctx.jsH     = p->jsH;
   p->ctx.stH     = p->stH;
+  p->ctx.dsH     = p->dsH;
   p->ctx.rsrcJsH = cmJsonNullHandle;
   p->ctx.rpt     = &ctx->rpt;
   p->ctx.cmCtx   = &p->cmCtx;
