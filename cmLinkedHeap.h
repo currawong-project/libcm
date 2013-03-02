@@ -52,10 +52,10 @@ extern "C" {
 #define cmLhResizeN( h,t,p,n) ((t*)cmLHeapAllocate(h,p,   n,sizeof(t), kAlignMmFl,              NULL,NULL,0))
 #define cmLhResizeNZ(h,t,p,n) ((t*)cmLHeapAllocate(h,p,   n,sizeof(t), kAlignMmFl  | kZeroMmFl, NULL,NULL,0))
 
-#define cmLhAllocStr(   h, str )       cmLHeapAllocStr( h, NULL, str, strlen(str), kAlignMmFl, NULL,NULL,0 )
-#define cmLhAllocStrN(  h, str, n )    cmLHeapAllocStr( h, NULL, str, n,           kAlignMmFl, NULL,NULL,0 )
-#define cmLhResizeStr(  h, p, str )    cmLHeapAllocStr( h, p,    str, strlen(str), kAlignMmFl, NULL,NULL,0 )
-#define cmLhResizeStrN( h, p, str, n ) cmLHeapAllocStr( h, p,    str, n,           kAlignMmFl, NULL,NULL,0 )
+#define cmLhAllocStr(   h, str )       cmLHeapAllocStr( h, NULL, str, cmStringLen(str), kAlignMmFl, NULL,NULL,0 )
+#define cmLhAllocStrN(  h, str, n )    cmLHeapAllocStr( h, NULL, str, n,                kAlignMmFl, NULL,NULL,0 )
+#define cmLhResizeStr(  h, p, str )    cmLHeapAllocStr( h, p,    str, cmStringLen(str), kAlignMmFl, NULL,NULL,0 )
+#define cmLhResizeStrN( h, p, str, n ) cmLHeapAllocStr( h, p,    str, n,                kAlignMmFl, NULL,NULL,0 )
 
 #define cmLhFree( h, p )           cmLHeapFree( h, p )
 #define cmLhFreePtr(h, p )         cmLHeapFreePtr( h, p ) 
@@ -70,10 +70,10 @@ extern "C" {
 #define cmLhResizeN( h,t,p,n) ((t*)cmLHeapAllocate(h,p,   n,sizeof(t), kAlignMmFl,              __FILE__,__FUNCTION__,__LINE__))
 #define cmLhResizeNZ(h,t,p,n) ((t*)cmLHeapAllocate(h,p,   n,sizeof(t), kAlignMmFl  | kZeroMmFl, __FILE__,__FUNCTION__,__LINE__))
 
-#define cmLhAllocStr(  h, str )        cmLHeapAllocStr( h, NULL, str, strlen(str),    kAlignMmFl, __FILE__,__FUNCTION__,__LINE__ )
-#define cmLhAllocStrN( h, str, n )     cmLHeapAllocStr( h, NULL, str, n,              kAlignMmFl, __FILE__,__FUNCTION__,__LINE__ )
-#define cmLhResizeStr( h, p, str )     cmLHeapAllocStr( h, p,    str, strlen(str),    kAlignMmFl, __FILE__,__FUNCTION__,__LINE__ )
-#define cmLhResizeStrN( h, p, str, n ) cmLHeapAllocStr( h, p,    str, n,              kAlignMmFl, __FILE__,__FUNCTION__,__LINE__ )
+#define cmLhAllocStr(  h, str )        cmLHeapAllocStr( h, NULL, str, cmStringLen(str),  kAlignMmFl, __FILE__,__FUNCTION__,__LINE__ )
+#define cmLhAllocStrN( h, str, n )     cmLHeapAllocStr( h, NULL, str, n,                 kAlignMmFl, __FILE__,__FUNCTION__,__LINE__ )
+#define cmLhResizeStr( h, p, str )     cmLHeapAllocStr( h, p,    str, cmStringLen(str),  kAlignMmFl, __FILE__,__FUNCTION__,__LINE__ )
+#define cmLhResizeStrN( h, p, str, n ) cmLHeapAllocStr( h, p,    str, n,                 kAlignMmFl, __FILE__,__FUNCTION__,__LINE__ )
 
 #define cmLhFree( h, p )           cmLHeapFreeDebug(    h, p, __FILE__,__FUNCTION__,__LINE__ )
 #define cmLhFreePtr(h, p )         cmLHeapFreePtrDebug( h, p, __FILE__,__FUNCTION__,__LINE__ ) 
