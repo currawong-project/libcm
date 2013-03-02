@@ -18,6 +18,7 @@ extern "C" {
     kThreadFailDspRC,    // 6
     kNetFailDspRC,       // 7
     kCsvFailDspRC,       // 8
+    kDspStoreFailDspRC,
 
     kProcFailDspRC,
 
@@ -149,6 +150,7 @@ extern "C" {
     cmDspCb_t*      cbList;   // event targets registered with this instance
     const cmChar_t* doc;      // document string
   } cmDspVar_t;
+
 
   typedef struct
   {
