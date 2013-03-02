@@ -172,6 +172,7 @@ extern "C" {
     
   } cmAudioSysCtx_t;
 
+  /*
   typedef struct
   {
     const cmChar_t* devLabel;
@@ -180,15 +181,15 @@ extern "C" {
     unsigned        oBits;
     unsigned        oChCnt;
   } cmAudioSysFilePort_t;
-
+  */
 
   /// Audio system configuration record used by cmAudioSysAllocate().
   typedef struct cmAudioSysCfg_str
   {
     cmAudioSysSubSys_t*   ssArray;      ///< sub-system cfg record array
     unsigned              ssCnt;        ///< count of sub-systems   
-    cmAudioSysFilePort_t* afpArray;     ///< audio port file cfg recd array
-    unsigned              afpCnt;       ///< audio port file cnt
+    //cmAudioSysFilePort_t* afpArray;     ///< audio port file cfg recd array
+    //unsigned              afpCnt;       ///< audio port file cnt
     unsigned              meterMs;      ///< Meter sample period in milliseconds
     void*                 clientCbData; ///< User arg. for clientCbFunc().
     cmTsQueueCb_t         clientCbFunc; ///< Called by  cmAudioSysReceiveMsg() to deliver internally generated msg's to the host. 

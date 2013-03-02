@@ -729,11 +729,13 @@ cmAsRC_t cmAudioSysInitialize( cmAudioSysH_t h, const cmAudioSysCfg_t* cfg )
     return rc;
 
   // create the audio file devices
+  /*
   for(i=0; i<cfg->afpCnt; ++i)
   {
     const cmAudioSysFilePort_t* afp = cfg->afpArray + i;
     cmApFileDeviceCreate( afp->devLabel, afp->inAudioFn, afp->outAudioFn, afp->oBits, afp->oChCnt );
   }
+  */
 
   p->ssArray = cmMemAllocZ( _cmAsCfg_t, cfg->ssCnt );
   p->ssCnt   = cfg->ssCnt;
@@ -1281,8 +1283,8 @@ void cmAudioSysTest( cmRpt_t* rpt, int argc, const char* argv[] )
 
   cfg.ssArray = &ss;
   cfg.ssCnt   = 1;
-  cfg.afpArray= NULL;
-  cfg.afpCnt  = 0;
+  //cfg.afpArray= NULL;
+  //cfg.afpCnt  = 0;
   cfg.meterMs = 50;
 
   if(_cmAsGetBoolOpt(argc,argv,"-h",false))

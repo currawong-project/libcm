@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  cmApRC_t      cmApFileAllocate( cmRpt_t* rpt );
+  cmApRC_t      cmApFileFree();
 
   cmApRC_t      cmApFileInitialize( cmRpt_t* rpt, unsigned baseApDevIdx );
   cmApRC_t      cmApFileFinalize();

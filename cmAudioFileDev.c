@@ -220,8 +220,6 @@ cmAfdRC_t cmAudioFileDevInitialize(
       goto errLabel;
     }
 
-
-
     p->iPkt.devIdx         = devIdx;
     p->iPkt.begChIdx       = 0;
     p->iPkt.chCnt          = afInfo.chCnt;   // setting iPkt.chCnt to a non-zero value marks the input file as active
@@ -294,6 +292,7 @@ bool      cmAudioFileDevIsValid( cmAfdH_t h )
 
 cmAfdRC_t cmAudioFileDevSetup( 
   cmAfdH_t                        h, 
+  unsigned                        baseDevIdx,
   double                          srate, 
   unsigned                        framesPerCycle, 
   cmApCallbackPtr_t               callbackPtr, 
@@ -344,13 +343,14 @@ cmAfdRC_t cmAudioFileDevSetup(
 
     cmApSample_t* bp = (cmApSample_t*)p->oPkt.audioBytesPtr;
 
-    p->oPkt.devIdx         = p->devIdx;
+    p->oPkt.devIdx         = p->devIdx + baseDevIdx;
     p->oPkt.begChIdx       = 0;
     p->oPkt.chCnt          = p->oChCnt;
     p->oPkt.audioFramesCnt = framesPerCycle;
     p->oPkt.bitsPerSample  = p->oBits;
     p->oPkt.flags          = kFloatApFl;
     p->oPkt.audioBytesPtr  = bp = cmMemResizeZ( cmApSample_t, bp, framesPerCycle*p->oChCnt );
+    p->oPkt.userCbPtr      = cbDataPtr;
     p->oChArray            = cmMemResizeZ( cmApSample_t*, p->oChArray, p->oChCnt );
     
     for(i=0; i<p->oChCnt; ++i)
@@ -362,8 +362,10 @@ cmAfdRC_t cmAudioFileDevSetup(
   {
     cmApSample_t* bp = (cmApSample_t*)p->iPkt.audioBytesPtr;
 
+    p->iPkt.devIdx         = p->devIdx + baseDevIdx;
     p->iPkt.audioFramesCnt = framesPerCycle;
     p->iPkt.audioBytesPtr  = bp = cmMemResizeZ( cmApSample_t, bp, framesPerCycle*p->iPkt.chCnt ); ;
+    p->iPkt.userCbPtr      = cbDataPtr;
     for(i=0; i<p->iPkt.chCnt; ++i)
       p->iChArray[i] = bp + (i*framesPerCycle);
   }
@@ -534,7 +536,7 @@ void      cmAudioFileDevTest( cmRpt_t* rpt )
   if( cmAudioFileDevInitialize(&afdH,"file",devIdx,iFn,oFn,oBits,oChCnt,rpt) != kOkAfdRC )
     goto errLabel;
 
-  if( cmAudioFileDevSetup(afdH,srate,framesPerCycle,_cmAfdCallback,cbDataPtr) != kOkAfdRC )
+  if( cmAudioFileDevSetup(afdH,0,srate,framesPerCycle,_cmAfdCallback,cbDataPtr) != kOkAfdRC )
     goto errLabel;
 
   char c;
