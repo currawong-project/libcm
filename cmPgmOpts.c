@@ -479,11 +479,23 @@ _cmPoArg_t* _cmPgmOptInsertArg( _cmPo_t* p,  _cmPoOpt_t* r )
   a->opt        = r;
   a->valStr     = NULL;
 
-  a->link       = p->args;  // link into master arg list
-  p->args       = a;
+  // link onto the end of the  master arg list
+  _cmPoArg_t* ap = p->args;
+  while( ap!=NULL && ap->link != NULL )
+    ap=ap->link;
+  if( ap == NULL )
+    p->args = a;
+  else
+    ap->link = a;
   
-  a->inst       = r->inst;  // link into opt recd list
-  r->inst       = a;
+   // link onto the end of the opt recd list
+  ap = r->inst;
+  while( ap!=NULL && ap->inst!=NULL)
+    ap=ap->inst;
+  if( ap==NULL)
+    r->inst = a;
+  else
+    ap->inst = a;
 
   // if no parm. type flag was given then the arg is implicitely a bool and the value is true.
   //if( (r->flags & kTypeMaskPoFl) == 0 )
