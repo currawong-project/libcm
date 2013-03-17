@@ -896,39 +896,40 @@ cmFsRC_t _cmFileSysDirGetEntries(  cmFileSysDeRecd_t* drp, const cmChar_t* dirSt
         goto errLabel;
       }
 
-
-      // is the entry a file
-      if( _cmFileSysIsFile(drp->p,fn) )
+      // is a link
+      if( _cmFileSysIsLink(drp->p,fn) )
       {
-        if( cmIsFlag(drp->filterFlags,kFileFsFl)==false )
+        if( cmIsFlag(drp->filterFlags,kLinkFsFl) == false )
           continue;
 
-        flags |= kFileFsFl;
+        flags |= kLinkFsFl;
+
+        if( cmIsFlag(drp->filterFlags,kRecurseLinksFsFl) )
+          if((rc = _cmFileSysDirGetEntries(drp,fn)) != kOkFsRC )
+            goto errLabel;
       }
       else
       {
-        // is the entry a dir
-        if( _cmFileSysIsDir(drp->p,fn) )
+
+        // is the entry a file
+        if( _cmFileSysIsFile(drp->p,fn) )
         {
-          if( cmIsFlag(drp->filterFlags,kDirFsFl) == false)
+          if( cmIsFlag(drp->filterFlags,kFileFsFl)==false )
             continue;
 
-          flags |= kDirFsFl;
-
-          if( cmIsFlag(drp->filterFlags,kRecurseFsFl) )
-            if((rc = _cmFileSysDirGetEntries(drp,fn)) != kOkFsRC )
-              goto errLabel;
+          flags |= kFileFsFl;
         }
         else
         {
-          if( _cmFileSysIsLink(drp->p,fn) )
+          // is the entry a dir
+          if( _cmFileSysIsDir(drp->p,fn) )
           {
-            if( cmIsFlag(drp->filterFlags,kLinkFsFl) == false )
+            if( cmIsFlag(drp->filterFlags,kDirFsFl) == false)
               continue;
 
-            flags |= kLinkFsFl;
+            flags |= kDirFsFl;
 
-            if( cmIsFlag(drp->filterFlags,kRecurseLinksFsFl) )
+            if( cmIsFlag(drp->filterFlags,kRecurseFsFl) )
               if((rc = _cmFileSysDirGetEntries(drp,fn)) != kOkFsRC )
                 goto errLabel;
           }
