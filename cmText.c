@@ -208,7 +208,8 @@ cmChar_t* cmTsVPrintfP( cmChar_t* s, const cmChar_t* fmt, va_list vl )
   va_list     vl1;
   va_copy(vl1,vl);
 
-  unsigned     n = vsnprintf(NULL,0,fmt,vl);
+  int     n = vsnprintf(NULL,0,fmt,vl);
+  assert(n != -1);
 
   s = cmMemResize(cmChar_t,s,n+1);
   
