@@ -245,7 +245,7 @@ cmLibRC_t cmLibScan( cmLibH_t h, const cmChar_t* dirStr )
   if( cmFileSysIsValid(p->fsH) == false )
     return cmErrMsg(&p->err,kFileSysFailLibRC,"The file system object was not successfully initialized.");
 
-  if((d = cmFileSysDirEntries(p->fsH, dirStr, kFileFsFl, &dirEntryCnt )) != NULL )
+  if((d = cmFileSysDirEntries(p->fsH, dirStr, kFileFsFl | kFullPathFsFl, &dirEntryCnt )) == NULL )
     return cmErrMsg(&p->err,kFileSysFailLibRC,"The scan of directory '%s' failed.",cmStringNullGuard(dirStr));
 
   for(i=0; i<dirEntryCnt; ++i)
