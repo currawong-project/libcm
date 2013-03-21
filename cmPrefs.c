@@ -1337,8 +1337,9 @@ cmPrRC_t  _cmPrefsCreateJsonNode(
     pnp->id = _cmPrefsCalcNextAvailId(p);
   else
   {
-    if( _cmPrefsIdToNodePtr(p, id, false ) != NULL )
-      cmErrWarnMsg(&p->err,kDuplicateIdPrRC,"The preference variable id '%i' is used by multiple preference variables including '%s'.",id,cmStringNullGuard(pathString));
+    if( existsFl == false )
+      if( _cmPrefsIdToNodePtr(p, id, false ) != NULL )
+        cmErrWarnMsg(&p->err,kDuplicateIdPrRC,"The preference variable id '%i' is used by multiple preference variables including '%s'.",id,cmStringNullGuard(pathString));
   
     pnp->id = id;
   }

@@ -144,8 +144,9 @@ extern "C" {
   cmPrRC_t cmPrefsPathSetString( cmPrH_t h, const cmChar_t* pathStr, const cmChar_t* val );
 
   // Create a new preference variable and set it's value to 'val'.
-  // If a variable with the same path and type already exists and kForceValuePrFl is set then update it's value to 'val'.
-  // Note that in this case if kForceValuePrFl is not set then the function returns quietly.
+  // If a variable with the same path and type already exists and kForceValuePrFl
+  // is set then update it's value to 'val'. Note that in this case if
+  //  kForceValuePrFl is not set then the function returns quietly.
   //
   // If a variable with the same path but a different type exists then an error is returned.
   // 
