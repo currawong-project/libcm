@@ -44,13 +44,13 @@ cmArRC_t    cmArrayAlloc0(  cmCtx_t* ctx, cmArrayH_t* hp, unsigned eleByteCnt, u
   cmAr_t* p = cmMemAllocZ(cmAr_t,1);
   cmErrSetup(&p->err,&ctx->rpt,"Array");
 
-  p->alloc_cnt    = initCnt * eleByteCnt;
+  p->alloc_cnt    = initCnt;
   p->expand_cnt   = expandCnt;
   p->cur_cnt      = 0;
   p->ele_byte_cnt = eleByteCnt;
 
   if( p->alloc_cnt > 0 )
-    p->base = cmMemAllocZ(char,p->alloc_cnt);
+    p->base = cmMemAllocZ(char,p->alloc_cnt*eleByteCnt);
 
   hp->h = p;
   
