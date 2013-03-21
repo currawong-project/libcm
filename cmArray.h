@@ -16,9 +16,14 @@ enum
 
   extern cmArrayH_t cmArrayNullHandle;
 
-  cmArRC_t    cmArrayAlloc(  cmCtx_t* ctx, cmArrayH_t* hp, unsigned eleByteCnt, unsigned initCnt, unsigned expandCnt );
+  cmArRC_t    cmArrayAlloc0( cmCtx_t* ctx, cmArrayH_t* hp, unsigned eleByteCnt, unsigned initCnt, unsigned expandCnt );
+
+  // Defaults initCnt and expandCnt to 10.
+  cmArRC_t    cmArrayAlloc(    cmCtx_t* ctx, cmArrayH_t* hp, unsigned eleByteCnt );
   cmArRC_t    cmArrayRelease(cmArrayH_t* hp );
   cmArRC_t    cmArrayIsValid(cmArrayH_t h );
+  void        cmArraySetExpandCount( cmArrayH_t h, unsigned expandCnt );
+  unsigned    cmArrayExpandCount( cmArrayH_t h );
   unsigned    cmArrayCount(  cmArrayH_t h );
   cmArRC_t    cmArrayClear(  cmArrayH_t h, bool releaseFl );
   void*       cmArrayPush(   cmArrayH_t h, const void* data, unsigned dataEleCnt );
@@ -30,6 +35,7 @@ enum
 
 
 #define cmArrayPtr(t,h,i)     ((t*)cmArrayGet(h,i))
+#define cmArrayBase(t,h)     ((t*)cmArrayGet(h,0))
 #define cmArrayEle(t,h,i)    (*(t*)cmArrayGet(h,i))
 #define cmArrayClr(t,h,i)    ((t*)cmArraySet(h,i,NULL,1))
 #define cmArrayClrN(t,h,i,n) ((t*)cmArraySet(h,i,NULL,n))
