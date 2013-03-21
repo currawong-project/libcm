@@ -28,11 +28,14 @@ cmAr_t* _cmArHandleToPtr( cmArrayH_t h )
 cmArRC_t _cmArFree( cmAr_t* p )
 {
   cmArRC_t rc = kOkArRC;
+  cmMemFree(p->base);
   cmMemFree(p);
   return rc;
 }
 
-cmArRC_t    cmArrayAlloc(  cmCtx_t* ctx, cmArrayH_t* hp, unsigned initCnt, unsigned expandCnt, unsigned eleByteCnt )
+
+
+cmArRC_t    cmArrayAlloc0(  cmCtx_t* ctx, cmArrayH_t* hp, unsigned eleByteCnt, unsigned initCnt, unsigned expandCnt )
 {
   cmArRC_t rc;
   if((rc = cmArrayRelease(hp)) != kOkArRC )
@@ -54,6 +57,10 @@ cmArRC_t    cmArrayAlloc(  cmCtx_t* ctx, cmArrayH_t* hp, unsigned initCnt, unsig
   return rc;
 }
 
+cmArRC_t    cmArrayAlloc(  cmCtx_t* ctx, cmArrayH_t* hp, unsigned eleByteCnt )
+{ return cmArrayAlloc0(ctx,hp,eleByteCnt,10,10); }
+
+
 cmArRC_t    cmArrayRelease(   cmArrayH_t* hp )
 {
   cmArRC_t rc = kOkArRC;
@@ -73,6 +80,18 @@ cmArRC_t    cmArrayRelease(   cmArrayH_t* hp )
 
 cmArRC_t    cmArrayIsValid(cmArrayH_t h )
 {  return h.h != NULL; }
+
+void    cmArraySetExpandCount( cmArrayH_t h, unsigned expandCnt )
+{
+  cmAr_t* p = _cmArHandleToPtr(h);
+  p->expand_cnt = expandCnt;
+}
+
+unsigned    cmArrayExpandCount( cmArrayH_t h )
+{
+  cmAr_t* p = _cmArHandleToPtr(h);
+  return p->expand_cnt;
+}
 
 unsigned    cmArrayCount(  cmArrayH_t h )
 {
@@ -99,15 +118,20 @@ void*    _cmArraySet( cmAr_t* p, unsigned idx, const void* data, unsigned dataEl
   {
     unsigned add_cnt = (idx + dataEleCnt) - p->alloc_cnt;
 
-    p->alloc_cnt += ((add_cnt / p->expand_cnt) + 1) * p->expand_cnt;
+    if( add_cnt < p->expand_cnt )
+      add_cnt = p->expand_cnt;
+    else
+      add_cnt = ((add_cnt / p->expand_cnt) + 1) * p->expand_cnt;
 
-    p->base = cmMemResizePZ(char,p->base,p->alloc_cnt);    
+    p->alloc_cnt += add_cnt;
+
+    p->base = cmMemResizePZ(char,p->base,p->alloc_cnt*p->ele_byte_cnt);    
   }
 
   char* bp = p->base + (idx*p->ele_byte_cnt);
 
   if( data == NULL )
-    memset(bp, 0,  p->ele_byte_cnt * dataEleCnt );
+    memset(bp, 0,    p->ele_byte_cnt * dataEleCnt );
   else
     memcpy(bp, data, p->ele_byte_cnt * dataEleCnt );
     
