@@ -134,6 +134,11 @@ VECT_OP_TYPE*  VECT_OP_FUNC(MaxVV)( VECT_OP_TYPE* dp, unsigned dn, const VECT_OP
 unsigned*  VECT_OP_FUNC(MinIndexM)( unsigned* dp, const VECT_OP_TYPE* sp, unsigned srn, unsigned scn );
 unsigned*  VECT_OP_FUNC(MaxIndexM)( unsigned* dp, const VECT_OP_TYPE* sp, unsigned srn, unsigned scn );
 
+/// Return true if s0p[sn] is equal to s1p[sn]
+bool       VECT_OP_FUNC(IsEqual)( const VECT_OP_TYPE* s0p, const VECT_OP_TYPE* s1p, unsigned sn );
+
+/// Return true if all elements of s0p[sn] are within 'pct' percent of s1p[sn].
+bool VECT_OP_FUNC(IsClose)( const VECT_OP_TYPE* s0p, const VECT_OP_TYPE* s1p, unsigned sn, double pct );
 
 /// Return the most frequently occuring element in sp.
 VECT_OP_TYPE  VECT_OP_FUNC(Mode)(     const VECT_OP_TYPE* sp, unsigned sn );

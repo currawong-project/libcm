@@ -864,6 +864,28 @@ unsigned*  VECT_OP_FUNC(MaxIndexM)( unsigned* dp, const VECT_OP_TYPE* sp, unsign
   return dp;
 }
 
+bool VECT_OP_FUNC(IsEqual)( const VECT_OP_TYPE* s0p, const VECT_OP_TYPE* s1p, unsigned sn )
+{
+  const VECT_OP_TYPE* ep = s0p + sn;
+  for(; s0p < ep; ++s0p,++s1p )
+    if( *s0p != *s1p )
+      return false;
+  return true;
+}
+
+bool VECT_OP_FUNC(IsClose)( const VECT_OP_TYPE* s0p, const VECT_OP_TYPE* s1p, unsigned sn, double pct )
+{
+  const VECT_OP_TYPE* ep = s0p + sn;
+  for(; s0p < ep; ++s0p,++s1p )
+  {
+    double d = abs(*s1p - *s0p);
+    double s = cmMin(*s1p,*s0p);
+    if( d*100.0/s > pct )
+      return false;
+  }
+  return true;
+}
+
 
 VECT_OP_TYPE  VECT_OP_FUNC(Mode)( const VECT_OP_TYPE* sp, unsigned sn )
 {
