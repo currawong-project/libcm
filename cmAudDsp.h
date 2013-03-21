@@ -25,6 +25,7 @@ extern "C" {
     kAggDevSysFailAdRC,
     kAggDevCreateFailAdRC,
     kNrtDevSysFailAdRC,
+    kAfpDevSysFailAdRC,
     kNetSysFailAdRC
   };
 

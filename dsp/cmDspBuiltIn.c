@@ -1298,46 +1298,43 @@ cmDspRC_t _cmDspAudioFileOutReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDs
   return rc;
 } 
 
-
 cmDspRC_t _cmDspAudioFileOutExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
   cmDspRC_t            rc    = kOkDspRC;
   cmDspAudioFileOut_t* p     = (cmDspAudioFileOut_t*)inst;;
-  unsigned             fpc   = cmDspSamplesPerCycle(ctx);
-  unsigned             chCnt = cmDspUInt(inst,kChCntAofId);
+  unsigned             chCnt = cmMin(2,cmDspUInt(inst,kChCntAofId));
+  unsigned             smpCnt = 0;
   cmSample_t*          chArray[chCnt];
-  unsigned             i;
+  unsigned             i,j;
 
-  // Assume that both channls have the same number of samples.
-  // (cmAudioWriteFile() has the same constraint )
-  int                  sn = cmDspAudioBufSmpCount(ctx,inst,kIn0AofId,0);
-  
-  // This code can handle the case where the input channels contain
-  // more than or less than cmDspSamplesPerCycle().
-
-  while(sn>0)
+  for(i=0,j=0; i<chCnt; ++i)
   {
-    // we can process at most 'fpc' samples on one iteration
-    unsigned n = cmMin(sn,fpc);
-    sn -= n;
+    unsigned          chVarId = i == 0 ? kIn0AofId : kIn1AofId;     // get audio buf var id for this ch
+    unsigned          iSmpCnt = cmDspVarRows(inst,chVarId);
 
-    // apply output gain
-    for(i=0; i<chCnt; ++i)
+    if( iSmpCnt == 0 )
     {
-      chArray[i]            = p->smpBuf + i*fpc;
-      const cmSample_t* sp  = i==0 ? cmDspAudioBuf(ctx,inst,kIn0AofId,0) : cmDspAudioBuf(ctx,inst,kIn1AofId,0);
-      cmSample_t       gain = i==0 ? cmDspDouble(inst,kGain0AofId) : cmDspDouble(inst,kGain1AofId);
+      chArray[j] = NULL;
+    }
+    else
+    {
+      cmSample_t gain = cmDspSample(inst,i==0?kGain0AofId:kGain1AofId); // get ch gain
+    
+      chArray[j] = cmDspAudioBuf(ctx,inst,chVarId,i);                   // get incoming audio buf ptr
 
-      cmVOS_MultVVS(chArray[i], n, sp, (cmSample_t)gain);
+      if( gain != 1.0 )
+        cmVOS_MultVVS(chArray[j], iSmpCnt, chArray[j], gain);           // apply gain
 
+      ++j;                                                              // incr chArray[] index
+      assert( smpCnt==0 || iSmpCnt==smpCnt);                          
+      smpCnt = iSmpCnt;                                                 // set outgoing sample count
     }
 
-    // write the samples
-    if( cmAudioFileWriteSample(p->afH, n, chCnt, chArray ) != kOkAfRC )
-      rc = cmDspClassErr(ctx,inst->classPtr,kFileWriteFailDspRC,"An audio output file write failed.");
-
-    
   }
+
+  // write the samples
+  if( cmAudioFileWriteSample(p->afH, smpCnt, j, chArray ) != kOkAfRC )
+    rc = cmDspClassErr(ctx,inst->classPtr,kFileWriteFailDspRC,"An audio output file write failed.");
 
   return rc;
 }
@@ -5020,6 +5017,8 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmMidiFilePlayClassCons,
   cmScFolClassCons,
   cmScModClassCons,
+  cmGSwitchClassCons,
+
   NULL,
 };
 

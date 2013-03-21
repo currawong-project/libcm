@@ -39,8 +39,8 @@ cmHDR += src/libcm/cmGr.h src/libcm/cmGrDevCtx.h src/libcm/cmGrPage.h src/libcm/
 cmHDR +=  src/libcm/dsp/cmDspSys.h src/libcm/dsp/cmDspClass.h src/libcm/dsp/cmDspValue.h src/libcm/dsp/cmDspUi.h src/libcm/dsp/cmDspPreset.h src/libcm/dsp/cmDspNet.h
 cmSRC +=  src/libcm/dsp/cmDspSys.c src/libcm/dsp/cmDspClass.c src/libcm/dsp/cmDspValue.c src/libcm/dsp/cmDspUi.c src/libcm/dsp/cmDspPreset.c src/libcm/dsp/cmDspNet.c
 
-cmHDR += src/libcm/dsp/cmDspBuiltIn.h  src/libcm/dsp/cmDspFx.h 
-cmSRC += src/libcm/dsp/cmDspBuiltIn.c  src/libcm/dsp/cmDspFx.c 
+cmHDR += src/libcm/dsp/cmDspStore.h src/libcm/dsp/cmDspBuiltIn.h  src/libcm/dsp/cmDspFx.h 
+cmSRC += src/libcm/dsp/cmDspStore.c src/libcm/dsp/cmDspBuiltIn.c  src/libcm/dsp/cmDspFx.c 
 
 cmHDR += src/libcm/dsp/cmDspPgm.h src/libcm/dsp/cmDspPgmPP.h src/libcm/dsp/cmDspPgmPPMain.h
 cmSRC += src/libcm/dsp/cmDspPgm.c src/libcm/dsp/cmDspPgmPP.c src/libcm/dsp/cmDspPgmPPMain.c

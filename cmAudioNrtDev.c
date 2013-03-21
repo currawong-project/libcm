@@ -25,7 +25,7 @@ typedef struct
 typedef struct cmApNrtDev_str
 {
   unsigned               flags;
-  unsigned               devIdx; // nrt device index
+  unsigned               devIdx;       // nrt device index
   unsigned               baseApDevIdx; // global audio device index for first nrt device
   cmChar_t*              label;         
   unsigned               iChCnt;

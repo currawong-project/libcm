@@ -37,6 +37,7 @@ bool      cmAudioFileDevIsValid( cmAfdH_t h );
 /// Setup the device. This function must be called prior to cmAudioFileDevStart().
 cmAfdRC_t cmAudioFileDevSetup( 
   cmAfdH_t          h, 
+  unsigned          baseApDevIdx,
   double            srate, 
   unsigned          framesPerCycle, 
   cmApCallbackPtr_t callbackPtr, 

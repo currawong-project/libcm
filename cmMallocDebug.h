@@ -93,6 +93,8 @@ extern "C" {
   // An example and test function for the cmMallocDebug manager.
   void     cmMdTest( cmRpt_t* rpt );
 
+
+
 #if cmDEBUG_FL == 0
 
   // Memory Allocation and Release Macros:
@@ -101,20 +103,20 @@ extern "C" {
   //
 
 #define cmMemAllocate( type, p, eleCnt, fl ) ((type*)cmMdAllocate( p, eleCnt, sizeof(type), fl )) 
-#define cmMemMalloc(   byteCnt )                 cmMdAllocate( NULL, byteCnt,           1, kAlignMmFl) 
-#define cmMemMallocZ(  byteCnt )                 cmMdAllocate( NULL, byteCnt,           1, kAlignMmFl | kZeroMmFl) 
-#define cmMemAlloc(    type, eleCnt )    ((type*)cmMdAllocate( NULL, eleCnt, sizeof(type), kAlignMmFl))
-#define cmMemAllocZ(   type, eleCnt )    ((type*)cmMdAllocate( NULL, eleCnt, sizeof(type), kAlignMmFl | kZeroMmFl))
-#define cmMemAllocStr(  str )                    cmMdAllocStr( NULL, str,    strlen(str),  kAlignMmFl )
-#define cmMemAllocStrN( str, charCnt )           cmMdAllocStr( NULL, str,    charCnt,      kAlignMmFl )
-#define cmMemResizeStr( p, str )                 cmMdAllocStr( p,    str,    strlen(str),  kAlignMmFl )
-#define cmMemResizeStrN(p, str, charCnt )       cmMdAllocStr( p,    str,    charCnt,      kAlignMmFl )
-#define cmMemResizeN(   n, p, eleCnt )          (cmMdAllocate( p,    eleCnt, n,            kAlignMmFl))
-#define cmMemResizeNZ(  n, p, eleCnt )          (cmMdAllocate( p,    eleCnt, n,            kAlignMmFl | kZeroMmFl ))
-#define cmMemResize(   type, p, eleCnt ) ((type*)cmMdAllocate( p,    eleCnt, sizeof(type), kAlignMmFl))
-#define cmMemResizeZ(  type, p, eleCnt ) ((type*)cmMdAllocate( p,    eleCnt, sizeof(type), kAlignMmFl | kZeroMmFl))
-#define cmMemResizeP(  type, p, eleCnt ) ((type*)cmMdAllocate( p,    eleCnt, sizeof(type), kAlignMmFl | kPreserveMmFl))
-#define cmMemResizePZ( type, p, eleCnt ) ((type*)cmMdAllocate( p,    eleCnt, sizeof(type), kAlignMmFl | kZeroMmFl | kPreserveMmFl))
+#define cmMemMalloc(   byteCnt )                 cmMdAllocate( NULL, byteCnt,           1,     kAlignMmFl) 
+#define cmMemMallocZ(  byteCnt )                 cmMdAllocate( NULL, byteCnt,           1,     kAlignMmFl | kZeroMmFl) 
+#define cmMemAlloc(    type, eleCnt )    ((type*)cmMdAllocate( NULL, eleCnt, sizeof(type),     kAlignMmFl))
+#define cmMemAllocZ(   type, eleCnt )    ((type*)cmMdAllocate( NULL, eleCnt, sizeof(type),     kAlignMmFl | kZeroMmFl))
+#define cmMemAllocStr(  str )                    cmMdAllocStr( NULL, str,    cmStringLen(str), kAlignMmFl )
+#define cmMemAllocStrN( str, charCnt )           cmMdAllocStr( NULL, str,    charCnt,          kAlignMmFl )
+#define cmMemResizeStr( p, str )                 cmMdAllocStr( p,    str,    cmStringLen(str), kAlignMmFl )
+#define cmMemResizeStrN(p, str, charCnt )       cmMdAllocStr( p,    str,    charCnt,           kAlignMmFl )
+#define cmMemResizeN(   n, p, eleCnt )          (cmMdAllocate( p,    eleCnt, n,                kAlignMmFl))
+#define cmMemResizeNZ(  n, p, eleCnt )          (cmMdAllocate( p,    eleCnt, n,                kAlignMmFl | kZeroMmFl ))
+#define cmMemResize(   type, p, eleCnt ) ((type*)cmMdAllocate( p,    eleCnt, sizeof(type),     kAlignMmFl))
+#define cmMemResizeZ(  type, p, eleCnt ) ((type*)cmMdAllocate( p,    eleCnt, sizeof(type),     kAlignMmFl | kZeroMmFl))
+#define cmMemResizeP(  type, p, eleCnt ) ((type*)cmMdAllocate( p,    eleCnt, sizeof(type),     kAlignMmFl | kPreserveMmFl))
+#define cmMemResizePZ( type, p, eleCnt ) ((type*)cmMdAllocate( p,    eleCnt, sizeof(type),     kAlignMmFl | kZeroMmFl | kPreserveMmFl))
 #define cmMemFree(     ptr )                     cmMdFree( ptr )
 #define cmMemPtrFree(  ptrPtr )                  cmMdFreePtr(ptrPtr);
 
@@ -130,20 +132,20 @@ extern "C" {
   //
   //
 #define cmMemAllocate( type, p, eleCnt, pre, fl ) ((type*)cmMdAllocateDebug( p, eleCnt, sizeof(type), fl, __FUNCTION__, __FILE__, __LINE__ ))
-#define cmMemMalloc(   byteCnt )                 cmMdAllocateDebug( NULL, 1,      byteCnt,      kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ )
-#define cmMemMallocZ(  byteCnt )                 cmMdAllocateDebug( NULL, 1,      byteCnt,      kAlignMmFl | kZeroMmFl, __FUNCTION__, __FILE__, __LINE__ )
-#define cmMemAlloc(    type, eleCnt )    ((type*)cmMdAllocateDebug( NULL, eleCnt, sizeof(type), kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ ))
-#define cmMemAllocZ(   type, eleCnt )    ((type*)cmMdAllocateDebug( NULL, eleCnt, sizeof(type), kAlignMmFl | kZeroMmFl, __FUNCTION__, __FILE__, __LINE__ ))
-#define cmMemAllocStr( str )                    (cmMdAllocStrDebug( NULL, str,    strlen(str),  kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ ))
-#define cmMemAllocStrN(str, charCnt )           (cmMdAllocStrDebug( NULL, str,    charCnt,      kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ ))
-#define cmMemResizeStr(p, str )                 (cmMdAllocStrDebug( p,    str,    strlen(str),  kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ ))
-#define cmMemResizeStrN(p, str, charCnt )        (cmMdAllocStrDebug( p,    str,    charCnt,      kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ ))
-#define cmMemResizeN(  n,    p, eleCnt )        (cmMdAllocateDebug( p,    eleCnt, n,            kAlignMmFl | kZeroMmFl, __FUNCTION__, __FILE__, __LINE__ ))
-#define cmMemResizeNZ( n,    p, eleCnt )        (cmMdAllocateDebug( p,    eleCnt, n,                         kZeroMmFl, __FUNCTION__, __FILE__, __LINE__ ))      
-#define cmMemResize(   type, p, eleCnt ) ((type*)cmMdAllocateDebug( p,    eleCnt, sizeof(type), kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ )) 
-#define cmMemResizeZ(  type, p, eleCnt ) ((type*)cmMdAllocateDebug( p,    eleCnt, sizeof(type), kAlignMmFl | kZeroMmFl, __FUNCTION__, __FILE__, __LINE__ ))
-#define cmMemResizeP(  type, p, eleCnt ) ((type*)cmMdAllocateDebug( p,    eleCnt, sizeof(type), kAlignMmFl | kPreserveMmFl,             __FUNCTION__, __FILE__, __LINE__ )) 
-#define cmMemResizePZ( type, p, eleCnt ) ((type*)cmMdAllocateDebug( p,    eleCnt, sizeof(type), kAlignMmFl | kZeroMmFl | kPreserveMmFl, __FUNCTION__, __FILE__, __LINE__ ))
+#define cmMemMalloc(   byteCnt )                 cmMdAllocateDebug( NULL, 1,      byteCnt,          kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ )
+#define cmMemMallocZ(  byteCnt )                 cmMdAllocateDebug( NULL, 1,      byteCnt,          kAlignMmFl | kZeroMmFl, __FUNCTION__, __FILE__, __LINE__ )
+#define cmMemAlloc(    type, eleCnt )    ((type*)cmMdAllocateDebug( NULL, eleCnt, sizeof(type),     kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ ))
+#define cmMemAllocZ(   type, eleCnt )    ((type*)cmMdAllocateDebug( NULL, eleCnt, sizeof(type),     kAlignMmFl | kZeroMmFl, __FUNCTION__, __FILE__, __LINE__ ))
+#define cmMemAllocStr( str )                    (cmMdAllocStrDebug( NULL, str,    cmStringLen(str), kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ ))
+#define cmMemAllocStrN(str, charCnt )           (cmMdAllocStrDebug( NULL, str,    charCnt,          kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ ))
+#define cmMemResizeStr(p, str )                 (cmMdAllocStrDebug( p,    str,    cmStringLen(str), kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ ))
+#define cmMemResizeStrN(p, str, charCnt )       (cmMdAllocStrDebug( p,    str,    charCnt,          kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ ))
+#define cmMemResizeN(  n,    p, eleCnt )        (cmMdAllocateDebug( p,    eleCnt, n,                kAlignMmFl | kZeroMmFl, __FUNCTION__, __FILE__, __LINE__ ))
+#define cmMemResizeNZ( n,    p, eleCnt )        (cmMdAllocateDebug( p,    eleCnt, n,                kZeroMmFl,              __FUNCTION__, __FILE__, __LINE__ ))      
+#define cmMemResize(   type, p, eleCnt ) ((type*)cmMdAllocateDebug( p,    eleCnt, sizeof(type),     kAlignMmFl,             __FUNCTION__, __FILE__, __LINE__ )) 
+#define cmMemResizeZ(  type, p, eleCnt ) ((type*)cmMdAllocateDebug( p,    eleCnt, sizeof(type),     kAlignMmFl | kZeroMmFl, __FUNCTION__, __FILE__, __LINE__ ))
+#define cmMemResizeP(  type, p, eleCnt ) ((type*)cmMdAllocateDebug( p,    eleCnt, sizeof(type),     kAlignMmFl | kPreserveMmFl,             __FUNCTION__, __FILE__, __LINE__ )) 
+#define cmMemResizePZ( type, p, eleCnt ) ((type*)cmMdAllocateDebug( p,    eleCnt, sizeof(type),     kAlignMmFl | kZeroMmFl | kPreserveMmFl, __FUNCTION__, __FILE__, __LINE__ ))
 #define cmMemFree(     ptr )                     cmMdFreeDebug( ptr,                                                                  __FUNCTION__, __FILE__, __LINE__ )
 #define cmMemPtrFree(  ptrPtr )                  cmMdFreePtrDebug( (void**)ptrPtr,                                                    __FUNCTION__, __FILE__, __LINE__ )
 

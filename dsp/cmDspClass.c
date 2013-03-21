@@ -411,7 +411,7 @@ void   cmDspArgSetup(
   {
     lp = label;
     label[labelCharCnt]        = 0;
-    snprintf(label,labelCharCnt,"%s-%i",labelPrefix,labelId);
+    snprintf(label,labelCharCnt,"%s-%i",labelPrefix,labelId);    
   }
 
   // use the symbol table to hold the label string
@@ -896,6 +896,14 @@ cmDspRC_t   cmDspValueSet( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, c
 
     case kDoubleDsvFl: 
       cmDsvSetDouble(dvp, cmDsvGetDouble(svp)); 
+      break;
+
+    case kSampleDsvFl:
+      cmDsvSetSample(dvp, cmDsvGetSample(svp));
+      break;
+
+    case kRealDsvFl:
+      cmDsvSetReal(dvp, cmDsvGetReal(svp));
       break;
 
     case kSymDsvFl:

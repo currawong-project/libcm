@@ -14,6 +14,7 @@
 #include "cmAudioPort.h"
 #include "cmAudioAggDev.h"
 #include "cmAudioNrtDev.h"
+#include "cmAudioPortFile.h"
 #include "cmApBuf.h"
 #include "cmMidi.h"
 #include "cmMidiPort.h"
@@ -64,6 +65,15 @@ typedef struct
 
 typedef struct
 {
+  const cmChar_t* label;
+  const cmChar_t* inAudioFn;
+  const cmChar_t* outAudioFn;
+  unsigned        oBits;
+  unsigned        oChCnt;
+} cmAdAfpDev_t;
+
+typedef struct
+{
   cmErr_t            err;
   cmCtx_t            ctx;
   cmMsgSendFuncPtr_t cbFunc;
@@ -83,6 +93,9 @@ typedef struct
 
   cmAdNrtDev_t*      nrtDevArray;
   unsigned           nrtDevCnt;
+
+  cmAdAfpDev_t*      afpDevArray;
+  unsigned           afpDevCnt;
 
   cmAdAsCfg_t*       asCfgArray;
   unsigned           asCfgCnt;
@@ -151,6 +164,7 @@ cmAdRC_t _cmAdParseSysJsonTree( cmAd_t* p )
   cmJsonNode_t*   asCfgArrNodePtr  = NULL;
   cmJsonNode_t*   aggDevArrNodePtr = NULL;
   cmJsonNode_t*   nrtDevArrNodePtr = NULL;
+  cmJsonNode_t*   afpDevArrNodePtr = NULL;
   cmJsonNode_t*   audDspNodePtr    = NULL;
   const cmChar_t* errLabelPtr      = NULL;
   unsigned        i;
@@ -171,6 +185,7 @@ cmAdRC_t _cmAdParseSysJsonTree( cmAd_t* p )
         "audioSysCfgArray",   kArrayTId, &asCfgArrNodePtr,
         "aggDevArray",        kArrayTId | kOptArgJsFl, &aggDevArrNodePtr,
         "nrtDevArray",        kArrayTId | kOptArgJsFl, &nrtDevArrNodePtr,
+        "afpDevArray",        kArrayTId | kOptArgJsFl, &afpDevArrNodePtr,
         NULL )) != kOkJsRC )
   {
     rc = _cmAdParseMemberErr(p, jsRC, errLabelPtr, "aud_dsp" );
@@ -238,6 +253,34 @@ cmAdRC_t _cmAdParseSysJsonTree( cmAd_t* p )
             NULL )) != kOkJsRC )
       {
         rc = _cmAdParseMemberErr(p, jsRC, errLabelPtr, cmStringNullGuard(p->nrtDevArray[i].label) );
+        goto errLabel;
+      }
+
+    }
+    
+  }
+
+  // parse the audio file device specifications into p->afpDevArray[].
+  if( afpDevArrNodePtr != NULL && (p->afpDevCnt = cmJsonChildCount(afpDevArrNodePtr)) > 0)
+  {
+    // alloc the non-real-time spec. array
+    p->afpDevArray = cmMemResizeZ( cmAdAfpDev_t, p->afpDevArray, p->afpDevCnt );
+
+    // for each afp. device spec. recd
+    for(i=0; i<p->afpDevCnt; ++i)
+    {
+      const cmJsonNode_t* np   = cmJsonArrayElementC(afpDevArrNodePtr,i);
+
+      // read afpDevArray record values
+      if(( jsRC      = cmJsonMemberValues( np, &errLabelPtr, 
+            "label",      kStringTId,                &p->afpDevArray[i].label,
+            "iAudioFn",   kStringTId  | kOptArgJsFl, &p->afpDevArray[i].inAudioFn,
+            "oAudioFn",   kStringTId  | kOptArgJsFl, &p->afpDevArray[i].outAudioFn,
+            "oBits",      kIntTId     | kOptArgJsFl, &p->afpDevArray[i].oBits,
+            "oChCnt",     kIntTId     | kOptArgJsFl, &p->afpDevArray[i].oChCnt,
+            NULL )) != kOkJsRC )
+      {
+        rc = _cmAdParseMemberErr(p, jsRC, errLabelPtr, cmStringNullGuard(p->afpDevArray[i].label) );
         goto errLabel;
       }
 
@@ -368,6 +411,26 @@ cmAdRC_t _cmAdCreateNrtDevices( cmAd_t* p )
   return rc;
 }
 
+cmAdRC_t _cmAdCreateAfpDevices( cmAd_t* p )
+{
+  cmAdRC_t rc = kOkAdRC;
+
+  if( cmApFileAllocate(p->err.rpt) != kOkApRC )
+    return cmErrMsg(&p->err,kAfpDevSysFailAdRC,"The audio file device system allocation failed.");
+
+  unsigned i;
+  // create the audio file devices
+  for(i=0; i<p->afpDevCnt; ++i)
+  {
+    //const cmAudioSysFilePort_t* afp = cfg->afpArray + i;
+    cmAdAfpDev_t* afp = p->afpDevArray + i;
+    if( cmApFileDeviceCreate( afp->label, afp->inAudioFn, afp->outAudioFn, afp->oBits, afp->oChCnt ) != kOkApRC )
+      rc = cmErrMsg(&p->err,kAfpDevSysFailAdRC,"The audio file device '%s' creation failed.",cmStringNullGuard(afp->label));
+  }
+
+  return rc;
+}
+
 cmAdRC_t _cmAdSendAudioSysCfgLabels( cmAd_t* p)
 {
   cmAdRC_t     rc = kOkAdRC;
@@ -480,9 +543,15 @@ cmAdRC_t _cmAudDspFree( cmAd_t* p )
     goto errLabel;
   }
 
+  if( cmApFileFree() != kOkApRC )
+  {
+    rc = cmErrMsg(&p->err,kAfpDevSysFailAdRC,"The audio file device system release failed.");
+    goto errLabel;
+  }
+
   if( cmApNrtFree() != kOkAgRC )
   {
-    rc = cmErrMsg(&p->err,kNrtDevSysFailAdRC,"The non-real-time device system realease failed.");
+    rc = cmErrMsg(&p->err,kNrtDevSysFailAdRC,"The non-real-time device system release failed.");
     goto errLabel;
   }
 
@@ -560,6 +629,10 @@ cmAdRC_t cmAudDspAlloc( cmCtx_t* ctx, cmAdH_t* hp, cmMsgSendFuncPtr_t cbFunc, vo
 
   // create the non-real-time devices
   if( _cmAdCreateNrtDevices(p) != kOkAdRC )
+    goto errLabel;
+
+  // create the audio file devices
+  if( _cmAdCreateAfpDevices(p) != kOkAdRC )
     goto errLabel;
 
   // initialize the audio device system

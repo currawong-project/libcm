@@ -9,6 +9,7 @@
 #include "cmMidi.h"
 #include "cmLex.h"
 #include "cmCsv.h"
+#include "cmSymTbl.h"
 #include "cmMidiFile.h"
 #include "cmAudioFile.h"
 #include "cmTimeLine.h"
@@ -78,6 +79,7 @@ typedef struct
 {
   cmErr_t           err;
   cmCsvH_t          cH;
+  cmSymTblH_t       stH;
   cmScCb_t          cbFunc;
   void*             cbArg;
   cmChar_t*         fn;
@@ -355,7 +357,9 @@ cmScRC_t _cmScFinalize( cmSc_t* p )
     for(i=0; i<p->setCnt; ++i)
     {
       cmMemFree(p->sets[i].eleArray);
-      //cmMemFree(p->sets[i].sectArray);
+      cmMemFree(p->sets[i].sectArray);
+      cmMemFree(p->sets[i].symArray);
+      cmMemFree(p->sets[i].costSymArray);
     }
     cmMemFree(p->sets);
   }
@@ -708,6 +712,7 @@ cmScoreSection_t* _cmScLabelToSection( cmSc_t* p, const cmChar_t* label )
 }
 
 
+
 // Calculate the total number of all types of sets and
 // then convert each of the cmScSet_t linked list's to 
 // a single linear cmScoreSet_t list (p->sets[]).
@@ -778,8 +783,10 @@ cmScRC_t _cmScProcSets( cmSc_t* p )
 
       // allocate the section array
       p->sets[i].varId    = _cmScVarFlagToId(sp->typeFl);
-      //p->sets[i].sectCnt   = en;    
-      //p->sets[i].sectArray = cmMemAllocZ(cmScoreSection_t*,en);
+      p->sets[i].sectCnt   = en;    
+      p->sets[i].sectArray = cmMemAllocZ(cmScoreSection_t*,en);
+      p->sets[i].symArray  = cmMemAllocZ(unsigned,en);
+      p->sets[i].costSymArray = cmMemAllocZ(unsigned,en);
 
       // fill in the section array with sections which this set will be applied to
       ep = sp->sects;
@@ -791,7 +798,18 @@ cmScRC_t _cmScProcSets( cmSc_t* p )
           rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The section labelled '%s' could not be found for the set which includes row number %i.",ep->label,rowNumb);        
         else
         {
-          //= p->sets[i].sectArray[j];
+          if( cmSymTblIsValid(p->stH) )
+          {
+            p->sets[i].symArray[j]     = cmSymTblRegisterFmt(p->stH,"%c-%s", _cmScVarIdToChar(p->sets[i].varId),ep->label);
+            p->sets[i].costSymArray[j] = cmSymTblRegisterFmt(p->stH,"c%c-%s",_cmScVarIdToChar(p->sets[i].varId),ep->label);
+          }
+          else
+          {
+            p->sets[i].symArray[j] = cmInvalidId;
+            p->sets[i].symArray[j] = cmInvalidId;
+          }
+
+          p->sets[i].sectArray[j] = sp;
 
           sp->setArray = cmMemResizeP(cmScoreSet_t*,sp->setArray,++sp->setCnt);
           sp->setArray[sp->setCnt-1] = p->sets + i;
@@ -1107,7 +1125,7 @@ cmScRC_t _cmScInitLocArray( cmSc_t* p )
 }
 
 
-cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, double srate, const unsigned* dynRefArray, unsigned dynRefCnt, cmScCb_t cbFunc, void* cbArg )
+cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, double srate, const unsigned* dynRefArray, unsigned dynRefCnt, cmScCb_t cbFunc, void* cbArg, cmSymTblH_t stH )
 {
   cmScRC_t rc = kOkScRC;
   if((rc = cmScoreFinalize(hp)) != kOkScRC )
@@ -1116,6 +1134,8 @@ cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, doubl
   cmSc_t* p = cmMemAllocZ(cmSc_t,1);
 
   cmErrSetup(&p->err,&ctx->rpt,"Score");
+
+  p->stH   = stH;
 
   if((rc = _cmScParseFile(p,ctx,fn)) != kOkScRC )
     goto errLabel;
@@ -1881,7 +1901,7 @@ void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
 void cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
 {
   cmScH_t h = cmScNullHandle;
-  if( cmScoreInitialize(ctx,&h,fn,0,NULL,0,NULL,NULL) != kOkScRC )
+  if( cmScoreInitialize(ctx,&h,fn,0,NULL,0,NULL,NULL, cmSymTblNullHandle ) != kOkScRC )
     return;
 
   cmScorePrint(h,&ctx->rpt);

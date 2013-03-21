@@ -20,6 +20,7 @@
 #include "cmProcObj.h"
 #include "cmDspCtx.h"
 #include "cmDspClass.h"
+#include "cmDspStore.h"
 #include "cmDspSys.h"
 #include "cmDspPreset.h"
 #include "cmDspNet.h"

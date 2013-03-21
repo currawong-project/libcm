@@ -99,6 +99,7 @@ extern "C" {
 
 
 #define cmStringNullGuard(p) ((p)==NULL?"<null>":(p)) //< If 'p'==NULL return the static string "<null>" otherwise return 'p'.
+#define cmStringLen(s)       ((s)==NULL? 0 : strlen(s))
 
   // Default return code indicating successful function completion.
 #define cmOkRC (0)                  

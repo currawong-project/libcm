@@ -11,6 +11,8 @@
 typedef struct
 {
   cmAfdH_t devH;
+  unsigned devIdx;  // afp dev idx
+  unsigned baseApDevIdx; // global audio device index for first afp device
 } cmApDev_t;
 
 typedef struct
@@ -18,19 +20,53 @@ typedef struct
   cmErr_t    err;
   cmApDev_t* devArray;
   unsigned   devCnt;
+  unsigned   baseApDevIdx;
 } cmApf_t;
 
 cmApf_t* _cmApf = NULL;
 
-cmApRC_t      cmApFileInitialize( cmRpt_t* rpt, unsigned baseApDevIdx )
+cmApRC_t      cmApFileAllocate( cmRpt_t* rpt )
 {
-  cmApRC_t rc;
-  if((rc = cmApFileFinalize()) != kOkApRC )
-    return rc;
+  cmApRC_t rc = kOkApRC;
+
+  if( _cmApf != NULL )
+    cmApFileFree();
 
   _cmApf = cmMemAllocZ(cmApf_t,1);
 
   cmErrSetup(&_cmApf->err,rpt,"Audio Port File");
+  _cmApf->devArray     = NULL;
+  _cmApf->devCnt       = 0;
+  _cmApf->baseApDevIdx = 0;
+
+  return rc;
+}
+
+cmApRC_t      cmApFileFree()
+{
+  cmApRC_t rc = kOkApRC;
+
+  if( _cmApf == NULL )
+    return rc;
+
+  if((rc = cmApFileFinalize()) != kOkApRC )
+    return rc;
+
+  cmMemFree(_cmApf);
+  _cmApf = NULL;
+  return rc;
+}
+
+
+cmApRC_t      cmApFileInitialize( cmRpt_t* rpt, unsigned baseApDevIdx )
+{
+  cmApRC_t rc = kOkApRC;
+
+  unsigned i = 0;
+  for(; i<_cmApf->devCnt; ++i)
+    _cmApf->devArray[i].baseApDevIdx = baseApDevIdx;
+
+  _cmApf->baseApDevIdx = baseApDevIdx;
 
   return rc;      
 }
@@ -85,7 +121,12 @@ unsigned      cmApFileDeviceCreate(
   {
     cmErrMsg(&_cmApf->err,kAudioPortFileFailApRC,"The audio file device initialization failed.");
     i = cmInvalidIdx;
+    goto errLabel;
   }
+
+  _cmApf->devArray[i].devIdx = i;
+
+ errLabel:
   
   return i;
 }
@@ -134,7 +175,7 @@ cmApRC_t      cmApFileDeviceSetup(
 {
   assert( devIdx < cmApFileDeviceCount());
 
-  if( cmAudioFileDevSetup( _cmApf->devArray[devIdx].devH,srate,framesPerCycle,callbackPtr,userCbPtr) != kOkAfdRC )
+  if( cmAudioFileDevSetup( _cmApf->devArray[devIdx].devH,_cmApf->baseApDevIdx,srate,framesPerCycle,callbackPtr,userCbPtr) != kOkAfdRC )
     return cmErrMsg(&_cmApf->err,kAudioPortFileFailApRC,"The audio file device setup failed.");
 
   return kOkApRC;

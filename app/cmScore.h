@@ -94,6 +94,10 @@ extern "C" {
     unsigned               varId;      // See kXXXVarScId flags above
     cmScoreEvt_t**         eleArray;   // Events that make up this set in time order
     unsigned               eleCnt;     // 
+    cmScoreSection_t**     sectArray;  // Sections this set will be applied to
+    unsigned               sectCnt;    // 
+    unsigned*              symArray;   // symArray[sectCnt] - symbol name of all variables represented by this set (e.g '1a-e', '1b-e', '2-t', etc)
+    unsigned*              costSymArray; // costSymArray[sectCnt] - same as symbols in symArray[] with 'c' prepended to front
     bool                   doneFl;
     double                 value;
     struct cmScoreSet_str* llink;      // cmScoreLoc_t setList link
@@ -132,7 +136,8 @@ extern "C" {
   // If provided the dynRefArray[] is copied into an internal array.
   // The physical array passed here therefore does not need to remain valid.
   // Set 'srate' to zero if the score will not be used to perform measurement calculations.
-  cmScRC_t      cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, double srate, const unsigned* dynRefArray, unsigned dynRefCnt, cmScCb_t cbFunc, void* cbArg );
+  // The symbol table is only necessary if valid symbols are to be assigned to the cmScoreSet_t.symArray[].
+  cmScRC_t      cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, double srate, const unsigned* dynRefArray, unsigned dynRefCnt, cmScCb_t cbFunc, void* cbArg, cmSymTblH_t stH );
   cmScRC_t      cmScoreFinalize(   cmScH_t* hp );
 
   // Filename of last successfuly loaded score file.

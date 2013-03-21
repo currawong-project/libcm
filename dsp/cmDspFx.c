@@ -1587,7 +1587,6 @@ cmDspRC_t _cmDspXfaderRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
     case kMstrGateXfId:
       {
         bool fl = cmDspBool(inst,kMstrGateXfId);
-        printf("mstr:%i\n",fl);
         unsigned i;
         for(i=0; i<p->chCnt; ++i)
           p->chGateV[i] = fl;
@@ -4510,7 +4509,7 @@ struct cmDspClass_str* cmDistDsClassCons( cmDspCtx_t* ctx )
     _cmDspDistDsExec,
     _cmDspDistDsRecv,
     NULL,NULL,
-    "Comb Filter");
+    "Distortion and Downsampler");
 
   return &_cmDistDsDC;
 }
