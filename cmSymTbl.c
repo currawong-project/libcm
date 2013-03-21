@@ -274,8 +274,9 @@ unsigned    cmSymTblRegisterFmt( cmSymTblH_t h, const cmChar_t* fmt, ... )
 {
   va_list vl;
   va_start(vl,fmt);
-  cmSymTblRegisterVFmt(h,fmt,vl);
+  unsigned id = cmSymTblRegisterVFmt(h,fmt,vl);
   va_end(vl);
+  return id;
 }
 
 
