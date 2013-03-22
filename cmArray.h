@@ -26,9 +26,16 @@ enum
   unsigned    cmArrayExpandCount( cmArrayH_t h );
   unsigned    cmArrayCount(  cmArrayH_t h );
   cmArRC_t    cmArrayClear(  cmArrayH_t h, bool releaseFl );
+
+  // Returns a pointer to the first pushed element.
+  // Set 'data' to NULL to create 'dataEleCnt' new zeroed elements.
   void*       cmArrayPush(   cmArrayH_t h, const void* data, unsigned dataEleCnt );
+
+  // Decreaese the array count by 'eleCnt'.
   cmArRC_t    cmArrayPop(    cmArrayH_t h, unsigned eleCnt );
+
   // If 'data' is NULL then array[idx:idx+dataEleCnt] is zeroed.
+  // Returns a ptr to the first set element.
   void*       cmArraySet(    cmArrayH_t h, unsigned index, const void* data, unsigned dataEleCnt );
   const void* cmArrayGet(    cmArrayH_t h, unsigned index );
 
