@@ -650,7 +650,7 @@ cmAdRC_t cmAudDspAlloc( cmCtx_t* ctx, cmAdH_t* hp, cmMsgSendFuncPtr_t cbFunc, vo
   }
 
   // initialize the MIDI system
-  if( cmMpInitialize(NULL,NULL,p->midiPortBufByteCnt,"app",&ctx->rpt) != kOkMpRC )
+  if( cmMpInitialize(ctx,NULL,NULL,p->midiPortBufByteCnt,"app") != kOkMpRC )
   {
     rc = cmErrMsg(&p->err,kMidiSysFailAdRC,"The MIDI system initialization failed.");
     goto errLabel;
