@@ -2,6 +2,7 @@
 #include "cmGlobal.h"
 #include "cmRpt.h"
 #include "cmErr.h"
+#include "cmCtx.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
 #include "cmMidi.h"
@@ -180,7 +181,8 @@ void _cmMpTransmitSysEx( cmMpParser_t* p )
 
 void _cmMpParserStoreChMsg( cmMpParser_t* p, unsigned deltaMicroSecs,  cmMidiByte_t d )
 {
-  // if there is not enough room left in the buffer then transmit the current messages
+  // if there is not enough room left in the buffer then transmit
+  // the current messages
   if( p->bufByteCnt - p->bufIdx < sizeof(cmMidiMsg) )
     _cmMpTransmitChMsgs(p);
 
@@ -346,6 +348,58 @@ void cmMpParseMidiData( cmMpParserH_t h, unsigned deltaMicroSecs, const cmMidiBy
  
 }
 
+cmMpRC_t  cmMpParserMidiTriple(   cmMpParserH_t h, unsigned deltaMicroSecs, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 )
+{
+  cmMpRC_t rc = kOkMpRC;
+  cmMpParser_t* p = _cmMpParserFromHandle(h);
+  cmMidiByte_t mb = -1;
+
+  if( d0 == 0xff )
+    p->dataCnt = 0;
+  else
+    if( d1 == 0xff )
+      p->dataCnt = 1;
+    else
+      p->dataCnt = 2;
+
+  p->status  = status;
+  switch( p->dataCnt )
+  {
+    case 0:      
+      mb = status;
+     break;
+
+    case 1:
+      mb = d0;
+      break;
+
+    case 2:
+      p->data0 = d0;
+      mb = d1;
+      break;
+
+    default:
+      rc = cmErrMsg(&p->err,kInvalidArgMpRC,"An invalid MIDI status byte (0x%x) was encountered by the MIDI data parser.");
+      goto errLabel;
+      break;
+  }
+
+  if( mb != -1 )
+    _cmMpParserStoreChMsg(p,deltaMicroSecs,mb);
+  
+  p->dataCnt = cmInvalidCnt;
+
+ errLabel:
+  return rc;
+}
+
+cmMpRC_t  cmMpParserTransmit(    cmMpParserH_t h )
+{
+  cmMpParser_t* p = _cmMpParserFromHandle(h);
+  _cmMpTransmitChMsgs(p);
+  return kOkMpRC;
+}
+
 cmMpRC_t      cmMpParserInstallCallback( cmMpParserH_t h, cmMpCallback_t  cbFunc, void* cbDataPtr )
 {
   cmMpParser_t*   p        = _cmMpParserFromHandle(h);
@@ -418,6 +472,32 @@ bool cmMpParserHasCallback( cmMpParserH_t h, cmMpCallback_t cbFunc, void* cbData
 //
 //
 
+unsigned    cmMpDeviceNameToIndex(const cmChar_t* name)
+{
+  assert(name!=NULL);
+  unsigned i;
+  unsigned n = cmMpDeviceCount();
+  for(i=0; i<n; ++i)
+    if( strcmp(cmMpDeviceName(i),name)==0)
+      return i;
+  return cmInvalidIdx;
+}
+
+unsigned    cmMpDevicePortNameToIndex( unsigned devIdx, unsigned flags, const cmChar_t* name )
+{
+  unsigned i;
+  unsigned n = cmMpDevicePortCount(devIdx,flags);
+  for(i=0; i<n; ++i)
+    if( strcmp(cmMpDevicePortName(devIdx,flags,i),name)==0)
+      return i;
+
+  return cmInvalidIdx;
+}
+
+//====================================================================================================
+//
+//
+
 void cmMpTestPrint( void* userDataPtr, const char* fmt, va_list vl )
 {
   vprintf(fmt,vl);
@@ -439,20 +519,21 @@ void cmMpTestCb( const cmMidiPacket_t* pktArray, unsigned pktCnt )
   }
 }
 
-void cmMpTest( cmRpt_t* rpt )
+void cmMpTest( cmCtx_t* ctx )
 {
   char ch;
   unsigned parserBufByteCnt = 1024;
-  cmMpInitialize(cmMpTestCb,NULL,parserBufByteCnt,"app",rpt);
-  cmMpReport(rpt);
+  cmMpInitialize(ctx,cmMpTestCb,NULL,parserBufByteCnt,"app");
+  cmMpReport(&ctx->rpt);
 
-  
-  cmRptPrintf(rpt,"<return> to continue\n");
+ 
+  cmRptPrintf(&ctx->rpt,"<return> to continue\n");
 
   while((ch = getchar()) != 'q')
   {
-    cmMpDeviceSend(0,0,0x90,60,60);
+    cmMpDeviceSend(2,0,0x90,60,60);
   }
+ 
 
   cmMpFinalize();
 }

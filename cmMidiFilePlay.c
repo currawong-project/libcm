@@ -336,7 +336,7 @@ cmMfpRC_t cmMfpTest( const char* fn, cmCtx_t* ctx )
   unsigned        mdParserBufByteCnt = 1024;
 
   printf("Initializing MIDI Devices...\n");
-  cmMpInitialize( _cmMpCallbackTest, NULL, mdParserBufByteCnt,"app", &ctx->rpt );
+  cmMpInitialize( ctx, _cmMpCallbackTest, NULL, mdParserBufByteCnt,"app" );
 
   //mdReport();
 
