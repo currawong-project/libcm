@@ -19,6 +19,8 @@ extern "C" {
   {
     kOkMpRC = cmOkRC,
     kCfStringErrMpRC,
+    kLHeapErrMpRC,
+    kThreadErrMpRC,
     kSysErrMpRC,
     kInvalidArgMpRC,
     kMemAllocFailMpRC,
@@ -46,6 +48,13 @@ extern "C" {
   unsigned      cmMpParserErrorCount( cmMpParserH_t h );
   void          cmMpParseMidiData(    cmMpParserH_t h, unsigned deltaMicroSecs, const cmMidiByte_t* buf, unsigned bufByteCnt );
 
+  // The following two functions are intended to be used togetther.
+  // Use cmMpParserMidiTriple() to insert pre-parsed msg's to the output buffer,
+  // and then use cmMpParserTransmit() to send the buffer via the parsers callback function.
+  // Set the data bytes to 0xff if they are not used by the message.
+  cmMpRC_t      cmMpParserMidiTriple( cmMpParserH_t h, unsigned deltaMicroSecs, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 );
+  cmMpRC_t      cmMpParserTransmit(    cmMpParserH_t h ); 
+
   // Install/Remove additional callbacks.
   cmMpRC_t      cmMpParserInstallCallback( cmMpParserH_t h, cmMpCallback_t cbFunc, void* cbDataPtr );
   cmMpRC_t      cmMpParserRemoveCallback(  cmMpParserH_t h, cmMpCallback_t cbFunc, void* cbDataPtr );
@@ -60,14 +69,16 @@ extern "C" {
 
   // 'cbFunc' and 'cbDataPtr' are optional (they may be set to NULL).  In this case
   // 'cbFunc' and 'cbDataPtr' may be set in a later call to cmMpInstallCallback().
-  cmMpRC_t    cmMpInitialize( cmMpCallback_t cbFunc, void* cbDataPtr, unsigned parserBufByteCnt, const char* appNameStr, cmRpt_t* rpt );
+  cmMpRC_t    cmMpInitialize( cmCtx_t* ctx, cmMpCallback_t cbFunc, void* cbDataPtr, unsigned parserBufByteCnt, const char* appNameStr );
   cmMpRC_t    cmMpFinalize();
   bool        cmMpIsInitialized();
 
   unsigned    cmMpDeviceCount();
   const char* cmMpDeviceName(       unsigned devIdx );
+  unsigned    cmMpDeviceNameToIndex(const cmChar_t* name);
   unsigned    cmMpDevicePortCount(  unsigned devIdx, unsigned flags );
   const char* cmMpDevicePortName(   unsigned devIdx, unsigned flags, unsigned portIdx );
+  unsigned    cmMpDevicePortNameToIndex( unsigned devIdx, unsigned flags, const cmChar_t* name );
   cmMpRC_t    cmMpDeviceSend(       unsigned devIdx, unsigned portIdx, cmMidiByte_t st, cmMidiByte_t d0, cmMidiByte_t d1 );
   cmMpRC_t    cmMpDeviceSendData(   unsigned devIdx, unsigned portIdx, const cmMidiByte_t* dataPtr, unsigned byteCnt );
 
@@ -80,7 +91,7 @@ extern "C" {
 
   void        cmMpReport( cmRpt_t* rpt );
 
-  void cmMpTest( cmRpt_t* rpt );
+  void cmMpTest( cmCtx_t* ctx );
 
 #ifdef __cplusplus
 }
