@@ -1,6 +1,10 @@
 #ifndef cmUdpNet_h
 #define cmUdpNet_h
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
   A cmUdpNet is a wrapper around a single cmUdpPort. This object
   maintains an array of remote nodes which map application defined
@@ -93,7 +97,7 @@ unsigned        cmUdpNetNodeLabelToId( cmUdpNetH_t h, const cmChar_t* label );
 
 // Return the node label associated with a node id or NULL if the id 
 // is not found.
-const cmChar_t*   cmUdpNetNodeIdToLabel( cmUdpNetH_t h, unsigned id );
+const cmChar_t* cmUdpNetNodeIdToLabel( cmUdpNetH_t h, unsigned id );
 
 // Get the total count of nodes on the network.  This count includes the local node.
 unsigned        cmUdpNetNodeCount( cmUdpNetH_t h );
@@ -127,5 +131,9 @@ cmUnRC_t cmUdpNetPrintNodes( cmUdpNetH_t h, cmRpt_t* rpt );
 void     cmUdpNetReport( cmUdpNetH_t h, cmRpt_t* rpt );
 
 cmRC_t cmUdpNetTest( cmCtx_t* ctx, int argc, char* argv[] );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
