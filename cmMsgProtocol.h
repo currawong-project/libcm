@@ -181,20 +181,6 @@ extern "C" {
     // char dstVarLabel[]  - with kNetSyncSelAsId only
   } cmDspNetMsg_t;
 
-  /*
-  typedef struct
-  {
-    unsigned asSubIdx;
-    unsigned selId;     // kNetEvtSelAsId
-    unsigned dstId;
-
-    // The cmDspValue_t field must come last in the structure in
-    // order for the cmDsvSerialize() to work.
-    cmDspValue_t value;     // Data value associated with this msg.                             
-    
-  } cmDspNetEvt_t;
-  */
-
   enum
   {
     kOkMsgRC = cmOkRC,
