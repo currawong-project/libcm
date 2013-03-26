@@ -202,7 +202,7 @@ cmApRC_t      cmApFinalize()
 unsigned cmApDeviceCount()
 { return _ap->devCnt; }
 
-const char*   cmApDeviceLabel(          unsigned devIdx )
+const char*   cmApDeviceLabel( unsigned devIdx )
 {
   cmApDriver_t* dp;
   unsigned      di;
@@ -216,6 +216,20 @@ const char*   cmApDeviceLabel(          unsigned devIdx )
 
   return dp->deviceLabel(di);
 }
+
+unsigned      cmApDeviceLabelToIndex( const cmChar_t* label )
+{
+  unsigned n = cmApDeviceCount();
+  unsigned i;
+  for(i=0; i<n; ++i)
+  {
+    const cmChar_t* s = cmApDeviceLabel(i);
+    if( s!=NULL && strcmp(s,label)==0)
+      return i;
+  }
+  return cmInvalidIdx;
+}
+
 
 unsigned      cmApDeviceChannelCount(   unsigned devIdx, bool inputFl )
 {

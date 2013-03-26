@@ -95,6 +95,9 @@ extern "C" {
   /// Get a textual description of the device at index 'devIdx'.
   const char*   cmApDeviceLabel(          unsigned devIdx );
 
+  /// Given an audio device label return the associated device index.
+  unsigned      cmApDeviceLabelToIndex( const cmChar_t* label );
+
   /// Get the count of audio input or output channesl on device at index 'devIdx'.
   unsigned      cmApDeviceChannelCount(   unsigned devIdx, bool inputFl );
 
