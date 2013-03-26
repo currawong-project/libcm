@@ -9,15 +9,11 @@
 #include "cmAudioPort.h"
 #include "cmAudioPortFile.h"
 #include "cmApBuf.h"
-
-#include "cmJson.h"          // these files are 
-#include "dsp/cmDspValue.h"  // only required for
-#include "dsp/cmDspUi.h"     // UI building
-
+#include "cmJson.h"
 #include "cmThread.h"
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
-#include "cmMsgProtocol.h"
+#include "cmAudioSysMsg.h"
 #include "cmAudioSys.h"
 #include "cmMidi.h"
 #include "cmMidiPort.h"
@@ -155,10 +151,10 @@ cmAsRC_t _cmAsHostInitNotify( cmAs_t* p )
   return rc;
 }
 
-cmAsRC_t  _cmAsDispatchNonSubSysMsg(  cmAs_t* p, const void* msg, unsigned msgByteCnt )
+cmAsRC_t  _cmAsParseNonSubSysMsg(  cmAs_t* p, const void* msg, unsigned msgByteCnt )
 {
   cmAsRC_t rc = kOkAsRC;
-  cmDspUiHdr_t* h = (cmDspUiHdr_t*)msg;
+  cmAudioSysMstr_t* h = (cmAudioSysMstr_t*)msg;
   unsigned devIdx = cmAudioSysUiInstIdToDevIndex(h->instId);
   unsigned chIdx  = cmAudioSysUiInstIdToChIndex(h->instId);
   unsigned inFl   = cmAudioSysUiInstIdToInFlag(h->instId);
@@ -166,8 +162,8 @@ cmAsRC_t  _cmAsDispatchNonSubSysMsg(  cmAs_t* p, const void* msg, unsigned msgBy
 
   // if the valuu associated with this msg is a mtx then set
   // its mtx data area pointer to just after the msg header.
-  if( cmDsvIsMtx(&h->value) )
-    h->value.u.m.u.vp = ((char*)msg) + sizeof(cmDspUiHdr_t);
+  //if( cmDsvIsMtx(&h->value) )
+  //  h->value.u.m.u.vp = ((char*)msg) + sizeof(cmDspUiHdr_t);
 
   unsigned flags = inFl ? kInApFl : kOutApFl;
   
@@ -175,24 +171,24 @@ cmAsRC_t  _cmAsDispatchNonSubSysMsg(  cmAs_t* p, const void* msg, unsigned msgBy
   {
     
     case kSliderUiAsId: // slider
-      cmApBufSetGain(devIdx,chIdx, flags, cmDsvGetDouble(&h->value)); 
+      cmApBufSetGain(devIdx,chIdx, flags, h->value); 
       break;
       
     case kMeterUiAsId: // meter
       break;
       
     case kMuteUiAsId: // mute
-      flags += cmDsvGetDouble(&h->value) == 0 ? kEnableApFl : 0;
+      flags += h->value == 0 ? kEnableApFl : 0;
       cmApBufEnableChannel(devIdx,chIdx,flags);
       break;
 
     case kToneUiAsId: // tone
-      flags += cmDsvGetDouble(&h->value) > 0 ? kEnableApFl : 0;
+      flags += h->value > 0 ? kEnableApFl : 0;
       cmApBufEnableTone(devIdx,chIdx,flags);
       break;
 
     case kPassUiAsId: // pass
-      flags += cmDsvGetDouble(&h->value) > 0 ? kEnableApFl : 0;
+      flags += h->value > 0 ? kEnableApFl : 0;
       cmApBufEnablePass(devIdx,chIdx,flags);
       break;
 
@@ -210,7 +206,7 @@ cmAsRC_t  _cmAsHandleNonSubSysMsg(  cmAs_t* p, const void* msgDataPtrArray[], un
 
   // if the message is contained in a single segment it can be dispatched immediately ...
   if( msgSegCnt == 1 )
-    rc = _cmAsDispatchNonSubSysMsg(p,msgDataPtrArray[0],msgByteCntArray[0]);
+    rc = _cmAsParseNonSubSysMsg(p,msgDataPtrArray[0],msgByteCntArray[0]);
   else
   {
     // ... otherwise deserialize the message into contiguous memory ....
@@ -228,7 +224,7 @@ cmAsRC_t  _cmAsHandleNonSubSysMsg(  cmAs_t* p, const void* msgDataPtrArray[], un
       b += msgByteCntArray[i];
     }
     // ... and then dispatch it
-    rc = _cmAsDispatchNonSubSysMsg(p,buf,byteCnt);
+    rc = _cmAsParseNonSubSysMsg(p,buf,byteCnt);
 
   }
   
@@ -970,7 +966,7 @@ cmAsRC_t  cmAudioSysDeliverSegMsg(  cmAudioSysH_t h, const void* msgDataPtrArray
 
   // BUG BUG BUG - there is no reason that both the asSubIdx and the selId must
   // be in the first segment but it would be nice.
-  assert( msgByteCntArray[0] >= 2*sizeof(unsigned) );
+  assert( msgByteCntArray[0] >= 2*sizeof(unsigned) || (msgSegCnt>1 && msgByteCntArray[0]==sizeof(unsigned) && msgByteCntArray[1]>=sizeof(unsigned)) );
 
   // The audio sub-system index is always the first field of the msg 
   // and the msg selector id is always the second field
