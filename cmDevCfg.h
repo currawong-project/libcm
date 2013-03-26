@@ -37,14 +37,16 @@ extern "C" {
    */
 
 
-  struct cmAudioSysArgs_t;
+  struct cmAudioSysArgs_str;
 
   enum
   {
     kOkDcRC = cmOkRC,
     cmLabelNotFoundDcRC,
     cmIdNotFoundDcRC,
-    kInvalidDevArgDcRC
+    kInvalidDevArgDcRC,
+    kEmptyLabelDcRC,
+    kLocNotFoundDcRC
   };
 
   typedef enum
@@ -60,10 +62,18 @@ extern "C" {
 
   extern cmDevCfgH_t cmDevCfgNullHandle;
 
-  cmDcRC_t cmDevCfgMgrAlloc( cmCtx_t* c, cmDevCfgH_t* hp, cmJsonH_t jsH );
+  cmDcRC_t cmDevCfgMgrAlloc( cmCtx_t* c, cmDevCfgH_t* hp );
   cmDcRC_t cmDevCfgMgrFree( cmDevCfgH_t* hp );
   cmDcRC_t cmDevCfgIsValid( cmDevCfgH_t h );
 
+  // Return the count of cfg records for the given type.
+  unsigned cmDevCfgCount( cmDevCfgH_t h, cmTypeDcmId_t typeId );
+
+  // Return the label for a each cfg record of a given type.
+  const cmChar_t* cmDevCfgLabel( cmDevCfgH_t h, cmTypeDcmId_t typeId, unsigned index );
+
+  // Return the cfg index assoc'd with a given label.
+  unsigned cmDevCfgLabelToIndex( cmDevCfgH_t h, cmTypeDcmId_t typeId, const cmChar_t* label );
   
   // Delete a cfg record created by cmDevCfgNameMidiPort(), cmDevCfgNameAudioPort(), etc.
   cmDcRC_t cmDevCfgDeleteCfg( cmDevCfgH_t h, cmTypeDcmId_t typeId, const cmChar_t* dcLabelStr );
@@ -75,6 +85,7 @@ extern "C" {
   // Delete a map record created by cmDevCfgCreateMap().
   cmDcRC_t cmDevCfgDeleteMap( cmDevCfgH_t h, cmTypeDcmId_t typeId, unsigned usrAppId, unsigned usrDevId );
   
+
   // Create a MIDI cfg. record.
   cmDcRC_t cmDevCfgNameMidiPort( 
     cmDevCfgH_t     h,
@@ -108,14 +119,17 @@ extern "C" {
 
   unsigned        cmDevCfgNetNodeId(     cmDevCfgH_t h, unsigned usrAppId, unsigned usrDevId );
 
-  // Preset Management Functions:
+  // Location Management Functions:
   // Store and recall groups cfg records.
 
-  unsigned        cmDevCfgPresetCount( cmDevCfgH_t h );
-  const cmChar_t* cmDevCfgPresetLabel( cmDevCfgH_t h, unsigned presetIdx );
-  cmDcRC_t        cmDevCfgStore(       cmDevCfgH_t h, const cmChar_t* presetLabelStr );
-  cmDcRC_t        cmDevCfgRecall(      cmDevCfgH_t h, const cmChar_t* presetLabelStr );
-  cmDcRC_t        cmDevCfgDelete(      cmDevCfgH_t h, const cmChar_t* presetLabelStr );
+  unsigned        cmDevCfgLocCount(  cmDevCfgH_t h );
+  const cmChar_t* cmDevCfgLocLabel(  cmDevCfgH_t h, unsigned locIdx );
+  cmDcRC_t        cmDevCfgLocStore(  cmDevCfgH_t h, const cmChar_t* locLabelStr );
+  cmDcRC_t        cmDevCfgLocRecall( cmDevCfgH_t h, const cmChar_t* locLabelStr );
+  cmDcRC_t        cmDevCfgLocDelete( cmDevCfgH_t h, const cmChar_t* locLabelStr );
+
+  // Return the current location index
+  unsigned        cmDevCfgLocIndex(  cmDevCfgH_t h );
 
   cmDcRC_t cmDevCfgWrite( cmDevCfgH_t h );
   
