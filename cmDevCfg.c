@@ -5,7 +5,9 @@
 #include "cmCtx.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
+#include "cmLinkedHeap.h"
 #include "cmJson.h"
+#include "cmText.h"
 #include "cmThread.h"
 #include "cmMidi.h"
 #include "cmMidiPort.h"
@@ -20,77 +22,59 @@
 cmDevCfgH_t cmDevCfgNullHandle = cmSTATIC_NULL_HANDLE;
 
 
-typedef struct
+typedef struct cmDcmCfg_str
 {
-  cmChar_t* dcLabelStr;     // Name of this cfg recd or NULL if the recd is inactive.
-  cmChar_t* devLabelStr;    // Midi device label.
-  cmChar_t* portLabelStr;   // Midi device port label.
-  bool      inputFl;        // 'True' if this is an input port.
-  unsigned  devIdx;         // Midi device index.
-  unsigned  portIdx;        // Midi port index.
-} cmDcmMidi_t;
+  cmChar_t*     dcLabelStr;
+  unsigned      cfgId;        // unique among all cfg's assigned to a loc
+  cmTypeDcmId_t typeId;
+  cmChar_t*     descStr;
 
-typedef struct
-{
-  cmChar_t* dcLabelStr;        // Name of this cfg record or NULL if the recd is inactive.
-  cmChar_t* inDevLabelStr;     // Input audio device label.
-  cmChar_t* outDevLabelStr;    // Output audio device label.
+  union
+  {
+    cmDcmMidi_t  m;
+    cmDcmAudio_t a;
+    cmDcmNet_t   n;
+  } u;
 
-  cmAudioSysArgs_t ss;
-  
-} cmDcmAudio_t;
-
-typedef struct              
-{
-  cmChar_t* dcLabelStr;        // Name of this cfg recd or NULL if the recd is inactive
-  cmChar_t* sockAddr;          // Remote socket address.
-  unsigned  portNumber;        // Remote socket port number
-  unsigned  netNodeId;         // Network node id associated with sockAddr and portNumber.
-} cmDcmNet_t;
+  struct cmDcmCfg_str* next;
+  struct cmDcmCfg_str* prev;
+} cmDcmCfg_t;
 
 typedef struct
 {
   cmTypeDcmId_t tid;      // Type Id for this map or tInvalidDcmTId if the record is not active.
-  unsigned      usrDevId; // Same as index into p->map[] for this recd.
-  unsigned      cfgIndex; // Index into p->midi[],p->audio[], or p->net[].
+  unsigned      cfgId;    // cfgId of the cfg recd assoc'd with this map
+  cmDcmCfg_t*   cfg;      // pointer to the cfg recd assoc'd with this map (cfg->cfgId == cmDcmMap_t.cfgId)
 } cmDcmMap_t;
 
 typedef struct
 {
-  unsigned    usrAppId;
   bool        activeFl;
   cmDcmMap_t* map;
   unsigned    mapCnt;
 } cmDcmApp_t;
 
-typedef struct
+typedef struct cmDcmLoc_str
 {
-  cmChar_t*     labelStr;
+  cmChar_t*            labelStr;
 
-  cmDcmApp_t*   app;
-  unsigned      appCnt;
+  cmDcmApp_t*          app;
+  unsigned             appCnt;
 
-  cmDcmMidi_t*  midi;
-  unsigned      midiCnt;
+  cmDcmCfg_t*          cfg;
 
-  cmDcmAudio_t* audio;
-  unsigned      audioCnt;
-
-  cmDcmNet_t*   net;
-  unsigned      netCnt;
+  struct cmDcmLoc_str* next;
+  struct cmDcmLoc_str* prev;
 
 } cmDcmLoc_t;
 
 typedef struct
 {
-  cmErr_t      err;
-
-  cmDcmLoc_t*  loc;
-  unsigned     locCnt;
-
-  cmDcmLoc_t*  l;
-
+  cmErr_t     err;
+  cmDcmLoc_t* loc;
+  cmDcmLoc_t* clp;
 } cmDcm_t;
+
 
 cmDcm_t* _cmDcmHandleToPtr( cmDevCfgH_t h )
 {
@@ -99,33 +83,34 @@ cmDcm_t* _cmDcmHandleToPtr( cmDevCfgH_t h )
   return p;
 }
 
-void _cmDcmAppDupl( cmDcmApp_t* d, const cmDcmApp_t* s )
+const cmChar_t* _cmDcmTrimLabel( cmDcm_t*p, const cmChar_t* s, const cmChar_t* title )
 {
-  *d = *s;
-  if( d->activeFl )
+  if( s == NULL )
   {
-    unsigned i;
-    d->map = cmMemAllocZ(cmDcmMap_t,s->mapCnt);
-    for(i=0; i<s->mapCnt; ++i)
-      d->map[i] = s->map[i];
+    cmErrMsg(&p->err,kBlankLabelDcRC,"A blank '%s' label was encountered.",title);
+    return NULL;
   }
-  else
+
+  while( *s && isspace(*s) )
+    ++s;
+
+  if( strlen(s) == 0 )
   {
-    d->mapCnt = 0;
-    d->map    = NULL;
+    cmErrMsg(&p->err,kBlankLabelDcRC,"An empty '%s' label was encountered.",title);
+    return NULL;
   }
+
+  return s;
 }
 
-void _cmDcmMidiFree( cmDcmMidi_t* r )
+void _cmDcmFreeMidi( cmDcmMidi_t* r )
 {
-  cmMemPtrFree(&r->dcLabelStr);
-  cmMemPtrFree(&r->devLabelStr);
-  cmMemPtrFree(&r->portLabelStr);
+  cmMemFree(r->devLabelStr);
+  cmMemFree(r->portLabelStr);
 }
 
-void _cmDcmMidiDupl( cmDcmMidi_t* d, const cmDcmMidi_t* s )
+void _cmDcmDuplMidi( cmDcmMidi_t* d, const cmDcmMidi_t* s )
 {
-  d->dcLabelStr   = cmMemAllocStr(s->dcLabelStr);
   d->devLabelStr  = cmMemAllocStr(s->devLabelStr);
   d->portLabelStr = cmMemAllocStr(s->portLabelStr);
   d->inputFl      = s->inputFl;
@@ -133,328 +118,187 @@ void _cmDcmMidiDupl( cmDcmMidi_t* d, const cmDcmMidi_t* s )
   d->portIdx      = s->portIdx;
 }
 
-void _cmDcmAudioFree( cmDcmAudio_t* r )
+void _cmDcmFreeAudio( cmDcmAudio_t* r )
 {
-  cmMemPtrFree(&r->dcLabelStr);
-  cmMemPtrFree(&r->inDevLabelStr);
-  cmMemPtrFree(&r->outDevLabelStr);
+  cmMemFree(r->inDevLabelStr);
+  cmMemFree(r->outDevLabelStr);
 }
 
-void _cmDcmAudioDupl( cmDcmAudio_t* d, const cmDcmAudio_t* s )
+void _cmDcmDuplAudio( cmDcmAudio_t* d, const cmDcmAudio_t* s )
 {
-  d->dcLabelStr = cmMemAllocStr(s->dcLabelStr);
-  d->inDevLabelStr = cmMemAllocStr(s->inDevLabelStr);
+  d->inDevLabelStr  = cmMemAllocStr(s->inDevLabelStr);
   d->outDevLabelStr = cmMemAllocStr(s->outDevLabelStr);
-  d->ss             = s->ss;
+  d->audioSysArgs   = s->audioSysArgs;
 }
 
-void _cmDcmNetFree( cmDcmNet_t* r )
+void _cmDcmFreeNet( cmDcmNet_t* r )
 {
-  cmMemPtrFree(&r->dcLabelStr);
-  cmMemPtrFree(&r->sockAddr);
+  cmMemFree(r->sockAddr);
 }
 
-void _cmDcmNetDupl( cmDcmNet_t* d, const cmDcmNet_t* s )
+void _cmDcmDuplNet( cmDcmNet_t* d, const cmDcmNet_t* s )
 {
-  d->dcLabelStr = cmMemAllocStr(s->dcLabelStr);
   d->sockAddr   = cmMemAllocStr(s->sockAddr);
   d->portNumber = s->portNumber;
-  d->netNodeId  = s->netNodeId;
 }
 
-void _cmDcmAppFree( cmDcmApp_t* r )
+
+void _cmDcmFreeCfg( cmDcm_t* p, cmDcmLoc_t* lp, cmDcmCfg_t* cp )
 {
-  cmMemPtrFree(&r->map);
+  // unlink the cfg recd
+  if( cp->prev == NULL )
+    lp->cfg = cp->next;
+  else
+    cp->prev->next = cp->next;
+  
+  if( cp->next != NULL )
+    cp->next->prev = cp->prev;
+
+  cmMemFree(cp->dcLabelStr);
+  cmMemFree(cp->descStr);
+
+  switch( cp->typeId )
+  {
+    case kMidiDcmTId:  _cmDcmFreeMidi(&cp->u.m); break;
+    case kAudioDcmTId: _cmDcmFreeAudio(&cp->u.a); break;
+    case kNetDcmTId:   _cmDcmFreeNet(&cp->u.n); break;
+    default:
+      assert(0);
+      break;
+  }
 }
 
-cmDcRC_t  _cmDcmFreeLoc( cmDcm_t* p, cmDcmLoc_t* loc )
+void _cmDcmFreeLoc( cmDcm_t* p, cmDcmLoc_t* lp )
 {
   unsigned i;
 
-  for(i=0; loc->midi!=NULL && i<loc->midiCnt; ++i)
-    _cmDcmMidiFree(loc->midi + i );
-  cmMemPtrFree(&loc->midi);
-  loc->midiCnt = 0;
+  // unlink the loc recd
+  if( lp->prev == NULL )
+    p->loc = lp->next;
+  else
+    lp->prev->next = lp->next;
 
-  for(i=0; loc->audio!=NULL && i<loc->audioCnt; ++i)
-    _cmDcmAudioFree(loc->audio + i );
-  cmMemPtrFree(&loc->audio);
-  loc->audioCnt = 0;
+  if( lp->next != NULL )
+    lp->next->prev = lp->prev;
 
-  for(i=0; loc->net!=NULL && i<loc->netCnt; ++i)
-    _cmDcmNetFree(loc->net + i );
-  cmMemPtrFree(&loc->net);
-  loc->netCnt = 0;
+  
+  // free each app
+  for(i=0; i<lp->appCnt; ++i)
+    cmMemFree(lp->app[i].map);
 
-  for(i=0; loc->app!=NULL && i<loc->appCnt; ++i)
-    _cmDcmAppFree(loc->app + i );
-  cmMemPtrFree(&loc->app);
-  loc->appCnt = 0;
+  cmMemFree(lp->app);
+  cmMemFree(lp->labelStr);
+  
+  while( lp->cfg != NULL )
+    _cmDcmFreeCfg(p,lp,lp->cfg);
 
-  cmMemPtrFree(&loc->labelStr);
+  cmMemFree(lp);
+}
 
-  return kOkDcRC;  
+void _cmDcmFreeAllLocs( cmDcm_t* p )
+{
+  while( p->loc != NULL )
+    _cmDcmFreeLoc(p,p->loc);
+  
+  p->clp    = NULL;
 }
 
 cmDcRC_t _cmDcmFree( cmDcm_t* p )
 {
   cmDcRC_t rc = kOkDcRC;
-  unsigned i;
 
-  for(i=0; i<p->locCnt; ++i)
-    if((rc = _cmDcmFreeLoc(p,p->loc + i )) != kOkDcRC )
-      return rc;
+  _cmDcmFreeAllLocs(p);
 
-  cmMemPtrFree(&p->loc);
-
+  cmMemFree(p);
   return rc;
 }
 
-
-
-cmDcmMidi_t* _cmDcmMidiFind( cmDcm_t* p, const cmChar_t* dcLabelStr, bool errFl )
+cmDcmLoc_t* _cmDcmFindLoc( cmDcm_t* p, const cmChar_t* labelStr )
 {
-  assert( dcLabelStr != NULL );
-
-  unsigned i;
-  for(i=0; i<p->l->midiCnt; ++i)
-    if(p->l->midi[i].dcLabelStr!=NULL && strcmp(p->l->midi[i].dcLabelStr,dcLabelStr)==0)
-      return p->l->midi + i;
-
-  if( errFl )
-    cmErrMsg(&p->err,cmLabelNotFoundDcRC,"The MIDI cfg. record '%s' not found.",dcLabelStr);
-
+  cmDcmLoc_t* lp = p->loc;
+  for(; lp!=NULL; lp=lp->next)
+    if(strcmp(lp->labelStr,labelStr)==0)
+      return lp;
   return NULL;
 }
 
-cmDcmAudio_t* _cmDcmAudioFind( cmDcm_t* p, const cmChar_t* dcLabelStr, bool errFl )
+cmDcRC_t _cmDcmNewLoc( cmDcm_t* p, const cmChar_t* labelStr, cmDcmLoc_t**  locRef)
 {
-  assert( dcLabelStr != NULL );
-
-  unsigned i;
-  for(i=0; i<p->l->audioCnt; ++i)
-    if(p->l->audio[i].dcLabelStr!=NULL && strcmp(p->l->audio[i].dcLabelStr,dcLabelStr)==0)
-      return p->l->audio + i;
-
-  if( errFl )
-    cmErrMsg(&p->err,cmLabelNotFoundDcRC,"The audio cfg. record '%s' not found.",dcLabelStr);
-
-  return NULL;
-}
-
-cmDcmNet_t* _cmDcmNetFind( cmDcm_t* p, const cmChar_t* dcLabelStr, bool errFl )
-{
-  assert( dcLabelStr != NULL );
-
-  unsigned i;
-  for(i=0; i<p->l->netCnt; ++i)
-    if(p->l->net[i].dcLabelStr!=NULL && strcmp(p->l->net[i].dcLabelStr,dcLabelStr)==0)
-      return p->l->net + i;
-
-  if( errFl )
-    cmErrMsg(&p->err,cmLabelNotFoundDcRC,"The net cfg. record '%s' not found.",dcLabelStr);
-
-  return NULL;
-}
-
-
-cmDcmApp_t*  _cmDcmFindOrCreateApp(cmDcm_t* p, unsigned usrAppId ) 
-{
-  cmDcmApp_t* a;
-  if( usrAppId < p->l->appCnt )
-    a = p->l->app + usrAppId;
-  else
-  {
-    p->l->appCnt = usrAppId + 1;
-    p->l->app    = cmMemResizePZ(cmDcmApp_t,p->l->app,p->l->appCnt);
-    a = p->l->app + usrAppId;
-    a->usrAppId = usrAppId;
-    a->activeFl = true;    
-  }
-
-  return a;
-}
-
-cmDcmMap_t* _cmDcmFindOrCreateMap(cmDcm_t* p, cmDcmApp_t* a, unsigned usrDevId )
-{
-  cmDcmMap_t* m;
-
-  if( usrDevId < a->mapCnt )
-    m = a->map + usrDevId;
-  else
-  {
-    a->mapCnt   = usrDevId + 1;
-    a->map      = cmMemResizePZ(cmDcmMap_t,a->map,a->mapCnt);        
-    m           = a->map + usrDevId;    
-    m->usrDevId = usrDevId;
-  }
-
-  return m;
-}
-
-cmDcRC_t  _cmDcmLookupApp(cmDcm_t* p, unsigned usrAppId, cmDcmApp_t** appRef)
-{
-  // validate the usrAppId
-  if( usrAppId >= p->l->appCnt )
-    return cmErrMsg(&p->err,kInvalidDevArgDcRC,"Invalid user app. id:%i\n",usrAppId);
-
-  // check that the app recd is active
-  if( p->l->app[usrAppId].activeFl == false )
-    return cmErrMsg(&p->err,kInvalidDevArgDcRC,"The user app. with id:%i is not active.",usrAppId);
-
-  *appRef = p->l->app + usrAppId;
-
-  return kOkDcRC;
-}
-
-cmDcRC_t  _cmDcmLookupMap(cmDcm_t* p, cmDcmApp_t* a, unsigned usrDevId, cmDcmMap_t** mapRef )
-{
-  // validate the usrDevId
-  if( usrDevId >= a->mapCnt )
-    return cmErrMsg(&p->err,kInvalidDevArgDcRC,"Invalid user device id:%i on app:%i\n",usrDevId,a->usrAppId);
-
-  // check that the map recd is active
-  if( a->map[ usrDevId ].tid == kInvalidDcmTId )
-    return cmErrMsg(&p->err,kInvalidDevArgDcRC,"The user device id:%i on app:%i is not active.",usrDevId,a->usrAppId);
-
-  *mapRef =  a->map + usrDevId;
-  return kOkDcRC;
-}
-
-cmDcRC_t  _cmDcmLookupAppMap(cmDcm_t* p, unsigned usrAppId, unsigned usrDevId, cmDcmMap_t** mapRef )
-{
-  cmDcRC_t rc;
-  cmDcmApp_t* a;
-
-  if((rc = _cmDcmLookupApp(p,usrAppId,&a)) == kOkDcRC )
-    return rc;
-
-  return _cmDcmLookupMap(p,a,usrDevId,mapRef );
-}
-
-// Delete all maps in all apps which reference a particular cfg recd.
-void _cmDevCfgDeleteCfgMaps( cmDcm_t* p, cmTypeDcmId_t tid, unsigned cfgIndex )
-{
-  unsigned i,j;
-  for(i=0; i<p->l->appCnt; ++i)
-    if( p->l->app[i].activeFl )
-      for(j=0; j<p->l->app[i].mapCnt; ++j)
-        if( p->l->app[i].map[j].tid == tid && p->l->app[i].map[j].cfgIndex == cfgIndex )
-        {
-          p->l->app[i].map[j].tid = kInvalidDcmTId;
-          break;
-        }
-}
-
-cmDcRC_t _cmDcmFindCfgIndex( cmDcm_t* p, cmTypeDcmId_t tid, const cmChar_t* dcLabelStr, unsigned* cfgIndexRef )
-{
-  cmDcRC_t rc = kOkDcRC;
-
-  *cfgIndexRef = cmInvalidIdx;
-
-  switch( tid )
-  {
-    case kMidiDcmTId:
-      {
-        const cmDcmMidi_t* r;
-
-        if((r = _cmDcmMidiFind(p,dcLabelStr,true)) == NULL )
-          rc = cmErrLastRC(&p->err);
-        else
-          *cfgIndexRef = r - p->l->midi;
-      }
-      break;
-
-    case kAudioDcmTId:
-      {
-        const cmDcmAudio_t* r;
-
-        if((r = _cmDcmAudioFind(p,dcLabelStr,true)) == NULL )
-          rc = cmErrLastRC(&p->err);
-        else
-          *cfgIndexRef = r - p->l->audio;
-      }
-      break;
-
-    case kNetDcmTId:
-      {
-        const cmDcmNet_t* r;
-
-        if((r = _cmDcmNetFind(p,dcLabelStr,true)) == NULL )
-          rc = cmErrLastRC(&p->err);
-        else
-          *cfgIndexRef = r - p->l->net;
-      }
-      break;
-      
-    default:
-      assert(0);
-      break;
-  }
-
-  return rc;
-}
-
-cmDcRC_t _cmDevCfgDeleteCfg( cmDcm_t* p, cmTypeDcmId_t tid, unsigned cfgIndex )
-{
-  // release any resources held by this cfg record and mark
-  // the record as inactive by setting the dcLabelStr field to NULL.
-  switch( tid )
-  {
-    case kMidiDcmTId:
-      _cmDcmMidiFree( p->l->midi + cfgIndex );
-      break;
-
-    case kAudioDcmTId:
-      _cmDcmAudioFree( p->l->audio + cfgIndex );
-      break;
-
-    case kNetDcmTId:
-      _cmDcmNetFree( p->l->net + cfgIndex );
-      break;
-      
-    default:
-      assert(0);
-      break;
-  }
-
-  // delete all maps which reference this cfg recd
-  if( cfgIndex != cmInvalidIdx )
-    _cmDevCfgDeleteCfgMaps(p, tid, cfgIndex );
   
+  cmDcmLoc_t* lp;
+  
+  assert(locRef != NULL);
+  *locRef = NULL;
+
+  // verify and condition the label
+  if((labelStr = _cmDcmTrimLabel(p,labelStr,"location")) == NULL )
+    return cmErrLastRC(&p->err);
+
+  // verify that the label is not already in use
+  if((lp = _cmDcmFindLoc(p,labelStr)) != NULL )
+    return cmErrMsg(&p->err,kDuplLabelDcRC,"The location label '%s' is already in use.",labelStr);
+
+  // create a new loc recd
+  lp  = cmMemAllocZ(cmDcmLoc_t,1);
+  lp->labelStr = cmMemAllocStr(labelStr);
+
+  // if the cur loc is not current set - then prepend loc
+  if( p->clp == NULL )
+  {
+    lp->prev = NULL;
+    lp->next = p->loc;
+    if( p->loc == NULL )
+      p->loc = lp;
+    else
+      p->loc->prev = lp;    
+  }
+  else // otherwise insert loc after the cur loc
+  {
+    lp->prev = p->clp;
+    lp->next = p->clp->next;
+    if( p->clp->next != NULL )
+      p->clp->next->prev = lp;
+    p->clp->next = lp;
+  }
+
+  // make the new loc the current loc
+  p->clp = lp;
+
+  *locRef = lp;
 
   return kOkDcRC;
+   
 }
 
-
-cmDcRC_t cmDevCfgMgrAlloc( cmCtx_t* ctx, cmDevCfgH_t* hp )
+cmDcRC_t cmDevCfgMgrAlloc( cmCtx_t* c, cmDevCfgH_t* hp )
 {
   cmDcRC_t rc;
+  cmDcmLoc_t* lp;
+
   if((rc = cmDevCfgMgrFree(hp)) != kOkDcRC )
     return rc;
 
   cmDcm_t* p = cmMemAllocZ(cmDcm_t,1);
-  cmErrSetup(&p->err,&ctx->rpt,"DevCfgMgr");
 
-  p->loc         = cmMemAllocZ(cmDcmLoc_t,1);
-  p->locCnt      = 1;
-  p->l           = p->loc;
-  p->l->labelStr = cmMemAllocStr("Default");
+  cmErrSetup(&p->err,&c->rpt,"cmDevCfg");
+
+
+  if((rc = _cmDcmNewLoc(p,"Default", &lp)) != kOkDcRC )
+    goto errLabel;
 
   hp->h = p;
 
+ errLabel:
   if( rc != kOkDcRC )
     _cmDcmFree(p);
 
   return rc;
 }
 
-
 cmDcRC_t cmDevCfgMgrFree( cmDevCfgH_t* hp )
 {
   cmDcRC_t rc = kOkDcRC;
-
-  if(hp==NULL || cmDevCfgIsValid(*hp)==false)
+  if( hp == NULL || cmDevCfgIsValid(*hp)==false )
     return rc;
 
   cmDcm_t* p = _cmDcmHandleToPtr(*hp);
@@ -462,254 +306,324 @@ cmDcRC_t cmDevCfgMgrFree( cmDevCfgH_t* hp )
   if((rc = _cmDcmFree(p)) != kOkDcRC )
     return rc;
 
-  cmMemFree(p);
-
   hp->h = NULL;
 
   return rc;
 }
 
-cmDcRC_t cmDevCfgIsValid( cmDevCfgH_t h )
+bool cmDevCfgIsValid( cmDevCfgH_t h )
 { return h.h != NULL; }
 
 unsigned cmDevCfgCount( cmDevCfgH_t h, cmTypeDcmId_t typeId )
 {
-  cmDcm_t* p        = _cmDcmHandleToPtr(h);
-  unsigned n = 0;
-  unsigned i;
+  unsigned n=0;
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
 
-  switch( typeId )
-  {
-    case kMidiDcmTId:
-      for(i=0; i<p->l->midiCnt; ++i)
-        if( p->l->midi[i].dcLabelStr != NULL )
-          ++n;
-      break;
-
-    case kAudioDcmTId:
-      for(i=0; i<p->l->audioCnt; ++i)
-        if( p->l->audio[i].dcLabelStr != NULL )
-          ++n;
-      break;
-
-    case kNetDcmTId:
-      for(i=0; i<p->l->netCnt; ++i)
-        if( p->l->net[i].dcLabelStr != NULL )
-          ++n;
-      break;
-
-    default:
-      assert(0);
-      break;
-  }
+  assert( p->clp != NULL);
+  const cmDcmCfg_t* cp = p->clp->cfg;
+  for(; cp!= NULL; cp=cp->next)
+    if( cp->typeId == typeId )
+      ++n;
 
   return n;
 }
 
+cmDcmCfg_t* _cmDevCfgIndexToPtr( cmDcm_t* p, cmTypeDcmId_t typeId, unsigned index, bool errFl )
+{
+  unsigned n=0;
+  assert( p->clp != NULL);
+  cmDcmCfg_t* cp = p->clp->cfg;
+  for(; cp!= NULL; cp=cp->next)
+    if( cp->typeId == typeId )
+    {
+      if( n == index )
+        return cp;
+      ++n;
+    }
+
+  if( errFl )
+    cmErrMsg(&p->err,kInvalidCfgIdxDcRC,"The cfg index %i is not valid in location '%s'.",cmStringNullGuard(p->clp->labelStr));
+
+  return NULL;
+}
+
 const cmChar_t* cmDevCfgLabel( cmDevCfgH_t h, cmTypeDcmId_t typeId, unsigned index )
 {
-  cmDcm_t* p        = _cmDcmHandleToPtr(h);
-  int j = -1;
-  unsigned i;
-  unsigned n = 0;
-  const cmChar_t* s;
-
-  switch( typeId )
-  {
-    case kMidiDcmTId:
-      n = p->l->midiCnt;
-      for(i=0; i<n; ++i)
-        if( (s = p->l->midi[i].dcLabelStr) != NULL )
-          if(++j == index )
-            break;
-
-      break;
-
-    case kAudioDcmTId:
-      n = p->l->audioCnt;
-      for(i=0; i<n; ++i)
-        if( (s = p->l->audio[i].dcLabelStr) != NULL )
-          if(++j == index )
-            break;
-      break;
-
-    case kNetDcmTId:
-      n = p->l->netCnt;
-      for(i=0; i<n; ++i)
-        if( (s = p->l->net[i].dcLabelStr) != NULL )
-          if(++j == index )
-            break;
-      break;
-    default:
-      assert(0);
-      break;
-  }
-
-  if( i == n )
+  cmDcm_t*    p = _cmDcmHandleToPtr(h);
+  cmDcmCfg_t* cp;
+  if((cp = _cmDevCfgIndexToPtr(p,typeId,index,false)) == NULL )
     return NULL;
 
-  return s;
+  return cp->dcLabelStr;  
 }
 
-unsigned cmDevCfgLabelToIndex( cmDevCfgH_t h, cmTypeDcmId_t tid, const cmChar_t* dcLabelStr )
+const cmChar_t* cmDevCfgDesc( cmDevCfgH_t h, cmTypeDcmId_t typeId, unsigned index )
 {
-  cmDcm_t* p        = _cmDcmHandleToPtr(h);
-  unsigned cfgIdx = cmInvalidIdx;
+  cmDcm_t*    p = _cmDcmHandleToPtr(h);
+  cmDcmCfg_t* cp;
+  if((cp = _cmDevCfgIndexToPtr(p,typeId,index,false)) == NULL )
+    return NULL;
 
-  if( _cmDcmFindCfgIndex( p, tid, dcLabelStr, &cfgIdx ) != kOkDcRC )
-    return cmInvalidIdx;
-
-  return cfgIdx;
+  return cp->descStr;    
 }
 
-
-cmDcRC_t cmDevCfgDeleteCfg(  cmDevCfgH_t h, cmTypeDcmId_t tid, const cmChar_t* dcLabelStr )
+cmDcmCfg_t* _cmDcmCfgLabelToPtr( cmDcm_t* p, cmTypeDcmId_t typeId, const cmChar_t* label, bool errFl )
 {
-  cmDcRC_t rc;
-  cmDcm_t* p        = _cmDcmHandleToPtr(h);
-  unsigned cfgIndex = cmInvalidIdx;
+  assert( p->clp != NULL);
+  cmDcmCfg_t* cp = p->clp->cfg;
+  for(; cp!= NULL; cp=cp->next)
+    if( cp->typeId == typeId )
+    {
+      if( strcmp(cp->dcLabelStr,label)==0 )
+        return cp;
+    }
 
-  // locate the cfg record index
-  if((rc = _cmDcmFindCfgIndex(p,tid,dcLabelStr,&cfgIndex)) == kOkDcRC )
-    return rc;
+  if( errFl )
+    cmErrMsg(&p->err,kLabelNotFoundDcRC, "The cfg label '%s' was not found.",cmStringNullGuard(label));
+
+  return NULL;
+}
+
+unsigned cmDevCfgLabelToIndex( cmDevCfgH_t h, cmTypeDcmId_t typeId, const cmChar_t* label )
+{
+  unsigned n = 0;
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+  assert( p->clp != NULL);
+  const cmDcmCfg_t* cp = p->clp->cfg;
+  for(; cp!= NULL; cp=cp->next)
+    if( cp->typeId == typeId )
+    {
+      if( strcmp(cp->dcLabelStr,label)==0 )
+        break;
+      ++n;
+    }
+
+  return n;
+}
+
+cmDcmCfg_t*  _cmDcmFindOrCreateCfg( cmDcm_t* p, cmTypeDcmId_t typeId, const cmChar_t* dcLabelStr )
+{
+  assert( p->clp != NULL );
+  cmDcmCfg_t* cp;
+
+  // validate the label
+  if( (dcLabelStr=_cmDcmTrimLabel(p,dcLabelStr,"cfg")) == NULL )
+    return NULL;
+
+  // if the cfg recd already exists then return it
+  if((cp = _cmDcmCfgLabelToPtr(p, typeId, dcLabelStr, false )) != NULL )
+    return cp;
+    
+  unsigned newCfgId = 0;
   
-  return _cmDevCfgDeleteCfg( p, tid, cfgIndex );
-}
+  // use ep to track the end of the list
+  cmDcmCfg_t* ep = NULL; 
 
-cmDcRC_t cmDevCfgCreateMap( cmDevCfgH_t h, cmTypeDcmId_t tid, const cmChar_t* dcLabelStr, unsigned usrAppId, unsigned usrDevId )
-{
-  cmDcRC_t    rc       = kOkDcRC;
-  cmDcm_t*    p        = _cmDcmHandleToPtr(h);
-  unsigned    cfgIndex = cmInvalidIdx;
-
-  if((rc = _cmDcmFindCfgIndex(p,tid,dcLabelStr,&cfgIndex)) == kOkDcRC )
-    return rc;
-
-  if( cfgIndex != cmInvalidIdx )
+  // find the max cfgId used by this loc
+  cp = p->clp->cfg;
+  for(; cp!=NULL; cp=cp->next)
   {
-    cmDcmApp_t* a;
-    cmDcmMap_t* m;
-
-    // locate or create the requested app recrod
-    if((a = _cmDcmFindOrCreateApp(p,usrAppId)) == NULL )
-    {
-      rc = cmErrLastRC(&p->err);
-      goto errLabel;
-    }
-
-    // locate or create the requested map record
-    if((m = _cmDcmFindOrCreateMap(p,a,usrDevId)) == NULL )
-    {
-      rc = cmErrLastRC(&p->err);
-      goto errLabel;
-    }
-
-    m->usrDevId = usrDevId;
-    m->tid      = tid;
-    m->cfgIndex = cfgIndex;
+    if( cp->cfgId > newCfgId )
+      newCfgId = cp->cfgId;
+    ep = cp;
   }
 
- errLabel:
-  return rc;
+  // add one to the max cfgId to create a unique cfgId
+  newCfgId += 1;
+  
+  // allocate a new cfg recd
+  cp = cmMemAllocZ(cmDcmCfg_t,1);
+  cp->dcLabelStr = cmMemAllocStr(dcLabelStr);
+  cp->cfgId      = newCfgId;
+  cp->typeId     = typeId;
+  
+  // link to the end of the loc's cfg list
+  if( ep == NULL )
+    p->clp->cfg = cp;
+  else
+  {
+    ep->next = cp;
+    cp->prev = ep;
+  }
+
+  return cp;
 }
 
-cmDcRC_t cmDevCfgDeleteMap( cmDevCfgH_t h, cmTypeDcmId_t typeId, unsigned usrAppId, unsigned usrDevId )
+void _cmDcmDisconnectMap( cmDcmMap_t* mp )
 {
-  cmDcRC_t   rc = kOkDcRC;
-  cmDcm_t*    p = _cmDcmHandleToPtr(h);
-  cmDcmMap_t* m;
-
-  if((rc =  _cmDcmLookupAppMap(p,usrAppId,usrDevId,&m)) != kOkDcRC )
-    return rc;
-
-  m->usrDevId = cmInvalidId;
-  m->tid      = kInvalidDcmTId;
-  m->cfgIndex = cmInvalidIdx;
-  return rc;
+  mp->tid   = kInvalidDcmTId;
+  mp->cfgId = cmInvalidId;
+  mp->cfg   = NULL;
 }
   
+cmDcRC_t cmDevCfgDeleteCfg( cmDevCfgH_t h, cmTypeDcmId_t typeId, const cmChar_t* dcLabelStr )
+{
+  cmDcmCfg_t* cp;
+  cmDcm_t*    p = _cmDcmHandleToPtr(h);
+  unsigned i,j;
+
+  // locate the cfg to delete
+  if((cp = _cmDcmCfgLabelToPtr(p,typeId,dcLabelStr,true)) == NULL )
+    return cmErrLastRC(&p->err);
+
+  // for every app in the current location ...
+  for(i=0; i<p->clp->appCnt; ++i)
+  {
+    cmDcmApp_t* ap = p->clp->app + i;
+
+    // ... disconnect any maps to this cfg
+    if( ap->activeFl && ap->map != NULL )
+      for(j=0; j<ap->mapCnt; ++j)
+        if( ap->map[j].cfgId == cp->cfgId )
+          _cmDcmDisconnectMap(ap->map + j );
+  }
+   
+  // unlink and release the cfg recd
+  _cmDcmFreeCfg(p,p->clp,cp);
+
+  return kOkDcRC;
+}
+
+cmDcRC_t cmDevCfgCreateMap( cmDevCfgH_t h, cmTypeDcmId_t typeId, const cmChar_t* dcLabelStr, unsigned usrAppId, unsigned usrMapId )
+{
+  cmDcRC_t    rc = kOkDcRC;
+  cmDcm_t*    p  = _cmDcmHandleToPtr(h);
+  cmDcmCfg_t* cp;
+
+  // locate the cfg to map to
+  if((cp = _cmDcmCfgLabelToPtr(p,typeId,dcLabelStr,true)) == NULL )
+    return cmErrLastRC(&p->err);
+  
+  // if usrAppId references a new app 
+  if( usrAppId >= p->clp->appCnt )
+  {
+    p->clp->appCnt = usrAppId + 1;
+    p->clp->app    = cmMemResizePZ(cmDcmApp_t,p->clp->app,p->clp->appCnt);
+  }
+
+  cmDcmApp_t* ap = p->clp->app + usrAppId;
+
+  // if usrMapId ref's a new map
+  if( usrMapId >= ap->mapCnt )
+  {
+    ap->mapCnt = usrMapId+1;
+    ap->map    = cmMemResizePZ(cmDcmMap_t,ap->map,ap->mapCnt);
+  }
+
+  cmDcmMap_t* mp = ap->map + usrMapId;
+
+  mp->tid   = typeId;
+  mp->cfgId = cp->cfgId;
+  mp->cfg   = cp;
+
+  return rc;
+}
+
+cmDcmMap_t* _cmDcmFindMap( cmDcm_t* p, cmTypeDcmId_t typeId, unsigned usrAppId, unsigned usrMapId, bool activeFl )
+{
+
+  if( usrAppId >= p->clp->appCnt )
+  {
+    cmErrMsg(&p->err,kInvalidUserAppIdRC,"The user app. id %i is out of range %i in location '%s'.",usrAppId,p->clp->appCnt,cmStringNullGuard(p->clp->labelStr));
+    goto errLabel;
+  }
+
+  cmDcmApp_t* ap = p->clp->app + usrAppId;
+
+  if( usrMapId >= ap->mapCnt )
+  {
+    cmErrMsg(&p->err,kInvalidUserMapIdRC,"The user map id %i is out of range %i in location '%s'.",usrMapId,ap->mapCnt,cmStringNullGuard(p->clp->labelStr));
+    goto errLabel;
+  }
+
+  if( activeFl && (ap->map[usrMapId].tid == kInvalidDcmTId || ap->map[usrMapId].cfg == NULL))
+  {
+    cmErrMsg(&p->err,kInvalidUserMapIdRC,"The user map id %i inactive in location '%s'.",usrMapId,cmStringNullGuard(p->clp->labelStr));
+    goto errLabel;
+  }    
+
+  return ap->map + usrMapId;
+ 
+ errLabel:
+  return NULL;
+}
+
+cmDcRC_t cmDevCfgDeleteMap( cmDevCfgH_t h, cmTypeDcmId_t typeId, unsigned usrAppId, unsigned usrMapId )
+{
+  cmDcm_t*    p  = _cmDcmHandleToPtr(h);
+  cmDcmMap_t* mp;
+
+  if((mp = _cmDcmFindMap(p,typeId,usrAppId,usrMapId,false)) == NULL )
+    return cmErrLastRC(&p->err);
+
+  _cmDcmDisconnectMap( mp );
+
+  return kOkDcRC;
+}  
+
+
 cmDcRC_t cmDevCfgNameMidiPort( 
   cmDevCfgH_t     h,
   const cmChar_t* dcLabelStr, 
-  const cmChar_t* devNameStr, 
-  const cmChar_t* portNameStr,
+  const cmChar_t* devLabelStr, 
+  const cmChar_t* portLabelStr, 
   bool            inputFl )
 {
-  cmDcRC_t    rc  = kOkDcRC;
-  cmDcm_t*     p  = _cmDcmHandleToPtr(h);
-  cmDcmMidi_t* r  = _cmDcmMidiFind(p,dcLabelStr,false);
-  unsigned     i;
+  cmDcm_t*    p = _cmDcmHandleToPtr(h);
+  cmDcmCfg_t* cp;
 
-  // if 'dcLabelStr' was not already used then look for an empty MIDI record.
-  if( r == NULL )
-    for(i=0; i<p->l->midiCnt; ++i)
-      if( p->l->midi[i].dcLabelStr == NULL )
-      {
-        r = p->l->midi + i;
-        break;
-      }
-  
-  // if no available cfg record exists then create one 
-  if( r == NULL )
-  {
-    p->l->midi     = cmMemResizePZ(cmDcmMidi_t,p->l->midi,p->l->midiCnt+1);    
-    r           = p->l->midi + p->l->midiCnt;
-    p->l->midiCnt += 1;
-  }
+  unsigned midiDevIdx;
+  unsigned midiPortIdx;
 
- 
-  assert( r != NULL );
- 
+  // validate the label
+  if((dcLabelStr = _cmDcmTrimLabel(p,dcLabelStr,"MIDI cfg")) == NULL)
+    return cmErrLastRC(&p->err);
+
   // verify that the device label is valid
-  if((r->devIdx = cmMpDeviceNameToIndex( devNameStr )) == cmInvalidIdx )
-  {
-    rc = cmErrMsg(&p->err, kInvalidDevArgDcRC,"The MIDI device name '%s' is not valid.",devNameStr);
-    goto errLabel;
-  }
+  if((midiDevIdx = cmMpDeviceNameToIndex( devLabelStr )) == cmInvalidIdx )
+    return cmErrMsg(&p->err, kInvalidArgDcRC,"The MIDI device name '%s' is not valid.",devLabelStr);
 
   // verify that the port label is valid
-  if((r->portIdx = cmMpDevicePortNameToIndex( r->devIdx, r->inputFl ? kInMpFl : kOutMpFl, portNameStr )) == cmInvalidIdx )
-  {
-    rc = cmErrMsg(&p->err, kInvalidDevArgDcRC,"The MIDI port name '%s' is not valid on the device '%s'.",portNameStr,devNameStr);
-    goto errLabel;
-  }
+  if((midiPortIdx = cmMpDevicePortNameToIndex( midiDevIdx, inputFl ? kInMpFl : kOutMpFl, portLabelStr )) == cmInvalidIdx )
+    return cmErrMsg(&p->err, kInvalidArgDcRC,"The MIDI port name '%s' is not valid on the device '%s'.",portLabelStr,devLabelStr);
 
-  // if this cfg recd was not previously active then assign a cfg label
-  if( r->dcLabelStr == NULL )
-    r->dcLabelStr  = cmMemAllocStr(dcLabelStr);
+  // if dcLabelStr is already in use for this location and type then update
+  // the assoc'd recd otherwise create a new one.
+  if((cp = _cmDcmFindOrCreateCfg(p,kMidiDcmTId, dcLabelStr)) == NULL )
+    return cmErrLastRC(&p->err);
 
-  // fill in the cfg recd
-  r->devLabelStr  = cmMemResizeStr(r->devLabelStr,devNameStr);
-  r->portLabelStr = cmMemResizeStr(r->portLabelStr,portNameStr);
-  r->inputFl      = inputFl;
+  cp->u.m.devLabelStr  = cmMemResizeStr(cp->u.m.devLabelStr,devLabelStr);
+  cp->u.m.portLabelStr = cmMemResizeStr(cp->u.m.portLabelStr,portLabelStr);
+  cp->u.m.inputFl      = inputFl;
+  cp->u.m.devIdx       = midiDevIdx;
+  cp->u.m.portIdx      = midiPortIdx;
+  cp->descStr          = cmTsPrintfP(cp->descStr,"%s %s %s",inputFl?"Input":"Output",devLabelStr,portLabelStr);
 
- errLabel:
-  // on error delete the cfg record and any maps depending on it
-  if( rc != kOkDcRC && r != NULL )
-    _cmDevCfgDeleteCfg( p, kMidiDcmTId, r - p->l->midi );
-
-  return rc;
+  return kOkDcRC;
 }
 
-
-cmDcRC_t cmDevCfgMidiDevIdx(    cmDevCfgH_t h, unsigned usrAppId, unsigned usrDevId, unsigned* midiDevIdxRef, unsigned* midiPortIdxRef )
+const cmDcmMidi_t* cmDevCfgMidiCfg( cmDevCfgH_t h, unsigned cfgIdx )
 {
-  cmDcRC_t   rc = kOkDcRC;
-  cmDcm_t*    p = _cmDcmHandleToPtr(h);
-  cmDcmMap_t* m;
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+  cmDcmCfg_t* cp;
 
-  if((rc =  _cmDcmLookupAppMap(p,usrAppId,usrDevId,&m)) != kOkDcRC )
-    return rc;
-                                                
-  cmDcmMidi_t* r = p->l->midi + m->cfgIndex;
+  if((cp = _cmDevCfgIndexToPtr(p, kMidiDcmTId, cfgIdx, true )) == NULL )
+    return NULL;
 
-  assert(r->dcLabelStr != NULL );
-
-  *midiDevIdxRef  = r->devIdx;
-  *midiPortIdxRef = r->portIdx;
-
-  return rc;
+  return &cp->u.m;
 }
+
+const cmDcmMidi_t* cmDevCfgMidiDevMap( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId )
+{
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+  cmDcmMap_t* mp;
+
+  if((mp =_cmDcmFindMap(p,kMidiDcmTId, usrAppId, usrMapId, true )) == NULL )
+    return NULL;
+
+  return &mp->cfg->u.m;
+}
+
 
 cmDcRC_t cmDevCfgNameAudioPort( 
   cmDevCfgH_t     h,
@@ -723,83 +637,63 @@ cmDcRC_t cmDevCfgNameAudioPort(
   unsigned        audioBufCnt,
   double          srate  )
 {
-  cmDcRC_t     rc  = kOkDcRC;
-  cmDcm_t*      p  = _cmDcmHandleToPtr(h);
-  cmDcmAudio_t* r  = _cmDcmAudioFind(p,dcLabelStr,false);
-  unsigned     i;
+  cmDcm_t*    p = _cmDcmHandleToPtr(h);
+  cmDcmCfg_t* cp;
+  unsigned    inDevIdx;
+  unsigned    outDevIdx;
 
-  // if 'dcLabelStr' was not already used then look for an empty audio record.
-  if( r == NULL )
-    for(i=0; i<p->l->audioCnt; ++i)
-      if( p->l->audio[i].dcLabelStr == NULL )
-      {
-        r = p->l->audio + i;
-        break;
-      }
-  
-  // if no available cfg record exists then create one 
-  if( r == NULL )
-  {
-    p->l->audio     = cmMemResizePZ(cmDcmAudio_t,p->l->audio,p->l->audioCnt+1);    
-    r           = p->l->audio + p->l->audioCnt;
-    p->l->audioCnt += 1;
-  }
+  // validate the label
+  if((dcLabelStr = _cmDcmTrimLabel(p,dcLabelStr,"MIDI cfg")) == NULL)
+    return cmErrLastRC(&p->err);
 
- 
-  assert( r != NULL );
- 
-  // verify that the device label is valid
-  if((r->ss.inDevIdx = cmApDeviceLabelToIndex( inDevNameStr )) == cmInvalidIdx )
-  {
-    rc = cmErrMsg(&p->err, kInvalidDevArgDcRC,"The input audio device name '%s' is not valid.",inDevNameStr);
-    goto errLabel;
-  }
+  // validate the input device
+  if(( inDevIdx = cmApDeviceLabelToIndex(inDevNameStr)) == cmInvalidIdx )
+    return cmErrMsg(&p->err, kInvalidArgDcRC,"The input audio device name '%s' is not valid.",cmStringNullGuard(inDevNameStr));
 
-  // verify that the device label is valid
-  if((r->ss.outDevIdx = cmApDeviceLabelToIndex( outDevNameStr )) == cmInvalidIdx )
-  {
-    rc = cmErrMsg(&p->err, kInvalidDevArgDcRC,"The output audio device name '%s' is not valid.",outDevNameStr);
-    goto errLabel;
-  }
+  // validate the output device
+  if(( outDevIdx = cmApDeviceLabelToIndex(outDevNameStr)) == cmInvalidIdx )
+    return cmErrMsg(&p->err, kInvalidArgDcRC,"The output audio device name '%s' is not valid.",cmStringNullGuard(outDevNameStr));
 
-  // if this cfg recd was not previously active then assign a cfg label
-  if( r->dcLabelStr == NULL )
-    r->dcLabelStr  = cmMemAllocStr(dcLabelStr);
+  // if dcLabelStr is already in use for this location and type then update
+  // the assoc'd recd otherwise create a new one.
+  if((cp = _cmDcmFindOrCreateCfg(p,kAudioDcmTId, dcLabelStr)) == NULL )
+    return cmErrLastRC(&p->err);
 
-  // fill in the cfg recd
-  r->inDevLabelStr        = cmMemResizeStr(r->inDevLabelStr,inDevNameStr);
-  r->outDevLabelStr       = cmMemResizeStr(r->outDevLabelStr,outDevNameStr);
-  r->ss.rpt               = p->err.rpt;
-  r->ss.syncInputFl       = syncInputFl;
-  r->ss.msgQueueByteCnt   = msgQueueByteCnt;
-  r->ss.devFramesPerCycle = devFramesPerCycle;
-  r->ss.dspFramesPerCycle = dspFramesPerCycle;
-  r->ss.audioBufCnt       = audioBufCnt;
-  r->ss.srate             = srate;
-
- errLabel:
-  // on error delete the cfg record and any maps depending on it
-  if( rc != kOkDcRC && r != NULL )
-    _cmDevCfgDeleteCfg( p, kAudioDcmTId, r - p->l->audio );
-
-  return rc;
+  cp->u.a.inDevLabelStr                  = cmMemAllocStr(inDevNameStr);
+  cp->u.a.outDevLabelStr                 = cmMemAllocStr(outDevNameStr);
+  cp->u.a.audioSysArgs.rpt               = p->err.rpt;
+  cp->u.a.audioSysArgs.inDevIdx          = inDevIdx;
+  cp->u.a.audioSysArgs.outDevIdx         = outDevIdx;
+  cp->u.a.audioSysArgs.syncInputFl       = syncInputFl;
+  cp->u.a.audioSysArgs.msgQueueByteCnt   = msgQueueByteCnt;
+  cp->u.a.audioSysArgs.devFramesPerCycle = devFramesPerCycle;
+  cp->u.a.audioSysArgs.dspFramesPerCycle = dspFramesPerCycle;
+  cp->u.a.audioSysArgs.audioBufCnt       = audioBufCnt;
+  cp->u.a.audioSysArgs.srate             = srate;
+  cp->descStr = cmTsPrintfP(cp->descStr,"In:%s Out:%s",inDevNameStr,outDevNameStr);
+  return kOkDcRC;  
 }
 
-
-const struct cmAudioSysArgs_str* cmDevCfgAudioSysArgs( cmDevCfgH_t h, unsigned usrAppId, unsigned usrDevId )
+const cmDcmAudio_t* cmDevCfgAudioCfg( cmDevCfgH_t h, unsigned cfgIdx )
 {
-  cmDcRC_t   rc = kOkDcRC;
-  cmDcm_t*    p = _cmDcmHandleToPtr(h);
-  cmDcmMap_t* m;
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+  cmDcmCfg_t* cp;
 
-  if((rc =  _cmDcmLookupAppMap(p,usrAppId,usrDevId,&m)) != kOkDcRC )
+  if((cp = _cmDevCfgIndexToPtr(p, kAudioDcmTId, cfgIdx, true )) == NULL )
     return NULL;
-                                                
-  cmDcmAudio_t* r = p->l->audio + m->cfgIndex;
 
-  assert(r->dcLabelStr != NULL );
-  
-  return &r->ss;
+  return &cp->u.a;
+}
+
+const cmDcmAudio_t* cmDevCfgAudioDevMap(    cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId )
+{
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+  cmDcmMap_t* mp;
+
+  if((mp =_cmDcmFindMap(p,kAudioDcmTId, usrAppId, usrMapId, true )) == NULL )
+    return NULL;
+
+  return &mp->cfg->u.a;
 }
 
 
@@ -809,215 +703,468 @@ cmDcRC_t cmDevCfgNetPort(
   const cmChar_t* sockAddr,
   unsigned        portNumber )
 {
+
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+  cmDcmCfg_t* cp;
+
+  if( portNumber > 0xffff )
+    return cmErrMsg(&p->err,kInvalidArgDcRC,"The network port number %i is invalid. The valid IP port number range is:0-0xffff.");
+
+  // validate the label
+  if((dcLabelStr = _cmDcmTrimLabel(p,dcLabelStr,"MIDI cfg")) == NULL)
+    return cmErrLastRC(&p->err);
+
+  // if dcLabelStr is already in use for this location and type then update
+  // the assoc'd recd otherwise create a new one.
+  if((cp = _cmDcmFindOrCreateCfg(p,kAudioDcmTId, dcLabelStr)) == NULL )
+    return cmErrLastRC(&p->err);
+
+  cp->u.n.sockAddr = cmMemAllocStr(sockAddr);
+  cp->u.n.portNumber = portNumber;
+  cp->descStr = cmTsPrintfP(cp->descStr,"%s:%i",sockAddr,portNumber);
+  
+
   return kOkDcRC;
 }
 
-
-unsigned        cmDevCfgNetNodeId(     cmDevCfgH_t h, unsigned usrAppId, unsigned usrDevId )
+const cmDcmNet_t* cmDevCfgNetCfg( cmDevCfgH_t h, unsigned cfgIdx )
 {
-  return cmInvalidId;
-}
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+  cmDcmCfg_t* cp;
 
-
-// Loc Management Functions:
-unsigned        cmDevCfgLocCount( cmDevCfgH_t h )
-{
-  cmDcm_t*    p = _cmDcmHandleToPtr(h);
-  unsigned i;
-  unsigned n = 0;
-  for(i=0; i<p->locCnt; ++i)
-    if( p->loc[i].labelStr != NULL )
-      ++n;
-
-  return n;
-}
-
-const cmChar_t* cmDevCfgLocLabel( cmDevCfgH_t h, unsigned locIdx )
-{
-  cmDcm_t*    p = _cmDcmHandleToPtr(h);
-
-  unsigned i;
-  int j = -1;
-  for(i=0; j<locIdx && i<p->locCnt; ++i)
-    if( p->loc[i].labelStr != NULL )
-      ++j;
-
-  if( i == p->locCnt )
+  if((cp = _cmDevCfgIndexToPtr(p, kNetDcmTId, cfgIdx, true )) == NULL )
     return NULL;
 
-  return p->loc[i].labelStr;
+  return &cp->u.n;
 }
 
-cmDcmLoc_t* _cmDcmFindLoc( cmDcm_t* p, const cmChar_t* label )
+const cmDcmNet_t* cmDevCfgNetDevMap(    cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId )
 {
-  unsigned i=0;
-  for(; i<p->locCnt; ++i)
-    if( strcmp(p->loc[i].labelStr,label)==0 )
-      return p->loc + i;
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+  cmDcmMap_t* mp;
+
+  if((mp =_cmDcmFindMap(p,kNetDcmTId, usrAppId, usrMapId, true )) == NULL )
+    return NULL;
+
+  return &mp->cfg->u.n;
+}
+
+unsigned        cmDevCfgLocCount(  cmDevCfgH_t h )
+{
+  unsigned n = 0;
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+  const cmDcmLoc_t* lp = p->loc;
+  for(; lp!=NULL; lp=lp->next)
+    ++n;
+  return n;
+}
+const cmChar_t* cmDevCfgLocLabel(  cmDevCfgH_t h, unsigned locIdx )
+{
+  unsigned n = 0;
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+  const cmDcmLoc_t* lp = p->loc;
+  for(; lp!=NULL; lp=lp->next)
+    if( n == locIdx )
+      return lp->labelStr;
+
+  assert(0);
   return NULL;
 }
 
-cmDcmLoc_t* _cmDcmNewLoc( cmDcm_t* p )
+
+cmDcmLoc_t* _cmDcmLocLabelToPtr( cmDcm_t* p, const cmChar_t* locLabelStr)
 {
-  unsigned i;
-  // find a deleted location record
-  for(i=0; i<p->locCnt; ++i)
-    if( p->loc[i].labelStr == NULL )
-      return p->loc + i;
+  if((locLabelStr = _cmDcmTrimLabel(p,locLabelStr,"location")) == NULL )
+    return NULL;
 
-  // no deleted location records exist so append one to p->loc[].
+  cmDcmLoc_t* lp = p->loc;
+  for(; lp!=NULL; lp=lp->next)
+    if( strcmp(lp->labelStr,locLabelStr) == 0 )
+      return lp;
 
-  unsigned cli = p->l - p->loc; // store the cur loc recd idx
-  p->locCnt += 1;
-  p->loc     = cmMemResizeZ(cmDcmLoc_t,p->loc,p->locCnt);
-  p->l       = p->loc + cli; // restore the cur loc recd ptr
+  cmErrMsg(&p->err,kLabelNotFoundDcRC,"The location label '%s' was not found.",locLabelStr);
 
-  return p->loc + p->locCnt - 1;
+  return NULL;
 }
 
-// Duplicate *sl and return a ptr to the new loc recd.
-cmDcmLoc_t*  _cmDcmDuplLoc( cmDcm_t* p, const cmDcmLoc_t* sl, const cmChar_t* label )
+
+cmDcRC_t cmDevCfgLocStore(  cmDevCfgH_t h, const cmChar_t* locLabelStr )
 {
-  unsigned i;
+  cmDcRC_t  rc = kOkDcRC;
+  cmDcm_t*   p = _cmDcmHandleToPtr(h);
+  unsigned i,j;
 
-  cmDcmLoc_t* l = _cmDcmNewLoc(p);
+  // if this location label is already in use then it has already been stored.
+  if( _cmDcmLocLabelToPtr(p,locLabelStr) != NULL )
+    return kOkDcRC;
 
-  l->labelStr = cmMemAllocStr(label);
-
-  l->appCnt   = sl->appCnt;
-  l->app      = cmMemAllocZ(cmDcmApp_t,l->appCnt);
-  for(i=0; i<l->appCnt; ++i)
-    _cmDcmAppDupl(l->app +  i, sl->app + i );
-
-  l->midiCnt  = sl->midiCnt;
-  l->midi     = cmMemAllocZ(cmDcmMidi_t,l->midiCnt);
-  for(i=0; i<l->midiCnt; ++i)
-    _cmDcmMidiDupl(l->midi + i, sl->midi + i );
-
-  l->audioCnt = sl->audioCnt;
-  l->audio    = cmMemAllocZ(cmDcmAudio_t,l->audioCnt);
-  for(i=0; i<l->audioCnt; ++i)
-    _cmDcmAudioDupl(l->audio + i, sl->audio + i );
-
-  l->netCnt   = sl->netCnt;
-  l->net      = cmMemAllocZ(cmDcmNet_t,l->netCnt);
-  for(i=0; i<l->netCnt; ++i)
-    _cmDcmNetDupl(l->net + i, sl->net + i );  
-
-  return l;
-}
-
-cmDcRC_t        cmDevCfgLocStore( cmDevCfgH_t h, const cmChar_t* locLabelStr )
-{
-  cmDcRC_t    rc= kOkDcRC;
-  cmDcm_t*    p = _cmDcmHandleToPtr(h);
-
-  if( locLabelStr==NULL || strlen(locLabelStr)==0)
-    return cmErrMsg(&p->err,kEmptyLabelDcRC,"The location label was empty or NULL.");
-
-  assert(p->l != NULL );
-
-  // if the location name is the same as the current location name ...
-  if( strcmp(locLabelStr,p->l->labelStr)==0 )
-    return rc;  // ... there is noting to do
-
-  // get a ptr (if it exists) to the location already named 'locLabelStr'.
-  cmDcmLoc_t* sl = _cmDcmFindLoc(p,locLabelStr);
-
-  // duplicate the current location
-  cmDcmLoc_t* dl = _cmDcmDuplLoc(p, p->l, locLabelStr );
-
-  // make the new location the current location
-  p->l = dl;
-
-  // if loc with the same name already existed then delete it
-  if(sl != NULL )
-    _cmDcmFreeLoc(p,sl);
-
-  return rc;
-}
-
-cmDcRC_t        cmDevCfgLocRecall( cmDevCfgH_t h, const cmChar_t* locLabelStr )
-{
-  cmDcRC_t    rc = kOkDcRC;
-  cmDcm_t*    p  = _cmDcmHandleToPtr(h);
-  cmDcmLoc_t* loc;
-
-  if((loc = _cmDcmFindLoc(p,locLabelStr)) == NULL )
-    return cmErrMsg(&p->err,kLocNotFoundDcRC,"The location '%s' could not be found.",cmStringNullGuard(locLabelStr));
-
-  p->l = loc;
-
-  return rc;
-}
-
-cmDcRC_t        cmDevCfgLocDelete( cmDevCfgH_t h, const cmChar_t* locLabelStr )
-{
-  cmDcRC_t    rc = kOkDcRC;
-  cmDcm_t*    p  = _cmDcmHandleToPtr(h);
-  cmDcmLoc_t* loc;
-
-  // find the loc to delete
-  if((loc = _cmDcmFindLoc(p,locLabelStr)) == NULL )
-    return cmErrMsg(&p->err,kLocNotFoundDcRC,"The location '%s' could not be found.",cmStringNullGuard(locLabelStr));
-
-  // delete the requested loc. recd
-  _cmDcmFreeLoc(p,loc);
+  // store the current loc ptr
+  cmDcmLoc_t* olp = p->clp;
+  cmDcmLoc_t* nlp;
   
-  // if the current location was deleted
-  if( loc == p->l )
-  {
-    unsigned i;
-    unsigned cli = (p->l - p->loc) + 1;
-    for(i=cli; i<p->locCnt; ++i)
-      if( p->loc[i].labelStr != NULL )
-      {
-        p->l = p->loc + i;
-        break;
-      }
-    
-    if( i==p->locCnt )
-      for(i=0; i<cli; ++i)
-        if( p->loc[i].labelStr != NULL )
-        {
-          p->l = p->loc + i;
-          break;
-        }
+  // create a new location recd and make it current
+  if((rc = _cmDcmNewLoc(p,locLabelStr,&nlp)) != kOkDcRC )
+    return kOkDcRC;
 
-    // if everything was deleted
-    if( i==cli )
+  // duplicate the cfg's
+  cmDcmCfg_t* ocp = olp->cfg;
+  for(; ocp!=NULL; ocp=ocp->next)
+  {
+    cmDcmCfg_t* ncp;
+
+    if((ncp = _cmDcmFindOrCreateCfg(p,ocp->typeId, ocp->dcLabelStr)) == NULL )
     {
-      p->l = p->loc;
-      p->l->labelStr = cmMemAllocStr("Default");
+      rc = cmErrLastRC(&p->err);
+      goto errLabel;
     }
     
+    switch( ncp->typeId )
+    {
+      case kMidiDcmTId:  _cmDcmDuplMidi(&ncp->u.m,&ocp->u.m);  break;
+      case kAudioDcmTId: _cmDcmDuplAudio(&ncp->u.a,&ocp->u.a); break;
+      case kNetDcmTId:   _cmDcmDuplNet(  &ncp->u.n,&ocp->u.n); break;
+      default:
+        assert(0);
+        break;
+    }  
   }
-    
+  
+  // duplicate the app array
+  nlp->appCnt = olp->appCnt;
+  nlp->app    = cmMemAllocZ(cmDcmApp_t,nlp->appCnt);
+
+  for(i=0; i<nlp->appCnt; ++i)
+  {
+    cmDcmApp_t* nap = nlp->app + i;
+    cmDcmApp_t* oap = olp->app + i;
+
+    //nap->usrAppId = oap->usrAppId;
+    nap->activeFl = oap->activeFl;
+    nap->mapCnt   = oap->mapCnt;
+    nap->map      = cmMemAllocZ(cmDcmMap_t,nap->mapCnt);
+
+    for(j=0; j<nap->mapCnt; ++j)
+    {
+      cmDcmMap_t* nmp = nap->map + j;
+      cmDcmMap_t* omp = oap->map + j;
+
+      nmp->tid   = omp->tid;
+      nmp->cfgId = omp->cfgId;
+
+      if( omp->tid != kInvalidDcmTId && omp->cfg->dcLabelStr != NULL )
+        nmp->cfg   = _cmDcmCfgLabelToPtr(p,nmp->tid,omp->cfg->dcLabelStr,true);
+    }
+  }
+  
+ errLabel:
+  if( rc != kOkDcRC )
+    _cmDcmFreeLoc(p,nlp);
 
   return rc;
+
 }
 
-unsigned        cmDevCfgLocIndex(  cmDevCfgH_t h )
+cmDcRC_t cmDevCfgLocRecall( cmDevCfgH_t h, const cmChar_t* locLabelStr )
 {
-  cmDcm_t* p = _cmDcmHandleToPtr(h);
-  unsigned i;
-  int j = -1;
-  for(i=0; i<p->locCnt; ++i)
-  {
-    if( p->loc[i].labelStr != NULL )
-      ++j;
+  cmDcm_t*     p = _cmDcmHandleToPtr(h);
+  cmDcmLoc_t* lp;
 
-    if( p->loc + i == p->l )
-      return j;
-    
-  }
+  if((lp = _cmDcmLocLabelToPtr(p,locLabelStr)) == NULL)
+    return cmErrLastRC(&p->err);
+
+  p->clp = lp;
+
+  return kOkDcRC;
+}
+cmDcRC_t cmDevCfgLocDelete( cmDevCfgH_t h, const cmChar_t* locLabelStr )
+{
+  cmDcm_t*     p = _cmDcmHandleToPtr(h);
+  cmDcmLoc_t* lp;
+
+  if((lp = _cmDcmLocLabelToPtr(p,locLabelStr)) == NULL )
+    return cmErrLastRC(&p->err);
+
+  _cmDcmFreeLoc(p,lp);
+
+  return kOkDcRC;
+}
+
+unsigned cmDevCfgLocCurIndex(  cmDevCfgH_t h )
+{
+  unsigned i;
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+  cmDcmLoc_t* lp = p->loc;
+  for(i=0; lp!=NULL; lp=lp->next,++i)
+    if( lp == p->clp )
+      return i;
 
   assert(0);
   return cmInvalidIdx;
 }
 
-cmDcRC_t cmDevCfgWrite( cmDevCfgH_t h )
+cmDcRC_t _cmDcmJsonNotFound( cmDcm_t* p, const cmChar_t* tagStr )
+{ return cmErrMsg(&p->err,kJsonFailDcRC,"JSON element '%s' not found.",tagStr); }
+
+cmDcRC_t _cmDcmJsonSyntaxErr( cmDcm_t* p, const cmChar_t* tagStr )
+{ return cmErrMsg(&p->err,kJsonFailDcRC,"JSON syntax error '%s' not found.",tagStr); }
+
+cmDcRC_t _cmDevCfgRead( cmDevCfgH_t h, cmJsonH_t jsH, const cmJsonNode_t* rootObjPtr )
 {
+  cmDcRC_t        rc          = kOkDcRC;
+  const cmChar_t* errLabelPtr = NULL;
+  cmJsonNode_t* cfgNp, *locArrNp;
+  unsigned i,j;
+
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+
+  // clear the all locations
+  _cmDcmFreeAllLocs(p);
+
+  if((cfgNp = cmJsonFindValue(jsH, "cfg", rootObjPtr, kObjectTId )) == NULL )
+    return _cmDcmJsonNotFound(p,"cfg");
+  
+  // get loc array
+  if((locArrNp = cmJsonFindValue(jsH,"loc",cfgNp, kArrayTId )) == NULL )
+    return _cmDcmJsonNotFound(p,"loc");
+
+  // for each loc object
+  for(i=0; i<cmJsonChildCount(locArrNp); ++i)
+  {
+    cmJsonNode_t* locObjNp, *cfgArrNp;
+    const cmChar_t* label = NULL;
+
+    // get the loc object
+    if((locObjNp = cmJsonArrayElement(locArrNp,i)) == NULL || cmJsonIsObject(locObjNp)==false )
+      return _cmDcmJsonSyntaxErr(p,"loc object");
+
+    // read the loc object fields
+    if( cmJsonMemberValues(locObjNp, &errLabelPtr,  
+        "label", kStringTId, &label,
+        "cfg",   kArrayTId,  &cfgArrNp,
+        NULL ) == kOkJsRC )
+    { return _cmDcmJsonNotFound(p,errLabelPtr); }
+
+    // create a new location recd
+    cmDcmLoc_t* locPtr = NULL;
+    if((rc = _cmDcmNewLoc(p,label,&locPtr)) == kOkDcRC )
+      return cmErrMsg(&p->err,kJsonFailDcRC,"Location '%s' create failed.",cmStringNullGuard(label));
+
+    /*
+    // read each app object
+    for(j=0; j<cmJsonChildCount(appArrNp); ++j)
+    {
+      cmJsonNode_t* appObjNp;
+
+      // get the app object
+      if((appObjNp = cmJsonArrayElement(appArrNp,j)) == NULL || cmJsonIsObject(appObjNp)==false )
+        return _cmDcmJsonSyntaxErr(p,"loc object");
+
+      // locate the map array
+      cmJsonNode_t* mapArrNp;
+      if((mapArrNp = cmJsonFindValue(jsH,"map",appObjNp,kArrayTId)) == NULL )
+        return _cmDcmJsonNotFound(p,"map");
+
+      // for each map array
+      for(k=0; k<cmJsonChildCount(mapArrNp); ++k)
+      {
+        unsigned tid,cfgId;
+        cmJsonNode_t* mapObjNp;
+
+        if((mapObjNp = cmJsonArrayElement(mapArrNp,j))==NULL || cmJsonIsObject(mapObjNp)==false)
+          return _cmDcmJsonSyntaxErr(p,"cfg object");
+
+        if( cmJsonMemberValues( mapObjNp, &errLabelPtr, 
+            "tid",   kIntTId, &tid,
+            "cfgId", kIntTId, &cfgId,
+            NULL ) != kOkDcRC )
+        { return _cmDcmJsonSyntaxErr(p,errLabelPtr); }
+      }     
+    }
+    */
+
+    // read each cfg object
+    for(j=0; j<cmJsonChildCount(cfgArrNp); ++j)
+    {
+      cmJsonNode_t* cfgObjNp;
+      const cmChar_t* dcLabelStr;
+      const cmChar_t* descStr;
+      unsigned cfgId, typeId;
+
+      if((cfgObjNp = cmJsonArrayElement(cfgArrNp,j))==NULL || cmJsonIsObject(cfgObjNp)==false)
+        return _cmDcmJsonSyntaxErr(p,"cfg object");
+      
+      if( cmJsonMemberValues( cfgObjNp, &errLabelPtr,
+        "label",  kStringTId, &dcLabelStr,
+        "cfgId",  kIntTId,    &cfgId,
+        "typeId", kIntTId,    &typeId,
+        "desc",   kStringTId, &descStr,
+          NULL ) == kOkJsRC )
+      { _cmDcmJsonSyntaxErr(p,errLabelPtr); }
+
+      cmDcmMidi_t  m;
+      cmDcmAudio_t a;
+      cmDcmNet_t   n;
+
+      switch( typeId )
+      {
+        case kMidiDcmTId:   
+          if( cmJsonMemberValues( cfgObjNp, &errLabelPtr,
+              "devLabelStr", kStringTId, &m.devLabelStr,
+              "portLabelStr",kStringTId, &m.portLabelStr,
+              NULL) != kOkJsRC )
+          {}
+          
+          cmDevCfgNameMidiPort(h,label,m.devLabelStr,m.portLabelStr,m.inputFl);
+          
+          break;
+            
+        case kAudioDcmTId:
+          if( cmJsonMemberValues( cfgObjNp, &errLabelPtr,
+              "inDevLabelStr",     kStringTId, &a.inDevLabelStr,
+              "outDevLabelStr",    kStringTId, &a.outDevLabelStr,
+              "syncInputFl",       kBoolTId,   &a.audioSysArgs.syncInputFl,
+              "msgQueueByteCnt",   kIntTId,    &a.audioSysArgs.msgQueueByteCnt,
+              "devFramesPerCycle", kIntTId,    &a.audioSysArgs.devFramesPerCycle,
+              "dspFramesPerCycle", kIntTId,    &a.audioSysArgs.dspFramesPerCycle,
+              "audioBufCnt",       kIntTId,    &a.audioSysArgs.audioBufCnt,
+              "srate",             kIntTId,    &a.audioSysArgs.srate ) == kOkJsRC )
+          {}
+
+          cmDevCfgNameAudioPort(h,label,a.inDevLabelStr,a.outDevLabelStr,
+            a.audioSysArgs.syncInputFl,
+            a.audioSysArgs.msgQueueByteCnt,
+            a.audioSysArgs.devFramesPerCycle,
+            a.audioSysArgs.dspFramesPerCycle,
+            a.audioSysArgs.audioBufCnt,
+            a.audioSysArgs.srate );
+
+          break;
+
+        case kNetDcmTId:
+          if( cmJsonMemberValues( cfgObjNp, &errLabelPtr,
+              "sockAddr",   kStringTId, &n.sockAddr,
+              "portNumber", kIntTId,    &n.portNumber,
+              NULL ) != kOkJsRC )
+          {}
+
+          cmDevCfgNetPort(h,label,n.sockAddr,n.portNumber);
+
+          break;
+
+        default:
+          assert(0);
+          break;
+      }
+    }    
+  }
+
   return kOkDcRC;
 }
 
+cmDcRC_t _cmDevCfgWrite( cmDcm_t* p, cmJsonH_t jsH, cmJsonNode_t* rootObjPtr )
+{
+  cmDcRC_t rc = kOkDcRC;
+  const cmDcmLoc_t* lp;
+  
+  cmJsonNode_t* cfgNp = cmJsonInsertPairObject(jsH, rootObjPtr, "cfg" );
+
+  // create the loc array
+  cmJsonNode_t* locArrNp = cmJsonInsertPairArray( jsH, cfgNp, "loc" );
+  
+  for(; lp!=NULL; lp=lp->next)
+  {
+    // create the 'loc' object
+    cmJsonNode_t* locObjNp = cmJsonCreateObject(jsH,locArrNp);
+
+    // set the loc label
+    cmJsonInsertPairString(jsH, locObjNp, lp->labelStr, "label" );
+
+    /*
+    // create the 'loc.app[]' array
+    cmJsonNode_t* appArrNp = cmJsonInsertPairArray(jsH,locObjNp,"app");
+
+    // for each app recd
+    for(i=0; i<lp->appCnt; ++i)
+      if( lp->app[i].activeFl )
+      {
+        // create the app recd
+        cmJsonNode_t* appNp = cmJsonCreateObject(jsH,appArrNp );
+
+        // create the map array
+        cmJsonNode_t* mapArrNp = cmJsonInsertPairArray(jsH, appNp, "map" );
+
+        // for each map recd
+        for(j=0; j<lp->app[i].mapCnt; ++j)
+        {
+          cmJsonNode_t* mapNp = cmJsonCreateObject(jsH,mapArrNp);
+
+          cmJsonInsertPairs(jsH, mapNp, 
+            "tid",   kIntTId, lp->app[i].map[j].tid,
+            "cfgId", kIntTId, lp->app[i].map[j].cfgId,
+            NULL );
+        }
+      }
+    */
+
+    // create the 'loc.cfg[]' array
+    cmJsonNode_t* cfgArrNp = cmJsonInsertPairArray(jsH,locObjNp,"cfg");
+
+    // for each cfg recd
+    cmDcmCfg_t* cp = lp->cfg;
+    for(; cp!=NULL; cp=cp->next)
+    {
+      // create the cfg recd
+      cmJsonNode_t* cfgObjNp = cmJsonCreateObject(jsH,cfgArrNp);
+
+      // fill the cfg recd
+      cmJsonInsertPairs(jsH, cfgObjNp,
+        "label",  kStringTId, cp->dcLabelStr,
+        "cfgId",  kIntTId,    cp->cfgId,
+        "typeId", kIntTId,    cp->typeId,
+        "desc",   kStringTId, cp->descStr,
+        NULL );
+
+      switch( cp->typeId )
+      {
+        case kMidiDcmTId:    
+          cmJsonInsertPairs(jsH, cfgObjNp, 
+            "devLabelStr", kStringTId, cp->u.m.devLabelStr,
+            "portLabelStr",kStringTId, cp->u.m.portLabelStr,
+            "inputFl",     kBoolTId,   cp->u.m.inputFl,
+            NULL );
+            break;
+
+        case kAudioDcmTId:   
+          cmJsonInsertPairs(jsH, cfgObjNp,
+            "inDevLabelStr",     kStringTId, cp->u.a.inDevLabelStr,
+            "outDevLabelStr",    kStringTId, cp->u.a.outDevLabelStr,
+            "syncInputFl",       kBoolTId,   cp->u.a.audioSysArgs.syncInputFl,
+            "msgQueueByteCnt",   kIntTId,    cp->u.a.audioSysArgs.msgQueueByteCnt,
+            "devFramesPerCycle", kIntTId,    cp->u.a.audioSysArgs.devFramesPerCycle,
+            "dspFramesPerCycle", kIntTId,    cp->u.a.audioSysArgs.dspFramesPerCycle,
+            "audioBufCnt",       kIntTId,    cp->u.a.audioSysArgs.audioBufCnt,
+            "srate",             kIntTId,    cp->u.a.audioSysArgs.srate,
+            NULL );
+          break;
+
+        case kNetDcmTId:
+          cmJsonInsertPairs(jsH, cfgObjNp,
+            "sockAddr",  kStringTId, cp->u.n.sockAddr,
+            "portNumber",kIntTId,    cp->u.n.portNumber,
+            NULL );
+          break;
+
+        default:
+          assert(0);
+          break;
+      }
+    }
+  }
+  return rc;
+}
+
+cmDcRC_t cmDevCfgWrite( cmDevCfgH_t h )
+{
+  cmDcRC_t rc = kOkDcRC;
+  return rc;
+}

@@ -42,16 +42,20 @@ extern "C" {
   enum
   {
     kOkDcRC = cmOkRC,
-    cmLabelNotFoundDcRC,
-    cmIdNotFoundDcRC,
-    kInvalidDevArgDcRC,
-    kEmptyLabelDcRC,
-    kLocNotFoundDcRC
+    kLHeapFailDcRC,
+    kLabelNotFoundDcRC,
+    kDuplLabelDcRC,
+    kBlankLabelDcRC,
+    kInvalidUserAppIdRC,
+    kInvalidUserMapIdRC,
+    kInvalidArgDcRC,
+    kInvalidCfgIdxDcRC,
+    kJsonFailDcRC
   };
 
   typedef enum
   {
-    kInvalidDcmTId,
+    kInvalidDcmTId, // kInvalidDcmTId must be zero
     kMidiDcmTId,
     kAudioDcmTId,
     kNetDcmTId
@@ -60,19 +64,44 @@ extern "C" {
   typedef cmRC_t     cmDcRC_t;
   typedef cmHandle_t cmDevCfgH_t;
 
+  typedef struct
+  {
+    cmChar_t* devLabelStr;    // Midi device label.
+    cmChar_t* portLabelStr;   // Midi device port label.
+    bool      inputFl;        // 'True' if this is an input port.
+    unsigned  devIdx;         // Midi device index.
+    unsigned  portIdx;        // Midi port index.
+  } cmDcmMidi_t;
+
+  typedef struct
+  {
+    cmChar_t*        inDevLabelStr;  // Input audio device label.
+    cmChar_t*        outDevLabelStr; // Output audio device label.
+    cmAudioSysArgs_t audioSysArgs;   // Audio system  cfg recd
+  } cmDcmAudio_t;
+
+  typedef struct              
+  {
+    cmChar_t* sockAddr;   // Remote socket address.
+    unsigned  portNumber; // Remote socket port number
+  } cmDcmNet_t;
+
   extern cmDevCfgH_t cmDevCfgNullHandle;
 
   cmDcRC_t cmDevCfgMgrAlloc( cmCtx_t* c, cmDevCfgH_t* hp );
   cmDcRC_t cmDevCfgMgrFree( cmDevCfgH_t* hp );
-  cmDcRC_t cmDevCfgIsValid( cmDevCfgH_t h );
+  bool     cmDevCfgIsValid( cmDevCfgH_t h );
 
-  // Return the count of cfg records for the given type.
+  // Return the count of cfg records for the given type in the current location.
   unsigned cmDevCfgCount( cmDevCfgH_t h, cmTypeDcmId_t typeId );
 
-  // Return the label for a each cfg record of a given type.
+  // Return the label for a each cfg record of a given type in the current location.
   const cmChar_t* cmDevCfgLabel( cmDevCfgH_t h, cmTypeDcmId_t typeId, unsigned index );
 
-  // Return the cfg index assoc'd with a given label.
+  // Return the description for a give cfg. record.
+  const cmChar_t* cmDevCfgDesc( cmDevCfgH_t h, cmTypeDcmId_t typeId, unsigned index );
+
+  // Return the cfg index assoc'd with a given label in the current location.
   unsigned cmDevCfgLabelToIndex( cmDevCfgH_t h, cmTypeDcmId_t typeId, const cmChar_t* label );
   
   // Delete a cfg record created by cmDevCfgNameMidiPort(), cmDevCfgNameAudioPort(), etc.
@@ -80,10 +109,10 @@ extern "C" {
 
   // Create a map record to associate a app/dev id with a cfg. record.
   // Note that multiple app/dev id's may be assoc'd with the same cfg. record.
-  cmDcRC_t cmDevCfgCreateMap( cmDevCfgH_t h, cmTypeDcmId_t typeId, const cmChar_t* dcLabelStr, unsigned usrAppId, unsigned usrDevId );
+  cmDcRC_t cmDevCfgCreateMap( cmDevCfgH_t h, cmTypeDcmId_t typeId, const cmChar_t* dcLabelStr, unsigned usrAppId, unsigned usrMapId );
 
   // Delete a map record created by cmDevCfgCreateMap().
-  cmDcRC_t cmDevCfgDeleteMap( cmDevCfgH_t h, cmTypeDcmId_t typeId, unsigned usrAppId, unsigned usrDevId );
+  cmDcRC_t cmDevCfgDeleteMap( cmDevCfgH_t h, cmTypeDcmId_t typeId, unsigned usrAppId, unsigned usrMapId );
   
 
   // Create a MIDI cfg. record.
@@ -94,8 +123,9 @@ extern "C" {
     const cmChar_t* portNameStr, 
     bool            inputFl );
 
-  cmDcRC_t cmDevCfgMidiDevIdx(    cmDevCfgH_t h, unsigned usrAppId, unsigned usrDevId, unsigned* midiDevIdxRef, unsigned* midiPortIdxRef );
-
+  const cmDcmMidi_t* cmDevCfgMidiCfg( cmDevCfgH_t h, unsigned cfgIdx );
+  const cmDcmMidi_t* cmDevCfgMidiMap( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );
+  
 
   cmDcRC_t cmDevCfgNameAudioPort( 
     cmDevCfgH_t     h,
@@ -109,7 +139,10 @@ extern "C" {
     unsigned        audioBufCnt,
     double          srate  );
 
-  const struct cmAudioSysArgs_str* cmDevCfgAudioSysArgs( cmDevCfgH_t h, unsigned usrAppId, unsigned usrDevId );
+  const cmDcmAudio_t* cmDevCfgAudioCfg( cmDevCfgH_t h, unsigned cfgIdx );
+  const cmDcmAudio_t* cmDevCfgAudioMap( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );
+
+  const struct cmAudioSysArgs_str* cmDevCfgAudioSysArgs( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );
 
   cmDcRC_t cmDevCfgNetPort(
     cmDevCfgH_t      h,
@@ -117,7 +150,8 @@ extern "C" {
     const cmChar_t* sockAddr,
     unsigned        portNumber );
 
-  unsigned        cmDevCfgNetNodeId(     cmDevCfgH_t h, unsigned usrAppId, unsigned usrDevId );
+  const cmDcmNet_t* cmDevCfgNetCfg( cmDevCfgH_t h, unsigned cfgIdx );
+  const cmDcmNet_t* cmDevCfgNetMap( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );
 
   // Location Management Functions:
   // Store and recall groups cfg records.
@@ -129,7 +163,7 @@ extern "C" {
   cmDcRC_t        cmDevCfgLocDelete( cmDevCfgH_t h, const cmChar_t* locLabelStr );
 
   // Return the current location index
-  unsigned        cmDevCfgLocIndex(  cmDevCfgH_t h );
+  unsigned        cmDevCfgLocCurIndex(  cmDevCfgH_t h );
 
   cmDcRC_t cmDevCfgWrite( cmDevCfgH_t h );
   
