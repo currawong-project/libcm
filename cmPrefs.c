@@ -49,7 +49,7 @@ typedef struct
   cmPrNode_t* idChainPtr;       //
   unsigned    id;               // next JSON node id
   cmChar_t*   pathBuf;
-
+  cmChar_t*   pathPrefixStr;
 } cmPr_t;
 
 cmPr_t* _cmPrefsHandleToPtr( cmPrH_t h )
@@ -171,12 +171,17 @@ cmPrRC_t _cmPrefsFinalize( cmPr_t* p )
 // Convert 'pathString' to a sequence of zero terminated sub-strings.
 // The character string returned from this function must be released with a
 // call to cmMemFree()
-cmChar_t* _cmPrefsCreatePathStr( const cmChar_t* pathString, int* cnt )
+cmChar_t* _cmPrefsCreatePathStr( cmPr_t* p, const cmChar_t* pathString, int* cnt )
 {
   assert( pathString != NULL );
+  cmChar_t* pathStr;
 
   // duplicate the path string
-  cmChar_t* pathStr = cmMemAllocStr(pathString);
+  if( p->pathPrefixStr == NULL )
+    pathStr = cmMemAllocStr(pathString);
+  else
+    pathStr = cmTsPrintfP(NULL,"%s/%s",p->pathPrefixStr,pathString);
+
   int i = 0;
   int  n = 1;
   for(i=0; pathStr[i]; ++i)
@@ -196,7 +201,7 @@ unsigned _cmPrefsId( cmPr_t* p, const cmChar_t* pathStr, bool reportErrFl )
   int      i;
   unsigned retId = cmInvalidId;
 
-  cmChar_t* path = _cmPrefsCreatePathStr(pathStr, &n );
+  cmChar_t* path = _cmPrefsCreatePathStr(p,pathStr, &n );
   
   const cmChar_t* pathArray[n];
   const cmChar_t* cp = path;
@@ -249,7 +254,7 @@ cmPrNode_t* _cmPrefsPathToNodePtr( cmPr_t* p, const cmChar_t* pathStr, bool repo
   return _cmPrefsIdToNodePtr(p,id, reportErrFl);
 }
 
-cmPrRC_t cmPrefsInit( cmCtx_t* ctx, cmPrH_t* prefsH, const cmChar_t* fnName, const cmChar_t* fnExt, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr )
+cmPrRC_t cmPrefsInit( cmCtx_t* ctx, cmPrH_t* prefsH, const cmChar_t* fnName, const cmChar_t* fnExt, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr, const cmChar_t* pathPrefixStr )
 {
   cmPrRC_t rc = kOkPrRC;
 
@@ -280,12 +285,12 @@ cmPrRC_t cmPrefsInit( cmCtx_t* ctx, cmPrH_t* prefsH, const cmChar_t* fnName, con
   }
 
   // initialize the preference manager
-  rc = cmPrefsInitialize(ctx,prefsH,prefsFn,cbFunc,cbDataPtr);
+  rc = cmPrefsInitialize(ctx,prefsH,prefsFn,cbFunc,cbDataPtr,pathPrefixStr);
 
  errLabel:
   return rc;
 }
-cmPrRC_t cmPrefsInitialize( cmCtx_t* ctx, cmPrH_t* hp, const cmChar_t* fn, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr )
+cmPrRC_t cmPrefsInitialize( cmCtx_t* ctx, cmPrH_t* hp, const cmChar_t* fn, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr, const cmChar_t* pathPrefixStr )
 {
   cmPrRC_t rc = kOkPrRC;
 
@@ -337,11 +342,11 @@ cmPrRC_t cmPrefsInitialize( cmCtx_t* ctx, cmPrH_t* hp, const cmChar_t* fn, cmPre
   if( cbFunc != NULL )
     _cmPrefsInstallCallback(p,cbFunc,cbDataPtr);
 
-  // store the file name
-  p->fn = cmLHeapAllocZ( p->lhH, strlen(fn)+1 );
-  strcpy(p->fn,fn);
+  p->fn            = cmLhAllocStr( p->lhH, fn ); 
+  p->id            = kMaxVarPrId;
 
-  p->id = kMaxVarPrId;
+  if( pathPrefixStr!=NULL && strlen(pathPrefixStr)>0 )
+    p->pathPrefixStr = cmLhAllocStr(p->lhH, pathPrefixStr );
 
   hp->h = p;
 
@@ -420,11 +425,11 @@ cmPrRC_t cmPrefsRemoveCallback(  cmPrH_t h, cmPrefsOnChangeFunc_t cbFunc )
   return kOkPrRC;
 }
 
-      unsigned cmPrefsId( cmPrH_t h, const cmChar_t* pathStr, bool reportErrFl )
-    {
-      cmPr_t* p = _cmPrefsHandleToPtr(h);
-      return _cmPrefsId(p,pathStr,reportErrFl);
-    }
+unsigned cmPrefsId( cmPrH_t h, const cmChar_t* pathStr, bool reportErrFl )
+{
+  cmPr_t* p = _cmPrefsHandleToPtr(h);
+  return _cmPrefsId(p,pathStr,reportErrFl);
+}
 
 unsigned cmPrefsEleCount( cmPrH_t h, unsigned id )
 {
@@ -1198,7 +1203,7 @@ cmPrRC_t  _cmPrefsCreateJsonNode(
 {
   cmPrRC_t        rc            = kOkPrRC;
   int             pathCnt       = 0;
-  cmChar_t*       pathStr       = _cmPrefsCreatePathStr(pathString,&pathCnt);
+  cmChar_t*       pathStr       = _cmPrefsCreatePathStr(p,pathString,&pathCnt);
   const cmChar_t* pathEleStr    = pathStr; 
   cmJsonNode_t*   jsnp          = cmJsonRoot(p->jsH);
   cmJsonNode_t*   jsPairNodePtr = NULL;
@@ -1455,6 +1460,7 @@ bool     cmPrefsIsDirty( cmPrH_t h )
   return p->dirtyFl;
 }
 
+
 cmPrRC_t cmPrefsWrite( cmPrH_t h, const cmChar_t* fn )
 {
   cmPrRC_t rc = kOkPrRC;
@@ -1463,11 +1469,12 @@ cmPrRC_t cmPrefsWrite( cmPrH_t h, const cmChar_t* fn )
   if( fn == NULL )
     fn = p->fn;
 
-  if( cmJsonWrite( p->jsH, cmJsonRoot(p->jsH), fn) != kOkJsRC )
+ if( cmJsonWrite( p->jsH, cmJsonRoot(p->jsH), fn) != kOkJsRC )
     return cmErrMsg(&p->err,kWriteFileFailPrRC,"Preference writing failed.");
 
   p->dirtyFl = false;
 
+ 
   return rc;
 }
 
@@ -1534,10 +1541,10 @@ void _cmPrintNodes( const cmPrNode_t* np )
   }  
 }
  */
-  void cmPrefsTest( cmCtx_t* ctx, const char* ifn, const char* ofn )
+  void cmPrefsTest1( cmCtx_t* ctx, const char* ifn, const char* ofn )
 {
   cmPrH_t h = cmPrNullHandle;
-  if( cmPrefsInitialize(ctx,&h,ifn,NULL,NULL) != kOkPrRC )
+  if( cmPrefsInitialize(ctx,&h,ifn,NULL,NULL,"pref") != kOkPrRC )
     return;
 
   cmPr_t* p = _cmPrefsHandleToPtr(h);
@@ -1594,6 +1601,28 @@ void _cmPrintNodes( const cmPrNode_t* np )
   cmPrefsCreateStringArray(h, cmInvalidId, "cfg/chNames/strList",0,strArray,3);
 
   cmPrefsWrite(h,ofn);
+
+  cmPrefsFinalize(&h);
+}
+
+void cmPrefsTest( cmCtx_t* ctx, const char* ifn, const char* ofn )
+{
+  cmPrH_t h = cmPrNullHandle;
+  if( cmPrefsInitialize(ctx,&h,ifn,NULL,NULL,"pref") != kOkPrRC )
+    return;
+
+  cmPrefsCreateBool(  h, cmInvalidIdx, "cfg/flag", 0, true );
+  cmPrefsCreateString(h, cmInvalidIdx, "cfg/string",0, "blah");
+  cmPrefsCreateInt(   h, cmInvalidIdx, "cfg/stuff/thing0", 0, 1 );
+  cmPrefsCreateInt(   h, cmInvalidIdx, "cfg/stuff/thing1", 0, 2 );
+  const char* strArray[] = { "blah", "bloo", "blug" };
+  cmPrefsCreateStringArray(h, cmInvalidId, "cfg/stuff/foo", 0, strArray, 3 );
+
+  cmPrefsPathSetInt( h, "cfg/stuff/thing0", 10 );
+  
+
+  if( ofn != NULL )
+    cmPrefsWrite(h,ofn);
 
   cmPrefsFinalize(&h);
 }

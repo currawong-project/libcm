@@ -41,8 +41,8 @@ extern "C" {
   // Set 'fnName' to NULL to use cmFsAppName() as the pref file name.
   // Set 'fnExt' to NULL to use '.js' as the pref file extension.
   // 'cbFunc'  and 'cbDataPtr' are optional in both versions.
-  cmPrRC_t cmPrefsInit(   cmCtx_t* ctx, cmPrH_t* hp, const cmChar_t* fnName, const cmChar_t* fnExt, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr );
-  cmPrRC_t cmPrefsInitialize( cmCtx_t* ctx, cmPrH_t* hp, const cmChar_t* fn, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr);
+  cmPrRC_t cmPrefsInit(   cmCtx_t* ctx, cmPrH_t* hp, const cmChar_t* fnName, const cmChar_t* fnExt, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr, const cmChar_t* pathPrefixStr );
+  cmPrRC_t cmPrefsInitialize( cmCtx_t* ctx, cmPrH_t* hp, const cmChar_t* fn, cmPrefsOnChangeFunc_t cbFunc, void* cbDataPtr, const cmChar_t* pathPrefixStr);
   cmPrRC_t cmPrefsFinalize(   cmPrH_t* hp );
 
   bool cmPrefsIsValid( cmPrH_t h );
