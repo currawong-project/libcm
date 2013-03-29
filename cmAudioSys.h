@@ -81,6 +81,17 @@ extern "C" {
     kNotInitAsRC
   };
 
+  enum
+  {
+    kAsDfltMsgQueueByteCnt   = 0xffff,
+    kAsDfltDevFramesPerCycle = 512,
+    kAsDfltDspFramesPerCycle = 64,
+    kAsDfltBufCnt            = 3,
+    kAsDfltSrate             = 44100,
+    kAsDfltSyncToInputFl     = 1,
+    kAsDfltMeterMs           = 50
+  };
+
   typedef cmHandle_t cmAudioSysH_t;  //< Audio system handle type
   typedef unsigned   cmAsRC_t;       //< Audio system result code
 
