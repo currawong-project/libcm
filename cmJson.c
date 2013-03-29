@@ -1631,6 +1631,7 @@ cmJsRC_t      cmJsonVMemberValues( const cmJsonNode_t* objectNodePtr, const char
         
       case kTrueTId:
       case kFalseTId:
+      case kBoolTId:
         {
           bool* bp = va_arg(vl, bool* );
           rc = cmJsonBoolMember(objectNodePtr, label, bp);
