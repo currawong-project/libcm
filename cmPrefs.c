@@ -472,7 +472,7 @@ void _cmPrefsFormPath( cmPr_t* p, const cmPrNode_t* np )
   }
 }
 
-cmPrRC_t _cmPrefsValue( cmPr_t* p, const cmPrNode_t* np, const cmJsonNode_t* jnp, bool* bvp, int* ivp, double* rvp, const cmChar_t** svp, unsigned retEleCnt )
+cmPrRC_t _cmPrefsValue( cmPr_t* p, const cmPrNode_t* np, const cmJsonNode_t* jnp, bool* bvp, unsigned* uvp, int* ivp, double* rvp, const cmChar_t** svp, unsigned retEleCnt )
 {
   cmJsRC_t    jsRC      = kOkJsRC;
   const char* typeLabel = NULL;
@@ -490,27 +490,33 @@ cmPrRC_t _cmPrefsValue( cmPr_t* p, const cmPrNode_t* np, const cmJsonNode_t* jnp
     typeLabel = "bool";
   }
   else
-    if( ivp != NULL )
+    if( uvp != NULL )
     {
-      jsRC = cmJsonIntValue(jnp,ivp);
-      typeLabel = "int";
+      jsRC = cmJsonUIntValue(jnp,uvp);
+      typeLabel = "uint";
     }
     else
-      if( rvp != NULL )
+      if( ivp != NULL )
       {
-        jsRC = cmJsonRealValue(jnp,rvp);
-        typeLabel = "real";
+        jsRC = cmJsonIntValue(jnp,ivp);
+        typeLabel = "int";
       }
       else
-        if( svp != NULL )
+        if( rvp != NULL )
         {
-          jsRC = cmJsonStringValue(jnp,svp);
-          typeLabel = "string";
+          jsRC = cmJsonRealValue(jnp,rvp);
+          typeLabel = "real";
         }
         else
-        {
-          assert(0);
-        }
+          if( svp != NULL )
+          {
+            jsRC = cmJsonStringValue(jnp,svp);
+            typeLabel = "string";
+          }
+          else
+          {
+            assert(0);
+          }
 
   if( jsRC != kOkJsRC )
   {
@@ -522,14 +528,19 @@ cmPrRC_t _cmPrefsValue( cmPr_t* p, const cmPrNode_t* np, const cmJsonNode_t* jnp
 
 } 
 
-cmPrRC_t _cmPrefsGetValue( cmPrH_t h, unsigned id, bool* bvp, int* ivp, double* rvp, const cmChar_t** svp, unsigned* eleCntPtr, unsigned eleIdx )
+// if eleCntPtr is null then assume the value is a scalar
+cmPrRC_t _cmPrefsGetValue( cmPrH_t h, unsigned id, bool* bvp, unsigned* uvp, int* ivp, double* rvp, const cmChar_t** svp, unsigned* eleCntPtr, unsigned eleIdx )
 {
   cmPrRC_t    rc = kOkPrRC;
   cmPr_t*     p  = _cmPrefsHandleToPtr(h);
   cmPrNode_t* np = NULL;
+  unsigned    eleCnt = 1;
+
+  if( eleCntPtr != NULL )
+    eleCnt = *eleCntPtr;
 
   // if no return buffer was given - do nothing
-  if( *eleCntPtr == 0 )
+  if( eleCnt == 0 )
     return kOkPrRC;
 
   // locate the pref node from 'id'
@@ -542,8 +553,11 @@ cmPrRC_t _cmPrefsGetValue( cmPrH_t h, unsigned id, bool* bvp, int* ivp, double* 
   // if the requested pref. var is a scalar
   if( cmJsonIsArray(np->nodePtr) == false )
   {    
-    if((rc = _cmPrefsValue(p,np,np->nodePtr,bvp,ivp,rvp,svp,*eleCntPtr)) == kOkPrRC )
-      *eleCntPtr = 1;
+    if((rc = _cmPrefsValue(p,np,np->nodePtr,bvp,uvp,ivp,rvp,svp,eleCnt)) == kOkPrRC )
+    {
+      if( eleCntPtr != NULL )
+        *eleCntPtr = 1;
+    }
   }
   else // the request pref. var. is an array
   {
@@ -554,9 +568,10 @@ cmPrRC_t _cmPrefsGetValue( cmPrH_t h, unsigned id, bool* bvp, int* ivp, double* 
     if( eleIdx == cmInvalidIdx )
     {
       // if the return buffer is too small to hold all of the values.
-      if( *eleCntPtr < n )
+      if( eleCnt < n )
       {
-        *eleCntPtr = 0; 
+        if( eleCntPtr != NULL )
+          *eleCntPtr = 0; 
         _cmPrefsFormPath(p,np);
         rc = cmErrMsg(&p->err,kBufTooSmallPrRC,"The return array for the preference variable '%s' (id:%i) is too small to hold '%i elements",p->pathBuf,np->id,n);
         goto errLabel;
@@ -567,11 +582,12 @@ cmPrRC_t _cmPrefsGetValue( cmPrH_t h, unsigned id, bool* bvp, int* ivp, double* 
       {
         const cmJsonNode_t* cnp = cmJsonArrayElement(np->nodePtr,i);
 
-        if((rc= _cmPrefsValue(p,np,cnp,bvp==NULL?NULL:bvp+i,ivp==NULL?NULL:ivp+i,rvp==NULL?NULL:rvp+i,svp==NULL?NULL:svp+i,1)) != kOkPrRC )
+        if((rc= _cmPrefsValue(p,np,cnp,bvp==NULL?NULL:bvp+i,uvp==NULL?NULL:uvp+i,ivp==NULL?NULL:ivp+i,rvp==NULL?NULL:rvp+i,svp==NULL?NULL:svp+i,1)) != kOkPrRC )
           goto errLabel;
       }
 
-      *eleCntPtr = n;
+      if( eleCntPtr != NULL )
+        *eleCntPtr = n;
     }
     else // a single ele of the array was requested
     {
@@ -589,30 +605,38 @@ cmPrRC_t _cmPrefsGetValue( cmPrH_t h, unsigned id, bool* bvp, int* ivp, double* 
       assert(cnp != NULL );
 
       // read the element from the array
-      if((rc = _cmPrefsValue(p,np,cnp,bvp,ivp,rvp,svp,*eleCntPtr)) == kOkPrRC )
-        *eleCntPtr = 1;
+      if((rc = _cmPrefsValue(p,np,cnp,bvp,uvp,ivp,rvp,svp,eleCnt)) == kOkPrRC )
+      {
+        if( eleCntPtr != NULL)
+          *eleCntPtr = 1;
+      }
       
     }    
   }
   
  errLabel:
   if( rc != kOkPrRC )
-    *eleCntPtr = 0;
-
+  {
+    if( eleCntPtr != NULL )
+      *eleCntPtr = 0;
+  }
   return rc;
 }
 
 cmPrRC_t cmPrefsGetBool(   cmPrH_t h, unsigned id, bool*  vp, unsigned* eleCntPtr )
-{ return _cmPrefsGetValue(h, id, vp, NULL, NULL, NULL, eleCntPtr, cmInvalidIdx ); }
+{ return _cmPrefsGetValue(h, id, vp, NULL, NULL, NULL, NULL, eleCntPtr, cmInvalidIdx ); }
+
+cmPrRC_t cmPrefsGetUInt(    cmPrH_t h, unsigned id, unsigned*  vp, unsigned* eleCntPtr )
+{ return _cmPrefsGetValue(h, id, NULL, vp, NULL, NULL, NULL, eleCntPtr, cmInvalidIdx ); }
 
 cmPrRC_t cmPrefsGetInt(    cmPrH_t h, unsigned id, int*         vp, unsigned* eleCntPtr )
-{ return _cmPrefsGetValue(h, id, NULL, vp, NULL, NULL, eleCntPtr, cmInvalidIdx ); }
+{ return _cmPrefsGetValue(h, id, NULL, NULL, vp, NULL, NULL, eleCntPtr, cmInvalidIdx ); }
 
 cmPrRC_t cmPrefsGetReal(   cmPrH_t h, unsigned id, double*      vp, unsigned* eleCntPtr )
-{ return _cmPrefsGetValue(h, id, NULL, NULL, vp, NULL, eleCntPtr, cmInvalidIdx ); }
+{ return _cmPrefsGetValue(h, id, NULL, NULL, NULL, vp, NULL, eleCntPtr, cmInvalidIdx ); }
 
 cmPrRC_t cmPrefsGetString( cmPrH_t h, unsigned id, const cmChar_t**  vp, unsigned* eleCntPtr )
-{ return _cmPrefsGetValue(h, id, NULL, NULL, NULL, vp, eleCntPtr, cmInvalidIdx ); }
+{ return _cmPrefsGetValue(h, id, NULL, NULL, NULL, NULL, vp, eleCntPtr, cmInvalidIdx ); }
 
 bool            cmPrefsBool(   cmPrH_t h, unsigned id )
 {
@@ -812,23 +836,23 @@ bool            cmPrefsBoolEle(   cmPrH_t h, unsigned id, unsigned idx )
 {
   bool     v = false;;
   unsigned n = 1;
-  _cmPrefsGetValue(h,id, &v, NULL, NULL, NULL, &n, idx );
+  _cmPrefsGetValue(h,id, &v, NULL, NULL, NULL, NULL, &n, idx );
   return v;
 }
 
 unsigned        cmPrefsUIntEle(   cmPrH_t h, unsigned id, unsigned idx )
 {
-  int      v = 0;
+  unsigned      v = 0;
   unsigned n = 1;
-  _cmPrefsGetValue(h,id, NULL, &v, NULL, NULL, &n, idx );
-  return (unsigned)v;
+  _cmPrefsGetValue(h,id, NULL, &v, NULL, NULL, NULL, &n, idx );
+  return v;
 }
 
 int             cmPrefsIntEle(    cmPrH_t h, unsigned id, unsigned idx )
 {
   int      v = 0;
   unsigned n = 1;
-  _cmPrefsGetValue(h,id, NULL, &v, NULL, NULL, &n, idx );
+  _cmPrefsGetValue(h,id, NULL, NULL, &v, NULL, NULL, &n, idx );
   return v;
 }
 
@@ -836,7 +860,7 @@ float           cmPrefsFloatEle(  cmPrH_t h, unsigned id, unsigned idx )
 {
   double   v = 0;
   unsigned n = 1;
-  _cmPrefsGetValue(h,id, NULL, NULL, &v, NULL, &n, idx );
+  _cmPrefsGetValue(h,id, NULL, NULL, NULL, &v, NULL, &n, idx );
   return (float)v;
 }
 
@@ -844,7 +868,7 @@ double          cmPrefsRealEle(   cmPrH_t h, unsigned id, unsigned idx )
 {
   double   v = 0;
   unsigned n = 1;
-  _cmPrefsGetValue(h,id, NULL, NULL, &v, NULL, &n, idx );
+  _cmPrefsGetValue(h,id, NULL, NULL, NULL, &v, NULL, &n, idx );
   return v;
 }
 
@@ -852,7 +876,7 @@ const cmChar_t* cmPrefsStringEle( cmPrH_t h, unsigned id, unsigned idx )
 {
   const cmChar_t* v = "";
   unsigned        n = 1;
-  if( _cmPrefsGetValue(h,id, NULL, NULL, NULL, &v, &n, idx ) == kOkPrRC )
+  if( _cmPrefsGetValue(h,id, NULL, NULL, NULL, NULL, &v, &n, idx ) == kOkPrRC )
     return v;
   return "";
 }

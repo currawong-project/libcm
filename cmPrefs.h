@@ -65,10 +65,13 @@ extern "C" {
   // is associated with id.  Returns 1 if the variable is a scalar.
   unsigned cmPrefsEleCount( cmPrH_t h,  unsigned id );
 
-  // On input *'eleCntPtr' must contain the number of elements in the buffer pointed to by 'vp'.
-  // On return *'eleCntPtr' contains the actuall number of elements returned by the function.
-  // Set *eleCntPtr to 1 for scalar a values.
+  // On input *'eleCntPtr' must contain the number of elements in the buffer 
+  // pointed to by 'vp' or NULL if '*vp' is a scalar.
+  // On return *'eleCntPtr' contains the actual number of elements 
+  // returned by the function.  
+  // Set eleCntPtr to NULL for scalar a values.
   cmPrRC_t cmPrefsGetBool(   cmPrH_t h, unsigned id, bool*            vp, unsigned* eleCntPtr );
+  cmPrRC_t cmPrefsGetUInt(   cmPrH_t h, unsigned id, unsigned*        vp, unsigned* eleCntPtr );
   cmPrRC_t cmPrefsGetInt(    cmPrH_t h, unsigned id, int*             vp, unsigned* eleCntPtr );
   cmPrRC_t cmPrefsGetReal(   cmPrH_t h, unsigned id, double*          vp, unsigned* eleCntPtr );
   cmPrRC_t cmPrefsGetString( cmPrH_t h, unsigned id, const cmChar_t** vp, unsigned* eleCntPtr );
