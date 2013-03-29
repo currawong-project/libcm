@@ -50,7 +50,8 @@ extern "C" {
     kInvalidUserMapIdRC,
     kInvalidArgDcRC,
     kInvalidCfgIdxDcRC,
-    kJsonFailDcRC
+    kJsonFailDcRC,
+    kInvalidFnDcRC
   };
 
   typedef enum
@@ -78,6 +79,7 @@ extern "C" {
     cmChar_t*        inDevLabelStr;  // Input audio device label.
     cmChar_t*        outDevLabelStr; // Output audio device label.
     cmAudioSysArgs_t audioSysArgs;   // Audio system  cfg recd
+    bool             dfltFl;         // true if this is the default audio cfg.
   } cmDcmAudio_t;
 
   typedef struct              
@@ -88,8 +90,8 @@ extern "C" {
 
   extern cmDevCfgH_t cmDevCfgNullHandle;
 
-  cmDcRC_t cmDevCfgMgrAlloc( cmCtx_t* c, cmDevCfgH_t* hp );
-  cmDcRC_t cmDevCfgMgrFree( cmDevCfgH_t* hp );
+  cmDcRC_t cmDevCfgAlloc( cmCtx_t* c, cmDevCfgH_t* hp, const cmChar_t* fn );
+  cmDcRC_t cmDevCfgFree( cmDevCfgH_t* hp );
   bool     cmDevCfgIsValid( cmDevCfgH_t h );
 
   // Return the count of cfg records for the given type in the current location.
@@ -139,12 +141,16 @@ extern "C" {
     unsigned        audioBufCnt,
     double          srate  );
 
+  cmDcRC_t            cmDevCfgAudioSetDefaultCfgIndex( cmDevCfgH_t h, unsigned cfgIdx );
+  unsigned            cmDevCfgAudioGetDefaultCfgIndex( cmDevCfgH_t h );
+
   const cmDcmAudio_t* cmDevCfgAudioCfg( cmDevCfgH_t h, unsigned cfgIdx );
   const cmDcmAudio_t* cmDevCfgAudioMap( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );
+  
 
   const struct cmAudioSysArgs_str* cmDevCfgAudioSysArgs( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );
 
-  cmDcRC_t cmDevCfgNetPort(
+  cmDcRC_t cmDevCfgNameNetPort(
     cmDevCfgH_t      h,
     const cmChar_t* dcLabelStr,
     const cmChar_t* sockAddr,
@@ -153,19 +159,31 @@ extern "C" {
   const cmDcmNet_t* cmDevCfgNetCfg( cmDevCfgH_t h, unsigned cfgIdx );
   const cmDcmNet_t* cmDevCfgNetMap( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );
 
+  //---------------------------------------------------------------------------------------
   // Location Management Functions:
-  // Store and recall groups cfg records.
+  // Store and recall groups of cfg records.
 
+  // Return a count of the current number of locations.
   unsigned        cmDevCfgLocCount(  cmDevCfgH_t h );
+
+  // Given a location index (0 to cmDevCfgLocCount()-1) return the locations label.
   const cmChar_t* cmDevCfgLocLabel(  cmDevCfgH_t h, unsigned locIdx );
+
+  // If 'locLabelStr' has already been used then this function does nothing and returns.
+  // otherwise the current location is duplicated and the duplicate is named 'locLabelStr'.
   cmDcRC_t        cmDevCfgLocStore(  cmDevCfgH_t h, const cmChar_t* locLabelStr );
+
+  // Make the location named 'locLabelStr' the current location.
   cmDcRC_t        cmDevCfgLocRecall( cmDevCfgH_t h, const cmChar_t* locLabelStr );
+
+  // Delete the location named by 'locLabelStr'.
   cmDcRC_t        cmDevCfgLocDelete( cmDevCfgH_t h, const cmChar_t* locLabelStr );
 
   // Return the current location index
   unsigned        cmDevCfgLocCurIndex(  cmDevCfgH_t h );
 
-  cmDcRC_t cmDevCfgWrite( cmDevCfgH_t h );
+  // Set 'fn' to NULL to use filename from cmDevCfgAlloc()
+  cmDcRC_t cmDevCfgWrite( cmDevCfgH_t h, const cmChar_t* fn );
   
 
 #ifdef __cplusplus

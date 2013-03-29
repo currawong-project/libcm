@@ -6,6 +6,7 @@
 #include "cmMem.h"
 #include "cmMallocDebug.h"
 #include "cmLinkedHeap.h"
+#include "cmFileSys.h"
 #include "cmJson.h"
 #include "cmText.h"
 #include "cmThread.h"
@@ -24,10 +25,13 @@ cmDevCfgH_t cmDevCfgNullHandle = cmSTATIC_NULL_HANDLE;
 
 typedef struct cmDcmCfg_str
 {
-  cmChar_t*     dcLabelStr;
+  cmChar_t*     dcLabelStr;   // the cfg label 
   unsigned      cfgId;        // unique among all cfg's assigned to a loc
-  cmTypeDcmId_t typeId;
-  cmChar_t*     descStr;
+  cmTypeDcmId_t typeId;       // the cfg type id (e.g. midi, audio, net, ...)
+  cmChar_t*     descStr;      // summary description string 
+
+  // NOTE: any fields added to this structure, type generic (above) 
+  // or type specific (below), must be explicitely duplicated in cmDevCfgLocStore().
 
   union
   {
@@ -71,8 +75,10 @@ typedef struct cmDcmLoc_str
 typedef struct
 {
   cmErr_t     err;
+  cmCtx_t*    ctx;
   cmDcmLoc_t* loc;
   cmDcmLoc_t* clp;
+  cmChar_t*   fn;
 } cmDcm_t;
 
 
@@ -166,6 +172,8 @@ void _cmDcmFreeCfg( cmDcm_t* p, cmDcmLoc_t* lp, cmDcmCfg_t* cp )
       assert(0);
       break;
   }
+
+  cmMemFree(cp);
 }
 
 void _cmDcmFreeLoc( cmDcm_t* p, cmDcmLoc_t* lp )
@@ -208,6 +216,7 @@ cmDcRC_t _cmDcmFree( cmDcm_t* p )
   cmDcRC_t rc = kOkDcRC;
 
   _cmDcmFreeAllLocs(p);
+  cmMemFree(p->fn);
 
   cmMemFree(p);
   return rc;
@@ -270,21 +279,64 @@ cmDcRC_t _cmDcmNewLoc( cmDcm_t* p, const cmChar_t* labelStr, cmDcmLoc_t**  locRe
    
 }
 
-cmDcRC_t cmDevCfgMgrAlloc( cmCtx_t* c, cmDevCfgH_t* hp )
+cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPtr );
+
+cmDcRC_t _cmDevCfgReadFile( cmDcm_t* p, const cmChar_t* fn )
+{
+  cmDcRC_t rc = kOkDcRC;
+
+  cmJsonH_t jsH = cmJsonNullHandle;
+
+  // initialize the JSON tree from the preferences file
+  if( cmJsonInitializeFromFile( &jsH, fn, p->ctx ) != kOkJsRC )
+  {
+    rc = cmErrMsg(&p->err,kJsonFailDcRC,"JSON initialization from '%s' failed.",cmStringNullGuard(fn));
+    goto errLabel;
+  }
+
+  if((rc = _cmDevCfgRead(p, jsH, cmJsonRoot(jsH))) != kOkJsRC )
+    goto errLabel;
+
+ errLabel:
+  if( cmJsonFinalize(&jsH) != kOkJsRC )
+    cmErrMsg(&p->err,kJsonFailDcRC,"JSON finalization failed following dev cfg read.");
+
+  return rc;
+
+}
+
+cmDcRC_t cmDevCfgAlloc( cmCtx_t* c, cmDevCfgH_t* hp, const cmChar_t* fn )
 {
   cmDcRC_t rc;
   cmDcmLoc_t* lp;
 
-  if((rc = cmDevCfgMgrFree(hp)) != kOkDcRC )
+  if((rc = cmDevCfgFree(hp)) != kOkDcRC )
     return rc;
 
   cmDcm_t* p = cmMemAllocZ(cmDcm_t,1);
 
   cmErrSetup(&p->err,&c->rpt,"cmDevCfg");
 
+  p->ctx = c;
 
-  if((rc = _cmDcmNewLoc(p,"Default", &lp)) != kOkDcRC )
-    goto errLabel;
+  if( fn != NULL )
+  {
+    p->fn = cmMemAllocStr(fn);
+    
+    if( cmFsIsFile(fn) )
+    {
+      // if the file read fails then reset and go with the default empty setup.
+      if(_cmDevCfgReadFile(p,fn) != kOkDcRC )
+        _cmDcmFreeAllLocs(p);
+    }
+  }
+
+  // if the location array is empty then create a default location
+  if( p->loc == NULL )
+  {
+    if((rc = _cmDcmNewLoc(p,"Default", &lp)) != kOkDcRC )
+      goto errLabel;
+  }
 
   hp->h = p;
 
@@ -295,7 +347,7 @@ cmDcRC_t cmDevCfgMgrAlloc( cmCtx_t* c, cmDevCfgH_t* hp )
   return rc;
 }
 
-cmDcRC_t cmDevCfgMgrFree( cmDevCfgH_t* hp )
+cmDcRC_t cmDevCfgFree( cmDevCfgH_t* hp )
 {
   cmDcRC_t rc = kOkDcRC;
   if( hp == NULL || cmDevCfgIsValid(*hp)==false )
@@ -436,7 +488,7 @@ cmDcmCfg_t*  _cmDcmFindOrCreateCfg( cmDcm_t* p, cmTypeDcmId_t typeId, const cmCh
   cp->dcLabelStr = cmMemAllocStr(dcLabelStr);
   cp->cfgId      = newCfgId;
   cp->typeId     = typeId;
-  
+
   // link to the end of the loc's cfg list
   if( ep == NULL )
     p->clp->cfg = cp;
@@ -643,7 +695,7 @@ cmDcRC_t cmDevCfgNameAudioPort(
   unsigned    outDevIdx;
 
   // validate the label
-  if((dcLabelStr = _cmDcmTrimLabel(p,dcLabelStr,"MIDI cfg")) == NULL)
+  if((dcLabelStr = _cmDcmTrimLabel(p,dcLabelStr,"Audio cfg")) == NULL)
     return cmErrLastRC(&p->err);
 
   // validate the input device
@@ -654,10 +706,29 @@ cmDcRC_t cmDevCfgNameAudioPort(
   if(( outDevIdx = cmApDeviceLabelToIndex(outDevNameStr)) == cmInvalidIdx )
     return cmErrMsg(&p->err, kInvalidArgDcRC,"The output audio device name '%s' is not valid.",cmStringNullGuard(outDevNameStr));
 
+  // validate the msg byte cnt
+  if( msgQueueByteCnt == 0 )
+    return cmErrMsg(&p->err, kInvalidArgDcRC,"The 'message queue size' must be greater than zero.");
+
+  // validate the dev. frames per cycle
+  if( devFramesPerCycle == 0 )
+    return cmErrMsg(&p->err, kInvalidArgDcRC,"The 'device frames per cycle' must be greater than zero.");
+  
+  // validate the dsp frames per cycle
+  if( dspFramesPerCycle == 0 || ((devFramesPerCycle/dspFramesPerCycle) * dspFramesPerCycle != devFramesPerCycle) )
+    return cmErrMsg(&p->err, kInvalidArgDcRC,"The 'DSP frames per cycle' must be greater than zero and an integer factor of 'Device frames per cycle.'.");
+
+  // validate the sample rate
+  if( srate == 0 )
+    return cmErrMsg(&p->err, kInvalidArgDcRC,"The audio sample rate must be greater than zero.");
+
   // if dcLabelStr is already in use for this location and type then update
   // the assoc'd recd otherwise create a new one.
   if((cp = _cmDcmFindOrCreateCfg(p,kAudioDcmTId, dcLabelStr)) == NULL )
     return cmErrLastRC(&p->err);
+
+  unsigned inChCnt  = cmApDeviceChannelCount( inDevIdx,  true );
+  unsigned outChCnt = cmApDeviceChannelCount( outDevIdx, false );
 
   cp->u.a.inDevLabelStr                  = cmMemAllocStr(inDevNameStr);
   cp->u.a.outDevLabelStr                 = cmMemAllocStr(outDevNameStr);
@@ -670,9 +741,59 @@ cmDcRC_t cmDevCfgNameAudioPort(
   cp->u.a.audioSysArgs.dspFramesPerCycle = dspFramesPerCycle;
   cp->u.a.audioSysArgs.audioBufCnt       = audioBufCnt;
   cp->u.a.audioSysArgs.srate             = srate;
-  cp->descStr = cmTsPrintfP(cp->descStr,"In:%s Out:%s",inDevNameStr,outDevNameStr);
+  cp->descStr = cmTsPrintfP(cp->descStr,"In: Chs:%i %s\nOut: Chs:%i %s",inChCnt,inDevNameStr,outChCnt,outDevNameStr);
   return kOkDcRC;  
 }
+
+
+
+cmDcRC_t            cmDevCfgAudioSetDefaultCfgIndex( cmDevCfgH_t h, unsigned cfgIdx )
+{
+  cmDcm_t*    p  = _cmDcmHandleToPtr(h);
+
+  assert( p->clp != NULL );
+
+  cmDcmCfg_t* cp = p->clp->cfg;
+  unsigned    i;
+
+  for(i=0; cp!=NULL; cp=cp->next)
+    if( cp->typeId == kAudioDcmTId )
+    {
+      if( i == cfgIdx )
+        cp->u.a.dfltFl = true;
+      else
+      {
+        if( cp->u.a.dfltFl )
+          cp->u.a.dfltFl = false;
+      }
+
+      ++i;
+    }
+  
+
+  return kOkDcRC;
+}
+
+unsigned   cmDevCfgAudioGetDefaultCfgIndex( cmDevCfgH_t h )
+{
+  cmDcm_t*    p  = _cmDcmHandleToPtr(h);
+
+  assert( p->clp != NULL );
+
+  cmDcmCfg_t* cp = p->clp->cfg;
+  unsigned    i;
+
+  for(i=0; cp!=NULL; cp=cp->next)
+    if( cp->typeId == kAudioDcmTId )
+    {
+      if( cp->u.a.dfltFl )
+        return i;
+
+      ++i;
+    }
+  return cmInvalidIdx;
+}
+
 
 const cmDcmAudio_t* cmDevCfgAudioCfg( cmDevCfgH_t h, unsigned cfgIdx )
 {
@@ -697,7 +818,7 @@ const cmDcmAudio_t* cmDevCfgAudioDevMap(    cmDevCfgH_t h, unsigned usrAppId, un
 }
 
 
-cmDcRC_t cmDevCfgNetPort(
+cmDcRC_t cmDevCfgNameNetPort(
   cmDevCfgH_t      h,
   const cmChar_t* dcLabelStr,
   const cmChar_t* sockAddr,
@@ -716,7 +837,7 @@ cmDcRC_t cmDevCfgNetPort(
 
   // if dcLabelStr is already in use for this location and type then update
   // the assoc'd recd otherwise create a new one.
-  if((cp = _cmDcmFindOrCreateCfg(p,kAudioDcmTId, dcLabelStr)) == NULL )
+  if((cp = _cmDcmFindOrCreateCfg(p,kNetDcmTId, dcLabelStr)) == NULL )
     return cmErrLastRC(&p->err);
 
   cp->u.n.sockAddr = cmMemAllocStr(sockAddr);
@@ -760,11 +881,11 @@ unsigned        cmDevCfgLocCount(  cmDevCfgH_t h )
 }
 const cmChar_t* cmDevCfgLocLabel(  cmDevCfgH_t h, unsigned locIdx )
 {
-  unsigned n = 0;
   cmDcm_t* p = _cmDcmHandleToPtr(h);
   const cmDcmLoc_t* lp = p->loc;
-  for(; lp!=NULL; lp=lp->next)
-    if( n == locIdx )
+  unsigned i;
+  for(i=0; lp!=NULL; lp=lp->next,++i)
+    if( i == locIdx )
       return lp->labelStr;
 
   assert(0);
@@ -772,7 +893,7 @@ const cmChar_t* cmDevCfgLocLabel(  cmDevCfgH_t h, unsigned locIdx )
 }
 
 
-cmDcmLoc_t* _cmDcmLocLabelToPtr( cmDcm_t* p, const cmChar_t* locLabelStr)
+cmDcmLoc_t* _cmDcmLocLabelToPtr( cmDcm_t* p, const cmChar_t* locLabelStr, bool errFl)
 {
   if((locLabelStr = _cmDcmTrimLabel(p,locLabelStr,"location")) == NULL )
     return NULL;
@@ -782,7 +903,8 @@ cmDcmLoc_t* _cmDcmLocLabelToPtr( cmDcm_t* p, const cmChar_t* locLabelStr)
     if( strcmp(lp->labelStr,locLabelStr) == 0 )
       return lp;
 
-  cmErrMsg(&p->err,kLabelNotFoundDcRC,"The location label '%s' was not found.",locLabelStr);
+  if( errFl )
+    cmErrMsg(&p->err,kLabelNotFoundDcRC,"The location label '%s' was not found.",locLabelStr);
 
   return NULL;
 }
@@ -795,7 +917,7 @@ cmDcRC_t cmDevCfgLocStore(  cmDevCfgH_t h, const cmChar_t* locLabelStr )
   unsigned i,j;
 
   // if this location label is already in use then it has already been stored.
-  if( _cmDcmLocLabelToPtr(p,locLabelStr) != NULL )
+  if( _cmDcmLocLabelToPtr(p,locLabelStr,false) != NULL )
     return kOkDcRC;
 
   // store the current loc ptr
@@ -812,11 +934,15 @@ cmDcRC_t cmDevCfgLocStore(  cmDevCfgH_t h, const cmChar_t* locLabelStr )
   {
     cmDcmCfg_t* ncp;
 
+    // this will always create (never find) a new cfg recd
     if((ncp = _cmDcmFindOrCreateCfg(p,ocp->typeId, ocp->dcLabelStr)) == NULL )
     {
       rc = cmErrLastRC(&p->err);
       goto errLabel;
     }
+
+    // duplicate the desc. string
+    ncp->descStr = cmMemAllocStr(ocp->descStr);
     
     switch( ncp->typeId )
     {
@@ -869,7 +995,7 @@ cmDcRC_t cmDevCfgLocRecall( cmDevCfgH_t h, const cmChar_t* locLabelStr )
   cmDcm_t*     p = _cmDcmHandleToPtr(h);
   cmDcmLoc_t* lp;
 
-  if((lp = _cmDcmLocLabelToPtr(p,locLabelStr)) == NULL)
+  if((lp = _cmDcmLocLabelToPtr(p,locLabelStr,true)) == NULL)
     return cmErrLastRC(&p->err);
 
   p->clp = lp;
@@ -881,7 +1007,7 @@ cmDcRC_t cmDevCfgLocDelete( cmDevCfgH_t h, const cmChar_t* locLabelStr )
   cmDcm_t*     p = _cmDcmHandleToPtr(h);
   cmDcmLoc_t* lp;
 
-  if((lp = _cmDcmLocLabelToPtr(p,locLabelStr)) == NULL )
+  if((lp = _cmDcmLocLabelToPtr(p,locLabelStr,true)) == NULL )
     return cmErrLastRC(&p->err);
 
   _cmDcmFreeLoc(p,lp);
@@ -908,14 +1034,14 @@ cmDcRC_t _cmDcmJsonNotFound( cmDcm_t* p, const cmChar_t* tagStr )
 cmDcRC_t _cmDcmJsonSyntaxErr( cmDcm_t* p, const cmChar_t* tagStr )
 { return cmErrMsg(&p->err,kJsonFailDcRC,"JSON syntax error '%s' not found.",tagStr); }
 
-cmDcRC_t _cmDevCfgRead( cmDevCfgH_t h, cmJsonH_t jsH, const cmJsonNode_t* rootObjPtr )
+cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPtr )
 {
   cmDcRC_t        rc          = kOkDcRC;
   const cmChar_t* errLabelPtr = NULL;
   cmJsonNode_t* cfgNp, *locArrNp;
   unsigned i,j;
-
-  cmDcm_t* p = _cmDcmHandleToPtr(h);
+  cmDevCfgH_t h;
+  h.h = p;
 
   // clear the all locations
   _cmDcmFreeAllLocs(p);
@@ -931,7 +1057,7 @@ cmDcRC_t _cmDevCfgRead( cmDevCfgH_t h, cmJsonH_t jsH, const cmJsonNode_t* rootOb
   for(i=0; i<cmJsonChildCount(locArrNp); ++i)
   {
     cmJsonNode_t* locObjNp, *cfgArrNp;
-    const cmChar_t* label = NULL;
+    const cmChar_t* locLabelStr = NULL;
 
     // get the loc object
     if((locObjNp = cmJsonArrayElement(locArrNp,i)) == NULL || cmJsonIsObject(locObjNp)==false )
@@ -939,15 +1065,15 @@ cmDcRC_t _cmDevCfgRead( cmDevCfgH_t h, cmJsonH_t jsH, const cmJsonNode_t* rootOb
 
     // read the loc object fields
     if( cmJsonMemberValues(locObjNp, &errLabelPtr,  
-        "label", kStringTId, &label,
+        "label", kStringTId, &locLabelStr,
         "cfg",   kArrayTId,  &cfgArrNp,
-        NULL ) == kOkJsRC )
+        NULL ) != kOkJsRC )
     { return _cmDcmJsonNotFound(p,errLabelPtr); }
 
     // create a new location recd
     cmDcmLoc_t* locPtr = NULL;
-    if((rc = _cmDcmNewLoc(p,label,&locPtr)) == kOkDcRC )
-      return cmErrMsg(&p->err,kJsonFailDcRC,"Location '%s' create failed.",cmStringNullGuard(label));
+    if((rc = _cmDcmNewLoc(p,locLabelStr,&locPtr)) != kOkDcRC )
+      return cmErrMsg(&p->err,kJsonFailDcRC,"Location '%s' create failed.",cmStringNullGuard(locLabelStr));
 
     /*
     // read each app object
@@ -998,23 +1124,28 @@ cmDcRC_t _cmDevCfgRead( cmDevCfgH_t h, cmJsonH_t jsH, const cmJsonNode_t* rootOb
         "cfgId",  kIntTId,    &cfgId,
         "typeId", kIntTId,    &typeId,
         "desc",   kStringTId, &descStr,
-          NULL ) == kOkJsRC )
+          NULL ) != kOkJsRC )
       { _cmDcmJsonSyntaxErr(p,errLabelPtr); }
 
       cmDcmMidi_t  m;
       cmDcmAudio_t a;
       cmDcmNet_t   n;
-
+      
       switch( typeId )
       {
         case kMidiDcmTId:   
           if( cmJsonMemberValues( cfgObjNp, &errLabelPtr,
               "devLabelStr", kStringTId, &m.devLabelStr,
               "portLabelStr",kStringTId, &m.portLabelStr,
+              "inputFl",     kBoolTId,   &m.inputFl,
               NULL) != kOkJsRC )
-          {}
+          {
+            rc = _cmDcmJsonSyntaxErr(p,errLabelPtr);
+            goto errLabel;
+          }
           
-          cmDevCfgNameMidiPort(h,label,m.devLabelStr,m.portLabelStr,m.inputFl);
+          if((rc = cmDevCfgNameMidiPort(h,dcLabelStr,m.devLabelStr,m.portLabelStr,m.inputFl)) != kOkDcRC )
+            goto errLabel;
           
           break;
             
@@ -1027,16 +1158,23 @@ cmDcRC_t _cmDevCfgRead( cmDevCfgH_t h, cmJsonH_t jsH, const cmJsonNode_t* rootOb
               "devFramesPerCycle", kIntTId,    &a.audioSysArgs.devFramesPerCycle,
               "dspFramesPerCycle", kIntTId,    &a.audioSysArgs.dspFramesPerCycle,
               "audioBufCnt",       kIntTId,    &a.audioSysArgs.audioBufCnt,
-              "srate",             kIntTId,    &a.audioSysArgs.srate ) == kOkJsRC )
-          {}
+              "srate",             kRealTId,   &a.audioSysArgs.srate,
+              NULL ) != kOkJsRC )
+          {
+            rc = _cmDcmJsonSyntaxErr(p,errLabelPtr);
+            goto errLabel;
+          }
 
-          cmDevCfgNameAudioPort(h,label,a.inDevLabelStr,a.outDevLabelStr,
-            a.audioSysArgs.syncInputFl,
-            a.audioSysArgs.msgQueueByteCnt,
-            a.audioSysArgs.devFramesPerCycle,
-            a.audioSysArgs.dspFramesPerCycle,
-            a.audioSysArgs.audioBufCnt,
-            a.audioSysArgs.srate );
+          if((rc = cmDevCfgNameAudioPort(h,dcLabelStr,a.inDevLabelStr,a.outDevLabelStr,
+                a.audioSysArgs.syncInputFl,
+                a.audioSysArgs.msgQueueByteCnt,
+                a.audioSysArgs.devFramesPerCycle,
+                a.audioSysArgs.dspFramesPerCycle,
+                a.audioSysArgs.audioBufCnt,
+                a.audioSysArgs.srate )) != kOkDcRC )
+          {
+            goto errLabel;
+          }
 
           break;
 
@@ -1045,9 +1183,13 @@ cmDcRC_t _cmDevCfgRead( cmDevCfgH_t h, cmJsonH_t jsH, const cmJsonNode_t* rootOb
               "sockAddr",   kStringTId, &n.sockAddr,
               "portNumber", kIntTId,    &n.portNumber,
               NULL ) != kOkJsRC )
-          {}
+          {
+            rc = _cmDcmJsonSyntaxErr(p,errLabelPtr);
+            goto errLabel;
+          }
 
-          cmDevCfgNetPort(h,label,n.sockAddr,n.portNumber);
+          if((rc = cmDevCfgNameNetPort(h,dcLabelStr,n.sockAddr,n.portNumber)) != kOkDcRC )
+            goto errLabel;
 
           break;
 
@@ -1058,13 +1200,14 @@ cmDcRC_t _cmDevCfgRead( cmDevCfgH_t h, cmJsonH_t jsH, const cmJsonNode_t* rootOb
     }    
   }
 
+ errLabel:
   return kOkDcRC;
 }
 
 cmDcRC_t _cmDevCfgWrite( cmDcm_t* p, cmJsonH_t jsH, cmJsonNode_t* rootObjPtr )
 {
   cmDcRC_t rc = kOkDcRC;
-  const cmDcmLoc_t* lp;
+  const cmDcmLoc_t* lp = p->loc;
   
   cmJsonNode_t* cfgNp = cmJsonInsertPairObject(jsH, rootObjPtr, "cfg" );
 
@@ -1077,7 +1220,7 @@ cmDcRC_t _cmDevCfgWrite( cmDcm_t* p, cmJsonH_t jsH, cmJsonNode_t* rootObjPtr )
     cmJsonNode_t* locObjNp = cmJsonCreateObject(jsH,locArrNp);
 
     // set the loc label
-    cmJsonInsertPairString(jsH, locObjNp, lp->labelStr, "label" );
+    cmJsonInsertPairString(jsH, locObjNp, "label", lp->labelStr );
 
     /*
     // create the 'loc.app[]' array
@@ -1143,7 +1286,7 @@ cmDcRC_t _cmDevCfgWrite( cmDcm_t* p, cmJsonH_t jsH, cmJsonNode_t* rootObjPtr )
             "devFramesPerCycle", kIntTId,    cp->u.a.audioSysArgs.devFramesPerCycle,
             "dspFramesPerCycle", kIntTId,    cp->u.a.audioSysArgs.dspFramesPerCycle,
             "audioBufCnt",       kIntTId,    cp->u.a.audioSysArgs.audioBufCnt,
-            "srate",             kIntTId,    cp->u.a.audioSysArgs.srate,
+            "srate",             kRealTId,   cp->u.a.audioSysArgs.srate,
             NULL );
           break;
 
@@ -1163,8 +1306,49 @@ cmDcRC_t _cmDevCfgWrite( cmDcm_t* p, cmJsonH_t jsH, cmJsonNode_t* rootObjPtr )
   return rc;
 }
 
-cmDcRC_t cmDevCfgWrite( cmDevCfgH_t h )
+cmDcRC_t cmDevCfgWrite( cmDevCfgH_t h, const cmChar_t* fn )
 {
   cmDcRC_t rc = kOkDcRC;
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+
+  cmJsonH_t jsH = cmJsonNullHandle;
+
+  if( fn == NULL )
+    fn = p->fn;
+
+  // validate the filename
+  if( fn == NULL || strlen(fn)==0 )
+    return cmErrMsg(&p->err,kInvalidFnDcRC,"No output file name was provided.");
+
+  // create a json object
+  if( cmJsonInitialize( &jsH, p->ctx ) != kOkJsRC )
+  {
+    rc = cmErrMsg(&p->err,kJsonFailDcRC,"An empty JSON tree could not be created.");
+    goto errLabel;
+  }
+
+  // insert a wrapper object as the root
+  if( cmJsonCreateObject( jsH, NULL ) == NULL )
+  {
+    rc = cmErrMsg(&p->err,kJsonFailDcRC,"The JSON root object could not be created.");
+    goto errLabel;
+  }
+
+  // fill the JSON tree
+  if((rc = _cmDevCfgWrite(p,jsH,cmJsonRoot(jsH))) != kOkDcRC )
+    goto errLabel;
+
+  // write the output file
+  if( cmJsonWrite(jsH, cmJsonRoot(jsH), fn ) != kOkJsRC )
+  {
+    rc = cmErrMsg(&p->err,kJsonFailDcRC,"The JSON file write failed on '%s'.",cmStringNullGuard(fn));
+    goto errLabel;
+  }
+  
+  
+ errLabel:
+  if( cmJsonFinalize(&jsH) != kOkJsRC )
+    cmErrMsg(&p->err,kJsonFailDcRC,"JSON tree finalization failed.");
+
   return rc;
 }
