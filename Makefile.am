@@ -30,8 +30,8 @@ cmSRC += src/libcm/cmMidiFilePlay.c src/libcm/cmMidiPort.c src/libcm/cmMidiFile.
 cmHDR += src/libcm/cmAudioFile.h src/libcm/cmAudioFileMgr.h src/libcm/cmMsgProtocol.h src/libcm/cmAudioSys.h src/libcm/cmAudioPortFile.h src/libcm/cmAudioFileDev.h 
 cmSRC += src/libcm/cmAudioFile.c src/libcm/cmAudioFileMgr.c src/libcm/cmMsgProtocol.c src/libcm/cmAudioSys.c src/libcm/cmAudioPortFile.c src/libcm/cmAudioFileDev.c
 
-cmHDR += src/libcm/cmDevCfg.h
-cmSRC += src/libcm/cmDevCfg.c
+cmHDR += src/libcm/cmDevCfg.h src/libcm/cmUi.h src/libcm/cmUiDrvr.h
+cmSRC += src/libcm/cmDevCfg.c src/libcm/cmUi.c
 
 cmHDR += src/libcm/cmFrameFile.h src/libcm/cmFeatFile.h src/libcm/cmCsv.h src/libcm/cmAudLabelFile.h src/libcm/cmTagFile.h
 cmSRC += src/libcm/cmFrameFile.c src/libcm/cmFeatFile.c src/libcm/cmCsv.c src/libcm/cmAudLabelFile.c src/libcm/cmTagFile.c
@@ -67,7 +67,6 @@ cmSRC += src/libcm/cmProcObj.c src/libcm/cmProc.c src/libcm/cmProc2.c src/libcm/
 
 cmHDR += src/libcm/app/cmOnset.h src/libcm/app/cmTimeLine.h src/libcm/app/cmScore.h src/libcm/app/cmPickup.h src/libcm/cmRbm.h
 cmSRC += src/libcm/app/cmOnset.c src/libcm/app/cmTimeLine.c src/libcm/app/cmScore.c src/libcm/app/cmPickup.c src/libcm/cmRbm.c
-
 
 if OS_LINUX
  cmSRC += src/libcm/linux/cmFileSysLinux.c  src/libcm/linux/cmAudioPortAlsa.c src/libcm/linux/cmMidiAlsa.c
