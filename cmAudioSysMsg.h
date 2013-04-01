@@ -17,7 +17,12 @@ extern "C" {
     kNetSyncSelAsId,   // sent with a cmDspNetMsg_t object  
   };
 
-
+  typedef struct
+  {
+    unsigned asSubIdx;
+    unsigned selAsId;  // Message selector id See kXXXSelAsId above
+    unsigned selId;    // Message specific selector
+  } cmAudioSysMsg_t;
 
   // All of the UI messages that create a UI control contain an array of integers
   // as in the 'value' field. The array contains the id's associated with
