@@ -215,7 +215,7 @@ cmAbRC_t cmApBufInitialize( unsigned devCnt, unsigned meterMs )
 
   _cmApBuf.devArray        = cmMemAllocZ( cmApDev, devCnt );
   _cmApBuf.devCnt          = devCnt;
-  _cmApBuf.meterMs         = meterMs;
+  cmApBufSetMeterMs(meterMs);
   return kOkAbRC;
 }
 
@@ -450,6 +450,11 @@ cmAbRC_t cmApBufUpdate(
 
 unsigned cmApBufMeterMs()
 { return _cmApBuf.meterMs; }
+
+void     cmApBufSetMeterMs( unsigned meterMs )
+{
+  _cmApBuf.meterMs = cmMin(1000,cmMax(10,meterMs));
+}
 
 unsigned cmApBufChannelCount( unsigned devIdx, unsigned flags )
 {

@@ -46,7 +46,7 @@ extern "C" {
 
   /// Allocate and initialize an audio buffer.
   /// devCnt - count of devices this buffer will handle.
-  /// meterMs - length of the meter buffers in milliseconds
+  /// meterMs - length of the meter buffers in milliseconds (automatically limit to the range:10 to 1000)
   cmAbRC_t cmApBufInitialize( unsigned devCnt, unsigned meterMs );
 
   /// Deallocate and release any resource held by an audio buffer allocated via cmApBufInitialize().
@@ -106,6 +106,9 @@ extern "C" {
 
   /// Return the meter window period as set by cmApBufInitialize()
   unsigned cmApBufMeterMs();
+  
+  // Set the meter update period. THis function limits the value to between 10 and 1000.
+  void     cmApBufSetMeterMs( unsigned meterMs );
 
   /// Returns the channel count set via cmApBufSetup().
   unsigned cmApBufChannelCount( unsigned devIdx, unsigned flags );
