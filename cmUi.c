@@ -36,23 +36,26 @@ typedef struct cmUiApp_str
   cmArrayH_t pnlArrH;       // cmUiPanel_t[]
 } cmUiApp_t;
 
+struct cmUiCtl_str;
+
 typedef struct cmUiPanel_str
 {
-  cmUiApp_t* appPtr;            // owner app.
-  unsigned   flags;             // See kXXXUiFl above
-  unsigned   usrId;             // app. supplied id
-  cmUiRect_t rect;              // rect to position next control (only used if kUseRectUiFl is set)
-  cmUiRect_t prevRect;
-  int        baseCol;
-  int        baseRow;
-  int        dfltW;
-  int        dfltH;
-  int        nextW;
-  int        nextH;
-  int        dfltHBorder;
-  int        dfltVBorder;
-  int        nextHBorder;
-  int        nextVBorder;
+  cmUiApp_t*           appPtr;  // owner app.
+  struct cmUiCtl_str*  ctl;     // control recd assoc'd with this panel
+  unsigned             flags;   // See kXXXUiFl above
+  unsigned             usrId;   // app. supplied id
+  cmUiRect_t           rect;    // rect to position next control (only used if kUseRectUiFl is set)
+  cmUiRect_t           prevRect;
+  int                  baseCol;
+  int                  baseRow;
+  int                  dfltW;
+  int                  dfltH;
+  int                  nextW;
+  int                  nextH;
+  int                  dfltHBorder;
+  int                  dfltVBorder;
+  int                  nextHBorder;
+  int                  nextVBorder;
   
 } cmUiPanel_t;
 
@@ -63,7 +66,8 @@ typedef struct cmUiCtl_str
   unsigned            usrId;   // control instance id and index into cmUiApp_t.ctlArrH[].
   unsigned            panelId; // panel this ctl belongs to
   cmArrayH_t          idArrH;  // id's associated with each sub-element of this control (used by menu's, list's, etc...)
-  
+  cmUiDriverArg_t     arg;     // cached callback arg for this control
+
   // current value of this control
   union
   {
@@ -96,6 +100,7 @@ typedef struct
   cmUiDriverFunc_t  cbFunc;    // Client callback function
   void *            cbArg;     //
   cmArrayH_t        appArrH;   // cmUiApp_t[]
+  cmUiCtl_t         dummy;     // dummy recd used to create controls which will never be accessed after creation (like read-only labels)
 } cmUi_t;
 
 cmUiH_t cmUiNullHandle  = cmSTATIC_NULL_HANDLE;
@@ -105,25 +110,6 @@ cmUi_t* _cmUiHandleToPtr( cmUiH_t h )
   cmUi_t* p = (cmUi_t*)h.h;
   assert(p != NULL );
   return p;
-}
-
-void _cmUiDriverArgInit( cmUiDriverArg_t* a, cmUi_t* p, cmUiDId_t dId, cmUiCId_t cId, unsigned panelId, unsigned usrId )
-{
-  memset(a,0,sizeof(*a));
-  a->cbArg   = p->drvrArg;
-  a->dId     = dId;
-  a->cId     = cId;
-  a->appId   = p->curAppId;
-  a->panelId = panelId;
-  a->usrId   = usrId;
-  a->flags   = 0;
-  a->x       = -1;
-  a->y       = -1;
-  a->w       = -1;
-  a->h       = -1;
-  a->ival    = 0;
-  a->fval    = 0;
-  a->sval    = NULL;
 }
 
 //---------------------------------------------------------------
@@ -221,6 +207,57 @@ void _cmUiSetStrAccessors( cmUiCtl_t* ctl )
   ctl->setDbl = _cmUiSetStrFromDbl;
   ctl->setStr = _cmUiSetStrFromStr;
 }
+
+//---------------------------------------------------------------
+
+
+cmUiRC_t _cmUiCallDriver( cmUi_t* p, cmUiDId_t dId, cmUiCtl_t* ctl )
+{
+  cmUiRC_t rc = kOkUiRC;
+  if( p->drvr != NULL )
+  {
+    ctl->arg.dId     = dId;
+
+    if((rc = p->drvr(p->drvrArg,&ctl->arg)) != kOkUiRC )
+      rc = cmErrMsg(&p->err,kDrvrErrUiRC,"UI manager driver error.");
+  }
+  return rc;
+}
+
+cmUiRC_t _cmUiSetDriverValue( cmUi_t* p, cmUiCtl_t* ctl, unsigned flag )
+{
+  unsigned orgFlags = ctl->arg.flags;
+  ctl->arg.flags |= flag;
+  cmUiRC_t rc = _cmUiCallDriver(p,kSetValDId,ctl);
+  ctl->arg.flags = orgFlags;
+  return rc;
+}
+
+cmUiRC_t _cmUiSetDriverValueInt( cmUi_t* p, cmUiCtl_t* ctl, unsigned flag, int value )
+{ 
+  ctl->arg.ival = value;
+  return _cmUiSetDriverValue(p,ctl,flag);
+}
+
+cmUiRC_t _cmUiSetDriverValueDouble( cmUi_t* p, cmUiCtl_t* ctl, unsigned flag, double value )
+{
+  ctl->arg.fval = value;
+  return _cmUiSetDriverValue(p,ctl,flag);  
+}
+
+cmUiRC_t _cmUiSetDriverValueStr( cmUi_t* p, cmUiCtl_t* ctl, unsigned flag, const cmChar_t* value )
+{
+  ctl->arg.sval = value;
+  return _cmUiSetDriverValue(p,ctl,flag);    
+}
+
+cmUiRC_t _cmUiSetDriverValueIntAndStr( cmUi_t* p, cmUiCtl_t* ctl, unsigned flag, int ival, const cmChar_t* sval )
+{
+  ctl->arg.ival = ival;
+  ctl->arg.sval = sval;
+  return _cmUiSetDriverValue(p,ctl,flag);      
+}
+
 
 //---------------------------------------------------------------
 
@@ -333,29 +370,13 @@ cmUiRC_t  _cmUiFindPanel( cmUi_t* p, unsigned panelId, cmUiPanel_t** ppRef, bool
   return rc;
 }
 
-cmUiRC_t _cmUiCallDriver( cmUi_t* p, cmUiDriverArg_t* a )
-{
-  cmUiRC_t rc = kOkUiRC;
-  if( p->drvr != NULL )
-    if((rc = p->drvr(a)) != kOkUiRC )
-      rc = cmErrMsg(&p->err,kDrvrErrUiRC,"UI manager driver error.");
-  return rc;
-}
-
-cmUiRC_t _cmUiDestroyDrvrCtl( cmUi_t* p, cmUiCId_t cId, unsigned panelId, unsigned usrId )
-{
-  cmUiDriverArg_t a;
-  _cmUiDriverArgInit(&a, p, kDestroyCtlDId, cId, panelId, usrId );
-
-
-  return  _cmUiCallDriver(p,&a);
-}
+//---------------------------------------------------------------
 
 cmUiRC_t  _cmUiDestroyCtl( cmUi_t* p, cmUiCtl_t* ctl )
 {
   cmUiRC_t rc = kOkUiRC;
 
-  rc =_cmUiDestroyDrvrCtl(p,ctl->cId,ctl->panelId,ctl->usrId);
+  rc = _cmUiCallDriver(p,kDestroyCtlDId,ctl);
 
   switch(ctl->cId)
   {
@@ -370,6 +391,7 @@ cmUiRC_t  _cmUiDestroyCtl( cmUi_t* p, cmUiCtl_t* ctl )
       break;
   }
 
+  ctl->cId     = kInvalidUiCId;
   ctl->usrId   = cmInvalidId;
   ctl->panelId = cmInvalidId;
   cmArrayRelease(&ctl->idArrH);
@@ -389,7 +411,7 @@ cmUiRC_t _cmUiDestroyPanel( cmUi_t* p, unsigned panelId )
   cmUiApp_t* ap = pp->appPtr;
 
   // notify the driver to destroy the panel
-  if((rc = _cmUiDestroyDrvrCtl(p,kPanelUiCId,panelId,panelId)) != kOkUiRC )
+  if((rc = _cmUiCallDriver(p,kDestroyCtlDId,pp->ctl)) != kOkUiRC )
     return rc;
 
   cmUiCtl_t* ctl = NULL;
@@ -472,6 +494,7 @@ cmUiRC_t _cmUiDestroyAllApps( cmUi_t* p )
   return rc;
 }
 
+//---------------------------------------------------------------
 
 cmUiRC_t _cmUiGetCtlXYWH( cmUi_t* p, cmUiDriverArg_t* a, cmUiPanel_t* pp )
 {
@@ -545,7 +568,7 @@ cmUiRC_t _cmUiGetCtlXYWH( cmUi_t* p, cmUiDriverArg_t* a, cmUiPanel_t* pp )
 }
 
 
-cmUiRC_t _cmUiCreateCtl( cmUi_t* p, cmUiDriverArg_t* a, unsigned panelId, cmUiCId_t cId, unsigned usrId, const cmChar_t* label, unsigned flags, cmUiCtl_t** ctlRef )
+cmUiRC_t _cmUiCreateCtl( cmUi_t* p, unsigned panelId, cmUiCId_t cId, unsigned usrId, const cmChar_t* label, unsigned flags, cmUiCtl_t** ctlRef )
 {
   cmUiRC_t     rc;
   cmUiPanel_t* pp = NULL;
@@ -554,9 +577,6 @@ cmUiRC_t _cmUiCreateCtl( cmUi_t* p, cmUiDriverArg_t* a, unsigned panelId, cmUiCI
   if( ctlRef != NULL )
     *ctlRef = NULL;
 
-  // initialize the driver arg record
-  _cmUiDriverArgInit(a, p, kCreateCtlDId, cId, panelId, usrId );
- 
   // locate the app
   if((rc = _cmUiFindApp(p,p->curAppId,&ap,true)) != kOkUiRC )
     return rc;
@@ -565,28 +585,50 @@ cmUiRC_t _cmUiCreateCtl( cmUi_t* p, cmUiDriverArg_t* a, unsigned panelId, cmUiCI
   if((rc = _cmUiFindPanel(p,panelId,&pp,true)) != kOkUiRC )
     return rc; 
 
-  // calc the control location - for non-panel controls or
-  // for panel controls using the custom 'next rect'.
-  if( cId != kPanelUiCId || cmIsFlag(pp->flags,kUseRectUiFl ) )
-    if((rc = _cmUiGetCtlXYWH(p,a,pp)) != kOkUiRC )
+  // get the new ctl record
+  cmUiCtl_t* ctl;
+  if( usrId == cmInvalidId )
+  {
+    ctl = &p->dummy;
+    memset(ctl,0,sizeof(*ctl));
+  }
+  else
+  {
+    if( cmArrayIsValid(ap->ctlArrH)==false || usrId >= cmArrayCount(ap->ctlArrH) )
+      ctl = cmArrayClr(cmUiCtl_t,ap->ctlArrH,usrId);
+    else
+    {
+      ctl = cmArrayPtr(cmUiCtl_t,ap->ctlArrH,usrId);
+
+      // if the ctl recd is already in use
+      if( ctl->cId != kInvalidUiCId )
+        _cmUiDestroyCtl(p,ctl);
+    }
+  }
+
+  // setup this controls cached callback arg record
+  cmUiDriverArgSetup(&ctl->arg,kInvalidDId,ap->appId,usrId,panelId,cId,flags,0,0,label,-1,-1,-1,-1);
+
+  // calc the control location - for non-panel controls
+  if( cId != kPanelUiCId )
+    if((rc = _cmUiGetCtlXYWH(p,&ctl->arg,pp)) != kOkUiRC )
       return rc;
 
-  // get the new ctl record
-  cmUiCtl_t* ctl = cmArrayClr(cmUiCtl_t,ap->ctlArrH,usrId);
 
   // setup the new ctl record
   ctl->cId     = cId;
   ctl->usrId   = usrId;
   ctl->panelId = panelId;
-  cmArrayAlloc(p->ctx,&ctl->idArrH,sizeof(unsigned));
+
+  // display-only controls don't need an id array
+  if( usrId != cmInvalidId )
+    cmArrayAlloc(p->ctx,&ctl->idArrH,sizeof(unsigned));
   
-  a->sval    = label;
-  a->flags   = flags;
 
   if( ctlRef != NULL )
     *ctlRef = ctl;
 
-  return  _cmUiCallDriver(p,a);
+  return  _cmUiCallDriver(p,kCreateCtlDId,ctl);
 }
 
 
@@ -727,77 +769,76 @@ unsigned cmUiAppCount( cmUiH_t h )
 
 
 
-cmUiRC_t cmUiOnDriverEvent( cmUiH_t h, const cmUiDriverArg_t* arg )
+cmUiRC_t cmUiOnDriverEvent( cmUiH_t h,  const cmUiDriverArg_t* arg )
 {
   cmUiRC_t        rc = kOkUiRC;
   cmUi_t*         p  = _cmUiHandleToPtr(h);
-  cmUiDriverArg_t a = *arg;
   cmUiCtl_t*      ctl;
 
   if((rc = cmUiSetAppId(h,arg->appId)) != kOkUiRC )
     return rc;
   
-  a.cbArg = p->cbArg;
-
-  if((rc = _cmUiFindCtl(p,a.usrId,&ctl,true)) != kOkUiRC )
+  if((rc = _cmUiFindCtl(p,arg->usrId,&ctl,true)) != kOkUiRC )
     goto errLabel;
     
-  switch( a.cId )
+  switch( arg->cId )
   {
-    case kInvalidUiCId:  break;
-    case kPanelUiCId:    break;
-    case kBtnUiCId:      break;
+    case kInvalidUiCId:  
+      break;
+
+    case kPanelUiCId:    
+    case kBtnUiCId:      
     case kCheckUiCId:    
-      ctl->u.ival = a.ival; 
+      ctl->arg.ival = ctl->u.ival = cmUiDriverArgGetInt(arg); 
       break;
 
     case kMenuBtnUiCId:  
     case kListUiCId:     
       {
-        ctl->u.ival = a.ival; 
-        if(a.ival >= cmArrayCount(ctl->idArrH))
+        unsigned eleIdx = cmUiDriverArgGetInt(arg);
+
+        if(eleIdx  >= cmArrayCount(ctl->idArrH))
         {
-          rc = cmErrMsg(&p->err,kInvalidIdUiRC,"Invalid menu or list driver element id=%i element count:%i.",a.ival,cmArrayCount(ctl->idArrH));
+          rc = cmErrMsg(&p->err,kInvalidIdUiRC,"Invalid menu or list driver element id=%i element count:%i.",eleIdx,cmArrayCount(ctl->idArrH));
           goto errLabel;
         }
 
-        a.ival = cmArrayEle(unsigned,ctl->idArrH,a.ival);
-        //a.ival = ctl->id_arr[ a.ival ];
+        // convert the selected items index to the associated client id value
+        ctl->arg.ival = ctl->u.ival = cmArrayEle(unsigned,ctl->idArrH,eleIdx);
+
       }
       break;
 
+     
     case kLabelUiCId:    
-      ctl->u.sval = cmMemResizeStr(ctl->u.sval,cmStringNullGuard(a.sval)); 
-      break;
-
-    case kTextUiCId:     
-      ctl->u.sval = cmMemResizeStr(ctl->u.sval,cmStringNullGuard(a.sval)); 
+    case kTextUiCId:
+    case kFilenameUiCId:
+    case kDirUiCId:
+      {
+        const cmChar_t* s;
+        if((s = cmUiDriverArgGetString(arg)) != NULL )
+          ctl->arg.sval = ctl->u.sval = cmMemResizeStr(ctl->u.sval,s); 
+      }
       break;
 
     case kSliderUiCId:
     case kNumberUiCId:   
-      ctl->u.fval = a.fval; 
-      a.cId = kNumberUiCId; // sliders callback the client as numbers
+      ctl->arg.fval = ctl->u.fval = cmUiDriverArgGetDouble(arg); 
       break;
 
     case kProgressUiCId: 
-      ctl->u.ival = a.ival; 
-      break;
-
     case kMeterUiCId:    
-      ctl->u.fval = a.fval; 
+      assert(0);                // progress and meters are display only
       break;
 
-    case kFilenameUiCId: 
-      ctl->u.sval = cmMemResizeStr(ctl->u.sval,cmStringNullGuard(a.sval)); 
+    case kMaxUiCId:
+      assert(0);
       break;
 
-    case kDirUiCId:      
-      ctl->u.sval = cmMemResizeStr(ctl->u.sval,cmStringNullGuard(a.sval)); 
-      break;
   }
 
-  rc = p->cbFunc(&a);
+  ctl->arg.dId = kSetValDId;
+  rc = p->cbFunc(p->cbArg,&ctl->arg);
 
  errLabel:
   cmUiSetAppId(h,cmInvalidId);
@@ -808,7 +849,6 @@ cmUiRC_t cmUiOnDriverEvent( cmUiH_t h, const cmUiDriverArg_t* arg )
 cmUiRC_t cmUiCreatePanel(   cmUiH_t uiH, unsigned newPanelId, const cmChar_t* label )
 {
   cmUiRC_t        rc;
-  cmUiDriverArg_t a;
   cmUi_t*         p    = _cmUiHandleToPtr(uiH);
   cmUiCtl_t*      ctl  = NULL;
   cmUiApp_t*      ap   = NULL;
@@ -820,6 +860,7 @@ cmUiRC_t cmUiCreatePanel(   cmUiH_t uiH, unsigned newPanelId, const cmChar_t* la
   assert( pp != NULL );
 
   pp->appPtr     = ap;
+  pp->ctl        = NULL;
   pp->usrId      = newPanelId;
   pp->baseCol    = 2;
   pp->baseRow    = 0;
@@ -837,7 +878,7 @@ cmUiRC_t cmUiCreatePanel(   cmUiH_t uiH, unsigned newPanelId, const cmChar_t* la
   pp->prevRect.h = -1;
   
 
-  if((rc = _cmUiCreateCtl(p, &a, newPanelId, kPanelUiCId, newPanelId, label, 0, NULL )) != kOkUiRC )
+  if((rc = _cmUiCreateCtl(p, newPanelId, kPanelUiCId, newPanelId, label, 0, &pp->ctl )) != kOkUiRC )
   {
     // TODO - destroy panel record here
     return rc;
@@ -855,10 +896,9 @@ cmUiRC_t cmUiCreateBtn(     cmUiH_t uiH, unsigned panelId, unsigned id, const cm
 {
   cmUiRC_t       rc;
   cmUi_t*         p = _cmUiHandleToPtr(uiH);
-  cmUiDriverArg_t a;
   cmUiCtl_t*      c;
 
-  if((rc = _cmUiCreateCtl(p,&a,panelId,kBtnUiCId,id,label,flags,&c)) == kOkUiRC )
+  if((rc = _cmUiCreateCtl(p,panelId,kBtnUiCId,id,label,flags,&c)) == kOkUiRC )
   {
     _cmUiSetIntAccessors(c);
   }
@@ -869,12 +909,14 @@ cmUiRC_t cmUiCreateCheck(   cmUiH_t uiH, unsigned panelId, unsigned id, const cm
 {
   cmUiRC_t       rc;
   cmUi_t*         p = _cmUiHandleToPtr(uiH);
-  cmUiDriverArg_t a;
   cmUiCtl_t*      c;
   
-  a.ival = dflt;
-  if((rc = _cmUiCreateCtl(p,&a,panelId,kCheckUiCId,id,label,flags,&c)) == kOkUiRC )
+  if((rc = _cmUiCreateCtl(p,panelId,kCheckUiCId,id,label,flags,&c)) == kOkUiRC )
+  {
     _cmUiSetIntAccessors(c);
+
+    rc = _cmUiSetDriverValueInt(p,c,kValUiFl,dflt);
+  }
   return rc;
 }
 
@@ -882,10 +924,9 @@ cmUiRC_t cmUiCreateLabel(   cmUiH_t uiH, unsigned panelId, unsigned id, const cm
 {
   cmUiRC_t       rc;
   cmUi_t*         p  = _cmUiHandleToPtr(uiH);
-  cmUiDriverArg_t a;
   cmUiCtl_t*      c;
 
-  if((rc = _cmUiCreateCtl(p,&a,panelId,kLabelUiCId,id,label,flags,&c)) == kOkUiRC )
+  if((rc = _cmUiCreateCtl(p,panelId,kLabelUiCId,id,label,flags,&c)) == kOkUiRC )
     _cmUiSetStrAccessors(c);
   return rc;
 }
@@ -894,17 +935,13 @@ cmUiRC_t cmUiCreateText(    cmUiH_t uiH, unsigned panelId, unsigned id, const cm
 {
   cmUiRC_t        rc = kOkUiRC;
   cmUi_t*         p  = _cmUiHandleToPtr(uiH);
-  cmUiDriverArg_t a;
   cmUiCtl_t*      c;
 
-  if(( rc = _cmUiCreateCtl(p,&a,panelId,kTextUiCId,id,label,flags,&c)) == kOkUiRC )
+  if(( rc = _cmUiCreateCtl(p,panelId,kTextUiCId,id,label,flags,&c)) == kOkUiRC )
   {
     _cmUiSetStrAccessors(c);
 
-    a.dId   = kSetValDId;
-    a.flags = kValUiFl;
-    a.sval  = text;
-    rc      = _cmUiCallDriver(p,&a);
+    rc   = _cmUiSetDriverValueStr(p,c,kValUiFl,text);
   }
 
   return rc;
@@ -914,7 +951,6 @@ cmUiRC_t _cmUiCreateNumber(  cmUiH_t uiH, unsigned panelId, unsigned id, const c
 {
   cmUiRC_t        rc = kOkUiRC;
   cmUi_t*         p  = _cmUiHandleToPtr(uiH);
-  cmUiDriverArg_t a;
   cmUiCId_t       cid = kNumberUiCId;
   cmUiCtl_t*      c;
   cmUiPanel_t*    pp;
@@ -935,31 +971,22 @@ cmUiRC_t _cmUiCreateNumber(  cmUiH_t uiH, unsigned panelId, unsigned id, const c
     cid = kSliderUiCId;
   }
 
-  if(( rc = _cmUiCreateCtl(p,&a,panelId,cid,id,label,flags,&c)) == kOkUiRC )
+  if(( rc = _cmUiCreateCtl(p,panelId,cid,id,label,flags,&c)) == kOkUiRC )
   {
     cmUiRC_t rc0;
 
     _cmUiSetDblAccessors(c);
 
-    a.dId   = kSetValDId;
-    a.flags = kMinUiFl;
-    a.fval  = min;
-    if((rc0 = _cmUiCallDriver(p,&a)) != kOkUiRC )
+    if((rc0 = _cmUiSetDriverValueDouble(p,c,kMinUiFl,min)) != kOkUiRC )
       rc = rc0;
 
-    a.flags = kMaxUiFl;
-    a.fval  = max;
-    if((rc0 = _cmUiCallDriver(p,&a)) != kOkUiRC )
+    if((rc0 = _cmUiSetDriverValueDouble(p,c,kMaxUiFl,max)) != kOkUiRC )
       rc = rc0;
 
-    a.flags = kIncUiFl;
-    a.fval  = incr;
-    if((rc0 = _cmUiCallDriver(p,&a)) != kOkUiRC )
+    if((rc0 = _cmUiSetDriverValueDouble(p,c,kIncUiFl,incr)) != kOkUiRC )
       rc = rc0;
 
-    a.flags = kValUiFl;
-    a.fval  = dflt;
-    if((rc0 = _cmUiCallDriver(p,&a)) != kOkUiRC )
+    if((rc0 = _cmUiSetDriverValueDouble(p,c,kValUiFl,dflt)) != kOkUiRC )
       rc = rc0;
 
   }
@@ -987,30 +1014,21 @@ cmUiRC_t cmUiCreateProgress(cmUiH_t uiH, unsigned panelId, unsigned id, const cm
 {
   cmUiRC_t        rc = kOkUiRC;
   cmUi_t*         p  = _cmUiHandleToPtr(uiH);
-  cmUiDriverArg_t a;
   cmUiCtl_t*      c;
 
-  if(( rc = _cmUiCreateCtl(p,&a,panelId,kProgressUiCId,id,label,flags,&c)) == kOkUiRC )
+  if(( rc = _cmUiCreateCtl(p,panelId,kProgressUiCId,id,label,flags,&c)) == kOkUiRC )
   {
     cmUiRC_t rc0;
 
     _cmUiSetIntAccessors(c);
 
-    a.dId   = kSetValDId;
-
-    a.flags = kMinUiFl;
-    a.ival  = min;
-    if((rc0 = _cmUiCallDriver(p,&a)) != kOkUiRC )
+    if((rc0 = _cmUiSetDriverValueInt(p,c,kMinUiFl,min)) != kOkUiRC )
       rc = rc0;
 
-    a.flags = kMaxUiFl;
-    a.ival  = max;
-    if((rc0 = _cmUiCallDriver(p,&a)) != kOkUiRC )
+    if((rc0 = _cmUiSetDriverValueInt(p,c,kMaxUiFl,max)) != kOkUiRC )
       rc = rc0;
 
-    a.flags = kValUiFl;
-    a.ival  = dflt;
-    if((rc0 = _cmUiCallDriver(p,&a)) != kOkUiRC )
+    if((rc0 = _cmUiSetDriverValueInt(p,c,kValUiFl,dflt)) != kOkUiRC )
       rc = rc0;
 
   }
@@ -1022,7 +1040,6 @@ cmUiRC_t _cmUiCreateMeter(   cmUiH_t uiH, unsigned panelId, unsigned id, const c
 {
   cmUiRC_t       rc;
   cmUi_t*         p  = _cmUiHandleToPtr(uiH);
-  cmUiDriverArg_t a;
   cmUiCtl_t*      c;
   cmUiPanel_t*   pp;
 
@@ -1037,27 +1054,19 @@ cmUiRC_t _cmUiCreateMeter(   cmUiH_t uiH, unsigned panelId, unsigned id, const c
       cmUiSetNextWH( uiH, panelId, cmUiH(uiH,panelId), cmUiW(uiH,panelId) );
   }
 
-  if((rc = _cmUiCreateCtl(p,&a,panelId,kMeterUiCId,id,label,flags,&c)) == kOkUiRC )
+  if((rc = _cmUiCreateCtl(p,panelId,kMeterUiCId,id,label,flags,&c)) == kOkUiRC )
   {
     cmUiRC_t rc0;
 
     _cmUiSetIntAccessors(c);
 
-    a.dId   = kSetValDId;
-
-    a.flags = kMinUiFl;
-    a.ival  = min;
-    if((rc0 = _cmUiCallDriver(p,&a)) != kOkUiRC )
+    if((rc0 = _cmUiSetDriverValueInt(p,c,kMinUiFl,min)) != kOkUiRC )
       rc = rc0;
 
-    a.flags = kMaxUiFl;
-    a.ival  = max;
-    if((rc0 = _cmUiCallDriver(p,&a)) != kOkUiRC )
+    if((rc0 = _cmUiSetDriverValueInt(p,c,kMaxUiFl,max)) != kOkUiRC )
       rc = rc0;
 
-    a.flags = kValUiFl;
-    a.ival  = dflt;
-    if((rc0 = _cmUiCallDriver(p,&a)) != kOkUiRC )
+    if((rc0 = _cmUiSetDriverValueInt(p,c,kValUiFl,dflt)) != kOkUiRC )
       rc = rc0;
 
   }
@@ -1079,10 +1088,9 @@ cmUiRC_t cmUiCreateFileBtn(cmUiH_t uiH, unsigned panelId, unsigned id, const cmC
 {
   cmUiRC_t        rc = kOkUiRC;
   cmUi_t*         p  = _cmUiHandleToPtr(uiH);
-  cmUiDriverArg_t a;
   cmUiCtl_t*      c;
 
-  if(( rc = _cmUiCreateCtl(p,&a,panelId,kFilenameUiCId,id,label,flags,&c)) == kOkUiRC )
+  if(( rc = _cmUiCreateCtl(p,panelId,kFilenameUiCId,id,label,flags,&c)) == kOkUiRC )
   {
     cmUiRC_t rc0;
 
@@ -1090,19 +1098,13 @@ cmUiRC_t cmUiCreateFileBtn(cmUiH_t uiH, unsigned panelId, unsigned id, const cmC
 
     if( dfltDir != NULL )
     {
-      a.dId   = kSetValDId;
-      a.flags = kValUiFl;
-      a.sval  = dfltDir;
-      if((rc0 = _cmUiCallDriver(p,&a)) != kOkUiRC )
+      if((rc0 = _cmUiSetDriverValueStr(p,c,kValUiFl,dfltDir)) != kOkUiRC )
         rc = rc0;
     }
 
     if( patStr != NULL )
     {
-      a.dId   = kSetValDId;
-      a.flags = kFnPatUiFl;
-      a.sval  = patStr;
-      if((rc0 = _cmUiCallDriver(p,&a)) != kOkUiRC )
+      if((rc0 = _cmUiSetDriverValueStr(p,c,kValUiFl,patStr)) != kOkUiRC )
         rc = rc0;
     }
   }
@@ -1113,10 +1115,9 @@ cmUiRC_t cmUiCreateDirBtn(  cmUiH_t uiH, unsigned panelId, unsigned id, const cm
 {
   cmUiRC_t        rc = kOkUiRC;
   cmUi_t*         p  = _cmUiHandleToPtr(uiH);
-  cmUiDriverArg_t a;
   cmUiCtl_t*      c;
 
-  if(( rc = _cmUiCreateCtl(p,&a,panelId,kDirUiCId,id,label,flags,&c)) == kOkUiRC )
+  if(( rc = _cmUiCreateCtl(p,panelId,kDirUiCId,id,label,flags,&c)) == kOkUiRC )
   {
     cmUiRC_t rc0;
 
@@ -1124,10 +1125,7 @@ cmUiRC_t cmUiCreateDirBtn(  cmUiH_t uiH, unsigned panelId, unsigned id, const cm
 
     if( dfltDir != NULL )
     {
-      a.dId   = kSetValDId;
-      a.flags = kValUiFl;
-      a.sval  = dfltDir;
-      if((rc0 = _cmUiCallDriver(p,&a)) != kOkUiRC )
+      if((rc0 = _cmUiSetDriverValueStr(p,c,kValUiFl,dfltDir)) != kOkUiRC )
         rc = rc0;
     }
   }
@@ -1138,10 +1136,9 @@ cmUiRC_t cmUiCreateMenuBtn( cmUiH_t uiH, unsigned panelId, unsigned id, const cm
 {
   cmUiRC_t       rc;
   cmUi_t*         p  = _cmUiHandleToPtr(uiH);
-  cmUiDriverArg_t a;
   cmUiCtl_t*      c;
 
-  if((rc = _cmUiCreateCtl(p,&a,panelId,kMenuBtnUiCId,id,label,flags,&c)) == kOkUiRC )
+  if((rc = _cmUiCreateCtl(p,panelId,kMenuBtnUiCId,id,label,flags,&c)) == kOkUiRC )
     _cmUiSetIntAccessors(c);
   return rc;
 }
@@ -1173,7 +1170,6 @@ cmUiRC_t cmUiCreateList(cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar
 {
   cmUi_t*         p    = _cmUiHandleToPtr(uiH);
   cmUiRC_t        rc;
-  cmUiDriverArg_t a;
   cmUiCtl_t*      c;
   cmUiPanel_t*    pp;
 
@@ -1183,7 +1179,7 @@ cmUiRC_t cmUiCreateList(cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar
   if( cmIsNotFlag(pp->flags,kNextWHUiFl) )
     cmUiSetNextWH( uiH, panelId, cmUiNextW(uiH,panelId), cmUiH(uiH,panelId) * visibleRowCnt );
   
-  if((rc =  _cmUiCreateCtl(p,&a,panelId,kListUiCId,id,label,flags,&c)) == kOkUiRC )
+  if((rc =  _cmUiCreateCtl(p,panelId,kListUiCId,id,label,flags,&c)) == kOkUiRC )
     _cmUiSetIntAccessors(c);
   
   return rc;
@@ -1217,7 +1213,6 @@ cmUiRC_t cmUiAppendListEle(    cmUiH_t uiH, unsigned panelId, unsigned id, const
   cmUiRC_t        rc  = kOkUiRC;
   cmUi_t*         p   = _cmUiHandleToPtr(uiH);
   cmUiCtl_t*      ctl = NULL;
-  cmUiDriverArg_t a;
 
   if((rc = _cmUiFindCtl(p,id,&ctl,true)) != kOkUiRC )
     return rc;
@@ -1225,25 +1220,10 @@ cmUiRC_t cmUiAppendListEle(    cmUiH_t uiH, unsigned panelId, unsigned id, const
   if( ctl->cId != kListUiCId && ctl->cId != kMenuBtnUiCId )
     return cmErrMsg(&p->err,kInvalidCtlOpUiRC,"List elements may only be set on 'list' and 'menu button' controls.");
 
-  _cmUiDriverArgInit(&a, p, kSetValDId, ctl->cId, panelId, id );
-  
+  if( cmArrayIsValid(ctl->idArrH) )
+    cmArrayPush(ctl->idArrH,&eleId,1);
 
-  //if( ctl->id_arr == NULL || ctl->id_cnt == ctl->id_alloc )
-  //  ctl->id_arr = cmMemResizeZ(unsigned,ctl->id_arr,ctl->id_alloc+=10);
-
-  //ctl->id_arr[ ctl->id_cnt++ ] = eleId;
-
-  cmArrayPush(ctl->idArrH,&eleId,1);
-
-  //a.dId     = kSetValDId;
-  //a.cId     = ctl->cId;
-  //a.panelId = panelId;
-  //a.usrId   = id;
-  a.flags   = kAppendUiFl;
-  a.sval    = text;
-  a.ival    = eleId;
-
-  return _cmUiCallDriver(p,&a);
+  return _cmUiSetDriverValueIntAndStr(p,ctl,kAppendUiFl,eleId,text);
 }
 
 cmUiRC_t cmUiDestroyCtl( cmUiH_t uiH, unsigned id )
@@ -1319,6 +1299,31 @@ cmUiRC_t cmUiNextRect(    cmUiH_t uiH, unsigned panelId, int x, int y, int w, in
   return rc;
 }
 
+cmUiRC_t     cmUiPrevRect( cmUiH_t uiH, unsigned panelId, int* xRef, int* yRef, int* wRef, int* hRef )
+{
+  cmUi_t* p  = _cmUiHandleToPtr(uiH);
+
+  cmUiPanel_t* pp;
+  cmUiRC_t     rc;
+  
+  if((rc = _cmUiFindPanel(p, panelId, &pp, true)) != kOkUiRC )
+    return rc;
+
+  if( xRef != NULL )
+    *xRef = pp->prevRect.x;
+
+  if( yRef != NULL )
+  *yRef = pp->prevRect.y;
+
+  if( wRef != NULL )
+    *wRef = pp->prevRect.w;
+
+  if( hRef != NULL )
+    *hRef = pp->prevRect.h;
+
+  return rc;
+}
+
 bool    cmUiFillRows( cmUiH_t uiH, unsigned panelId )
 {
   cmUi_t*      p  = _cmUiHandleToPtr(uiH);
@@ -1345,20 +1350,6 @@ bool    cmUiSetFillRows( cmUiH_t uiH, unsigned panelId, bool enableFl )
   return retFl;
 }
 
-int      cmUiBaseCol(    cmUiH_t uiH, unsigned panelId, int x )
-{
-  cmUi_t*      p  = _cmUiHandleToPtr(uiH);
-  cmUiPanel_t* pp;
-  
-  if( _cmUiFindPanel(p, panelId, &pp, true) != kOkUiRC )
-    return -1;
-
-  int bc = pp->baseCol;
-  pp->baseCol  = x;
-  pp->flags    = cmSetFlag(pp->flags,kPlaceBaseRowUiFl);
-  return bc;
-}
-
 void     cmUiPlaceRight( cmUiH_t uiH, unsigned panelId )
 {
   cmUi_t*      p  = _cmUiHandleToPtr(uiH);
@@ -1383,7 +1374,49 @@ void     cmUiPlaceBelow( cmUiH_t uiH, unsigned panelId )
   pp->flags = cmSetFlag(pp->flags,kPlaceBelowUiFl);
 }
 
-int      cmUiBaseRow(    cmUiH_t uiH, unsigned panelId, int y )
+void     cmUiNewLine(    cmUiH_t uiH, unsigned panelId )
+{
+  cmUiSetBaseRow( uiH, panelId, cmUiPrevB(uiH,panelId) + cmUiNextVBorder(uiH,panelId) );
+  cmUiSetBaseCol( uiH, panelId, cmUiBaseCol(uiH,panelId));
+}
+
+int      cmUiBaseCol(       cmUiH_t uiH, unsigned panelId )
+{
+  cmUi_t*      p  = _cmUiHandleToPtr(uiH);
+  cmUiPanel_t* pp;
+  
+  if(_cmUiFindPanel(p, panelId, &pp, true) != kOkUiRC )
+    return -1;
+
+  return pp->baseCol;
+}
+
+int      cmUiSetBaseCol(    cmUiH_t uiH, unsigned panelId, int x )
+{
+  cmUi_t*      p  = _cmUiHandleToPtr(uiH);
+  cmUiPanel_t* pp;
+  
+  if( _cmUiFindPanel(p, panelId, &pp, true) != kOkUiRC )
+    return -1;
+
+  int bc = pp->baseCol;
+  pp->baseCol  = x;
+  pp->flags    = cmSetFlag(pp->flags,kPlaceBaseRowUiFl);
+  return bc;
+}
+
+int      cmUiBaseRow(       cmUiH_t uiH, unsigned panelId )
+{
+  cmUi_t*      p  = _cmUiHandleToPtr(uiH);
+  cmUiPanel_t* pp;
+  
+  if(_cmUiFindPanel(p, panelId, &pp, true) != kOkUiRC )
+    return -1;
+
+  return pp->baseRow;
+}
+
+int      cmUiSetBaseRow(    cmUiH_t uiH, unsigned panelId, int y )
 {
   cmUi_t*      p  = _cmUiHandleToPtr(uiH);
   cmUiPanel_t* pp;
@@ -1396,6 +1429,8 @@ int      cmUiBaseRow(    cmUiH_t uiH, unsigned panelId, int y )
   pp->baseRow  = y;
   return br;
 }
+
+
 
 int      cmUiW( cmUiH_t uiH, unsigned panelId )         
 {
@@ -1419,6 +1454,34 @@ int      cmUiH( cmUiH_t uiH, unsigned panelId )
   return pp->dfltH;
 }
 
+int      cmUiSetW(   cmUiH_t uiH, unsigned panelId, int w )
+{ 
+  cmUi_t*      p  = _cmUiHandleToPtr(uiH);
+  cmUiPanel_t* pp;
+  
+  if(_cmUiFindPanel(p, panelId, &pp, true) != kOkUiRC )
+    return -1;
+  
+  int rv = pp->dfltW;
+  pp->dfltW = w;
+  pp->nextW = w;
+  return rv;
+}
+
+int      cmUiSetH(   cmUiH_t uiH, unsigned panelId, int h )
+{
+  cmUi_t*      p  = _cmUiHandleToPtr(uiH);
+  cmUiPanel_t* pp;
+  
+  if(_cmUiFindPanel(p, panelId, &pp, true) != kOkUiRC )
+    return -1;
+  
+  int rv = pp->dfltH;
+  pp->dfltH = h;
+  pp->nextW = h;
+  return rv;
+}
+
 void     cmUiSetWH(  cmUiH_t uiH, unsigned panelId, int w, int h )
 {
   cmUi_t*      p  = _cmUiHandleToPtr(uiH);
@@ -1429,6 +1492,9 @@ void     cmUiSetWH(  cmUiH_t uiH, unsigned panelId, int w, int h )
 
   pp->dfltW = w;
   pp->dfltH = h;
+  pp->nextW = w;
+  pp->nextH = h;
+
 }
 
 int     cmUiNextW(  cmUiH_t uiH, unsigned panelId )
@@ -1452,6 +1518,12 @@ int     cmUiNextH(  cmUiH_t uiH, unsigned panelId )
 
   return pp->nextH;
 }
+
+void     cmUiSetNextW(  cmUiH_t uiH, unsigned panelId, int w )
+{ return cmUiSetNextWH( uiH, panelId, w, cmUiNextH(uiH,panelId)); }
+
+void     cmUiSetNextH(  cmUiH_t uiH, unsigned panelId, int h )
+{ return cmUiSetNextWH( uiH, panelId, cmUiNextW(uiH,panelId), h); }
 
 void     cmUiSetNextWH( cmUiH_t uiH, unsigned panelId, int w, int h )
 {
@@ -1562,25 +1634,83 @@ int      cmUiSetNextVBorder( cmUiH_t uiH, unsigned panelId, int h )
   return rv;
 }
 
+int      cmUiPrevL(    cmUiH_t uiH, unsigned panelId )
+{
+  cmUi_t*      p  = _cmUiHandleToPtr(uiH);
+  cmUiPanel_t* pp;
+  
+  if(_cmUiFindPanel(p, panelId, &pp, true) != kOkUiRC )
+    return -1;
+
+  return pp->prevRect.x;
+}
+
+int      cmUiPrevT(    cmUiH_t uiH, unsigned panelId )
+{
+  cmUi_t*      p  = _cmUiHandleToPtr(uiH);
+  cmUiPanel_t* pp;
+  
+  if(_cmUiFindPanel(p, panelId, &pp, true) != kOkUiRC )
+    return -1;
+
+  return pp->prevRect.y;
+}
+
+int      cmUiPrevR(    cmUiH_t uiH, unsigned panelId )
+{
+  cmUi_t*      p  = _cmUiHandleToPtr(uiH);
+  cmUiPanel_t* pp;
+  
+  if(_cmUiFindPanel(p, panelId, &pp, true) != kOkUiRC )
+    return -1;
+
+  return pp->prevRect.x + pp->prevRect.w;
+}
+
+int      cmUiPrevB(    cmUiH_t uiH, unsigned panelId )
+{
+  cmUi_t*      p  = _cmUiHandleToPtr(uiH);
+  cmUiPanel_t* pp;
+  
+  if(_cmUiFindPanel(p, panelId, &pp, true) != kOkUiRC )
+    return -1;
+
+  return pp->prevRect.y + pp->prevRect.h;
+}
+int      cmUiPrevW(    cmUiH_t uiH, unsigned panelId )
+{
+  cmUi_t*      p  = _cmUiHandleToPtr(uiH);
+  cmUiPanel_t* pp;
+  
+  if(_cmUiFindPanel(p, panelId, &pp, true) != kOkUiRC )
+    return -1;
+
+  return pp->prevRect.w;
+}
+
+int      cmUiPrevH(    cmUiH_t uiH, unsigned panelId )
+{
+  cmUi_t*      p  = _cmUiHandleToPtr(uiH);
+  cmUiPanel_t* pp;
+  
+  if(_cmUiFindPanel(p, panelId, &pp, true) != kOkUiRC )
+    return -1;
+
+  return pp->prevRect.h;
+}
+
+
 
 cmUiRC_t  cmUiSetInt(    cmUiH_t uiH,  unsigned id, int v )
 {
   cmUi_t*      p  = _cmUiHandleToPtr(uiH);
   cmUiCtl_t*   ctl;
   cmUiRC_t     rc;
-  cmUiDriverArg_t a;
 
   if((rc = _cmUiFastFindCtl(p,id,&ctl,true)) != kOkUiRC )
     return rc;
 
-  // TODO: cache the cmUiDriverArg_t for this control in the ctl_t
-  // object to avoid having to recreate the arg. recd on every call.
-  _cmUiDriverArgInit(&a, p, kSetValDId, ctl->cId, ctl->panelId, id );
-
-  a.ival  = v;
-  a.flags |= kValUiFl;
-
-  return _cmUiCallDriver(p,&a);
+  return _cmUiSetDriverValueInt(p,ctl,kValUiFl,v);
 
 }
 
@@ -1589,17 +1719,11 @@ cmUiRC_t  cmUiSetUInt(   cmUiH_t uiH,  unsigned id, unsigned v )
   cmUi_t*      p  = _cmUiHandleToPtr(uiH);
   cmUiCtl_t*   ctl;
   cmUiRC_t     rc;
-  cmUiDriverArg_t a;
 
   if((rc = _cmUiFastFindCtl(p,id,&ctl,true)) != kOkUiRC )
     return rc;
 
-  _cmUiDriverArgInit(&a, p, kSetValDId, ctl->cId, ctl->panelId, id );
-
-  a.ival  = (int)v;
-  a.flags |= kValUiFl;
-
-  return _cmUiCallDriver(p,&a);
+  return _cmUiSetDriverValueInt(p,ctl,kValUiFl,v);
 }
 
 cmUiRC_t cmUiSetDouble( cmUiH_t uiH,  unsigned id, double v )
@@ -1607,17 +1731,11 @@ cmUiRC_t cmUiSetDouble( cmUiH_t uiH,  unsigned id, double v )
   cmUi_t*      p  = _cmUiHandleToPtr(uiH);
   cmUiCtl_t*   ctl;
   cmUiRC_t     rc;
-  cmUiDriverArg_t a;
 
   if((rc = _cmUiFastFindCtl(p,id,&ctl,true)) != kOkUiRC )
     return rc;
 
-  _cmUiDriverArgInit(&a, p, kSetValDId, ctl->cId, ctl->panelId, id );
-
-  a.fval  = v;
-  a.flags |= kValUiFl;
-
-  return _cmUiCallDriver(p,&a);
+  return _cmUiSetDriverValueDouble(p,ctl,kValUiFl,v);
 }
 
 cmUiRC_t  cmUiSetString( cmUiH_t uiH,  unsigned id, const cmChar_t* v )
@@ -1625,17 +1743,11 @@ cmUiRC_t  cmUiSetString( cmUiH_t uiH,  unsigned id, const cmChar_t* v )
   cmUi_t*      p  = _cmUiHandleToPtr(uiH);
   cmUiCtl_t*   ctl;
   cmUiRC_t     rc;
-  cmUiDriverArg_t a;
 
   if((rc = _cmUiFastFindCtl(p,id,&ctl,true)) != kOkUiRC )
     return rc;
 
-  _cmUiDriverArgInit(&a, p, kSetValDId, ctl->cId, ctl->panelId, id );
-
-  a.sval  = v;
-  a.flags |= kValUiFl;
-
-  return _cmUiCallDriver(p,&a);
+  return _cmUiSetDriverValueStr(p,ctl,kValUiFl,v);
 }
 
 int             cmUiInt(    cmUiH_t uiH,  unsigned id )

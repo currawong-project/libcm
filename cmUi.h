@@ -251,15 +251,20 @@ extern "C" {
   // Note that 'place right' and 'place below' are mutually
   // exclusive. Enabling one disables the other.
   void     cmUiPlaceRight( cmUiH_t uiH, unsigned panelId );          
-  void     cmUiPlaceBelow( cmUiH_t uiH, unsigned panelId );          
+  void     cmUiPlaceBelow( cmUiH_t uiH, unsigned panelId );
 
-  // Set current base col and return previous value. Place the next
+  // Place the next control at the base column below the previous ctl.
+  void     cmUiNewLine(    cmUiH_t uiH, unsigned panelId );
+
+  // Set/Get current base col and return previous value. Place the next
   // control on the base row.
-  int      cmUiBaseCol(    cmUiH_t uiH, unsigned panelId, int x );   
+  int      cmUiBaseCol(       cmUiH_t uiH, unsigned panelId );
+  int      cmUiSetBaseCol(    cmUiH_t uiH, unsigned panelId, int x );   
 
 
-  // Set current base row and return previous value.
-  int      cmUiBaseRow(    cmUiH_t uiH, unsigned panelId, int y );   
+  // Set/Get current base row and return previous value.
+  int      cmUiBaseRow(       cmUiH_t uiH, unsigned panelId );
+  int      cmUiSetBaseRow(    cmUiH_t uiH, unsigned panelId, int y );   
 
   // Size:
   // 1) If a 'next rect' is set the control will be placed according
@@ -272,14 +277,18 @@ extern "C" {
 
   // Get/Set the default control width and height.
   // Set returns previous value.
-  int      cmUiW( cmUiH_t uiH, unsigned panelId );         
-  int      cmUiH( cmUiH_t uiH, unsigned panelId );
+  int      cmUiW(      cmUiH_t uiH, unsigned panelId );         
+  int      cmUiH(      cmUiH_t uiH, unsigned panelId );
+  int      cmUiSetW(   cmUiH_t uiH, unsigned panelId, int w );
+  int      cmUiSetH(   cmUiH_t uiH, unsigned panelId, int h );
   void     cmUiSetWH(  cmUiH_t uiH, unsigned panelId, int w, int h );
 
   // Get/Set the control width and height for only the next control.
   // Set returns previous value.
-  int      cmUiNextW(  cmUiH_t uiH, unsigned panelId );
-  int      cmUiNextH(  cmUiH_t uiH, unsigned panelId );
+  int      cmUiNextW(     cmUiH_t uiH, unsigned panelId );
+  int      cmUiNextH(     cmUiH_t uiH, unsigned panelId );
+  void     cmUiSetNextW(  cmUiH_t uiH, unsigned panelId, int w );
+  void     cmUiSetNextH(  cmUiH_t uiH, unsigned panelId, int h );
   void     cmUiSetNextWH( cmUiH_t uiH, unsigned panelId, int w, int h );
 
   // Get/Set the default inter-control borders
@@ -301,6 +310,16 @@ extern "C" {
   // cmUiCreateXXX() call. Setting the 'next rect' overrides all
   // other layout directives.
   cmUiRC_t cmUiNextRect( cmUiH_t uiH, unsigned panelId, int x, int y, int w, int h );
+  
+  // Get the location/size of the previously created control.
+  // All ref. args are optional.
+  cmUiRC_t cmUiPrevRect( cmUiH_t uiH, unsigned panelId, int* xRef, int* yRef, int* wRef, int* hRef );
+  int      cmUiPrevL(    cmUiH_t uiH, unsigned panelId );
+  int      cmUiPrevT(    cmUiH_t uiH, unsigned panelId );
+  int      cmUiPrevR(    cmUiH_t uiH, unsigned panelId );
+  int      cmUiPrevB(    cmUiH_t uiH, unsigned panelId );
+  int      cmUiPrevW(    cmUiH_t uiH, unsigned panelId );
+  int      cmUiPrevH(    cmUiH_t uiH, unsigned panelId );
 
 
   //
