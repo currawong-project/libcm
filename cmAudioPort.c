@@ -693,6 +693,13 @@ int cmApPortTest( bool runFl, cmRpt_t* rpt, int argc, const char* argv[] )
 
   cmRptPrintf(rpt,"%s in:%i out:%i chidx:%i chs:%i bufs=%i frm=%i rate=%f\n",runFl?"exec":"rpt",r.inDevIdx,r.outDevIdx,r.chIdx,r.chCnt,r.bufCnt,r.framesPerCycle,r.srate);
 
+  if( cmApFileAllocate(rpt) != kOkApRC )
+  {
+    cmRptPrintf(rpt,"Audio port file allocation failed.");
+    result = -1;
+    goto errLabel;
+  }
+
   // allocate the non-real-time port
   if( cmApNrtAllocate(rpt) != kOkApRC )
   {
@@ -796,6 +803,7 @@ int cmApPortTest( bool runFl, cmRpt_t* rpt, int argc, const char* argv[] )
   cmApBufFinalize();
 
   cmApNrtFree();
+  cmApFileFree();
 
   // report the count of audio buffer callbacks
   cmRptPrintf(rpt,"cb count:%i\n", r.cbCnt );
