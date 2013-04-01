@@ -95,6 +95,9 @@ unsigned    cmArrayExpandCount( cmArrayH_t h )
 
 unsigned    cmArrayCount(  cmArrayH_t h )
 {
+  if( cmArrayIsValid(h) == false )
+    return 0;
+
   cmAr_t* p = _cmArHandleToPtr(h);
   return p->cur_cnt;
 }
