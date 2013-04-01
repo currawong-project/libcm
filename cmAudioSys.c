@@ -7,6 +7,7 @@
 #include "cmMem.h"
 #include "cmMallocDebug.h"
 #include "cmAudioPort.h"
+#include "cmAudioNrtDev.h"
 #include "cmAudioPortFile.h"
 #include "cmApBuf.h"
 #include "cmJson.h"
@@ -1304,6 +1305,12 @@ void cmAudioSysTest( cmRpt_t* rpt, int argc, const char* argv[] )
   cmRptPrintf(rpt,"in:%i out:%i syncFl:%i que:%i fpc:%i dsp:%i bufs:%i sr:%f\n",ss.args.inDevIdx,ss.args.outDevIdx,ss.args.syncInputFl,
     ss.args.msgQueueByteCnt,ss.args.devFramesPerCycle,ss.args.dspFramesPerCycle,ss.args.audioBufCnt,ss.args.srate);
 
+  if( cmApNrtAllocate(rpt) != kOkApRC )
+    goto errLabel;
+
+  if( cmApFileAllocate(rpt) != kOkApRC )
+    goto errLabel;
+
   // initialize the audio device system
   if( cmApInitialize(rpt) != kOkApRC )
     goto errLabel;
@@ -1406,6 +1413,8 @@ void cmAudioSysTest( cmRpt_t* rpt, int argc, const char* argv[] )
 
   cmAudioSysFree(&h);
   cmApFinalize();
+  cmApFileFree();
+  cmApNrtFree();
   cmApBufFinalize();
 
 }
