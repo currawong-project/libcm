@@ -55,6 +55,10 @@ cmUnRC_t cmUdpNetAllocJson(
 cmUnRC_t cmUdpNetFree( cmUdpNetH_t* hp );  
 
 // Initialize a UDP net using a previously allocated handle
+// The node information (nodeLabel,nodeId,nodeSocketPort) refers
+// to the local node. The callback information (cbFunc,cbArg)
+// are used during cmUdpNetReceive() to receive incoming
+// information from the local node.
 cmUnRC_t cmUdpNetInit(
   cmUdpNetH_t         h,
   const cmChar_t*     nodeLabel,
@@ -118,8 +122,8 @@ cmUnRC_t cmUdpNetSendById(    cmUdpNetH_t h, unsigned remoteNodeId, const void* 
 cmUnRC_t cmUdpNetSendByLabel( cmUdpNetH_t h, const cmChar_t* remoteNodeLabel, const void* data, unsigned dataByteCnt );
 
 // Transmit any waiting incoming messages to the client via the
-// cmUdpNetCallback_t callback function provided in the UDP
-// network's initialization function.
+// cmUdpNetCallback_t callback function provided
+// cmUdpNetInit().
 // On input *msgCntPtr should hold the max. number of 
 // messages to receive or NULL to receive all available.
 // On return *msgCntPtr is set to the actual number of
