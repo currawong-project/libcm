@@ -11,7 +11,7 @@ extern "C" {
        The device record identifies a particlar device
        end-point or pre-configured setup.  The 'cfg label'
        associated with this setup allows an application
-       to refer to the setup by name.  This releives the
+       to refer to the setup by name.  This relieves the
        application from having to handle the details of
        forming, storing, and maintaining device configurations.
 
@@ -37,7 +37,7 @@ extern "C" {
    */
 
 
-  struct cmAudioSysArgs_str;
+  struct cmRtSysArgs_str;
 
   enum
   {
@@ -76,16 +76,19 @@ extern "C" {
 
   typedef struct
   {
-    cmChar_t*        inDevLabelStr;  // Input audio device label.
-    cmChar_t*        outDevLabelStr; // Output audio device label.
-    cmAudioSysArgs_t audioSysArgs;   // Audio system  cfg recd
-    bool             dfltFl;         // true if this is the default audio cfg.
+    cmChar_t*     inDevLabelStr;  // Input audio device label.
+    cmChar_t*     outDevLabelStr; // Output audio device label.
+    cmRtSysArgs_t audioSysArgs;   // Audio system  cfg recd
+    bool          dfltFl;         // true if this is the default audio cfg.
+    bool          activeFl;
   } cmDcmAudio_t;
 
   typedef struct              
   {
-    cmChar_t* sockAddr;   // Remote socket address.
-    unsigned  portNumber; // Remote socket port number
+    cmChar_t* sockAddr;   // socket address.
+    unsigned  portNumber; // socket port number
+    bool      localFl;    // this is the local port
+    bool      activeFl;   // this port is active/inactive
   } cmDcmNet_t;
 
   extern cmDevCfgH_t cmDevCfgNullHandle;
@@ -128,6 +131,8 @@ extern "C" {
   const cmDcmMidi_t* cmDevCfgMidiCfg( cmDevCfgH_t h, unsigned cfgIdx );
   const cmDcmMidi_t* cmDevCfgMidiMap( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );
   
+  const cmDcmMidi_t* cmDevCfgMidiCfgFromLabel( cmDevCfgH_t h, const cmChar_t* cfgLabel );
+
 
   cmDcRC_t cmDevCfgNameAudioPort( 
     cmDevCfgH_t     h,
@@ -139,22 +144,31 @@ extern "C" {
     unsigned        devFramesPerCycle,
     unsigned        dspFramesPerCycle,
     unsigned        audioBufCnt,
-    double          srate  );
+    double          srate,
+    bool            activeFl );
 
-  cmDcRC_t            cmDevCfgAudioSetDefaultCfgIndex( cmDevCfgH_t h, unsigned cfgIdx );
-  unsigned            cmDevCfgAudioGetDefaultCfgIndex( cmDevCfgH_t h );
+  bool                cmDevCfgAudioIsDeviceActive( cmDevCfgH_t h, const cmChar_t* devNameStr, bool inputFl );
+  unsigned            cmDevCfgAudioActiveCount( cmDevCfgH_t h );
+  const cmChar_t*     cmDevCfgAudioActiveLabel( cmDevCfgH_t h, unsigned idx );
+  const cmDcmAudio_t* cmDevCfgAudioActiveCfg(   cmDevCfgH_t h, unsigned idx );
+  unsigned            cmDevCfgAudioActiveIndex( cmDevCfgH_t h, const cmChar_t* cfgLabel );
 
   const cmDcmAudio_t* cmDevCfgAudioCfg( cmDevCfgH_t h, unsigned cfgIdx );
   const cmDcmAudio_t* cmDevCfgAudioMap( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );
   
 
-  const struct cmAudioSysArgs_str* cmDevCfgAudioSysArgs( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );
+  const struct cmRtSysArgs_str* cmDevCfgRtSysArgs( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );
 
   cmDcRC_t cmDevCfgNameNetPort(
     cmDevCfgH_t      h,
     const cmChar_t* dcLabelStr,
     const cmChar_t* sockAddr,
-    unsigned        portNumber );
+    unsigned        portNumber,
+    bool            localFl,
+    bool            activeFl);
+
+  unsigned          cmDevCfgNetActiveCount( cmDevCfgH_t h );
+  const cmDcmNet_t* cmDevCfgNetActiveCfg( cmDevCfgH_t h, unsigned idx );
 
   const cmDcmNet_t* cmDevCfgNetCfg( cmDevCfgH_t h, unsigned cfgIdx );
   const cmDcmNet_t* cmDevCfgNetMap( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );

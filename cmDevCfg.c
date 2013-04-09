@@ -15,8 +15,8 @@
 #include "cmAudioPort.h"
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
-#include "cmAudioSysMsg.h"
-#include "cmAudioSys.h"
+#include "cmRtSysMsg.h"
+#include "cmRtSys.h"
 
 #include "cmDevCfg.h"
 
@@ -146,6 +146,8 @@ void _cmDcmDuplNet( cmDcmNet_t* d, const cmDcmNet_t* s )
 {
   d->sockAddr   = cmMemAllocStr(s->sockAddr);
   d->portNumber = s->portNumber;
+  d->localFl    = s->localFl;
+  d->activeFl   = s->activeFl;
 }
 
 
@@ -446,11 +448,11 @@ unsigned cmDevCfgLabelToIndex( cmDevCfgH_t h, cmTypeDcmId_t typeId, const cmChar
     if( cp->typeId == typeId )
     {
       if( strcmp(cp->dcLabelStr,label)==0 )
-        break;
+        return n;
       ++n;
     }
 
-  return n;
+  return cmInvalidIdx;
 }
 
 cmDcmCfg_t*  _cmDcmFindOrCreateCfg( cmDcm_t* p, cmTypeDcmId_t typeId, const cmChar_t* dcLabelStr )
@@ -676,6 +678,27 @@ const cmDcmMidi_t* cmDevCfgMidiDevMap( cmDevCfgH_t h, unsigned usrAppId, unsigne
   return &mp->cfg->u.m;
 }
 
+const cmDcmMidi_t* cmDevCfgMidiCfgFromLabel( cmDevCfgH_t h, const cmChar_t* cfgLabel )
+{
+  cmDcm_t*           p = _cmDcmHandleToPtr(h);
+  const cmDcmMidi_t* c;
+  unsigned           idx;
+
+  if((idx = cmDevCfgLabelToIndex(h, kMidiDcmTId, cfgLabel )) == cmInvalidIdx )
+  {
+    cmErrMsg(&p->err,kLabelNotFoundDcRC,"The MIDI cfg. '%s' was not found.",cmStringNullGuard(cfgLabel));
+    return NULL;
+  }
+
+  if((c = cmDevCfgMidiCfg(h,idx)) == NULL )
+  {
+    cmErrMsg(&p->err,kInvalidCfgIdxDcRC,"The MIDI cfg. index %i is invalid.",idx);
+    return NULL;
+  }
+
+  return c;
+}
+
 
 cmDcRC_t cmDevCfgNameAudioPort( 
   cmDevCfgH_t     h,
@@ -687,24 +710,27 @@ cmDcRC_t cmDevCfgNameAudioPort(
   unsigned        devFramesPerCycle,
   unsigned        dspFramesPerCycle,
   unsigned        audioBufCnt,
-  double          srate  )
+  double          srate,
+  bool            activeFl )
 {
   cmDcm_t*    p = _cmDcmHandleToPtr(h);
   cmDcmCfg_t* cp;
-  unsigned    inDevIdx;
-  unsigned    outDevIdx;
+  unsigned    inDevIdx   = cmInvalidIdx;
+  unsigned    outDevIdx  = cmInvalidIdx;
 
   // validate the label
   if((dcLabelStr = _cmDcmTrimLabel(p,dcLabelStr,"Audio cfg")) == NULL)
     return cmErrLastRC(&p->err);
 
   // validate the input device
-  if(( inDevIdx = cmApDeviceLabelToIndex(inDevNameStr)) == cmInvalidIdx )
-    return cmErrMsg(&p->err, kInvalidArgDcRC,"The input audio device name '%s' is not valid.",cmStringNullGuard(inDevNameStr));
+  if( inDevNameStr != NULL )
+    if(( inDevIdx = cmApDeviceLabelToIndex(inDevNameStr)) == cmInvalidIdx )
+      return cmErrMsg(&p->err, kInvalidArgDcRC,"The input audio device name '%s' is not valid.",cmStringNullGuard(inDevNameStr));
 
   // validate the output device
-  if(( outDevIdx = cmApDeviceLabelToIndex(outDevNameStr)) == cmInvalidIdx )
-    return cmErrMsg(&p->err, kInvalidArgDcRC,"The output audio device name '%s' is not valid.",cmStringNullGuard(outDevNameStr));
+  if( outDevNameStr != NULL )
+    if(( outDevIdx = cmApDeviceLabelToIndex(outDevNameStr)) == cmInvalidIdx )
+      return cmErrMsg(&p->err, kInvalidArgDcRC,"The output audio device name '%s' is not valid.",cmStringNullGuard(outDevNameStr));
 
   // validate the msg byte cnt
   if( msgQueueByteCnt == 0 )
@@ -730,8 +756,9 @@ cmDcRC_t cmDevCfgNameAudioPort(
   unsigned inChCnt  = cmApDeviceChannelCount( inDevIdx,  true );
   unsigned outChCnt = cmApDeviceChannelCount( outDevIdx, false );
 
-  cp->u.a.inDevLabelStr                  = cmMemAllocStr(inDevNameStr);
-  cp->u.a.outDevLabelStr                 = cmMemAllocStr(outDevNameStr);
+  cp->u.a.inDevLabelStr                  = cmMemAllocStr(inDevNameStr==NULL?"":inDevNameStr);
+  cp->u.a.outDevLabelStr                 = cmMemAllocStr(outDevNameStr==NULL?"":outDevNameStr);
+  cp->u.a.activeFl                       = activeFl;
   cp->u.a.audioSysArgs.rpt               = p->err.rpt;
   cp->u.a.audioSysArgs.inDevIdx          = inDevIdx;
   cp->u.a.audioSysArgs.outDevIdx         = outDevIdx;
@@ -741,7 +768,7 @@ cmDcRC_t cmDevCfgNameAudioPort(
   cp->u.a.audioSysArgs.dspFramesPerCycle = dspFramesPerCycle;
   cp->u.a.audioSysArgs.audioBufCnt       = audioBufCnt;
   cp->u.a.audioSysArgs.srate             = srate;
-  cp->descStr = cmTsPrintfP(cp->descStr,"In: Chs:%i %s\nOut: Chs:%i %s",inChCnt,inDevNameStr,outChCnt,outDevNameStr);
+  cp->descStr = cmTsPrintfP(cp->descStr,"%sIn: Chs:%i %s\nOut: Chs:%i %s",activeFl?"":"INACTIVE ",inChCnt,cp->u.a.inDevLabelStr,outChCnt,cp->u.a.outDevLabelStr);
   return kOkDcRC;  
 }
 
@@ -794,6 +821,115 @@ unsigned   cmDevCfgAudioGetDefaultCfgIndex( cmDevCfgH_t h )
   return cmInvalidIdx;
 }
 
+bool  cmDevCfgAudioIsDeviceActive( cmDevCfgH_t h, const cmChar_t* devNameStr, bool inputFl )
+{
+  cmDcm_t*    p  = _cmDcmHandleToPtr(h);
+
+  assert( p->clp != NULL );
+
+  cmDcmCfg_t* cp = p->clp->cfg;
+  unsigned    i;
+
+  for(i=0; cp!=NULL; cp=cp->next)
+    if( cp->typeId == kAudioDcmTId )
+    {
+      bool fl;
+
+      if( inputFl )
+        fl = strcmp(devNameStr,cp->u.a.inDevLabelStr)==0;
+      else
+        fl = strcmp(devNameStr,cp->u.a.outDevLabelStr)==0;
+
+      if( fl )
+        return cp->u.a.activeFl;
+      
+      ++i;
+    }
+
+  return false;
+}
+
+unsigned            cmDevCfgAudioActiveCount( cmDevCfgH_t h )
+{
+  cmDcm_t*    p  = _cmDcmHandleToPtr(h);
+
+  assert( p->clp != NULL );
+
+  cmDcmCfg_t* cp = p->clp->cfg;
+  unsigned    n;
+
+  for(n=0; cp!=NULL; cp=cp->next)
+    if( cp->typeId == kAudioDcmTId && cp->u.a.activeFl )
+      ++n;
+
+  return n;
+}
+
+const cmChar_t*     cmDevCfgAudioActiveLabel( cmDevCfgH_t h, unsigned idx )
+{
+  cmDcm_t*    p  = _cmDcmHandleToPtr(h);
+
+  assert( p->clp != NULL );
+
+  cmDcmCfg_t* cp = p->clp->cfg;
+  unsigned    i;
+
+  for(i=0; cp!=NULL; cp=cp->next)
+    if( cp->typeId == kAudioDcmTId && cp->u.a.activeFl )
+    {
+      if( i == idx )
+        return cp->dcLabelStr;
+      ++i;
+    }
+
+  assert(0);
+  return NULL;
+}
+
+const cmDcmAudio_t* cmDevCfgAudioActiveCfg(   cmDevCfgH_t h, unsigned idx )
+{
+  cmDcm_t*    p  = _cmDcmHandleToPtr(h);
+
+  assert( p->clp != NULL );
+
+  cmDcmCfg_t* cp = p->clp->cfg;
+  unsigned    i;
+
+  for(i=0; cp!=NULL; cp=cp->next)
+    if( cp->typeId == kAudioDcmTId && cp->u.a.activeFl )
+    {
+      if( i == idx )
+        return &cp->u.a;
+      ++i;
+    }
+
+  assert(0);
+  return NULL;
+}
+
+unsigned  cmDevCfgAudioActiveIndex( cmDevCfgH_t h, const cmChar_t* cfgLabel )
+{
+  cmDcm_t*    p  = _cmDcmHandleToPtr(h);
+
+  if( cfgLabel == NULL )
+    return cmInvalidIdx;
+
+  assert( p->clp != NULL );
+
+  cmDcmCfg_t* cp = p->clp->cfg;
+  unsigned    i;
+
+  for(i=0; cp!=NULL; cp=cp->next)
+    if( cp->typeId == kAudioDcmTId && cp->u.a.activeFl)
+    {
+      if( cp->dcLabelStr!=NULL && strcmp(cp->dcLabelStr,cfgLabel) == 0 )
+        return i;
+      ++i;
+    }
+
+  return cmInvalidIdx;
+}
+
 
 const cmDcmAudio_t* cmDevCfgAudioCfg( cmDevCfgH_t h, unsigned cfgIdx )
 {
@@ -822,7 +958,9 @@ cmDcRC_t cmDevCfgNameNetPort(
   cmDevCfgH_t      h,
   const cmChar_t* dcLabelStr,
   const cmChar_t* sockAddr,
-  unsigned        portNumber )
+  unsigned        portNumber,
+  bool            localFl,
+  bool            activeFl)
 {
 
   cmDcm_t* p = _cmDcmHandleToPtr(h);
@@ -832,7 +970,7 @@ cmDcRC_t cmDevCfgNameNetPort(
     return cmErrMsg(&p->err,kInvalidArgDcRC,"The network port number %i is invalid. The valid IP port number range is:0-0xffff.");
 
   // validate the label
-  if((dcLabelStr = _cmDcmTrimLabel(p,dcLabelStr,"MIDI cfg")) == NULL)
+  if((dcLabelStr = _cmDcmTrimLabel(p,dcLabelStr,"Net cfg")) == NULL)
     return cmErrLastRC(&p->err);
 
   // if dcLabelStr is already in use for this location and type then update
@@ -840,13 +978,53 @@ cmDcRC_t cmDevCfgNameNetPort(
   if((cp = _cmDcmFindOrCreateCfg(p,kNetDcmTId, dcLabelStr)) == NULL )
     return cmErrLastRC(&p->err);
 
-  cp->u.n.sockAddr = cmMemAllocStr(sockAddr);
+  cp->u.n.sockAddr   = cmMemAllocStr(sockAddr);
   cp->u.n.portNumber = portNumber;
-  cp->descStr = cmTsPrintfP(cp->descStr,"%s:%i",sockAddr,portNumber);
+  cp->u.n.localFl    = localFl;
+  cp->u.n.activeFl   = activeFl;
+  cp->descStr = cmTsPrintfP(cp->descStr,"%s %s %s:%i",activeFl?"":"INACTIVE",localFl?"local":"remote",sockAddr,portNumber);
   
 
   return kOkDcRC;
 }
+
+unsigned          cmDevCfgNetActiveCount( cmDevCfgH_t h )
+{
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+
+  assert( p->clp != NULL );
+
+  cmDcmCfg_t* cp = p->clp->cfg;
+  unsigned    n;
+
+  for(n=0; cp!=NULL; cp=cp->next)
+    if( cp->typeId == kNetDcmTId && cp->u.a.activeFl )
+      ++n;
+
+  return n;
+}
+
+const cmDcmNet_t* cmDevCfgNetActiveCfg( cmDevCfgH_t h, unsigned idx )
+{
+  cmDcm_t* p = _cmDcmHandleToPtr(h);
+
+  assert( p->clp != NULL );
+
+  cmDcmCfg_t* cp = p->clp->cfg;
+  unsigned    i;
+
+  for(i=0; cp!=NULL; cp=cp->next)
+    if( cp->typeId == kNetDcmTId && cp->u.a.activeFl )
+    {
+      if( i == idx )
+        return &cp->u.n;
+      ++i;
+    }
+
+  assert(0);
+  return NULL;
+}
+
 
 const cmDcmNet_t* cmDevCfgNetCfg( cmDevCfgH_t h, unsigned cfgIdx )
 {
@@ -1159,6 +1337,7 @@ cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPt
               "dspFramesPerCycle", kIntTId,    &a.audioSysArgs.dspFramesPerCycle,
               "audioBufCnt",       kIntTId,    &a.audioSysArgs.audioBufCnt,
               "srate",             kRealTId,   &a.audioSysArgs.srate,
+              "active",            kBoolTId,   &a.activeFl,
               NULL ) != kOkJsRC )
           {
             rc = _cmDcmJsonSyntaxErr(p,errLabelPtr);
@@ -1171,7 +1350,8 @@ cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPt
                 a.audioSysArgs.devFramesPerCycle,
                 a.audioSysArgs.dspFramesPerCycle,
                 a.audioSysArgs.audioBufCnt,
-                a.audioSysArgs.srate )) != kOkDcRC )
+                a.audioSysArgs.srate,
+                a.activeFl)) != kOkDcRC )
           {
             goto errLabel;
           }
@@ -1182,13 +1362,15 @@ cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPt
           if( cmJsonMemberValues( cfgObjNp, &errLabelPtr,
               "sockAddr",   kStringTId, &n.sockAddr,
               "portNumber", kIntTId,    &n.portNumber,
+              "localFl",    kBoolTId,   &n.localFl,
+              "activeFl",   kBoolTId,   &n.activeFl,
               NULL ) != kOkJsRC )
           {
             rc = _cmDcmJsonSyntaxErr(p,errLabelPtr);
             goto errLabel;
           }
 
-          if((rc = cmDevCfgNameNetPort(h,dcLabelStr,n.sockAddr,n.portNumber)) != kOkDcRC )
+          if((rc = cmDevCfgNameNetPort(h,dcLabelStr,n.sockAddr,n.portNumber,n.localFl,n.activeFl)) != kOkDcRC )
             goto errLabel;
 
           break;
@@ -1287,6 +1469,7 @@ cmDcRC_t _cmDevCfgWrite( cmDcm_t* p, cmJsonH_t jsH, cmJsonNode_t* rootObjPtr )
             "dspFramesPerCycle", kIntTId,    cp->u.a.audioSysArgs.dspFramesPerCycle,
             "audioBufCnt",       kIntTId,    cp->u.a.audioSysArgs.audioBufCnt,
             "srate",             kRealTId,   cp->u.a.audioSysArgs.srate,
+            "active",            kBoolTId,   cp->u.a.activeFl,
             NULL );
           break;
 
@@ -1294,6 +1477,8 @@ cmDcRC_t _cmDevCfgWrite( cmDcm_t* p, cmJsonH_t jsH, cmJsonNode_t* rootObjPtr )
           cmJsonInsertPairs(jsH, cfgObjNp,
             "sockAddr",  kStringTId, cp->u.n.sockAddr,
             "portNumber",kIntTId,    cp->u.n.portNumber,
+            "localFl",   kBoolTId,   cp->u.n.localFl,
+            "activeFl",  kBoolTId,   cp->u.n.activeFl,
             NULL );
           break;
 
