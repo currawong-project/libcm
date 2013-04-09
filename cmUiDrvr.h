@@ -14,6 +14,7 @@ extern "C" {
     kAppNotFoundUiRC,
     kCtlNotFoundUiRC,
     kPanelNotFoundUiRC,
+    kInvalidAppIdUiRC,
     kPanelFullUiRC,
     kDrvrErrUiRC,    
     kInvalidCtlOpUiRC,
@@ -21,7 +22,8 @@ extern "C" {
     kInvalidIdUiRC,
     kSubSysFailUiRC,
     kBufTooSmallUiRC,
-    kBufCorruptUiRC
+    kBufCorruptUiRC,
+    kNotImplementedUiRC
   };
 
   // Built-in control types.
@@ -34,7 +36,8 @@ extern "C" {
     kMenuBtnUiCId,
     kListUiCId,
     kLabelUiCId,
-    kTextUiCId,
+    kStringUiCId,
+    kConsoleUiCId,
     kNumberUiCId,
     kSliderUiCId,
     kProgressUiCId,
@@ -51,7 +54,7 @@ extern "C" {
     kCreateCtlDId,
     kDestroyCtlDId,
     kSetValDId,
-    kDestroyAllDId,
+    kEnableDId,       // ival holds new enable state
     kMaxDId
   } cmUiDId_t;
 
@@ -59,38 +62,43 @@ extern "C" {
   enum
   {
     // All controls recognize kValUiFl and kLblUiFl
-    kValUiFl   = 0x0000001,
-    kLblUiFl   = 0x0000002,
+    kValUiFl       = 0x00000001,
+    kLblUiFl       = 0x00000002,
 
     // Flags for Number,Progress,Meter
-    kMinUiFl   = 0x000004,
-    kMaxUiFl   = 0x000010,
-    kIncUiFl   = 0x000020,
-    kNumMask   = kValUiFl | kMinUiFl | kMaxUiFl | kIncUiFl,
-    kHorzUiFl  = 0x000040,
-    kVertUiFl  = 0x000080,
+    kMinUiFl       = 0x00000004,
+    kMaxUiFl       = 0x00000010,
+    kIncUiFl       = 0x00000020,
+    kNumMask       = kValUiFl | kMinUiFl | kMaxUiFl | kIncUiFl,
+
+    kHorzUiFl      = 0x00000040,
+    kVertUiFl      = 0x00000080,
 
     // Flags for Filename and Dir
-    kFnPatUiFl = 0x000100, // file pattern string
-    kFnDirUiFl = 0x000200, // toggle file btn type 
-    kFnMask    = kFnPatUiFl | kFnDirUiFl,
+    kFnPatUiFl     = 0x00000100, // file pattern string
+    kFnDirUiFl     = 0x00000200, // toggle file btn type 
+    kFnMask        = kFnPatUiFl | kFnDirUiFl,
 
     // Append list or menu element.
-    kAppendUiFl = 0x000400,
+    kAppendUiFl    = 0x00000400,
+    kPrependUiFl   = 0x00000800,
+    kClearUiFl     = 0x00001000, // clear all ele' from a list or menu
 
-    kLeftUiFl   = 0x001000,
-    kTopUiFl    = 0x002000,
-    kRightUiFl  = 0x004000,
-    kBottomUiFl = 0x008000,
-    kHCtrUiFl   = 0x010000,
-    kVCtrUiFl   = 0x020000,
-    kInsideUiFl = 0x040000,
+    kLeftUiFl      = 0x00002000,
+    kTopUiFl       = 0x00004000,
+    kRightUiFl     = 0x00008000,
+    kBottomUiFl    = 0x00010000,
+    kHCtrUiFl      = 0x00020000,
+    kVCtrUiFl      = 0x00040000,
+    kInsideUiFl    = 0x00080000,
 
     // Value flags indicate which value fields are valid
-    kIvalUiFl   = 0x100000,
-    kFvalUiFl   = 0x200000,
-    kSvalUiFl   = 0x400000
+    kIvalUiFl      = 0x00100000,
+    kFvalUiFl      = 0x00200000,
+    kSvalUiFl      = 0x00400000,
 
+    kNoReflectUiFl = 0x01000000, // do not reflect event to the client
+    
   };
 
 
@@ -101,6 +109,7 @@ extern "C" {
   // because they are used internally as indexes.
   typedef struct
   {
+    cmRtSysMsgHdr_t hdr;
     cmUiDId_t       dId;        // function selector id
     unsigned        appId;      // app id (plug-in instance id)
     unsigned        usrId;      // ctl id
@@ -119,6 +128,8 @@ extern "C" {
   typedef cmUiRC_t (*cmUiDriverFunc_t)( void* arg, const cmUiDriverArg_t* a );
 
   void cmUiDriverArgSetup( cmUiDriverArg_t* a, 
+    unsigned  rtSubIdx,
+    unsigned  selId,
     cmUiDId_t dId,
     unsigned  appId,
     unsigned  usrId,
@@ -144,7 +155,7 @@ extern "C" {
   // Return kBufTooSmallUiRC or kBufCorruptUiRC if buffer corruption is detected 
   // otherwise returns kOkUiRC.  This function does not call cmErrMsg() on error
   // the caller is therefore responsible for generating errors.
-  cmUiRC_t cmUiDriverArgDeserialize( cmUiDriverArg_t* a, void* buf, unsigned bufByteCnt );
+  cmUiRC_t cmUiDriverArgDeserialize( cmUiDriverArg_t* a, const void* buf, unsigned bufByteCnt );
 
   // Return an arg. value converted to the requiested type.
   // Note that numeric values will be automatically converted but

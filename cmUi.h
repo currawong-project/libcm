@@ -61,8 +61,13 @@ extern "C" {
     and all callbacks from the cmUi to the master app. 
     use the cmUiDriverArg_t structure 
 
+    3) The panel tabs act like radio buttons.  When a tab is
+    selected the clicked tab generates one event for each
+    tab (cId=kPanelUiCId usrId=panelId) w/ ival=1 for the 
+    selected tab and ival=0 for all other tabs.
+
     TODO:
-    0) Remove the 'cbArg' from the cmUiDriverArg_t record and 
+    0) [DONE] Remove the 'cbArg' from the cmUiDriverArg_t record and 
     pass it as a separate paramenter in the cmUiDriverFunc_t calls.
 
     1) The controls should be based on a multilevel tree model
@@ -93,9 +98,9 @@ extern "C" {
     Many of the fields are not use for event callbacks.
     Which fields are used under which circumstances should
     be documented. This would allow decreasing the size
-    of the record during serialization.7
+    of the record during serialization.
 
-    6) Write a serialization/deserialization routines for cmUiDriverArg_t.
+    6) [DONE] Write a serialization/deserialization routines for cmUiDriverArg_t.
     unsigned cmUiDriverArgSerialBufByteCount(const cmUiDriverArg_t* a);
     cmUiRC_t cmUiDriverArgSerialize( const cmUiDriverArg_t* a, char* buf, bufByteCnt );
     cmUiRC_t cmUiDriverArgDeserialize( cmUiDriverArg_t* a, const char* buf, bufByteCnt );
@@ -153,7 +158,11 @@ extern "C" {
   // Automatically sets and restores the ambient appId.
   // In a plug-in context this function is generally called 
   // just prior a instantiating a plug-in object.
-  cmUiRC_t cmUiCreateApp(  cmUiH_t uiH, unsigned appId );
+  cmUiRC_t cmUiCreateApp(  cmUiH_t uiH, unsigned appId, unsigned asSubIdx );
+
+  // Return true if 'appId' is active.
+  bool     cmUiAppIsActive( cmUiH_t uiH, unsigned appId );
+
 
   // Notify the cmUi manager that the resources associated
   // with a client application can be released.
@@ -170,7 +179,10 @@ extern "C" {
   // 'appId' an ambient parameter the User API calls are slightly
   // simplified because they do not have to include it in each of the
   // function calls.
-  cmUiRC_t cmUiSetAppId( cmUiH_t uiH, unsigned appId );
+  //cmUiRC_t cmUiSetAppId( cmUiH_t uiH, unsigned appId );
+  //unsigned cmUiAppId(    cmUiH_t uiH );
+
+  unsigned cmUiAppIdToAsSubIndex( cmUiH_t uiH, unsigned appId );
 
   // Return the count of app's.
   unsigned cmUiAppCount( cmUiH_t uiH );
@@ -185,46 +197,59 @@ extern "C" {
   // Client Application API
   //
 
+  // See above note on panel tabs acting like radio buttons.
+  cmUiRC_t cmUiCreatePanel(   cmUiH_t uiH, unsigned appId, unsigned newPanelId, const cmChar_t* label, unsigned flags );
 
-  cmUiRC_t cmUiCreatePanel(   cmUiH_t uiH, unsigned newPanelId, const cmChar_t* label );
-
-  cmUiRC_t cmUiCreateBtn(         cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags );
-  cmUiRC_t cmUiCreateCheck(       cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, bool dflt );
-  cmUiRC_t cmUiCreateLabel(       cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags );
-  cmUiRC_t cmUiCreateText(        cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, const cmChar_t* text );  
-  cmUiRC_t cmUiCreateNumber(      cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, double min, double max, double incr, double dflt );
-  cmUiRC_t cmUiCreateHSlider(     cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, double min, double max, double incr, double dflt );
-  cmUiRC_t cmUiCreateVSlider(     cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, double min, double max, double incr, double dflt );
-  cmUiRC_t cmUiCreateProgress(    cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, int    min, int    max, int    dflt );
-  cmUiRC_t cmUiCreateHMeter(      cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, int    min, int    max, int    dflt ); 
-  cmUiRC_t cmUiCreateVMeter(      cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, int    min, int    max, int    dflt ); 
-  cmUiRC_t cmUiCreateFileBtn(     cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, const cmChar_t* dfltDir, const cmChar_t* patStr );
-  cmUiRC_t cmUiCreateDirBtn(      cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, const cmChar_t* dfltDir );
-  cmUiRC_t cmUiCreateMenuBtn(     cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags );
-  cmUiRC_t cmUiCreateMenuBtnV(    cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* lavel, unsigned flags, const cmChar_t* label0, unsigned id0, va_list vl );
-  cmUiRC_t cmUiCreateMenuBtnA(    cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* lavel, unsigned flags, const cmChar_t* label0, unsigned id0, ... );
-  cmUiRC_t cmUiCreateMenuBtnJson( cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* lavel, unsigned flags, const cmJsonNode_t* root, const cmChar_t* memberLabel );
-  cmUiRC_t cmUiCreateList(        cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, unsigned visibleRowCnt );
-  cmUiRC_t cmUiCreateListV(       cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, unsigned visibleRowCnt, const cmChar_t* label0, unsigned id0, va_list vl );
-  cmUiRC_t cmUiCreateListA(       cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, unsigned visibleRowCnt, const cmChar_t* label0, unsigned id0, ... );
-  cmUiRC_t cmUiCreateListJson(    cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, unsigned visibleRowCnt, const cmJsonNode_t* root, const cmChar_t* memberLabel );
+  cmUiRC_t cmUiCreateBtn(         cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags );
+  cmUiRC_t cmUiCreateCheck(       cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, bool dflt );
+  cmUiRC_t cmUiCreateLabel(       cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags );
+  cmUiRC_t cmUiCreateString(      cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, const cmChar_t* text );  
+  cmUiRC_t cmUiCreateConsole(     cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, const cmChar_t* text );
+  cmUiRC_t cmUiCreateNumber(      cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, double min, double max, double incr, double dflt );
+  cmUiRC_t cmUiCreateHSlider(     cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, double min, double max, double incr, double dflt );
+  cmUiRC_t cmUiCreateVSlider(     cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, double min, double max, double incr, double dflt );
+  cmUiRC_t cmUiCreateProgress(    cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, int    min, int    max, int    dflt );
+  cmUiRC_t cmUiCreateHMeter(      cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, int    min, int    max, int    dflt ); 
+  cmUiRC_t cmUiCreateVMeter(      cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, int    min, int    max, int    dflt ); 
+  cmUiRC_t cmUiCreateFileBtn(     cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, const cmChar_t* dfltDir, const cmChar_t* patStr );
+  cmUiRC_t cmUiCreateDirBtn(      cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, const cmChar_t* dfltDir );
+  cmUiRC_t cmUiCreateMenuBtn(     cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags );
+  cmUiRC_t cmUiCreateMenuBtnV(    cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* lavel, unsigned flags, const cmChar_t* label0, unsigned id0, va_list vl );
+  cmUiRC_t cmUiCreateMenuBtnA(    cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* lavel, unsigned flags, const cmChar_t* label0, unsigned id0, ... );
+  cmUiRC_t cmUiCreateMenuBtnJson( cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* lavel, unsigned flags, const cmJsonNode_t* root, const cmChar_t* memberLabel );
+  cmUiRC_t cmUiCreateList(        cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, unsigned visibleRowCnt );
+  cmUiRC_t cmUiCreateListV(       cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, unsigned visibleRowCnt, const cmChar_t* label0, unsigned id0, va_list vl );
+  cmUiRC_t cmUiCreateListA(       cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, unsigned visibleRowCnt, const cmChar_t* label0, unsigned id0, ... );
+  cmUiRC_t cmUiCreateListJson(    cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* label, unsigned flags, unsigned visibleRowCnt, const cmJsonNode_t* root, const cmChar_t* memberLabel );
 
   // If 'id' identifies a 'list' control use tabs as column separators.
-  cmUiRC_t cmUiAppendListEle(    cmUiH_t uiH, unsigned panelId, unsigned id, const cmChar_t* text, unsigned eleId );
+  cmUiRC_t cmUiAppendListEle(    cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, const cmChar_t* text, unsigned eleId );
+
+  // Remove all the elements of a list control.
+  cmUiRC_t cmUiClearList(        cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id );
+
+  // Enable/Disable a control
+  cmUiRC_t cmUiEnableCtl( cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id, bool enableFl );
+  
+  // Enable/disable all controls on a panel except those included in the var args list.
+  // Terminate the var args list with cmInvalidId.
+  cmUiRC_t cmUiEnableAllExceptV( cmUiH_t uiH, unsigned appId, unsigned panelId, bool enableFl, va_list vl );
+  cmUiRC_t cmUiEnableAllExcept( cmUiH_t uiH, unsigned appId, unsigned panelId, bool enableFl, ... );
 
   // If 'id' identifies a panel then all control belonging to the panel
   // will also be destroyed.
-  cmUiRC_t cmUiDestroyCtl(    cmUiH_t uiH, unsigned id );
+  cmUiRC_t cmUiDestroyCtl(    cmUiH_t uiH, unsigned appId, unsigned id );
 
   // Returns true if the control exists.
   // For panels set id=panelId.
-  bool     cmUiCtlExists(     cmUiH_t uiH, unsigned panelId, unsigned id );
+  //bool     cmUiCtlExists(     cmUiH_t uiH, unsigned appId, unsigned panelId, unsigned id );
 
   // Destroy all the controls in a panel.
-  cmUiRC_t cmUiClearPanel( cmUiH_t uiH, unsigned panelId );
+  cmUiRC_t cmUiClearPanel( cmUiH_t uiH, unsigned appId, unsigned panelId );
 
-
+  //------------------------------------------------------------------------------------------
   // Location: 
+
   // 1) If a 'next rect' is set the control will be placed according to it.
   // 2) If cmUiSetBaseCol() was set then the control will be placed at the
   //    base col and base row.
@@ -242,29 +267,29 @@ extern "C" {
   // Get/Set the fill directions. If the 'fill columns' flag is enabled
   // then the next control is placed below the previous control otherwise
   // the next control is placed to the right of the next control.
-  bool    cmUiFillRows( cmUiH_t uiH, unsigned panelId );
-  bool    cmUiSetFillRows( cmUiH_t uiH, unsigned panelId, bool enableFl );
+  bool    cmUiFillRows( cmUiH_t uiH, unsigned appId, unsigned panelId );
+  bool    cmUiSetFillRows( cmUiH_t uiH, unsigned appId, unsigned panelId, bool enableFl );
 
   
   // Place the next control to the right/below of the previous ctl.
   // These flags override the current fill row/col setting.
   // Note that 'place right' and 'place below' are mutually
   // exclusive. Enabling one disables the other.
-  void     cmUiPlaceRight( cmUiH_t uiH, unsigned panelId );          
-  void     cmUiPlaceBelow( cmUiH_t uiH, unsigned panelId );
+  void     cmUiPlaceRight( cmUiH_t uiH, unsigned appId, unsigned panelId );          
+  void     cmUiPlaceBelow( cmUiH_t uiH, unsigned appId, unsigned panelId );
 
   // Place the next control at the base column below the previous ctl.
-  void     cmUiNewLine(    cmUiH_t uiH, unsigned panelId );
+  void     cmUiNewLine(    cmUiH_t uiH, unsigned appId, unsigned panelId );
 
   // Set/Get current base col and return previous value. Place the next
   // control on the base row.
-  int      cmUiBaseCol(       cmUiH_t uiH, unsigned panelId );
-  int      cmUiSetBaseCol(    cmUiH_t uiH, unsigned panelId, int x );   
+  int      cmUiBaseCol(       cmUiH_t uiH, unsigned appId, unsigned panelId );
+  int      cmUiSetBaseCol(    cmUiH_t uiH, unsigned appId, unsigned panelId, int x );   
 
 
   // Set/Get current base row and return previous value.
-  int      cmUiBaseRow(       cmUiH_t uiH, unsigned panelId );
-  int      cmUiSetBaseRow(    cmUiH_t uiH, unsigned panelId, int y );   
+  int      cmUiBaseRow(       cmUiH_t uiH, unsigned appId, unsigned panelId );
+  int      cmUiSetBaseRow(    cmUiH_t uiH, unsigned appId, unsigned panelId, int y );   
 
   // Size:
   // 1) If a 'next rect' is set the control will be placed according
@@ -277,81 +302,80 @@ extern "C" {
 
   // Get/Set the default control width and height.
   // Set returns previous value.
-  int      cmUiW(      cmUiH_t uiH, unsigned panelId );         
-  int      cmUiH(      cmUiH_t uiH, unsigned panelId );
-  int      cmUiSetW(   cmUiH_t uiH, unsigned panelId, int w );
-  int      cmUiSetH(   cmUiH_t uiH, unsigned panelId, int h );
-  void     cmUiSetWH(  cmUiH_t uiH, unsigned panelId, int w, int h );
+  int      cmUiW(      cmUiH_t uiH, unsigned appId, unsigned panelId );         
+  int      cmUiH(      cmUiH_t uiH, unsigned appId, unsigned panelId );
+  int      cmUiSetW(   cmUiH_t uiH, unsigned appId, unsigned panelId, int w );
+  int      cmUiSetH(   cmUiH_t uiH, unsigned appId, unsigned panelId, int h );
+  void     cmUiSetWH(  cmUiH_t uiH, unsigned appId, unsigned panelId, int w, int h );
 
   // Get/Set the control width and height for only the next control.
   // Set returns previous value.
-  int      cmUiNextW(     cmUiH_t uiH, unsigned panelId );
-  int      cmUiNextH(     cmUiH_t uiH, unsigned panelId );
-  void     cmUiSetNextW(  cmUiH_t uiH, unsigned panelId, int w );
-  void     cmUiSetNextH(  cmUiH_t uiH, unsigned panelId, int h );
-  void     cmUiSetNextWH( cmUiH_t uiH, unsigned panelId, int w, int h );
+  int      cmUiNextW(     cmUiH_t uiH, unsigned appId, unsigned panelId );
+  int      cmUiNextH(     cmUiH_t uiH, unsigned appId, unsigned panelId );
+  void     cmUiSetNextW(  cmUiH_t uiH, unsigned appId, unsigned panelId, int w );
+  void     cmUiSetNextH(  cmUiH_t uiH, unsigned appId, unsigned panelId, int h );
+  void     cmUiSetNextWH( cmUiH_t uiH, unsigned appId, unsigned panelId, int w, int h );
 
   // Get/Set the default inter-control borders
   // Set returns previous value.
-  int      cmUiHBorder( cmUiH_t uiH, unsigned panelId );
-  int      cmUiVBorder( cmUiH_t uiH, unsigned panelId );
-  int      cmUiSetHBorder( cmUiH_t uiH, unsigned panelId, int w );
-  int      cmUiSetVBorder( cmUiH_t uiH, unsigned panelId, int h );
+  int      cmUiHBorder( cmUiH_t uiH, unsigned appId, unsigned panelId );
+  int      cmUiVBorder( cmUiH_t uiH, unsigned appId, unsigned panelId );
+  int      cmUiSetHBorder( cmUiH_t uiH, unsigned appId, unsigned panelId, int w );
+  int      cmUiSetVBorder( cmUiH_t uiH, unsigned appId, unsigned panelId, int h );
 
   // Get/Set the 'next' inter-control borders
   // Set returns previous value.
-  int      cmUiNextHBorder( cmUiH_t uiH, unsigned panelId );
-  int      cmUiNextVBorder( cmUiH_t uiH, unsigned panelId );
-  int      cmUiSetNextHBorder( cmUiH_t uiH, unsigned panelId, int w );
-  int      cmUiSetNextVBorder( cmUiH_t uiH, unsigned panelId, int h );
+  int      cmUiNextHBorder( cmUiH_t uiH, unsigned appId, unsigned panelId );
+  int      cmUiNextVBorder( cmUiH_t uiH, unsigned appId, unsigned panelId );
+  int      cmUiSetNextHBorder( cmUiH_t uiH, unsigned appId, unsigned panelId, int w );
+  int      cmUiSetNextVBorder( cmUiH_t uiH, unsigned appId, unsigned panelId, int h );
 
   // Place the next control at the following coordinates. The 
   // specified coordinates are only active during the next
   // cmUiCreateXXX() call. Setting the 'next rect' overrides all
   // other layout directives.
-  cmUiRC_t cmUiNextRect( cmUiH_t uiH, unsigned panelId, int x, int y, int w, int h );
+  cmUiRC_t cmUiNextRect( cmUiH_t uiH, unsigned appId, unsigned panelId, int x, int y, int w, int h );
   
   // Get the location/size of the previously created control.
   // All ref. args are optional.
-  cmUiRC_t cmUiPrevRect( cmUiH_t uiH, unsigned panelId, int* xRef, int* yRef, int* wRef, int* hRef );
-  int      cmUiPrevL(    cmUiH_t uiH, unsigned panelId );
-  int      cmUiPrevT(    cmUiH_t uiH, unsigned panelId );
-  int      cmUiPrevR(    cmUiH_t uiH, unsigned panelId );
-  int      cmUiPrevB(    cmUiH_t uiH, unsigned panelId );
-  int      cmUiPrevW(    cmUiH_t uiH, unsigned panelId );
-  int      cmUiPrevH(    cmUiH_t uiH, unsigned panelId );
+  cmUiRC_t cmUiPrevRect( cmUiH_t uiH, unsigned appId, unsigned panelId, int* xRef, int* yRef, int* wRef, int* hRef );
+  int      cmUiPrevL(    cmUiH_t uiH, unsigned appId, unsigned panelId );
+  int      cmUiPrevT(    cmUiH_t uiH, unsigned appId, unsigned panelId );
+  int      cmUiPrevR(    cmUiH_t uiH, unsigned appId, unsigned panelId );
+  int      cmUiPrevB(    cmUiH_t uiH, unsigned appId, unsigned panelId );
+  int      cmUiPrevW(    cmUiH_t uiH, unsigned appId, unsigned panelId );
+  int      cmUiPrevH(    cmUiH_t uiH, unsigned appId, unsigned panelId );
 
-
+  //------------------------------------------------------------------------------------------
   //
   // Get/set the value of UI control.  
   //
 
   // TODO:
-  // 1) Still need functions for setting auxilliary values like
+  // +  Need functions for setting auxilliary values like
   //    min,max,etc..
-  // 2) A coherent model needs to be selected for determining
-  //    how local values get set.  As it is local values are
-  //    only set via callbacs from the UI driver.
 
   // Set the value associated with a control.   
-  // These functions would be better named 'cmUiSendXXX()' since
-  // they don't actually set the local value but rather call the
-  // driver to set the UI value. The driver may then respond with
-  // a callback which will set the local value. One advantage of
-  // this is that the value will be filtered according to the
-  // ui's rules (e.g. min, max .... ) 
-  cmUiRC_t  cmUiSetInt(    cmUiH_t uiH,  unsigned id, int v );
-  cmUiRC_t  cmUiSetUInt(   cmUiH_t uiH,  unsigned id, unsigned v );
-  cmUiRC_t  cmUiSetDouble( cmUiH_t uiH,  unsigned id, double v );
-  cmUiRC_t  cmUiSetString( cmUiH_t uiH,  unsigned id, const cmChar_t* v );
+  // Set the local value of the specified control and then 
+  // send the value to the UI driver so that the UI reflects this value.
+  cmUiRC_t  cmUiSetInt(    cmUiH_t uiH,  unsigned appId, unsigned id, int v );
+  cmUiRC_t  cmUiSetUInt(   cmUiH_t uiH,  unsigned appId, unsigned id, unsigned v );
+  cmUiRC_t  cmUiSetDouble( cmUiH_t uiH,  unsigned appId, unsigned id, double v );
+  cmUiRC_t  cmUiSetString( cmUiH_t uiH,  unsigned appId, unsigned id, const cmChar_t* v );
+  cmUiRC_t  cmUiSetVPrintf(cmUiH_t uiH,  unsigned appId, unsigned id, const cmChar_t* fmt, va_list vl );
+  cmUiRC_t  cmUiSetPrintf( cmUiH_t uiH,  unsigned appId, unsigned id, const cmChar_t* fmt, ... );
 
   // Get the value associated with a control. These functions return
   // the control value cached in the local control, they do not need 
   // to call the driver and are therefore very fast.
-  int             cmUiInt(    cmUiH_t uiH,  unsigned id );
-  unsigned        cmUiUInt(   cmUiH_t uiH,  unsigned id );
-  double          cmUiDouble( cmUiH_t uiH,  unsigned id );
-  const cmChar_t* cmUiString( cmUiH_t uiH,  unsigned id );
+  int             cmUiInt(    cmUiH_t uiH, unsigned appId,  unsigned id );
+  unsigned        cmUiUInt(   cmUiH_t uiH, unsigned appId,  unsigned id );
+  double          cmUiDouble( cmUiH_t uiH, unsigned appId,  unsigned id );
+  const cmChar_t* cmUiString( cmUiH_t uiH, unsigned appId,  unsigned id );
+
+  unsigned        cmUiListEleCount( cmUiH_t uiH, unsigned appId, unsigned id );
+  unsigned        cmUiListEleId(    cmUiH_t uiH, unsigned appId, unsigned id, unsigned index );
+  const cmChar_t* cmUiListEleLabel( cmUiH_t uiH, unsigned appId, unsigned id, unsigned index );
 
   // Query/set the current error state.
   cmUiRC_t   cmUiLastRC( cmUiH_t uiH );

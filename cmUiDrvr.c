@@ -1,7 +1,10 @@
 #include "cmGlobal.h"
+#include "cmRtSysMsg.h"
 #include "cmUiDrvr.h"
 
 void cmUiDriverArgSetup( cmUiDriverArg_t* a, 
+  unsigned  rtSubIdx,
+  unsigned  selId,
   cmUiDId_t dId,
   unsigned  appId,
   unsigned  usrId,
@@ -19,7 +22,8 @@ void cmUiDriverArgSetup( cmUiDriverArg_t* a,
 {
   
   flags = cmEnaFlag(flags,kSvalUiFl,sval!=NULL);
-
+  a->hdr.rtSubIdx= rtSubIdx;
+  a->hdr.selId   = selId;
   a->dId     = dId;
   a->appId   = appId;
   a->usrId   = usrId;
@@ -56,7 +60,7 @@ cmUiRC_t cmUiDriverArgSerialize( const cmUiDriverArg_t* a, void* buf, unsigned b
   return kOkUiRC;  
 }
 
-cmUiRC_t cmUiDriverArgDeserialize( cmUiDriverArg_t* a, void* buf, unsigned bufByteCnt )
+cmUiRC_t cmUiDriverArgDeserialize( cmUiDriverArg_t* a, const void* buf, unsigned bufByteCnt )
 {
   bool fl = bufByteCnt >= sizeof(*a);
   assert( fl );
