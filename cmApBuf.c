@@ -102,7 +102,7 @@ cmApSample_t _cmApMeterValue( const cmApCh* cp )
   for(i=0; i<cp->mn; ++i)
     sum += cp->m[i];
 
-  return (cmApSample_t)sqrt(sum);
+  return cp->mn==0 ? 0 : (cmApSample_t)sqrt(sum/cp->mn);
 }
 
 void _cmApSine( cmApCh* cp, cmApSample_t* b0, unsigned n0, cmApSample_t* b1, unsigned n1, unsigned stride, float srate )
@@ -571,7 +571,6 @@ unsigned cmApBufGetStatus( unsigned devIdx, unsigned flags, double* meterArray, 
 
   for(i=0; i<chCnt; ++i)
     meterArray[i] = _cmApMeterValue(iop->chArray + i);        
-  
   return chCnt;
 }
 
