@@ -121,6 +121,31 @@ cmMidiByte_t cmMidiStatusToByteCount( cmMidiByte_t status )
   return 0; 
 }
 
+unsigned      cmMidiTo14Bits( cmMidiByte_t d0, cmMidiByte_t d1 )
+{
+  unsigned val = d0;
+  val <<= 7;
+  val += d1;
+  return val;
+}
+
+void          cmMidiSplit14Bits( unsigned v, cmMidiByte_t* d0Ref, cmMidiByte_t* d1Ref )
+{
+  *d0Ref = (v & 0x3f80) >> 7;
+  *d1Ref = v & 0x7f;
+}
+
+int           cmMidiToPbend(  cmMidiByte_t d0, cmMidiByte_t d1 )
+{
+  int v = cmMidiTo14Bits(d0,d1);
+  return v - 8192;
+}
+
+void          cmMidiSplitPbend( int v, cmMidiByte_t* d0Ref, cmMidiByte_t* d1Ref )
+{
+  unsigned uv = v + 8192;
+  cmMidiSplit14Bits(uv,d0Ref,d1Ref);
+}
 
 //====================================================================================================
 const char*     cmMidiToSciPitch( cmMidiByte_t pitch, char* label, unsigned labelCharCnt )
