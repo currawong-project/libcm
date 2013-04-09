@@ -60,7 +60,7 @@ void* _cmThThreadCallback(void* param)
 
     if( t->state == kPausedThId )
     {
-      usleep( t->pauseMicroSecs );
+      cmSleepUs( t->pauseMicroSecs );
 
       if( cmIsFlag(t->doFlags,kDoRunThFl) )
       {
@@ -104,8 +104,8 @@ cmThRC_t _cmThWaitForState( cmThThread_t* t, unsigned stateId )
 
   while( t->state != stateId && waitTimeMicroSecs < t->waitMicroSecs )
   {
-    //usleep( t->waitMicroSecs );
-    usleep( 15000 );
+    //cmSleepUs( t->waitMicroSecs );
+    cmSleepUs( 15000 );
     waitTimeMicroSecs += 15000; //t->waitMicroSecs;
   }
 
@@ -1671,7 +1671,7 @@ bool _cmTsQueueCb0(void* param)
     printf("in error %i\n",p->id);
   
 
-  usleep(100*1000);
+  cmSleepUs(100*1000);
 
   return true;
 }
@@ -1794,7 +1794,7 @@ bool _cmTs1p1cCb0(void* param)
   
   ++p->id;
 
-  usleep(100*1000);
+  cmSleepUs(100*1000);
 
   return true;
 }
@@ -1905,7 +1905,7 @@ bool _cmTsMp1cCb0(void* param)
   else
     printf("in error %i\n",p->id);
 
-  usleep(100*1000);
+  cmSleepUs(100*1000);
 
   return true;
 }
@@ -1995,3 +1995,8 @@ void cmTsMp1cTest( cmRpt_t* rpt )
   
 }
 
+void cmSleepUs( unsigned microseconds )
+{ usleep(microseconds); }
+
+void cmSleepMs( unsigned milliseconds )
+{ cmSleepUs(milliseconds*1000); }

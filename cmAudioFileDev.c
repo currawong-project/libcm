@@ -9,7 +9,6 @@
 #include "cmAudioPort.h"
 #include "cmAudioFileDev.h"
 
-#include <unistd.h> // usleep()
 
 #ifdef OS_OSX
 #include "osx/clock_gettime_stub.h"
@@ -168,7 +167,7 @@ bool _cmAudioDevThreadFunc(void* param)
     // if the execution time has not yet arrived
     if( dusec > 0 )
     {
-      usleep(dusec);
+      cmSleepUs(dusec);
     }
 
     // if the thread is still running

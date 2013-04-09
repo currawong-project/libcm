@@ -98,7 +98,7 @@ cmDspRC_t _cmDspSysNetSend( cmDsp_t* p, unsigned remoteNetNodeId, unsigned subSe
 
   if( cmUdpNetSendById(p->netH, remoteNetNodeId, &m, sizeof(m) ) == kOkUnRC )
   {
-    //usleep(p->sendWaitMs*1000);
+    //cmSleepUs(p->sendWaitMs*1000);
   }
   else
   {
@@ -223,7 +223,7 @@ cmDspRC_t _cmDspSysNetSendConnRequests( cmDsp_t* p, unsigned dstNetNodeId )
       if( p->netVerbosity > 1 )
         cmRptPrintf(p->err.rpt,"Sync: send req to %i\n",rp->dstNetNodeId);
 
-      //usleep(p->sendWaitMs*1000); // wait  between transmissions
+      //cmSleepUs(p->sendWaitMs*1000); // wait  between transmissions
     }
 
   }
@@ -363,7 +363,7 @@ bool _cmDspSysNetSyncThreadCb( void* param )
   }
 
   // prevent the thread from burning too much time
-  usleep(p->sendWaitMs*1000);
+  cmSleepUs(p->sendWaitMs*1000);
   
   // check if all nodes have completed transmission to this node
   nodeFl = _cmDspSysNetCheckNetNodeStatus(p);

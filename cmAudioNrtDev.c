@@ -130,7 +130,7 @@ bool cmApNrtThreadFunc(void* param)
 {
   cmApNrtDev_t* dp = (cmApNrtDev_t*)param;
 
-  usleep( dp->cbPeriodMs * 1000 );
+  cmSleepUs( dp->cbPeriodMs * 1000 );
 
 
   cmApAudioPacket_t pkt;

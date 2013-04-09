@@ -1,6 +1,4 @@
 #include <sys/time.h>  // gettimeofday()
-#include <unistd.h>    // usleep()
-//#include <time.h>      // clock_gettime()
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmRpt.h"
@@ -13,6 +11,7 @@
 #include "cmMidiPort.h"
 #include "cmMidiFile.h"
 #include "cmMidiFilePlay.h"
+#include "cmThread.h" // cmSleepUs()
 
 #ifdef OS_OSX
 #include "osx/clock_gettime_stub.h"
@@ -293,7 +292,7 @@ void _cmMfpTestTimer()
 
   for(i=0; i<n; ++i)
   {
-    usleep(suspendUsecs);
+    cmSleepUs(suspendUsecs);
 
     
     clock_gettime(CLOCK_REALTIME,&t1);
@@ -358,7 +357,7 @@ cmMfpRC_t cmMfpTest( const char* fn, cmCtx_t* ctx )
   //for(i=0; i<n; ++i)
   while(rc != kEndOfFileMfpRC)
   {
-    usleep(suspendUsecs);
+    cmSleepUs(suspendUsecs);
     
     clock_gettime(CLOCK_REALTIME,&t1);    
     t1.tv_sec -= base.tv_sec;

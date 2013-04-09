@@ -270,6 +270,10 @@ extern "C" {
   bool       cmTsMp1cIsValid( cmTsMp1cH_t h );  
 
 
+  // Sleep functions
+  void cmSleepUs( unsigned microseconds );
+  void cmSleepMs( unsigned milliseconds );
+
 
   void cmTsQueueTest( cmRpt_t* rpt );
   void cmTs1p1cTest( cmRpt_t* rpt );

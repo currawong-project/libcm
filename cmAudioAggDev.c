@@ -10,7 +10,6 @@
 
 #include "cmApBuf.h"  // only needed for cmApBufTest().
 
-//#include <unistd.h> // usleep
 
 enum
 {
@@ -338,7 +337,6 @@ cmAgRC_t      cmApAggDeviceStart( unsigned aggDevIdx )
     if( cmApDeviceStart( physDevIdx ) != kOkApRC )
       return cmErrMsg(&_cmAg.err,kPhysDevStartFailAgRC,"The physical device (index:%i '%s') start failed.",physDevIdx,cmStringNullGuard(cmApDeviceLabel(physDevIdx)));
 
-    //usleep(1000);
   }
 
   ap->startedFl = true;
