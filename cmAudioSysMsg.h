@@ -81,6 +81,8 @@ extern "C" {
     unsigned asSubCnt;  ///< count of sub-systems
     unsigned inDevIdx;  ///< input device index
     unsigned outDevIdx; ///< output device index
+    unsigned dspFramesPerCycle;
+    double   srate;
     unsigned inChCnt;   ///< input device channel count
     unsigned outChCnt;  ///< outut device channel count
   } cmAudioSysSsInitMsg_t;

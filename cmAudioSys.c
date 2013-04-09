@@ -21,7 +21,6 @@
 
 #include "cmMath.h"
 
-#include <unistd.h>  // usleep
 
 cmAudioSysH_t cmAudioSysNullHandle = { NULL };
 
@@ -130,13 +129,15 @@ cmAsRC_t _cmAsHostInitNotify( cmAs_t* p )
     const char*           inDevLabel  = cp->ss.args.inDevIdx  == cmInvalidIdx ? "" : cmApDeviceLabel( cp->ss.args.inDevIdx );
     const char*           outDevLabel = cp->ss.args.outDevIdx == cmInvalidIdx ? "" : cmApDeviceLabel( cp->ss.args.outDevIdx );
 
-    m.asSubIdx  = i;
-    m.selId     = kSsInitSelAsId;
-    m.asSubCnt  = p->ssCnt;
-    m.inDevIdx  = cp->ss.args.inDevIdx;
-    m.outDevIdx = cp->ss.args.outDevIdx;
-    m.inChCnt   = cp->status.iMeterCnt;
-    m.outChCnt  = cp->status.oMeterCnt;
+    m.asSubIdx          = i;
+    m.selId             = kSsInitSelAsId;
+    m.asSubCnt          = p->ssCnt;
+    m.inDevIdx          = cp->ss.args.inDevIdx;
+    m.outDevIdx         = cp->ss.args.outDevIdx;
+    m.dspFramesPerCycle = cp->ss.args.dspFramesPerCycle;
+    m.srate             = cp->ss.args.srate;
+    m.inChCnt           = cp->status.iMeterCnt;
+    m.outChCnt          = cp->status.oMeterCnt;
     
     unsigned    segCnt = 3;
     const void* msgDataPtrArray[] = { &m, inDevLabel, outDevLabel };
@@ -495,7 +496,7 @@ void _cmAudioSysMidiCallback( const cmMidiPacket_t* pktArray, unsigned pktCnt )
       asH.h = cp->p; 
 
       unsigned    selId             = kMidiMsgArraySelAsId;
-      const void* msgPtrArray[]     = { &cp->ctx.asSubIdx, &selId,        &pkt->devIdx,        &pkt->portIdx,        &pkt->msgCnt,        pkt->msgArray };
+      const void* msgPtrArray[]     = { &cp->ctx.asSubIdx,        &selId,        &pkt->devIdx,        &pkt->portIdx,        &pkt->msgCnt,        pkt->msgArray };
       unsigned    msgByteCntArray[] = { sizeof(cp->ctx.asSubIdx), sizeof(selId), sizeof(pkt->devIdx), sizeof(pkt->portIdx), sizeof(pkt->msgCnt), pkt->msgCnt*sizeof(cmMidiMsg) };
       unsigned    msgSegCnt         = sizeof(msgByteCntArray)/sizeof(unsigned);
 
@@ -578,7 +579,7 @@ cmAsRC_t _cmAudioSysEnable( cmAs_t* p, bool enableFl )
 
     }
 
-    cp->enableFl = enableFl;  
+    cp->enableFl = enableFl; 
   }
   return kOkAsRC;
 }
@@ -610,7 +611,7 @@ cmAsRC_t _cmAudioSysFinalize( cmAs_t* p )
       // cond variable from _cmAsAudioUpdate() otherwise the system may crash
 
       while( cp->audCbLock != 0 )
-      { usleep(100000); }
+      { cmSleepUs(100000); }
 
       // signal the cond var to cause the thread to run
       if((rc = cmThreadMutexSignalCondVar(cp->engMutexH)) != kOkThRC )

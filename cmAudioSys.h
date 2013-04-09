@@ -89,7 +89,9 @@ extern "C" {
     kAsDfltBufCnt            = 3,
     kAsDfltSrate             = 44100,
     kAsDfltSyncToInputFl     = 1,
-    kAsDfltMeterMs           = 50
+    kAsDfltMinMeterMs        = 10,
+    kAsDfltMeterMs           = 50,
+    kAsDfltMaxMeterMs        = 1000
   };
 
   typedef cmHandle_t cmAudioSysH_t;  //< Audio system handle type
