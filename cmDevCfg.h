@@ -67,6 +67,7 @@ extern "C" {
 
   typedef struct
   {
+    const cmChar_t* label;    // cfg label
     cmChar_t* devLabelStr;    // Midi device label.
     cmChar_t* portLabelStr;   // Midi device port label.
     bool      inputFl;        // 'True' if this is an input port.
@@ -76,19 +77,21 @@ extern "C" {
 
   typedef struct
   {
+    const cmChar_t* label;         // cfg label
     cmChar_t*     inDevLabelStr;  // Input audio device label.
     cmChar_t*     outDevLabelStr; // Output audio device label.
-    cmRtSysArgs_t audioSysArgs;   // Audio system  cfg recd
+    cmRtSysArgs_t rtSysArgs;      // RT system  cfg recd
     bool          dfltFl;         // true if this is the default audio cfg.
     bool          activeFl;
   } cmDcmAudio_t;
 
   typedef struct              
   {
-    cmChar_t* sockAddr;   // socket address.
-    unsigned  portNumber; // socket port number
-    bool      localFl;    // this is the local port
-    bool      activeFl;   // this port is active/inactive
+    const cmChar_t* label;      // cfg label
+    cmChar_t*       sockAddr;   // socket address.
+    unsigned        portNumber; // socket port number
+    bool            localFl;    // this is the local port
+    bool            activeFl;   // this port is active/inactive
   } cmDcmNet_t;
 
   extern cmDevCfgH_t cmDevCfgNullHandle;
