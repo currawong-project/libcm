@@ -84,6 +84,7 @@ extern "C" {
     kPrependUiFl   = 0x00000800,
     kClearUiFl     = 0x00001000, // clear all ele' from a list or menu
 
+    // Alignment flags
     kLeftUiFl      = 0x00002000,
     kTopUiFl       = 0x00004000,
     kRightUiFl     = 0x00008000,
@@ -99,6 +100,11 @@ extern "C" {
 
     kNoReflectUiFl = 0x01000000, // do not reflect event to the client
     
+    // When to send text fields
+    kSendChangeFl  = 0x10000000, // whenever text changes
+    kSendEnterFl   = 0x20000000, // when enter key is pressed (and changed or not-changed)
+    kSendFocusFl   = 0x40000000, // when ctl loses focus
+    kSendNoChangeFl= 0x80000000  // on enter even if no-change 
   };
 
 
