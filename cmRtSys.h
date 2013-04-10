@@ -197,7 +197,7 @@ extern "C" {
     void*                 clientCbData; // User arg. for clientCbFunc().
     cmTsQueueCb_t         clientCbFunc; // Called by  cmRtSysReceiveMsg() to deliver internally generated msg's to the host. 
                                         //  Set to NULL if msg's will be directly returned by buffers passed to cmRtSysReceiveMsg().
-    cmUdpNetH_t           netH;
+    cmUdpH_t           udpH;
   } cmRtSysCfg_t;
 
   extern cmRtSysH_t cmRtSysNullHandle;

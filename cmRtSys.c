@@ -41,7 +41,7 @@ typedef struct
   cmThreadH_t      threadH;     // audio system thread
   cmTsMp1cH_t      htdQueueH;   // host-to-dsp thread safe msg queue
   cmThreadMutexH_t engMutexH;   // thread mutex and condition variable
-  cmUdpNetH_t      netH;
+  cmUdpH_t         udpH;
   bool             runFl;       // false during finalization otherwise true
   bool             statusFl;    // true if regular status notifications should be sent
   bool             syncInputFl;
@@ -296,7 +296,7 @@ void _cmRtDspExecCallback( _cmRtCfg_t* cp )
     if( cp->statusFl )
       _cmRtSendStateStatusToHost(cp);
   }
-
+  
 }
 
 // Returns true if audio buffer is has waiting incoming samples and
@@ -377,29 +377,27 @@ bool _cmRtThreadCallback(void* arg)
     }
 
     // be sure we are still enabled and the buffer is still ready
-    if( 1 /*cp->runFl*/ )
+    while( cp->runFl && _cmRtBufIsReady(cp) )
     {
-      while( cp->runFl && _cmRtBufIsReady(cp) )
-      {
-        ++cp->status.audioCbCnt;
+      ++cp->status.audioCbCnt;
         
-        // calling this function results in callbacks to cmAudDsp.c:_cmAdUdpNetCallback()
-        // which in turn calls cmRtSysDeliverMsg() which queues any incoming messages
-        // which are then transferred to the DSP processes by the the call to 
+      // calling this function results in callbacks to _gtNetRecv()
+      // which in turn calls cmRtSysDeliverMsg() which queues any incoming messages
+      // which are then transferred to the DSP processes by the the call to 
         // _cmRtDeliverMsgWithLock() below.
-        cmUdpNetReceive(cp->netH,NULL);
+      if( cp->cbEnableFl )
+        cmUdpGetAvailData(cp->udpH,NULL,NULL,NULL);
     
-        // if there are msgs waiting to be sent to the DSP process send them. 
+      // if there are msgs waiting to be sent to the DSP process send them. 
         if( cp->cbEnableFl )
           if( cmTsMp1cMsgWaiting(cp->htdQueueH) )
             _cmRtDeliverMsgsWithLock(cp); 
 
         // make the cmRtSys callback
         _cmRtDspExecCallback( cp ); 
-
+        
         // update the signal time
         cp->ctx.begSmpIdx += cp->ss.args.dspFramesPerCycle;
-      }
     }
    
   } 
@@ -852,7 +850,7 @@ cmRtRC_t cmRtSysInitialize( cmRtSysH_t h, const cmRtSysCfg_t* cfg )
     cp->status.oMeterCnt = cp->ctx.oChCnt;
     cp->iMeterArray      = cmMemAllocZ( double, cp->status.iMeterCnt );
     cp->oMeterArray      = cmMemAllocZ( double, cp->status.oMeterCnt );
-    cp->netH             = cfg->netH;
+    cp->udpH             = cfg->udpH;
 
     // create the audio System thread
     if((rc = cmThreadCreate( &cp->threadH, _cmRtThreadCallback, cp, ss->args.rpt )) != kOkThRC )
