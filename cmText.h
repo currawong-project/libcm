@@ -192,8 +192,9 @@ extern "C" {
   // Append 'n' copies of 'c' to the end of s[].
   cmChar_t* cmTextAppendChar( cmChar_t* s, cmChar_t c, unsigned n );
 
-  // Returns true if the string is all spaces.
+  // Returns true if the string is NULL or all spaces.
   bool cmTextIsEmpty( const cmChar_t* s );
+  bool cmTextIsNotEmpty( const cmChar_t* s );
 
   // Returns NULL if string contains fewer than lineIdx lines.
   // Note: first line == 1.

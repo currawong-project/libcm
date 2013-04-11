@@ -611,6 +611,10 @@ bool cmTextIsEmpty( const cmChar_t* s )
   return true;
 }
 
+bool cmTextIsNotEmpty( const cmChar_t* s )
+{ return !cmTextIsEmpty(s); }
+
+
 cmChar_t* cmTextLine( cmChar_t* s, unsigned line )
 {
   assert( line>0);
