@@ -2056,7 +2056,7 @@ cmJsRC_t      cmJsonInsertPairReal(   cmJsonH_t h, cmJsonNode_t* objectNodePtr, 
 }
 
 cmJsRC_t      cmJsonInsertPairString( cmJsonH_t h, cmJsonNode_t* objectNodePtr, const char* label, const char* stringVal )
-{ return cmJsonInsertPairStringN(h,objectNodePtr,label,stringVal,strlen(stringVal)); }
+{ return cmJsonInsertPairStringN(h,objectNodePtr,label,stringVal,stringVal==NULL ? 0 : strlen(stringVal)); }
 
 cmJsRC_t      cmJsonInsertPairStringN( cmJsonH_t h, cmJsonNode_t* objectNodePtr, const char* label, const char* stringVal, unsigned stringCharCnt )
 {
