@@ -244,6 +244,22 @@ cmRtRC_t _cmRtSendStateStatusToHost(  _cmRtCfg_t* cp )
   return rc;
 }
 
+// This is only called with _cmRtRecd.engMutexH locked
+cmRtRC_t _cmRtDeliverMsgsWithLock( _cmRtCfg_t* cp  )
+{
+  int      i;
+  cmRtRC_t rc = kOkThRC;
+    
+  // as long as their may be a msg wating in the incoming msg queue
+  for(i=0; rc == kOkThRC; ++i)
+  {
+    // if a msg is waiting transmit it via cfg->cbFunc()
+    if((rc = cmTsMp1cDequeueMsg(cp->htdQueueH,NULL,0)) == kOkThRC)
+      ++cp->status.msgCbCnt;
+  }
+
+  return rc;
+}
 
 // The DSP execution callback happens through this function.
 // This function is only called from inside _cmRtThreadCallback() 
@@ -257,6 +273,20 @@ void _cmRtDspExecCallback( _cmRtCfg_t* cp )
   //   2) Buffers associated with channels marked for pass-through will be set to NULL in oChArray[].
   //   3) All samples returned in oChArray[] buffers will be set to zero.
   cmApBufGetIO(cp->ss.args.inDevIdx, cp->ctx.iChArray, cp->ctx.iChCnt, cp->ss.args.outDevIdx, cp->ctx.oChArray, cp->ctx.oChCnt  );
+
+
+  // calling this function results in callbacks to _gtNetRecv()
+  // which in turn calls cmRtSysDeliverMsg() which queues any incoming messages
+  // which are then transferred to the DSP processes by the the call to 
+  // _cmRtDeliverMsgWithLock() below.
+  if( cp->cbEnableFl )
+    cmUdpGetAvailData(cp->udpH,NULL,NULL,NULL);
+    
+  // if there are msgs waiting to be sent to the DSP process send them. 
+  if( cp->cbEnableFl )
+    if( cmTsMp1cMsgWaiting(cp->htdQueueH) )
+      _cmRtDeliverMsgsWithLock(cp); 
+
 
   // call the application provided DSP process
   if( cp->cbEnableFl )
@@ -318,22 +348,6 @@ bool _cmRtBufIsReady( const _cmRtCfg_t* cp )
 }
 
 
-// This is only called with _cmRtRecd.engMutexH locked
-cmRtRC_t _cmRtDeliverMsgsWithLock( _cmRtCfg_t* cp  )
-{
-  int      i;
-  cmRtRC_t rc = kOkThRC;
-    
-  // as long as their may be a msg wating in the incoming msg queue
-  for(i=0; rc == kOkThRC; ++i)
-  {
-    // if a msg is waiting transmit it via cfg->cbFunc()
-    if((rc = cmTsMp1cDequeueMsg(cp->htdQueueH,NULL,0)) == kOkThRC)
-      ++cp->status.msgCbCnt;
-  }
-
-  return rc;
-}
 
 
 // This is the main audio system loop (and thread callback function).
@@ -381,23 +395,12 @@ bool _cmRtThreadCallback(void* arg)
     {
       ++cp->status.audioCbCnt;
         
-      // calling this function results in callbacks to _gtNetRecv()
-      // which in turn calls cmRtSysDeliverMsg() which queues any incoming messages
-      // which are then transferred to the DSP processes by the the call to 
-        // _cmRtDeliverMsgWithLock() below.
-      if( cp->cbEnableFl )
-        cmUdpGetAvailData(cp->udpH,NULL,NULL,NULL);
-    
-      // if there are msgs waiting to be sent to the DSP process send them. 
-        if( cp->cbEnableFl )
-          if( cmTsMp1cMsgWaiting(cp->htdQueueH) )
-            _cmRtDeliverMsgsWithLock(cp); 
 
-        // make the cmRtSys callback
-        _cmRtDspExecCallback( cp ); 
+      // make the cmRtSys callback
+      _cmRtDspExecCallback( cp ); 
         
-        // update the signal time
-        cp->ctx.begSmpIdx += cp->ss.args.dspFramesPerCycle;
+      // update the signal time
+      cp->ctx.begSmpIdx += cp->ss.args.dspFramesPerCycle;
     }
    
   } 
