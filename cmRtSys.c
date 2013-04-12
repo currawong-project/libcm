@@ -279,8 +279,8 @@ void _cmRtDspExecCallback( _cmRtCfg_t* cp )
   // which in turn calls cmRtSysDeliverMsg() which queues any incoming messages
   // which are then transferred to the DSP processes by the the call to 
   // _cmRtDeliverMsgWithLock() below.
-  if( cp->cbEnableFl )
-    cmUdpGetAvailData(cp->udpH,NULL,NULL,NULL);
+  //if( cp->cbEnableFl )
+  //  cmUdpGetAvailData(cp->udpH,NULL,NULL,NULL);
     
   // if there are msgs waiting to be sent to the DSP process send them. 
   if( cp->cbEnableFl )
