@@ -1001,7 +1001,7 @@ unsigned          cmDevCfgNetActiveCount( cmDevCfgH_t h )
   unsigned    n;
 
   for(n=0; cp!=NULL; cp=cp->next)
-    if( cp->typeId == kNetDcmTId && cp->u.a.activeFl )
+    if( cp->typeId == kNetDcmTId && cp->u.n.activeFl )
       ++n;
 
   return n;
@@ -1017,7 +1017,7 @@ const cmDcmNet_t* cmDevCfgNetActiveCfg( cmDevCfgH_t h, unsigned idx )
   unsigned    i;
 
   for(i=0; cp!=NULL; cp=cp->next)
-    if( cp->typeId == kNetDcmTId && cp->u.a.activeFl )
+    if( cp->typeId == kNetDcmTId && cp->u.n.activeFl )
     {
       if( i == idx )
         return &cp->u.n;
