@@ -19,6 +19,7 @@ extern "C" {
     kSockRecvFailUdpRC,
     kSockSelectFailUdpRC,
     kPtoNFailUdpRC,
+    kNtoPFailUdpRC,
     kNotConnectedUdpRC,
     kThreadFailUdpRC,
     kQueueFailUdpRC,
@@ -114,6 +115,8 @@ extern "C" {
 
   // Prepare a struct sockadddr_in for use with cmUdpSendTo()
   cmUdpRC_t cmUdpInitAddr( cmUdpH_t h, const char* addrStr, cmUdpPort_t portNumber, struct sockaddr_in* retAddrPtr );
+
+  const cmChar_t*  cmUdpAddrToString( cmUdpH_t h, const struct sockaddr_in* addr );
 
 #ifdef __cplusplus
 }

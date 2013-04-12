@@ -42,6 +42,7 @@ typedef struct
   unsigned        recvCnt;
   unsigned        queCbCnt;
   unsigned        errCnt;
+  cmChar_t        ntopBuf[ INET_ADDRSTRLEN+1 ]; // use INET6_ADDRSTRLEN for IPv6
 } cmUdp_t;
 
 cmUdpH_t cmUdpNullHandle = cmSTATIC_NULL_HANDLE;
@@ -544,4 +545,20 @@ cmUdpRC_t cmUdpInitAddr( cmUdpH_t h, const char* addrStr, cmUdpPort_t portNumber
 {
   cmUdp_t* p = _cmUdpHandleToPtr(h);
   return _cmUdpInitAddr(p,addrStr,portNumber,retAddrPtr);
+}
+
+const cmChar_t* cmUdpAddrToString( cmUdpH_t h, const struct sockaddr_in* addr )
+{
+  cmUdp_t* p = _cmUdpHandleToPtr(h);
+
+  _cmUdpClear_errno();
+  
+  if( inet_ntop(AF_INET, addr,  p->ntopBuf, INET_ADDRSTRLEN) == NULL)
+  {
+    cmErrSysMsg(&p->err,kNtoPFailUdpRC,errno, "Network address to string conversion failed." );
+    return NULL;
+  }
+  
+  p->ntopBuf[INET_ADDRSTRLEN]=0;
+  return p->ntopBuf;
 }
