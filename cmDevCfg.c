@@ -14,8 +14,8 @@
 #include "cmMidiPort.h"
 #include "cmAudioPort.h"
 #include "cmUdpPort.h"
-#include "cmUdpNet.h"
 #include "cmRtSysMsg.h"
+#include "cmRtNet.h"
 #include "cmRtSys.h"
 
 #include "cmDevCfg.h"
@@ -146,7 +146,6 @@ void _cmDcmDuplNet( cmDcmNet_t* d, const cmDcmNet_t* s )
 {
   d->sockAddr   = cmMemAllocStr(s->sockAddr);
   d->portNumber = s->portNumber;
-  d->localFl    = s->localFl;
   d->activeFl   = s->activeFl;
 }
 
@@ -712,6 +711,8 @@ cmDcRC_t cmDevCfgNameAudioPort(
   unsigned        dspFramesPerCycle,
   unsigned        audioBufCnt,
   double          srate,
+  const cmChar_t* ipAddr,
+  cmUdpPort_t     ipPort,
   bool            activeFl )
 {
   cmDcm_t*    p         = _cmDcmHandleToPtr(h);
@@ -770,58 +771,14 @@ cmDcRC_t cmDevCfgNameAudioPort(
   cp->u.a.rtSysArgs.dspFramesPerCycle = dspFramesPerCycle;
   cp->u.a.rtSysArgs.audioBufCnt       = audioBufCnt;
   cp->u.a.rtSysArgs.srate             = srate;
+  cp->u.a.ipAddr                      = ipAddr;
+  cp->u.a.ipPort                      = ipPort;
   cp->descStr                         = cmTsPrintfP(cp->descStr,"%sIn: Chs:%i %s\nOut: Chs:%i %s",activeFl?"":"INACTIVE ",inChCnt,cp->u.a.inDevLabelStr,outChCnt,cp->u.a.outDevLabelStr);
   return kOkDcRC;  
 }
 
 
 
-cmDcRC_t            cmDevCfgAudioSetDefaultCfgIndex( cmDevCfgH_t h, unsigned cfgIdx )
-{
-  cmDcm_t* p = _cmDcmHandleToPtr(h);
-
-  assert( p->clp != NULL );
-
-  cmDcmCfg_t* cp = p->clp->cfg;
-  unsigned    i;
-
-  for(i=0; cp!=NULL; cp=cp->next)
-    if( cp->typeId == kAudioDcmTId )
-    {
-      if( i == cfgIdx )
-        cp->u.a.dfltFl = true;
-      else
-      {
-        if( cp->u.a.dfltFl )
-          cp->u.a.dfltFl = false;
-      }
-
-      ++i;
-    }
-  
-
-  return kOkDcRC;
-}
-
-unsigned   cmDevCfgAudioGetDefaultCfgIndex( cmDevCfgH_t h )
-{
-  cmDcm_t* p = _cmDcmHandleToPtr(h);
-
-  assert( p->clp != NULL );
-
-  cmDcmCfg_t* cp = p->clp->cfg;
-  unsigned    i;
-
-  for(i=0; cp!=NULL; cp=cp->next)
-    if( cp->typeId == kAudioDcmTId )
-    {
-      if( cp->u.a.dfltFl )
-        return i;
-
-      ++i;
-    }
-  return cmInvalidIdx;
-}
 
 bool  cmDevCfgAudioIsDeviceActive( cmDevCfgH_t h, const cmChar_t* devNameStr, bool inputFl )
 {
@@ -961,7 +918,6 @@ cmDcRC_t cmDevCfgNameNetPort(
   const cmChar_t* dcLabelStr,
   const cmChar_t* sockAddr,
   unsigned        portNumber,
-  bool            localFl,
   bool            activeFl)
 {
 
@@ -983,9 +939,8 @@ cmDcRC_t cmDevCfgNameNetPort(
   cp->u.n.label      = cp->dcLabelStr;
   cp->u.n.sockAddr   = cmMemAllocStr(sockAddr);
   cp->u.n.portNumber = portNumber;
-  cp->u.n.localFl    = localFl;
   cp->u.n.activeFl   = activeFl;
-  cp->descStr        = cmTsPrintfP(cp->descStr,"%s %s %s:%i",activeFl?"":"INACTIVE",localFl?"local":"remote",sockAddr,portNumber);
+  cp->descStr        = cmTsPrintfP(cp->descStr,"%s %s:%i",activeFl?"":"INACTIVE",sockAddr,portNumber);
   
 
   return kOkDcRC;
@@ -1340,6 +1295,8 @@ cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPt
               "dspFramesPerCycle", kIntTId,    &a.rtSysArgs.dspFramesPerCycle,
               "audioBufCnt",       kIntTId,    &a.rtSysArgs.audioBufCnt,
               "srate",             kRealTId,   &a.rtSysArgs.srate,
+              "ipAddr",            kStringTId, &a.ipAddr,
+              "ipPort",            kIntTId,    &a.ipPort,
               "active",            kBoolTId,   &a.activeFl,
               NULL ) != kOkJsRC )
           {
@@ -1354,6 +1311,8 @@ cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPt
                 a.rtSysArgs.dspFramesPerCycle,
                 a.rtSysArgs.audioBufCnt,
                 a.rtSysArgs.srate,
+                a.ipAddr,
+                a.ipPort,
                 a.activeFl)) != kOkDcRC )
           {
             goto errLabel;
@@ -1365,7 +1324,6 @@ cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPt
           if( cmJsonMemberValues( cfgObjNp, &errLabelPtr,
               "sockAddr",   kStringTId, &n.sockAddr,
               "portNumber", kIntTId,    &n.portNumber,
-              "localFl",    kBoolTId,   &n.localFl,
               "activeFl",   kBoolTId,   &n.activeFl,
               NULL ) != kOkJsRC )
           {
@@ -1373,7 +1331,7 @@ cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPt
             goto errLabel;
           }
 
-          if((rc = cmDevCfgNameNetPort(h,dcLabelStr,n.sockAddr,n.portNumber,n.localFl,n.activeFl)) != kOkDcRC )
+          if((rc = cmDevCfgNameNetPort(h,dcLabelStr,n.sockAddr,n.portNumber,n.activeFl)) != kOkDcRC )
             goto errLabel;
 
           break;
@@ -1472,6 +1430,8 @@ cmDcRC_t _cmDevCfgWrite( cmDcm_t* p, cmJsonH_t jsH, cmJsonNode_t* rootObjPtr )
             "dspFramesPerCycle", kIntTId,    cp->u.a.rtSysArgs.dspFramesPerCycle,
             "audioBufCnt",       kIntTId,    cp->u.a.rtSysArgs.audioBufCnt,
             "srate",             kRealTId,   cp->u.a.rtSysArgs.srate,
+            "ipAddr",            kStringTId, cp->u.a.ipAddr,
+            "ipPort",            kIntTId,    cp->u.a.ipPort,
             "active",            kBoolTId,   cp->u.a.activeFl,
             NULL );
           break;
@@ -1480,7 +1440,6 @@ cmDcRC_t _cmDevCfgWrite( cmDcm_t* p, cmJsonH_t jsH, cmJsonNode_t* rootObjPtr )
           cmJsonInsertPairs(jsH, cfgObjNp,
             "sockAddr",  kStringTId, cp->u.n.sockAddr,
             "portNumber",kIntTId,    cp->u.n.portNumber,
-            "localFl",   kBoolTId,   cp->u.n.localFl,
             "activeFl",  kBoolTId,   cp->u.n.activeFl,
             NULL );
           break;

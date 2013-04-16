@@ -77,12 +77,13 @@ extern "C" {
 
   typedef struct
   {
-    const cmChar_t* label;         // cfg label
-    cmChar_t*     inDevLabelStr;  // Input audio device label.
-    cmChar_t*     outDevLabelStr; // Output audio device label.
-    cmRtSysArgs_t rtSysArgs;      // RT system  cfg recd
-    bool          dfltFl;         // true if this is the default audio cfg.
-    bool          activeFl;
+    const cmChar_t* label;          // cfg label
+    cmChar_t*       inDevLabelStr;  // Input audio device label.
+    cmChar_t*       outDevLabelStr; // Output audio device label.
+    cmRtSysArgs_t   rtSysArgs;      // RT system  cfg recd
+    const cmChar_t* ipAddr;         // local network addr or NULL for localhost
+    cmUdpPort_t     ipPort;         // local network port
+    bool            activeFl;
   } cmDcmAudio_t;
 
   typedef struct              
@@ -90,7 +91,6 @@ extern "C" {
     const cmChar_t* label;      // cfg label
     cmChar_t*       sockAddr;   // socket address.
     unsigned        portNumber; // socket port number
-    bool            localFl;    // this is the local port
     bool            activeFl;   // this port is active/inactive
   } cmDcmNet_t;
 
@@ -148,6 +148,8 @@ extern "C" {
     unsigned        dspFramesPerCycle,
     unsigned        audioBufCnt,
     double          srate,
+    const cmChar_t* ipAddr,
+    cmUdpPort_t     ipPort,
     bool            activeFl );
 
   bool                cmDevCfgAudioIsDeviceActive( cmDevCfgH_t h, const cmChar_t* devNameStr, bool inputFl );
@@ -167,7 +169,6 @@ extern "C" {
     const cmChar_t* dcLabelStr,
     const cmChar_t* sockAddr,
     unsigned        portNumber,
-    bool            localFl,
     bool            activeFl);
 
   unsigned          cmDevCfgNetActiveCount( cmDevCfgH_t h );
