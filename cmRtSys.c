@@ -15,6 +15,7 @@
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
 #include "cmRtSysMsg.h"
+#include "cmRtNet.h"
 #include "cmRtSys.h"
 #include "cmMidi.h"
 #include "cmMidiPort.h"
@@ -34,14 +35,14 @@ struct cmRt_str;
 
 typedef struct
 {
-  struct cmRt_str* p;           // pointer to the audio system instance which owns this sub-system
+  struct cmRt_str* p;           // pointer to the real-time system instance which owns this sub-system
   cmRtSysSubSys_t  ss;          // sub-system configuration record
   cmRtSysCtx_t     ctx;         // DSP context
   cmRtSysStatus_t  status;      // current runtime status of this sub-system
-  cmThreadH_t      threadH;     // audio system thread
+  cmThreadH_t      threadH;     // real-time system thread
   cmTsMp1cH_t      htdQueueH;   // host-to-dsp thread safe msg queue
   cmThreadMutexH_t engMutexH;   // thread mutex and condition variable
-  cmUdpH_t         udpH;
+  cmRtNetH_t       netH;
   bool             runFl;       // false during finalization otherwise true
   bool             statusFl;    // true if regular status notifications should be sent
   bool             syncInputFl;
@@ -60,11 +61,16 @@ typedef struct
 typedef struct cmRt_str
 {
   cmErr_t     err;
+  cmCtx_t*    ctx;
   _cmRtCfg_t* ssArray;
   unsigned    ssCnt;
   unsigned    waitRtSubIdx; // index of the next sub-system to try with cmRtSysIsMsgWaiting().
   cmTsMp1cH_t dthQueH;
-  bool        initFl;       // true if the audio system is initialized
+  bool        initFl;       // true if the real-time system is initialized
+
+  cmTsQueueCb_t clientCbFunc; // These fields are only used during configuration. 
+  void*         clientCbArg;  // See cmRtBeginCfg() and cmRtCfg().
+
 } cmRt_t;
 
 
@@ -190,7 +196,7 @@ cmRtRC_t  _cmRtParseNonSubSysMsg(  cmRt_t* p, const void* msg, unsigned msgByteC
   return rc;
 }
 
-// Process a UI msg sent from the host to the audio system  
+// Process a UI msg sent from the host to the real-time system  
 cmRtRC_t  _cmRtHandleNonSubSysMsg(  cmRt_t* p, const void* msgDataPtrArray[], unsigned msgByteCntArray[], unsigned msgSegCnt )
 {
   cmRtRC_t rc = kOkRtRC;
@@ -275,10 +281,15 @@ void _cmRtDspExecCallback( _cmRtCfg_t* cp )
   cmApBufGetIO(cp->ss.args.inDevIdx, cp->ctx.iChArray, cp->ctx.iChCnt, cp->ss.args.outDevIdx, cp->ctx.oChArray, cp->ctx.oChCnt  );
 
 
-  // calling this function results in callbacks to _gtNetRecv()
+  // calling this function results in callbacks to _cmRtNetRecv()
   // which in turn calls cmRtSysDeliverMsg() which queues any incoming messages
   // which are then transferred to the DSP processes by the the call to 
   // _cmRtDeliverMsgWithLock() below.
+  if( cmRtNetIsValid(cp->netH) )
+    if( cmRtNetReceive(cp->netH) != kOkNetRC )
+      _cmRtError(cp->p,kNetErrRtRC,"Network receive failed.");
+
+
   //if( cp->cbEnableFl )
   //  cmUdpGetAvailData(cp->udpH,NULL,NULL,NULL);
     
@@ -350,7 +361,7 @@ bool _cmRtBufIsReady( const _cmRtCfg_t* cp )
 
 
 
-// This is the main audio system loop (and thread callback function).
+// This is the main real-time system loop (and thread callback function).
 // It blocks by waiting on a cond. var (which simultaneously unlocks a mutex).
 // With the mutex unlocked messages can pass directly to the DSP process
 // via calls to cmRtDeliverMsg(). 
@@ -477,7 +488,7 @@ void   _cmRtSysAudioUpdate( cmApAudioPacket_t* inPktArray, unsigned inPktCnt, cm
     //printf("%i %i %i %i\n",testBufFl,cp->syncInputFl,inPktCnt,outPktCnt);
 
     // if the input/output buffer contain samples to be processed then signal the condition variable 
-    // - this will cause the audio system thread to unblock and the used defined DSP process will be called.
+    // - this will cause the real-time system thread to unblock and the used defined DSP process will be called.
     if( testBufFl && _cmRtBufIsReady(cp) )
     {
       if( cmThreadMutexSignalCondVar(cp->engMutexH) != kOkThRC )
@@ -527,7 +538,34 @@ void _cmRtSysMidiCallback( const cmMidiPacket_t* pktArray, unsigned pktCnt )
 
 }
 
-cmRtRC_t cmRtSysAllocate( cmRtSysH_t* hp, cmRpt_t* rpt, const cmRtSysCfg_t* cfg )
+// This funciton is called from the real-time thread
+void _cmRtNetRecv( void* cbArg, const char* data, unsigned dataByteCnt, const struct sockaddr_in* fromAddr )
+{
+  _cmRtCfg_t*      cp = (_cmRtCfg_t*)cbArg;
+  cmRtSysMsgHdr_t* hdr  = (cmRtSysMsgHdr_t*)data;
+
+  // is this a network sync. msg.
+  if( hdr->selId == kNetSyncSelRtId )
+  {
+    if( cmRtNetSyncModeRecv(cp->netH, data, dataByteCnt, fromAddr ) != kOkNetRC )
+      cmErrMsg(&cp->p->err,kNetErrRtRC,"Network sync mode receive failed.");
+  }
+  else
+  {
+    cmRtSysH_t h;
+    h.h = cp->p;
+    cmRtSysDeliverMsg(h,data,dataByteCnt,cmInvalidId);
+  }
+
+  // If the network is in sync mode 
+  if( cmRtNetIsValid(cp->netH) && cmRtNetIsInSyncMode(cp->netH) )
+    if( cmRtNetSyncModeSend(cp->netH) != kOkNetRC )
+      cmErrMsg(&cp->p->err,kNetErrRtRC,"Net sync send failed.");
+
+}
+
+
+cmRtRC_t cmRtSysAllocate( cmRtSysH_t* hp, cmCtx_t* ctx )
 {
   cmRtRC_t rc;
 
@@ -536,13 +574,10 @@ cmRtRC_t cmRtSysAllocate( cmRtSysH_t* hp, cmRpt_t* rpt, const cmRtSysCfg_t* cfg 
 
   cmRt_t*  p = cmMemAllocZ( cmRt_t, 1 );
 
-  cmErrSetup(&p->err,rpt,"Audio System");
+  cmErrSetup(&p->err,&ctx->rpt,"Real-Time System");
+  p->ctx = ctx;
 
   hp->h = p;
-
-  if( cfg != NULL )
-    if((rc = cmRtSysInitialize( *hp, cfg )) != kOkRtRC )
-      cmRtSysFree(hp);
 
   return rc;
 }
@@ -608,6 +643,16 @@ cmRtRC_t _cmRtSysEnable( cmRt_t* p, bool enableFl )
 
   }
 
+  // enable network sync mode
+  if( enableFl)
+    for(i=0; i<p->ssCnt; ++i)
+    {
+      _cmRtCfg_t* cp = p->ssArray + i;
+      if( cmRtNetIsValid(cp->netH) )
+        if( cmRtNetBeginSyncMode(cp->netH) != kOkNetRC )
+          rc = cmErrMsg(&p->err,kNetErrRtRC,"Network Mgr. failed on entering sync mode.");
+    }
+  
   return rc;
 }
 
@@ -616,12 +661,12 @@ cmRtRC_t _cmRtSysFinalize( cmRt_t* p )
   cmRtRC_t rc = kOkRtRC;
   unsigned i;
   
-  // mark  the audio system as NOT initialized
+  // mark  the real-time system as NOT initialized
   p->initFl = false;
 
   // be sure all audio callbacks are disabled before continuing.
   if((rc = _cmRtSysEnable(p,false)) != kOkRtRC )
-    return _cmRtError(p,rc,"Audio system finalize failed because device halting failed.");
+    return _cmRtError(p,rc,"real-time system finalize failed because device halting failed.");
 
   // stop the audio devices 
   for(i=0; i<p->ssCnt; ++i)
@@ -672,6 +717,9 @@ cmRtRC_t _cmRtSysFinalize( cmRt_t* p )
       if((rc = cmThreadMutexDestroy( &cp->engMutexH )) != kOkThRC )
         _cmRtError(p,kMutexErrRtRC,"Mutex destroy failed.");
 
+    // release the network mgr
+    if( cmRtNetFree(&cp->netH) != kOkNetRC )
+      _cmRtError(p,kNetErrRtRC,"Network Mrr. release failed.");
 
     // remove the MIDI callback
     if( cmMpIsInitialized() && cmMpUsesCallback(-1,-1, _cmRtSysMidiCallback, cp) )
@@ -708,10 +756,11 @@ cmRtRC_t _cmRtSysFinalize( cmRt_t* p )
   return rc;
 }
 
-// A given device may be used as an input device exactly once and an output device exactly once.
-// When the input to a given device is used by one sub-system and the output is used by another
-// then both sub-systems must use the same srate,devFramesPerCycle, audioBufCnt and dspFramesPerCycle.
-cmRtRC_t _cmRtSysValidate( cmErr_t* err, const cmRtSysCfg_t* cfg )
+// A given device may be used as an input device exactly once and an 
+// output device exactly once. When the input to a given device is used 
+// by one sub-system and the output is used by another then both sub-systems 
+// must use the same srate,devFramesPerCycle, audioBufCnt and dspFramesPerCycle.
+cmRtRC_t _cmRtSysValidate( cmRt_t* p )
 {
   unsigned i,j,k;
   for(i=0; i<2; ++i)
@@ -720,26 +769,26 @@ cmRtRC_t _cmRtSysValidate( cmErr_t* err, const cmRtSysCfg_t* cfg )
     bool inputFl  = i==0;
     bool outputFl = !inputFl;
 
-    for(j=0; j<cfg->ssCnt; ++j)
+    for(j=0; j<p->ssCnt; ++j)
     {
-      cmRtSysArgs_t* s0     = &cfg->ssArray[j].args;
-      unsigned          devIdx = inputFl ? s0->inDevIdx : s0->outDevIdx;
+      cmRtSysArgs_t* s0     = &p->ssArray[j].ss.args;
+      unsigned       devIdx = inputFl ? s0->inDevIdx : s0->outDevIdx;
 
-      for(k=0; k<cfg->ssCnt && devIdx != cmInvalidIdx; ++k)
+      for(k=0; k<p->ssCnt && devIdx != cmInvalidIdx; ++k)
         if( k != j )
         {
-          cmRtSysArgs_t* s1 = &cfg->ssArray[k].args;
+          cmRtSysArgs_t* s1 = &p->ssArray[k].ss.args;
 
           // if the device was used as input or output multple times then signal an error
           if( (inputFl && (s1->inDevIdx == devIdx) && s1->inDevIdx != cmInvalidIdx) || (outputFl && (s1->outDevIdx == devIdx) && s1->outDevIdx != cmInvalidIdx) )
-            return cmErrMsg(err,kInvalidArgRtRC,"The device %i was used as an %s by multiple sub-systems.", devIdx, inputFl ? "input" : "output");
+            return cmErrMsg(&p->err,kInvalidArgRtRC,"The device %i was used as an %s by multiple sub-systems.", devIdx, inputFl ? "input" : "output");
 
           // if this device is being used by another subsystem ...
           if( (inputFl && (s1->outDevIdx == devIdx) && s1->inDevIdx != cmInvalidIdx) || (outputFl && (s1->outDevIdx == devIdx) && s1->outDevIdx != cmInvalidIdx ) )
           {
             // ... then some of its buffer spec's must match 
             if( s0->srate != s1->srate || s0->audioBufCnt != s1->audioBufCnt || s0->dspFramesPerCycle != s1->dspFramesPerCycle || s0->devFramesPerCycle != s1->devFramesPerCycle )
-              return cmErrMsg(err,kInvalidArgRtRC,"The device %i is used by different sub-system with different audio buffer parameters.",devIdx);
+              return cmErrMsg(&p->err,kInvalidArgRtRC,"The device %i is used by different sub-system with different audio buffer parameters.",devIdx);
           }
         }
     }
@@ -748,174 +797,219 @@ cmRtRC_t _cmRtSysValidate( cmErr_t* err, const cmRtSysCfg_t* cfg )
   return kOkRtRC;
 }
 
-cmRtRC_t cmRtSysInitialize( cmRtSysH_t h, const cmRtSysCfg_t* cfg )
+cmRtRC_t  cmRtSysBeginCfg( cmRtSysH_t h, cmTsQueueCb_t clientCbFunc, void* clientCbArg, unsigned meterMs, unsigned ssCnt )
 {
-  cmRtRC_t rc;
-  unsigned i;
   cmRt_t* p = _cmRtHandleToPtr(h);
-
-  // validate the device setup
-  if((rc =_cmRtSysValidate(&p->err, cfg )) != kOkRtRC )
-    return rc;
+  cmRtRC_t rc;
 
   // always finalize before iniitalize
   if((rc = cmRtSysFinalize(h)) != kOkRtRC )
     return rc;
 
+  p->ssArray      = cmMemAllocZ( _cmRtCfg_t, ssCnt );
+  p->ssCnt        = ssCnt;
+  p->clientCbFunc = clientCbFunc;
+  p->clientCbArg  = clientCbArg;
 
-  p->ssArray = cmMemAllocZ( _cmRtCfg_t, cfg->ssCnt );
-  p->ssCnt   = cfg->ssCnt;
-  
+  return rc;
+}
+
+cmRtRC_t cmRtSysCfg( cmRtSysH_t h, const cmRtSysSubSys_t* ss, unsigned rtSubIdx )
+{
+  cmRtRC_t rc;
+  unsigned j;
+  cmRt_t* p = _cmRtHandleToPtr(h);
+
+  assert( rtSubIdx < p->ssCnt);
+
+  _cmRtCfg_t*            cp = p->ssArray + rtSubIdx;;
+
+  cp->p                 = p;
+  cp->ss                = *ss;  // copy the cfg into the internal real-time system state
+  cp->runFl             = false;
+  cp->statusFl          = false;
+  cp->ctx.reserved      = p;
+  cp->ctx.rtSubIdx      = rtSubIdx;
+  cp->ctx.ss            = &cp->ss;
+  cp->ctx.begSmpIdx     = 0;
+  cp->ctx.dspToHostFunc = _cmRtDspToHostMsgCallback;
+
+  // validate the input device index
+  if( ss->args.inDevIdx != cmInvalidIdx && ss->args.inDevIdx >= cmApDeviceCount() )
+  {
+    rc = _cmRtError(p,kAudioDevSetupErrRtRC,"The audio input device index %i is invalid.",ss->args.inDevIdx);
+    goto errLabel;
+  }
+
+  // validate the output device index
+  if( ss->args.outDevIdx != cmInvalidIdx && ss->args.outDevIdx >= cmApDeviceCount() )
+  {
+    rc =  _cmRtError(p,kAudioDevSetupErrRtRC,"The audio output device index %i is invalid.",ss->args.outDevIdx);
+    goto errLabel;
+  }
+
+  // setup the input device
+  if( ss->args.inDevIdx != cmInvalidIdx )
+    if((rc = cmApDeviceSetup( ss->args.inDevIdx, ss->args.srate, ss->args.devFramesPerCycle, _cmRtSysAudioUpdate, cp )) != kOkRtRC )
+    {
+      rc = _cmRtError(p,kAudioDevSetupErrRtRC,"Audio input device setup failed.");
+      goto errLabel;
+    }
+
+  // setup the output device
+  if( ss->args.outDevIdx != ss->args.inDevIdx && ss->args.outDevIdx != cmInvalidIdx )
+    if((rc = cmApDeviceSetup( ss->args.outDevIdx, ss->args.srate, ss->args.devFramesPerCycle, _cmRtSysAudioUpdate, cp )) != kOkRtRC )
+    {
+      rc =  _cmRtError(p,kAudioDevSetupErrRtRC,"Audio output device setup failed.");
+      goto errLabel;
+    }
+
+  // setup the input device buffer
+  if( ss->args.inDevIdx != cmInvalidIdx )
+    if((rc = cmApBufSetup( ss->args.inDevIdx, ss->args.srate, ss->args.dspFramesPerCycle, ss->args.audioBufCnt, cmApDeviceChannelCount(ss->args.inDevIdx, true),  ss->args.devFramesPerCycle, cmApDeviceChannelCount(ss->args.inDevIdx, false), ss->args.devFramesPerCycle )) != kOkRtRC )
+    {
+      rc = _cmRtError(p,kAudioBufSetupErrRtRC,"Audio buffer input  setup failed.");
+      goto errLabel;
+    }
+
+  cmApBufEnableMeter(ss->args.inDevIdx, -1, kInApFl  | kEnableApFl );
+  cmApBufEnableMeter(ss->args.outDevIdx,-1, kOutApFl | kEnableApFl );
+
+  // setup the input audio buffer ptr array - used to send input audio to the DSP system in _cmRtDspExecCallback()
+  if((cp->ctx.iChCnt   = cmApDeviceChannelCount(ss->args.inDevIdx, true)) != 0 )
+    cp->ctx.iChArray = cmMemAllocZ( cmSample_t*, cp->ctx.iChCnt );
+
+  // setup the output device buffer
+  if( ss->args.outDevIdx != ss->args.inDevIdx )
+    if((rc = cmApBufSetup( ss->args.outDevIdx, ss->args.srate, ss->args.dspFramesPerCycle, ss->args.audioBufCnt, cmApDeviceChannelCount(ss->args.outDevIdx, true), ss->args.devFramesPerCycle, cmApDeviceChannelCount(ss->args.outDevIdx, false), ss->args.devFramesPerCycle )) != kOkRtRC )
+      return _cmRtError(p,kAudioBufSetupErrRtRC,"Audio buffer ouput device setup failed.");
+
+  // setup the output audio buffer ptr array - used to recv output audio from the DSP system in _cmRtDspExecCallback()
+  if((cp->ctx.oChCnt   = cmApDeviceChannelCount(ss->args.outDevIdx, false)) != 0 )
+    cp->ctx.oChArray = cmMemAllocZ( cmSample_t*, cp->ctx.oChCnt );
+
+  // determine the sync source
+  cp->syncInputFl = ss->args.syncInputFl;
+
+  // if sync'ing to an unavailable device then sync to the available device
+  if( ss->args.syncInputFl && cp->ctx.iChCnt == 0 )
+    cp->syncInputFl = false;
+
+  if( ss->args.syncInputFl==false && cp->ctx.oChCnt == 0 )
+    cp->syncInputFl = true;
+    
+  // setup the status record
+  cp->status.hdr.rtSubIdx  = cp->ctx.rtSubIdx;
+  cp->status.iDevIdx   = ss->args.inDevIdx;
+  cp->status.oDevIdx   = ss->args.outDevIdx;
+  cp->status.iMeterCnt = cp->ctx.iChCnt;
+  cp->status.oMeterCnt = cp->ctx.oChCnt;
+  cp->iMeterArray      = cmMemAllocZ( double, cp->status.iMeterCnt );
+  cp->oMeterArray      = cmMemAllocZ( double, cp->status.oMeterCnt );
+  //cp->udpH             = cfg->udpH;
+
+  // create the real-time system thread
+  if((rc = cmThreadCreate( &cp->threadH, _cmRtThreadCallback, cp, ss->args.rpt )) != kOkThRC )
+  {
+    rc = _cmRtError(p,kThreadErrRtRC,"Thread create failed.");
+    goto errLabel;
+  }
+
+  // create the real-time system mutex
+  if((rc = cmThreadMutexCreate( &cp->engMutexH, ss->args.rpt )) != kOkThRC )
+  {
+    rc = _cmRtError(p,kMutexErrRtRC,"Thread mutex create failed.");
+    goto errLabel;
+  }
+
+  // create the host-to-dsp thread safe msg queue 
+  if((rc = cmTsMp1cCreate( &cp->htdQueueH, ss->args.msgQueueByteCnt, ss->cbFunc, &cp->ctx, ss->args.rpt )) != kOkThRC )
+  {
+    rc = _cmRtError(p,kTsQueueErrRtRC,"Host-to-DSP msg queue create failed.");
+    goto errLabel;
+  }
+
+  // create the dsp-to-host thread safe msg queue 
+  if( cmTsMp1cIsValid( p->dthQueH ) == false )
+  {
+    if((rc = cmTsMp1cCreate( &p->dthQueH, ss->args.msgQueueByteCnt, p->clientCbFunc, p->clientCbArg, ss->args.rpt )) != kOkThRC )
+    {
+      rc = _cmRtError(p,kTsQueueErrRtRC,"DSP-to-Host msg queue create failed.");
+      goto errLabel;
+    }
+  }
+    
+  // install an external MIDI port callback handler for incoming MIDI messages
+  if( cmMpIsInitialized() )
+    if( cmMpInstallCallback( -1, -1, _cmRtSysMidiCallback, cp ) != kOkMpRC )
+    {
+      rc = _cmRtError(p,kMidiSysFailRtRC,"MIDI system callback installation failed.");
+      goto errLabel;
+    }
+
+  // setup the sub-system status notification 
+  cp->statusUpdateSmpCnt = floor(cmApBufMeterMs() * cp->ss.args.srate / 1000.0 );
+  cp->statusUpdateSmpIdx = 0;
+
+
+  // allocate the network mgr
+  if( cmRtNetAlloc(p->ctx,&cp->netH, _cmRtNetRecv, cp ) != kOkNetRC )
+  {
+    rc = _cmRtError(p,kNetErrRtRC,"Network allocation failed.");
+    goto errLabel;
+  }
+    
+  // register the local and remote notes
+  for(j=0; j<ss->netNodeCnt; ++j)
+  {
+    cmRtSysNetNode_t* nn = ss->netNodeArray + j;
+    if( cmRtNetCreateNode( cp->netH, nn->label, nn->ipAddr, nn->ipPort) != kOkNetRC )
+    {
+      rc = _cmRtError(p,kNetErrRtRC,"Network node allocation failed on label:%s addr:%s port:%i.",cmStringNullGuard(nn->label),cmStringNullGuard(nn->ipAddr),nn->ipPort);
+      goto errLabel;
+    }
+  }
+
+  // register the local endpoints
+  for(j=0; j<ss->endptCnt; ++j)
+  {
+    cmRtSysNetEndpt_t* ep = ss->endptArray + j;
+    if( cmRtNetRegisterEndPoint( cp->netH, ep->label, ep->id ) != kOkNetRC )
+    {
+      rc = _cmRtError(p,kNetErrRtRC,"Network end point allocation failed on label:%s id:%i.",cmStringNullGuard(ep->label),ep->id);
+      goto errLabel;
+    }
+  }
+
+ errLabel:
+  if( rc != kOkRtRC )
+    _cmRtSysFinalize(p);
+
+return rc;
+}
+
+cmRtRC_t cmRtSysEndCfg( cmRtSysH_t h )
+{
+  cmRtRC_t rc;
+  cmRt_t* p = _cmRtHandleToPtr(h);
+  unsigned i;
+
+  if((rc = _cmRtSysValidate(p)) != kOkRtRC )
+    goto errLabel;
+
+
   for(i=0; i<p->ssCnt; ++i)
   {
-    _cmRtCfg_t*               cp = p->ssArray + i;
-    const cmRtSysSubSys_t* ss = cfg->ssArray + i;
-
-    cp->p                 = p;
-    cp->ss                = *ss;  // copy the cfg into the internal audio system state
-    cp->runFl             = false;
-    cp->statusFl          = false;
-    cp->ctx.reserved      = p;
-    cp->ctx.rtSubIdx      = i;
-    cp->ctx.ss            = &cp->ss;
-    cp->ctx.begSmpIdx     = 0;
-    cp->ctx.dspToHostFunc = _cmRtDspToHostMsgCallback;
-
-    // validate the input device index
-    if( ss->args.inDevIdx != cmInvalidIdx && ss->args.inDevIdx >= cmApDeviceCount() )
-    {
-      rc = _cmRtError(p,kAudioDevSetupErrRtRC,"The audio input device index %i is invalid.",ss->args.inDevIdx);
-      goto errLabel;
-    }
-
-    // validate the output device index
-    if( ss->args.outDevIdx != cmInvalidIdx && ss->args.outDevIdx >= cmApDeviceCount() )
-    {
-      rc =  _cmRtError(p,kAudioDevSetupErrRtRC,"The audio output device index %i is invalid.",ss->args.outDevIdx);
-      goto errLabel;
-    }
-
-    // setup the input device
-    if( ss->args.inDevIdx != cmInvalidIdx )
-      if((rc = cmApDeviceSetup( ss->args.inDevIdx, ss->args.srate, ss->args.devFramesPerCycle, _cmRtSysAudioUpdate, cp )) != kOkRtRC )
-      {
-        rc = _cmRtError(p,kAudioDevSetupErrRtRC,"Audio input device setup failed.");
-        goto errLabel;
-      }
-
-    // setup the output device
-    if( ss->args.outDevIdx != ss->args.inDevIdx && ss->args.outDevIdx != cmInvalidIdx )
-      if((rc = cmApDeviceSetup( ss->args.outDevIdx, ss->args.srate, ss->args.devFramesPerCycle, _cmRtSysAudioUpdate, cp )) != kOkRtRC )
-      {
-        rc =  _cmRtError(p,kAudioDevSetupErrRtRC,"Audio output device setup failed.");
-        goto errLabel;
-      }
-
-    // setup the input device buffer
-    if( ss->args.inDevIdx != cmInvalidIdx )
-      if((rc = cmApBufSetup( ss->args.inDevIdx, ss->args.srate, ss->args.dspFramesPerCycle, ss->args.audioBufCnt, cmApDeviceChannelCount(ss->args.inDevIdx, true),  ss->args.devFramesPerCycle, cmApDeviceChannelCount(ss->args.inDevIdx, false), ss->args.devFramesPerCycle )) != kOkRtRC )
-      {
-        rc = _cmRtError(p,kAudioBufSetupErrRtRC,"Audio buffer input  setup failed.");
-        goto errLabel;
-      }
-
-    cmApBufEnableMeter(ss->args.inDevIdx, -1, kInApFl  | kEnableApFl );
-    cmApBufEnableMeter(ss->args.outDevIdx,-1, kOutApFl | kEnableApFl );
-
-    // setup the input audio buffer ptr array - used to send input audio to the DSP system in _cmRtDspExecCallback()
-    if((cp->ctx.iChCnt   = cmApDeviceChannelCount(ss->args.inDevIdx, true)) != 0 )
-      cp->ctx.iChArray = cmMemAllocZ( cmSample_t*, cp->ctx.iChCnt );
-
-    // setup the output device buffer
-    if( ss->args.outDevIdx != ss->args.inDevIdx )
-      if((rc = cmApBufSetup( ss->args.outDevIdx, ss->args.srate, ss->args.dspFramesPerCycle, ss->args.audioBufCnt, cmApDeviceChannelCount(ss->args.outDevIdx, true), ss->args.devFramesPerCycle, cmApDeviceChannelCount(ss->args.outDevIdx, false), ss->args.devFramesPerCycle )) != kOkRtRC )
-        return _cmRtError(p,kAudioBufSetupErrRtRC,"Audio buffer ouput device setup failed.");
-
-    // setup the output audio buffer ptr array - used to recv output audio from the DSP system in _cmRtDspExecCallback()
-    if((cp->ctx.oChCnt   = cmApDeviceChannelCount(ss->args.outDevIdx, false)) != 0 )
-      cp->ctx.oChArray = cmMemAllocZ( cmSample_t*, cp->ctx.oChCnt );
-
-    // determine the sync source
-    cp->syncInputFl = ss->args.syncInputFl;
-
-    // if sync'ing to an unavailable device then sync to the available device
-    if( ss->args.syncInputFl && cp->ctx.iChCnt == 0 )
-      cp->syncInputFl = false;
-
-    if( ss->args.syncInputFl==false && cp->ctx.oChCnt == 0 )
-      cp->syncInputFl = true;
-    
-    // setup the status record
-    cp->status.hdr.rtSubIdx  = cp->ctx.rtSubIdx;
-    cp->status.iDevIdx   = ss->args.inDevIdx;
-    cp->status.oDevIdx   = ss->args.outDevIdx;
-    cp->status.iMeterCnt = cp->ctx.iChCnt;
-    cp->status.oMeterCnt = cp->ctx.oChCnt;
-    cp->iMeterArray      = cmMemAllocZ( double, cp->status.iMeterCnt );
-    cp->oMeterArray      = cmMemAllocZ( double, cp->status.oMeterCnt );
-    cp->udpH             = cfg->udpH;
-
-    // create the audio System thread
-    if((rc = cmThreadCreate( &cp->threadH, _cmRtThreadCallback, cp, ss->args.rpt )) != kOkThRC )
-    {
-      rc = _cmRtError(p,kThreadErrRtRC,"Thread create failed.");
-      goto errLabel;
-    }
-
-    // create the audio System mutex
-    if((rc = cmThreadMutexCreate( &cp->engMutexH, ss->args.rpt )) != kOkThRC )
-    {
-      rc = _cmRtError(p,kMutexErrRtRC,"Thread mutex create failed.");
-      goto errLabel;
-    }
-
-    // create the host-to-dsp thread safe msg queue 
-    if((rc = cmTsMp1cCreate( &cp->htdQueueH, ss->args.msgQueueByteCnt, ss->cbFunc, &cp->ctx, ss->args.rpt )) != kOkThRC )
-    {
-      rc = _cmRtError(p,kTsQueueErrRtRC,"Host-to-DSP msg queue create failed.");
-      goto errLabel;
-    }
-
-    // create the dsp-to-host thread safe msg queue 
-    if( cmTsMp1cIsValid( p->dthQueH ) == false )
-    {
-      if((rc = cmTsMp1cCreate( &p->dthQueH, ss->args.msgQueueByteCnt, cfg->clientCbFunc, cfg->clientCbData, ss->args.rpt )) != kOkThRC )
-      {
-        rc = _cmRtError(p,kTsQueueErrRtRC,"DSP-to-Host msg queue create failed.");
-        goto errLabel;
-      }
-    }
-    
-    //cp->dthQueueH = p->dthQueH;
-
-    // install an external MIDI port callback handler for incoming MIDI messages
-    if( cmMpIsInitialized() )
-      if( cmMpInstallCallback( -1, -1, _cmRtSysMidiCallback, cp ) != kOkMpRC )
-      {
-        rc = _cmRtError(p,kMidiSysFailRtRC,"MIDI system callback installation failed.");
-        goto errLabel;
-      }
-
-    // setup the sub-system status notification 
-    cp->statusUpdateSmpCnt = floor(cmApBufMeterMs() * cp->ss.args.srate / 1000.0 );
-    cp->statusUpdateSmpIdx = 0;
+    _cmRtCfg_t* cp = p->ssArray + i;
 
     cp->runFl = true;
 
-    // start the audio System thread
+    // start the real-time system thread
     if( cmThreadPause( cp->threadH, 0 ) != kOkThRC )
     {
       rc = _cmRtError(p,kThreadErrRtRC,"Thread start failed.");
       goto errLabel;
     }
-  }
-
-
-  //_cmRtHostInitNotify(p);
-
-  for(i=0; i<p->ssCnt; ++i)
-  {
-    _cmRtCfg_t* cp = p->ssArray + i;
 
     // start the input device
     if((rc = cmApDeviceStart( cp->ss.args.inDevIdx )) != kOkRtRC )
@@ -968,7 +1062,7 @@ cmRtRC_t _cmRtSysVerifyInit( cmRt_t* p, bool errFl )
     // generate another message - just return the error
     if( errFl )
       if( cmErrLastRC(&p->err) != kNotInitRtRC )
-        cmErrMsg(&p->err,kNotInitRtRC,"The audio system is not initialized.");
+        cmErrMsg(&p->err,kNotInitRtRC,"The real-time system is not initialized.");
 
     return kNotInitRtRC;
   }
@@ -1024,6 +1118,7 @@ cmRtRC_t  cmRtSysDeliverSegMsg(  cmRtSysH_t h, const void* msgDataPtrArray[], un
   if( selId == kUiMstrSelRtId )
     return _cmRtHandleNonSubSysMsg( p, msgDataPtrArray, msgByteCntArray, msgSegCnt );
 
+  /*
   if( selId == kNetSyncSelRtId )
   {
     assert( msgSegCnt==1); 
@@ -1032,6 +1127,7 @@ cmRtRC_t  cmRtSysDeliverSegMsg(  cmRtSysH_t h, const void* msgDataPtrArray[], un
     p->ssArray[rtSubIdx].ss.cbFunc(&p->ssArray[rtSubIdx].ctx,msgByteCntArray[0],msgDataPtrArray[0]);
     return kOkRtRC;
   }
+  */
 
   return _cmRtEnqueueMsg(p,p->ssArray[rtSubIdx].htdQueueH,msgDataPtrArray,msgByteCntArray,msgSegCnt,"Host-to-DSP");  
 }
@@ -1314,19 +1410,17 @@ int _cmRtGetIntOpt( int argc, const char* argv[], const char* label, int default
 { return _cmRtGetOpt(argc,argv,label,defaultVal,false); }
 
 
-void cmRtSysTest( cmRpt_t* rpt, int argc, const char* argv[] )
+void cmRtSysTest( cmCtx_t* ctx, int argc, const char* argv[] )
 {
-  cmRtSysCfg_t    cfg;
   cmRtSysSubSys_t ss;
   cmRtSysH_t      h      = cmRtSysNullHandle;
   cmRtSysStatus_t status;
   _cmRtTestCbRecd    cbRecd = {1000.0,0,48000.0,0};
-
-  cfg.ssArray = &ss;
-  cfg.ssCnt   = 1;
-  //cfg.afpArray= NULL;
-  //cfg.afpCnt  = 0;
-  cfg.meterMs = 50;
+  cmRpt_t* rpt = &ctx->rpt;
+  
+  unsigned meterMs = 50;
+  unsigned ssCnt = 1;
+  unsigned rtSubIdx = 0;
 
   if(_cmRtGetBoolOpt(argc,argv,"-h",false))
     _cmRtPrintUsage(rpt);
@@ -1343,8 +1437,8 @@ void cmRtSysTest( cmRpt_t* rpt, int argc, const char* argv[] )
   ss.args.dspFramesPerCycle = _cmRtGetIntOpt( argc,argv,"-d",64);;
   ss.args.audioBufCnt       = _cmRtGetIntOpt( argc,argv,"-b",3);       
   ss.args.srate             = cbRecd.srate;
-  ss.cbFunc                 = _cmRtTestCb;                            // set the DSP entry function
-  ss.cbDataPtr              = &cbRecd;                                // set the DSP function argument record
+  ss.cbFunc                 = _cmRtTestCb;  // set the DSP entry function
+  ss.cbDataPtr              = &cbRecd;      // set the DSP function argument record
 
   cmRptPrintf(rpt,"in:%i out:%i syncFl:%i que:%i fpc:%i dsp:%i bufs:%i sr:%f\n",ss.args.inDevIdx,ss.args.outDevIdx,ss.args.syncInputFl,
     ss.args.msgQueueByteCnt,ss.args.devFramesPerCycle,ss.args.dspFramesPerCycle,ss.args.audioBufCnt,ss.args.srate);
@@ -1362,14 +1456,23 @@ void cmRtSysTest( cmRpt_t* rpt, int argc, const char* argv[] )
   cmApReport(rpt);
 
   // initialize the audio buffer
-  if( cmApBufInitialize( cmApDeviceCount(), cfg.meterMs ) != kOkApRC )
+  if( cmApBufInitialize( cmApDeviceCount(), meterMs ) != kOkApRC )
     goto errLabel;
 
-  // initialize the audio system
-  if( cmRtSysAllocate(&h,rpt,&cfg) != kOkRtRC )
+  // initialize the real-time system
+  if( cmRtSysAllocate(&h,ctx) != kOkRtRC )
     goto errLabel;
-  
-  // start the audio system
+
+  if( cmRtSysBeginCfg(h,NULL,NULL,meterMs,ssCnt) != kOkRtRC )
+    goto errLabel;
+
+  if( cmRtSysCfg(h,&ss,rtSubIdx) != kOkRtRC )
+    goto errLabel;
+    
+  if( cmRtSysEndCfg(h) != kOkRtRC )
+    goto errLabel;
+
+  // start the real-time system
   cmRtSysEnable(h,true);
 
   char c = 0;
@@ -1401,7 +1504,7 @@ void cmRtSysTest( cmRpt_t* rpt, int argc, const char* argv[] )
       case 'n': ++_cmRtTestChIdx; printf("ch:%i\n",_cmRtTestChIdx); break;
 
       case 's':  
-        // report the audio system status
+        // report the real-time system status
         cmRtSysStatus(h,0,&status);
         printf("phs:%li cb count:%i (upd:%i wake:%i acb:%i msgs:%i)\n",cbRecd.phs, cbRecd.cbCnt, status.updateCnt, status.wakeupCnt, status.audioCbCnt, status.msgCbCnt);
         //printf("%f \n",status.oMeterArray[0]);
@@ -1444,14 +1547,14 @@ void cmRtSysTest( cmRpt_t* rpt, int argc, const char* argv[] )
     //cmApBufReport(ss.args.rpt);
   }
 
-  // stop the audio system
+  // stop the real-time system
   cmRtSysEnable(h,false);
 
  
   goto exitLabel;
 
  errLabel:
-  printf("AUDIO SYSTEM TEST ERROR\n");
+  printf("REAL-TIME SYSTEM TEST ERROR\n");
 
  exitLabel:
 

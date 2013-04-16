@@ -79,7 +79,8 @@ extern "C" {
     kStateBufFailRtRC,
     kInvalidArgRtRC,
     kNotInitRtRC,
-    kTimeOutErrRtRC
+    kTimeOutErrRtRC,
+    kNetErrRtRC
   };
 
   enum
@@ -128,19 +129,33 @@ extern "C" {
   // The return value is currently not used.
   typedef cmRC_t (*cmRtCallback_t)(void* ctxPtr, unsigned msgByteCnt, const void* msgDataPtr );
 
+  // Network nodes
+  typedef struct 
+  {
+    const cmChar_t* label;    // Remote node label or NULL if this is the local node.
+    const cmChar_t* ipAddr;   // IP address in xxx.xxx.xxx.xxx form or NULL for 'localhost'.
+    cmUdpPort_t     ipPort;   // IP port 
+  } cmRtSysNetNode_t;
+
+  // Local endpoints.
+  typedef struct
+  {
+    const cmChar_t* label;   // Local endpoint label
+    unsigned        id;      // Local endpoint id
+  } cmRtSysNetEndpt_t;
   
   // Audio device sub-sytem configuration record 
   typedef struct cmRtSysArgs_str
   {
-    cmRpt_t*       rpt;               // system console object
-    unsigned       inDevIdx;          // input audio device
-    unsigned       outDevIdx;         // output audio device
-    bool           syncInputFl;       // true/false sync the DSP update callbacks with audio input/output
-    unsigned       msgQueueByteCnt;   // Size of the internal msg queue used to buffer msgs arriving via cmRtSysDeliverMsg().
-    unsigned       devFramesPerCycle; // (512) Audio device samples per channel per device update buffer.
-    unsigned       dspFramesPerCycle; // (64)  Audio samples per channel per DSP cycle.
-    unsigned       audioBufCnt;       // (3)   Audio device buffers.
-    double         srate;             // Audio sample rate.
+    cmRpt_t*        rpt;               // system console object
+    unsigned        inDevIdx;          // input audio device
+    unsigned        outDevIdx;         // output audio device
+    bool            syncInputFl;       // true/false sync the DSP update callbacks with audio input/output
+    unsigned        msgQueueByteCnt;   // Size of the internal msg queue used to buffer msgs arriving via cmRtSysDeliverMsg().
+    unsigned        devFramesPerCycle; // (512) Audio device samples per channel per device update buffer.
+    unsigned        dspFramesPerCycle; // (64)  Audio samples per channel per DSP cycle.
+    unsigned        audioBufCnt;       // (3)   Audio device buffers.
+    double          srate;             // Audio sample rate.
   } cmRtSysArgs_t;
 
   // Audio sub-system configuration record.
@@ -148,9 +163,13 @@ extern "C" {
   // via cmRtSystemAllocate() or cmRtSystemInitialize().
   typedef struct cmRtSysSubSys_str
   {
-    cmRtSysArgs_t    args;              // Audio device configuration
-    cmRtCallback_t   cbFunc;            // DSP system entry point function.
-    void*            cbDataPtr;         // Host provided data for the DSP system callback.   
+    cmRtSysArgs_t      args;              // Audio device configuration
+    cmRtCallback_t     cbFunc;            // DSP system entry point function.
+    void*              cbDataPtr;         // Host provided data for the DSP system callback.   
+    cmRtSysNetNode_t*  netNodeArray;      // One node must be the local node.
+    unsigned           netNodeCnt;        // Count of network nodes or 0 to not use network
+    cmRtSysNetEndpt_t* endptArray;        // Local end points
+    unsigned           endptCnt;          // Count of local endpoints.
   } cmRtSysSubSys_t;
 
 
@@ -187,19 +206,6 @@ extern "C" {
     
   } cmRtSysCtx_t;
 
-
-  // Audio system configuration record used by cmRtSysAllocate().
-  typedef struct cmRtSysCfg_str
-  {
-    cmRtSysSubSys_t*      ssArray;      // sub-system cfg record array
-    unsigned              ssCnt;        // count of sub-systems   
-    unsigned              meterMs;      // Meter sample period in milliseconds
-    void*                 clientCbData; // User arg. for clientCbFunc().
-    cmTsQueueCb_t         clientCbFunc; // Called by  cmRtSysReceiveMsg() to deliver internally generated msg's to the host. 
-                                        //  Set to NULL if msg's will be directly returned by buffers passed to cmRtSysReceiveMsg().
-    cmUdpH_t           udpH;
-  } cmRtSysCfg_t;
-
   extern cmRtSysH_t cmRtSysNullHandle;
 
   // Allocate and initialize an audio system as a collection of 'cfgCnt' sub-systems.
@@ -208,7 +214,7 @@ extern "C" {
   // (via cmMpInitialize()).  Note also that cmApFinalize() and cmMpFinalize() 
   // cannot be called prior to cmRtSysFree().
   // See cmRtSystemTest() for a complete example.
-  cmRtRC_t  cmRtSysAllocate( cmRtSysH_t* hp, cmRpt_t* rpt, const cmRtSysCfg_t* cfg  );
+  cmRtRC_t  cmRtSysAllocate( cmRtSysH_t* hp, cmCtx_t* ctx  );
 
   // Finalize and release any resources held by the audio system.
   cmRtRC_t  cmRtSysFree( cmRtSysH_t* hp );
@@ -217,10 +223,16 @@ extern "C" {
   // cmRtSysAllocate().
   bool      cmRtSysHandleIsValid( cmRtSysH_t h );
 
+  // clientCbFunc is Called by  cmRtSysReceiveMsg() to deliver internally generated msg's to the host. 
+  // Set to NULL if msg's will be directly returned by buffers passed to cmRtSysReceiveMsg().
+  cmRtRC_t  cmRtSysBeginCfg( cmRtSysH_t h, cmTsQueueCb_t clientCbFunc, void* clientCbArg, unsigned meterMs, unsigned ssCnt );
+
   // Reinitialize a previously allocated audio system.  This function
   // begins with a call to cmRtSysFinalize().   
   // Use cmRtSysEnable(h,true) to begin processing audio following this call.
-  cmRtRC_t  cmRtSysInitialize( cmRtSysH_t h, const cmRtSysCfg_t* cfg );
+  cmRtRC_t  cmRtSysCfg( cmRtSysH_t h, const cmRtSysSubSys_t* ss, unsigned rtSubIdx );
+
+  cmRtRC_t  cmRtSysEndCfg( cmRtSysH_t h );
 
   // Complements cmRtSysInitialize(). In general there is no need to call this function
   // since calls to cmRtSysInitialize() and cmRtSysFree() automaticatically call it.
@@ -303,7 +315,7 @@ extern "C" {
   unsigned cmRtSysSubSystemCount( cmRtSysH_t h );
 
   // Audio system test and example function.
-  void      cmRtSysTest( cmRpt_t* rpt, int argc, const char* argv[] );
+  void      cmRtSysTest( cmCtx_t* ctx, int argc, const char* argv[] );
 
 
 
