@@ -42,9 +42,17 @@ enum
 
 
 #define cmArrayPtr(t,h,i)     ((t*)cmArrayGet(h,i))
+
+  // Return a ptr to the base of the array.
 #define cmArrayBase(t,h)     ((t*)cmArrayGet(h,0))
+
+  // Return a ptr to the ith element
 #define cmArrayEle(t,h,i)    (*(t*)cmArrayGet(h,i))
+
+  // Zero the ith element
 #define cmArrayClr(t,h,i)    ((t*)cmArraySet(h,i,NULL,1))
+
+  // Zero elements i:i+n-1
 #define cmArrayClrN(t,h,i,n) ((t*)cmArraySet(h,i,NULL,n))
 
 #ifdef __cplusplus
