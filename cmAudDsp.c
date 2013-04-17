@@ -1263,6 +1263,7 @@ cmAdRC_t cmAudDspReceiveClientMsg( cmAdH_t h, unsigned msgByteCnt, const void* m
   {
     case kDevReportDuiId:
       cmApReport(p->err.rpt);
+      cmMpReport(p->err.rpt);
       break;
         
     case kSetAudioCfgDuiId:
