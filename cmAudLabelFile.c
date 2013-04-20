@@ -158,7 +158,7 @@ void _cmAlfRemove( cmAlf_t* p, cmAlfRecd_t* pp )
   
 cmAlfRC_t cmAudLabelFileOpen(   cmAlfH_t h, const cmChar_t* fn )
 {
-  cmAlfRC_t rc;
+  cmAlfRC_t rc             = kOkAlfRC;
   cmAlf_t*  p              = _cmAlfHandleToPtr(h);
   cmChar_t* lineBuf        = NULL;
   unsigned  lineBufByteCnt = 0;
