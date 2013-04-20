@@ -1515,3 +1515,104 @@ struct cmDspClass_str* cmGSwitchClassCons( cmDspCtx_t* ctx )
 
   return &_cmGSwitchDC;
 }
+
+
+//==========================================================================================================================================
+
+enum
+{
+  kMinInSrId,
+  kMaxInSrId,
+  kMinOutSrId,
+  kMaxOutSrId,
+  kValInSrId,
+  kValOutSrId,
+};
+
+cmDspClass_t _cmScaleRangeDC;
+
+typedef struct
+{
+  cmDspInst_t    inst;
+
+} cmDspScaleRange_t;
+
+
+cmDspInst_t*  _cmDspScaleRangeAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  va_list vl1;
+  va_copy(vl1,vl);
+
+  cmDspVarArg_t args[] =
+  {
+    { "min_in",   kMinInSrId,  0,0, kInDsvFl | kDoubleDsvFl , "Min Input value."},
+    { "max_in",   kMaxInSrId,  0,0, kInDsvFl | kDoubleDsvFl , "Min Input value."},
+    { "min_out",  kMinOutSrId, 0,0, kInDsvFl | kDoubleDsvFl , "Min Input value."},
+    { "max_out",  kMaxOutSrId, 0,0, kInDsvFl | kDoubleDsvFl , "Min Input value."},
+    { "val_in",   kValInSrId,  0,0, kInDsvFl | kDoubleDsvFl,  "Input value."},
+    { "val_out",  kValOutSrId, 0,0, kOutDsvFl | kDoubleDsvFl, "Output value"},
+    { NULL, 0, 0, 0, 0 }
+  };
+
+  cmDspScaleRange_t* p = cmDspInstAlloc(cmDspScaleRange_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+
+  cmDspSetDefaultDouble(ctx,&p->inst,kMinInSrId,0,0);
+  cmDspSetDefaultDouble(ctx,&p->inst,kMaxInSrId,0,1.0);
+  cmDspSetDefaultDouble(ctx,&p->inst,kMinOutSrId,0,0);
+  cmDspSetDefaultDouble(ctx,&p->inst,kMaxOutSrId,0,1.0);
+
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspScaleRangeReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t       rc          = kOkDspRC;
+
+  cmDspApplyAllDefaults(ctx,inst);
+
+  return rc;
+}
+
+cmDspRC_t _cmDspScaleRangeRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t       rc = kOkDspRC;
+  cmDspScaleRange_t* p  = (cmDspScaleRange_t*)inst;
+
+  cmDspSetEvent(ctx,inst,evt);
+
+  if( evt->dstVarId == kValInSrId )
+  {
+    double val     = cmDspDouble(inst,kValInSrId);
+    double min_in  = cmDspDouble(inst,kMinInSrId);
+    double max_in  = cmDspDouble(inst,kMaxInSrId);    
+    double min_out = cmDspDouble(inst,kMinOutSrId);    
+    double max_out = cmDspDouble(inst,kMaxOutSrId);    
+
+    double x = cmMax(min_in,cmMin(max_in,val));
+    
+    x = (x - min_in)/(max_in - min_in);
+
+    x = min_out + x * (max_out - min_out);
+
+    cmDspSetDouble(ctx,inst,kValOutSrId, x );
+    //printf("%f (%f %f) : (%f %f) %f\n",val,min_in,max_in,min_out,max_out,x);
+  }
+  return rc;
+}
+
+
+struct cmDspClass_str* cmScaleRangeClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmScaleRangeDC,ctx,"ScaleRange",
+    NULL,
+    _cmDspScaleRangeAlloc,
+    NULL,
+    _cmDspScaleRangeReset,
+    NULL,
+    _cmDspScaleRangeRecv,
+    NULL,NULL,
+    "Scale a value inside an input range to a value in the output range.");
+
+  return &_cmScaleRangeDC;
+}
