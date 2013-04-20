@@ -10,6 +10,7 @@
 #include "cmText.h"
 #include "cmFileSys.h"
 #include "cmSymTbl.h"
+#include "cmMidi.h"
 #include "cmJson.h"
 #include "cmPrefs.h"
 #include "cmDspValue.h"
@@ -619,10 +620,13 @@ cmDspRC_t cmDspSysRcvMsg(    cmDspSysH_t h, cmAudioSysCtx_t* asCtx, const void* 
   }
   else
   {
-    // the msg selector is the second field in the data packet (following the audio system sub-system id)
-    const unsigned msgTypeSelId = ((const unsigned*)msgPtr)[1];
+    unsigned* hdr = (unsigned*)msgPtr;
 
-    switch( msgTypeSelId )
+    // the msg selector is the second field in the data packet (following the audio system sub-system id)
+    //const unsigned msgTypeSelId = ((const unsigned*)msgPtr)[1];
+    
+
+    switch( hdr[1] )
     {
       case kUiSelAsId:
         _cmDspSysHandleUiMsg(p,ip,msgPtr,msgByteCnt);
@@ -633,11 +637,27 @@ cmDspRC_t cmDspSysRcvMsg(    cmDspSysH_t h, cmAudioSysCtx_t* asCtx, const void* 
         break;
 
       case kMidiMsgArraySelAsId:
+        {
+          cmMidiPacket_t pkt;
+          cmDspValue_t   v;
+
+          pkt.cbDataPtr = NULL;
+          pkt.devIdx    = hdr[2];
+          pkt.portIdx   = hdr[3];
+          pkt.msgCnt    = hdr[4];
+          pkt.msgArray  = (cmMidiMsg*)(hdr + 5);
+          unsigned     midiSymId = cmDspSysRegisterStaticSymbol(h,"_midi");
+
+          v.u.m.u.vp = &pkt;
+          cmDspSysBroadcastValue(h, midiSymId, &v);
+
+          
         /*
         // data format for MIDI messages
         { kMidiMsgArraytSelAsId, devIdx, portIdx, msgCnt, msgArray[msgCnt] }
         where each msgArray[] record is a cmMidiMsg record.
         */
+        }
         break;
 
     }

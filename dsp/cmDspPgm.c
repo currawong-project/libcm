@@ -25,6 +25,40 @@
 #include "cmDspPgmPP.h"
 #include "cmDspPgmKr.h"
 
+cmDspRC_t _cmDspSysPgm_Test_Midi( cmDspSysH_t h, void** userPtrPtr )
+{
+  cmDspRC_t rc = kOkDspRC;
+
+  cmDspInst_t* sendBtn = cmDspSysAllocInst( h,"Button", "Send",    2, kButtonDuiId, 0.0 );
+  cmDspInst_t* status  = cmDspSysAllocInst( h,"Scalar", "Status",  5, kNumberDuiId, 0.0,  127.0, 1.0,  144.0);
+  cmDspInst_t* d0      = cmDspSysAllocInst( h,"Scalar", "D0",      5, kNumberDuiId, 0.0,  127.0, 1.0,  64.0);
+  cmDspInst_t* d1      = cmDspSysAllocInst( h,"Scalar", "D1",      5, kNumberDuiId, 0.0,  127.0, 1.0,  64.0);
+  cmDspInst_t* midiOut = cmDspSysAllocInst( h,"MidiOut", NULL,     2, "Fastlane", "Fastlane MIDI A");
+  cmDspInst_t* midiIn  = cmDspSysAllocInst( h,"MidiIn",  NULL,     0 );
+  cmDspInst_t* printer = cmDspSysAllocInst( h,"Printer", NULL,     1, ">" );
+
+  // check for allocation errors
+  if((rc = cmDspSysLastRC(h)) != kOkDspRC )
+    goto errLabel;
+
+  cmDspSysInstallCb(   h, sendBtn, "out", d1,      "send", NULL);
+  cmDspSysInstallCb(   h, sendBtn, "out", d0,      "send", NULL);
+  cmDspSysInstallCb(   h, sendBtn, "out", status,  "send", NULL);
+
+  cmDspSysInstallCb(   h, status,  "val", midiOut, "status",NULL);
+  cmDspSysInstallCb(   h, d0,      "val", midiOut, "d0",    NULL);
+  cmDspSysInstallCb(   h, d1,      "val", midiOut, "d1",    NULL);
+
+  cmDspSysInstallCb(   h, midiIn,  "status", printer, "in", NULL);
+  cmDspSysInstallCb(   h, midiIn,  "d0",     printer, "in", NULL);
+  cmDspSysInstallCb(   h, midiIn,  "d1",     printer, "in", NULL);
+  cmDspSysInstallCb(   h, midiIn,  "smpidx", printer, "in", NULL);
+
+ errLabel:
+  return rc;
+  
+}
+
 cmDspRC_t _cmDspSysPgm_Stereo_Through( cmDspSysH_t h, void** userPtrPtr )
 {
   bool useBuiltInFl = true;
@@ -2332,7 +2366,7 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* fwtp  =  cmDspSysAllocInst( h, "WaveTable", NULL,   5, ((int)cmDspSysSampleRate(h)), 1, fn, -1, 7000000 );
   cmDspInst_t* fad0  =  cmDspSysAllocInst( h, "Xfader",    NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl ); 
 
-  cmDspInst_t*  prp  = cmDspSysAllocInst(  h, "Printer",  NULL, 1, ">" );
+  //cmDspInst_t*  prp  = cmDspSysAllocInst(  h, "Printer",  NULL, 1, ">" );
 
   cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, 0 );
   cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, 1 );
@@ -2389,6 +2423,7 @@ _cmDspSysPgm_t _cmDspSysPgmArray[] =
   { "pickup tails", _cmDspSysPgm_NoiseTails,    NULL, NULL },
   { "tails_2",      _cmDspSysPgm_NoiseTails2,   NULL, NULL },
   { "pickups",     _cmDspSysPgm_Pickups0,       NULL, NULL },
+  { "midi_test",   _cmDspSysPgm_Test_Midi,      NULL, NULL },
   { "2_thru",      _cmDspSysPgm_Stereo_Through, NULL, NULL },
   { "guitar",      _cmDspSysPgmGuitar,          NULL, NULL },
   { "2_fx",        _cmDspSysPgm_Stereo_Fx,      NULL, NULL },
