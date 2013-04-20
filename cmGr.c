@@ -1208,7 +1208,7 @@ void cmGrObjWorldExt( cmGrObjH_t oh, cmGrVExt_t* wext )
 
 cmGrRC_t cmGrObjSetWorldLimitExt( cmGrH_t h, cmGrObjH_t oh, const cmGrVExt_t* vext, unsigned limitFlags )
 {
-  cmGrRC_t rc;
+  cmGrRC_t rc = kOkGrRC;
   cmGrObj_t* op = _cmGrObjHandleToPtr(oh);
 
   // store the current world extents
