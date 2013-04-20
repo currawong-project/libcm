@@ -744,6 +744,7 @@ unsigned        _cmDspPresetPresetCount( cmDspPresetMgr_t* p, unsigned groupIdx 
   if((gp = _cmDspPresetGroupFromIndex(p,groupIdx)) == NULL )
     return 0;
 
+  pp = gp->list;
   for(; pp!=NULL; pp=pp->link)
     ++cnt;
 
