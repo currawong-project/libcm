@@ -86,6 +86,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* pts  = cmDspSysAllocInst(h,"PortToSym",   NULL,  2, "on", "off" );
   cmDspInst_t* mfp  = cmDspSysAllocInst(h,"MidiFilePlay",NULL,  0 );
   cmDspInst_t* sfp  = cmDspSysAllocInst(h,"ScFol",       NULL,  1, r.scFn );
+  cmDspInst_t* srp  = cmDspSysAllocInst(h,"ScaleRange",  NULL,  0 );
   cmDspInst_t* modp = cmDspSysAllocInst(h,"ScMod",       NULL,  2, r.modFn, "m1" );
   cmDspInst_t* kr0p = cmDspSysAllocInst(h,"Kr",          NULL,   2, krWndSmpCnt, krHopFact );
   cmDspInst_t* kr1p = cmDspSysAllocInst(h,"Kr",          NULL,   2, krWndSmpCnt, krHopFact );
@@ -105,6 +106,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* prd  = cmDspSysAllocInst(h,"Printer", NULL,   1, "DYN:" );
   cmDspInst_t* pre  = cmDspSysAllocInst(h,"Printer", NULL,   1, "EVEN:" );
   cmDspInst_t* prt  = cmDspSysAllocInst(h,"Printer", NULL,   1, "TEMPO:");
+  //cmDspInst_t* prc  = cmDspSysAllocInst(h,"Printer", NULL,   1, "COST:");
   //cmDspInst_t* prv  = cmDspSysAllocInst(h,"Printer", NULL,   1, "Value:");
   cmDspSysNewColumn(h,0);
 
@@ -135,6 +137,26 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysNewColumn(h,0);
   cmDspInst_t* ogain = cmDspSysAllocInst(h,"Scalar", "Out Gain",   5, kNumberDuiId, 0.0,   10.0,0.01,   3.0 );  
   //cmDspInst_t* reload = cmDspSysAllocInst(h,"Button", "Reload",     2, kButtonDuiId, 0.0 );
+
+  cmDspInst_t* imin_dyn   = cmDspSysAllocScalar( h, "Min In Dyn",      0.0, 10.0, 1.0, 0.0);
+  cmDspInst_t* imax_dyn   = cmDspSysAllocScalar( h, "Max In Dyn",      0.0, 10.0, 1.0, 4.0);
+  cmDspInst_t* omin_dyn   = cmDspSysAllocScalar( h, "Min Out Dyn",     0.0, 100.0, 0.5, 0.0);
+  cmDspInst_t* omax_dyn   = cmDspSysAllocScalar( h, "Max Out Dyn",     0.0, 100.0, 0.5, 100.0);
+
+  cmDspInst_t* imin_even   = cmDspSysAllocScalar( h, "Min In Even",      0.0, 10.0, 0.01, 0.0);
+  cmDspInst_t* imax_even   = cmDspSysAllocScalar( h, "Max In Even",      0.0, 10.0, 0.01, 1.0);
+  cmDspInst_t* omin_even   = cmDspSysAllocScalar( h, "Min Out Even",     0.0, 100.0, 0.5, 0.0);
+  cmDspInst_t* omax_even   = cmDspSysAllocScalar( h, "Max Out Even",     0.0, 100.0, 0.5, 100.0);
+
+  cmDspInst_t* imin_tempo   = cmDspSysAllocScalar( h, "Min In Tempo",      0.0, 200.0, 1.0, 80.0);
+  cmDspInst_t* imax_tempo   = cmDspSysAllocScalar( h, "Max In Tempo",      0.0, 200.0, 1.0, 120.0);
+  cmDspInst_t* omin_tempo   = cmDspSysAllocScalar( h, "Min Out Tempo",     0.0, 100.0, 0.5, 0.0);
+  cmDspInst_t* omax_tempo   = cmDspSysAllocScalar( h, "Max Out Tempo",     0.0, 100.0, 0.5, 100.0);
+
+  cmDspInst_t* imin_cost   = cmDspSysAllocScalar( h, "Min In Cost",      0.0, 200.0, 1.0, 80.0);
+  cmDspInst_t* imax_cost   = cmDspSysAllocScalar( h, "Max In Cost",      0.0, 200.0, 1.0, 120.0);
+  cmDspInst_t* omin_cost   = cmDspSysAllocScalar( h, "Min Out Cost",     0.0, 100.0, 0.5, 0.0);
+  cmDspInst_t* omax_cost   = cmDspSysAllocScalar( h, "Max Out Cost",     0.0, 100.0, 0.5, 100.0);
 
 
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
@@ -252,7 +274,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, modp, "off0", of0p, "val", NULL );
   cmDspSysInstallCb(h, modp, "inv0", iv0p, "val", NULL );
   cmDspSysInstallCb(h, modp, "wet0", wet0, "val", NULL );
-  cmDspSysInstallCb(h, modp, "xf0", xfad, "gate-0", NULL );
+  cmDspSysInstallCb(h, modp, "xf0",  xfad, "gate-0", NULL );
 
   cmDspSysInstallCb(h, modp, "mod1", md1p, "val", NULL );
   cmDspSysInstallCb(h, modp, "win1", kr1p, "wndn",NULL );
@@ -262,60 +284,89 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, modp, "off1", of1p, "val", NULL );
   cmDspSysInstallCb(h, modp, "inv1", iv1p, "val", NULL );
   cmDspSysInstallCb(h, modp, "wet1", wet1, "val", NULL );
-  cmDspSysInstallCb(h, modp, "xf1", xfad, "gate-1", NULL );
+  cmDspSysInstallCb(h, modp, "xf1",  xfad, "gate-1", NULL );
 
+
+  cmDspSysInstallCb(h, sfp,      "dyn", srp, "val_in", NULL );
+  cmDspSysInstallCb(h, imin_dyn, "val", srp, "min_in",  NULL );
+  cmDspSysInstallCb(h, imax_dyn, "val", srp, "max_in",  NULL );
+  cmDspSysInstallCb(h, omin_dyn, "val", srp, "min_out", NULL );
+  cmDspSysInstallCb(h, omax_dyn, "val", srp, "max_out", NULL );
+  //cmDspSysInstallCb(h, srp, "val_out", th0p, "val", NULL );
+  //cmDspSysInstallCb(h, srp, "val_out", th1p, "val", NULL );
+
+  cmDspSysInstallCb(h, sfp,      "even", srp, "val_in", NULL );
+  cmDspSysInstallCb(h, imin_even, "val", srp, "min_in",  NULL );
+  cmDspSysInstallCb(h, imax_even, "val", srp, "max_in",  NULL );
+  cmDspSysInstallCb(h, omin_even, "val", srp, "min_out", NULL );
+  cmDspSysInstallCb(h, omax_even, "val", srp, "max_out", NULL );
+  //cmDspSysInstallCb(h, srp, "val_out", th0p, "val", NULL );
+  //cmDspSysInstallCb(h, srp, "val_out", th1p, "val", NULL );
   
+  cmDspSysInstallCb(h, sfp,      "tempo", srp, "val_in", NULL );
+  cmDspSysInstallCb(h, imin_tempo, "val", srp, "min_in",  NULL );
+  cmDspSysInstallCb(h, imax_tempo, "val", srp, "max_in",  NULL );
+  cmDspSysInstallCb(h, omin_tempo, "val", srp, "min_out", NULL );
+  cmDspSysInstallCb(h, omax_tempo, "val", srp, "max_out", NULL );
+  //cmDspSysInstallCb(h, srp, "val_out", th0p, "val", NULL );
+  //cmDspSysInstallCb(h, srp, "val_out", th1p, "val", NULL );
+
+  cmDspSysInstallCb(h, sfp,      "cost", srp, "val_in", NULL );
+  cmDspSysInstallCb(h, imin_cost, "val", srp, "min_in",  NULL );
+  cmDspSysInstallCb(h, imax_cost, "val", srp, "max_in",  NULL );
+  cmDspSysInstallCb(h, omin_cost, "val", srp, "min_out", NULL );
+  cmDspSysInstallCb(h, omax_cost, "val", srp, "max_out", NULL );
+  //cmDspSysInstallCb(h, srp, "val_out", th0p, "val", NULL );
+  //cmDspSysInstallCb(h, srp, "val_out", th1p, "val", NULL );
+  
+
   return rc;
 }
 
-cmDspRC_t _cmDspSysPgm_Switcher(cmDspSysH_t h, void** userPtrPtr )
-{
-  cmDspRC_t rc = kOkDspRC;
 
+cmDspRC_t _cmDspSysPgm_Switcher( cmDspSysH_t h, void** userPtrPtr )
+{
+  bool            useBuiltInFl = true;
   const char*     fn0          = "media/audio/20110723-Kriesberg/Audio Files/Piano 3_01.wav";
   const cmChar_t* fn           = cmFsMakeFn(cmFsUserDir(),fn0,NULL,NULL );
 
-  bool   bypassFl   = false;
-  double inGain     = 1.0;
-  double dsrate     = 96000.0;
-  double bits       = 24.0;
-  bool   rectifyFl  = false;
-  bool   fullRectFl = false;
-  double clipDb     = -10.0;
+  bool   dsBypassFl   = false;
+  double dsInGain     = 1.0;
+  double dsSrate      = 96000.0;
+  double dsBits       = 24.0;
+  bool   dsRectifyFl  = false;
+  bool   dsFullRectFl = false;
+  double dsClipDb     = -10.0;
 
-  double cfMinHz    = 20.0;
-  double cfHz       = 1000.0;
-  double cfAlpha    = 0.9;
-  bool   cfFbFl     = true;
-  bool   cfBypassFl = false;
+  double cfMinHz      = 20.0;
+  double cfHz         = 1000.0;
+  double cfAlpha      = 0.9;
+  bool   cfFbFl       = true;
+  bool   cfBypassFl   = false;
 
-  unsigned outChCnt = 2;
-  double   xfadeMs  = 250;
+  unsigned xfChCnt = 2;
+  double   xfMs    = 250;
 
-
-  cmDspInst_t* gsw = cmDspSysAllocInst(h,"GSwitch", NULL, 2, 12,2 );
-
-  cmDspInst_t* ofp =  cmDspSysAllocInst(h,"Scalar", "Offset",  5, kNumberDuiId, 0.0,  cmDspSysSampleRate(h)*600.0, 1.0,  6900000.0);
+  cmDspInst_t* ofp =  cmDspSysAllocInst(h,"Scalar", "Offset",  5, kNumberDuiId, 0.0,  cmDspSysSampleRate(h)*600.0, 1.0,  0.0);
   cmDspInst_t* fnp =  cmDspSysAllocInst(h,"Fname",    NULL,  3, false,"Audio Files (*.wav,*.aiff,*.aif)\tAudio Files (*.{wav,aiff,aif})",fn);
   cmDspInst_t* php =  cmDspSysAllocInst(h,"Phasor",   NULL,  0 );
   cmDspInst_t* wtp =  cmDspSysAllocInst(h,"WaveTable",NULL,  2, ((int)cmDspSysSampleRate(h)), 1 );
-
-  cmDspInst_t* dst =  cmDspSysAllocInst(h,"DistDs",   NULL, 3, bypassFl, inGain, dsrate, bits  ); 
-  cmDspInst_t* cf  = cmDspSysAllocInst( h,"CombFilt", NULL, 5, cfBypassFl, cfMinHz, cfFbFl, cfMinHz, cfAlpha );
   
-  cmDspInst_t* xfad  = cmDspSysAllocInst(h,"Xfader", NULL,    2, outChCnt, xfadeMs );
+  cmDspInst_t* ds  =  cmDspSysAllocInst(h,"DistDs",   NULL, 3, dsBypassFl, dsInGain, dsSrate, dsBits  ); 
+  cmDspInst_t* cf  = cmDspSysAllocInst( h,"CombFilt", NULL, 5, cfBypassFl, cfMinHz, cfFbFl, cfMinHz, cfAlpha );
 
+  cmDspInst_t* xfad  = cmDspSysAllocInst(h,"Xfader", NULL,    2, xfChCnt, xfMs );
 
-  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 0 );
-  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 1 );
+  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, useBuiltInFl ? 0 : 2 );
+  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, useBuiltInFl ? 1 : 3 );
 
-
+  
   cmDspInst_t* ign   = cmDspSysAllocScalar( h, "In Gain",      0.0, 10.0, 0.01, 1.0);
-  cmDspInst_t* rct   = cmDspSysAllocCheck(  h, "Rectify",   rectifyFl);
-  cmDspInst_t* ful   = cmDspSysAllocCheck(  h, "Full/Half", fullRectFl);
-  cmDspInst_t* dsr   = cmDspSysAllocScalar( h, "Srate",        0.0, 96000, 1.0, dsrate);
-  cmDspInst_t* dbt   = cmDspSysAllocScalar( h, "bits",         2.0,  32.0, 1.0, bits);
-  cmDspInst_t* clip  = cmDspSysAllocScalar( h, "Clip dB",   -100.0,   0.0, 0.1, clipDb);
+  cmDspInst_t* rct   = cmDspSysAllocCheck(  h, "Rectify",     dsRectifyFl);
+  cmDspInst_t* ful   = cmDspSysAllocCheck(  h, "Full/Half",   dsFullRectFl);
+  cmDspInst_t* dsr   = cmDspSysAllocScalar( h, "Srate",        0.0, 96000, 1.0, dsSrate);
+  cmDspInst_t* dbt   = cmDspSysAllocScalar( h, "bits",         2.0,  32.0, 1.0, dsBits);
+  cmDspInst_t* clip  = cmDspSysAllocScalar( h, "Clip dB",   -100.0,   0.0, 0.1, dsClipDb);
   cmDspInst_t* ogn   = cmDspSysAllocScalar( h, "Out Gain",    0.0, 10.0, 0.01, 1.0);
 
   cmDspInst_t* cfhz    = cmDspSysAllocScalar( h, "CF Hz",     25, 10000, 1, cfHz );
@@ -323,45 +374,39 @@ cmDspRC_t _cmDspSysPgm_Switcher(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* cfgain  = cmDspSysAllocScalar( h, "CF Gain",    0.0, 20.0, 0.001, 1.0);
   cmDspInst_t* cffb    = cmDspSysAllocInst(   h,"Button", "CF Fb",  2, kCheckDuiId, 0.0 );
 
-  cmDspInst_t* dfdb    = cmDspSysAllocInst(   h,"Button", "Dist Fade",  2, kCheckDuiId, 0.0 );
-  cmDspInst_t* cfdb    = cmDspSysAllocInst(   h,"Button", "CF Fade",  2, kCheckDuiId, 0.0 );
+  cmDspInst_t* dfdb    = cmDspSysAllocInst(   h,"Button", "Dist Fader",  2, kCheckDuiId, 0.0 );
+  cmDspInst_t* cfdb    = cmDspSysAllocInst(   h,"Button", "CF Fade",     2, kCheckDuiId, 0.0 );
 
 
-  if((rc = cmDspSysLastRC(h)) != kOkDspRC )
-    return rc;
-  
-  cmDspSysConnectAudio(h, php, "out", wtp,  "phs" );  // phasor -> wave table
+  cmDspSysConnectAudio(h, php, "out",   wtp,  "phs" );  // phasor -> wave table
+  cmDspSysConnectAudio(h, wtp, "out",   cf,   "in" );
+  cmDspSysConnectAudio(h, cf,  "out",   xfad, "in-0" ); 
+  cmDspSysConnectAudio(h, xfad,"out-0", ao0p, "in");
+  cmDspSysConnectAudio(h, wtp, "out",   ds,   "in" );
+  cmDspSysConnectAudio(h, ds,  "out",   xfad, "in-1" );   // 
+  cmDspSysConnectAudio(h, xfad,"out-1", ao1p, "in");
 
-  cmDspSysConnectAudio(h, wtp, "out",  dst,  "in" );   // wt   -> dist
-  cmDspSysConnectAudio(h, dst, "out",  xfad, "in-0");  // dist -> xfad
-  cmDspSysConnectAudio(h, xfad,"out-0",ao0p, "in" );   // xfad -> aout
-
-  cmDspSysConnectAudio(h, wtp, "out",  cf,   "in" );   // wt   -> xfad
-  cmDspSysConnectAudio(h, cf,  "out",  xfad, "in-1");  // xfad -> cf
-  cmDspSysConnectAudio(h, xfad,"out-1",ao1p, "in" );   // cf   -> aout 
-
-  cmDspSysInstallCb(h, ofp, "val", wtp, "beg", NULL ); // offset -> wavetable
-  cmDspSysInstallCb(h, fnp, "out", wtp, "fn", NULL);   // filename -> wavetable  
-
+  cmDspSysInstallCb(h, ofp, "val", wtp, "beg", NULL ); 
+  cmDspSysInstallCb(h, fnp, "out", wtp, "fn", NULL);    
 
   // Distortion control connections
-  cmDspSysInstallCb(h, ign,  "val", dst, "igain", NULL );
-  cmDspSysInstallCb(h, dsr,  "val", dst, "srate", NULL );
-  cmDspSysInstallCb(h, dbt,  "val", dst, "bits", NULL );
-  cmDspSysInstallCb(h, rct,  "out", dst, "rect", NULL );
-  cmDspSysInstallCb(h, ful,  "out", dst, "full", NULL );
-  cmDspSysInstallCb(h, clip, "val", dst, "clip", NULL );
+  cmDspSysInstallCb(h, ign,  "val", ds, "igain", NULL );
+  cmDspSysInstallCb(h, dsr,  "val", ds, "srate", NULL );
+  cmDspSysInstallCb(h, dbt,  "val", ds, "bits",  NULL );
+  cmDspSysInstallCb(h, rct,  "out", ds, "rect",  NULL );
+  cmDspSysInstallCb(h, ful,  "out", ds, "full",  NULL );
+  cmDspSysInstallCb(h, clip, "val", ds, "clip",  NULL );
+  cmDspSysInstallCb(h, ogn,  "val", ds, "ogain", NULL );
 
-  cmDspSysInstallCb(h, ogn,  "val", dst, "ogain", NULL );
+  cmDspSysInstallCb(h, cfhz,    "val", cf,   "hz",    NULL );  
+  cmDspSysInstallCb(h, cfalpha, "val", cf,   "alpha", NULL );
+  cmDspSysInstallCb(h, cffb,    "out", cf,   "fb",    NULL );
+  cmDspSysInstallCb(h, cfgain,  "val", ao1p, "gain",  NULL );
 
-  cmDspSysInstallCb(h, cfhz,    "val", cf, "hz",    NULL );  
-  cmDspSysInstallCb(h, cfalpha, "val", cf, "alpha", NULL );
-  cmDspSysInstallCb(h, cffb,    "out", cf, "fb",    NULL );
-  cmDspSysInstallCb(h, cfgain,  "val", ao1p, "gain", NULL );
+  cmDspSysInstallCb(h, cfdb, "out", xfad, "gate-0", NULL);
+  cmDspSysInstallCb(h, dfdb, "out", xfad, "gate-1", NULL);
 
-  cmDspSysInstallCb(h, dfdb, "out", xfad, "gate-0", NULL);
-  cmDspSysInstallCb(h, cfdb, "out", xfad, "gate-1", NULL);
-
-  return cmDspSysLastRC(h);
+  return kOkDspRC;
 }
+
 
