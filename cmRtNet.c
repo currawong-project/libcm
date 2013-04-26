@@ -827,7 +827,7 @@ void  cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
   if( cmThreadPause(p->thH,0) != kOkThRC )
     goto errLabel;
 
-  cmRptPrintf(&ctx->rpt,"q=quit\n");
+  cmRptPrintf(&ctx->rpt,"%s q=quit\n", mstrFl ? "Master: " : "Slave: ");
   while( (c=getchar()) != 'q' )
   {
     
