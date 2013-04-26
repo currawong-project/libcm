@@ -87,7 +87,7 @@ extern "C" {
 
   void      cmRtNetReport( cmRtNetH_t h );
     
-  void      cmRtNetTest( cmCtx_t* ctx );
+  void      cmRtNetTest( cmCtx_t* ctx, bool mstrFl );
 
   /*
     Master:

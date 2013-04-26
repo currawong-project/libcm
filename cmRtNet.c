@@ -759,6 +759,7 @@ void   cmRtNetReport( cmRtNetH_t h )
 
 
 //==========================================================================
+#include "cmThread.h"
 
 typedef struct
 {
@@ -768,7 +769,7 @@ typedef struct
 
 void _cmRtNetTestRecv( void* cbArg, const char* data, unsigned dataByteCnt, const struct sockaddr_in* fromAddr )
 {
-  _cmRtNetTest_t* p = (_cmrtNetTest_t*)cbArg;
+  _cmRtNetTest_t* p = (_cmRtNetTest_t*)cbArg;
 
   if( cmRtNetIsSyncModeMsg(data,dataByteCnt))
     cmRtNetSyncModeRecv(p->netH,data,dataByteCnt,fromAddr);
@@ -778,7 +779,7 @@ void _cmRtNetTestRecv( void* cbArg, const char* data, unsigned dataByteCnt, cons
 
 bool _cmRtNetTestThreadFunc(void* param)
 {
-  _cmrtNetTest_t* p = (_cmRtNetTest_t*)param;
+  _cmRtNetTest_t* p = (_cmRtNetTest_t*)param;
 
   
   if( cmRtNetIsValid(p->netH) && cmRtNetIsInSyncMode(p->netH) )
@@ -787,7 +788,7 @@ bool _cmRtNetTestThreadFunc(void* param)
   return true;
 }
 
-void    cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
+void  cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
 {
   char c;
   _cmRtNetTest_t t;
@@ -799,7 +800,7 @@ void    cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
   if( cmThreadCreate(&p->thH,_cmRtNetTestThreadFunc,p,&ctx->rpt) != kOkThRC )
     goto errLabel;
 
-  if((rc = cmRtNetAlloc(ctx,&p->netH,p)) != kOkNetRC )
+  if((rc = cmRtNetAlloc(ctx,&p->netH,_cmRtNetTestRecv,p)) != kOkNetRC )
     goto errLabel;
 
   if((rc = cmRtNetCreateNode(p->netH, "local", NULL, port )) != kOkNetRC)
@@ -807,10 +808,10 @@ void    cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
 
   if( mstrFl )
   {
-    if((rc = cmRtNetCreate(p->netH,"whirl", "192.168.15.109", port )) != kOkNetRC )
+    if((rc = cmRtNetCreateNode(p->netH,"whirl", "192.168.15.109", port )) != kOkNetRC )
       goto errLabel;
 
-    if((rc = cmRtNetEndPoint(p->netH,"thunk_ep0", 0 )) != kOkNetRC )
+    if((rc = cmRtNetRegisterEndPoint(p->netH,"thunk_ep0", 0 )) != kOkNetRC )
       goto errLabel;
 
     if(( rc = cmRtNetBeginSyncMode(p->netH)) != kOkNetRC )
@@ -819,7 +820,7 @@ void    cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
   }
   else
   {
-    if((rc = cmRtNetEndPoint(p->netH,"whirl_ep0", 0 )) != kOkNetRC )
+    if((rc = cmRtNetRegisterEndPoint(p->netH,"whirl_ep0", 0 )) != kOkNetRC )
       goto errLabel;
   }
   
