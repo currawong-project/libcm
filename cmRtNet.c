@@ -811,7 +811,7 @@ void  cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
   if((rc = cmRtNetAlloc(ctx,&p->netH,_cmRtNetTestRecv,p)) != kOkNetRC )
     goto errLabel;
 
-  if((rc = cmRtNetCreateNode(p->netH, "local", NULL, port )) != kOkNetRC)
+  if((rc = cmRtNetCreateNode(p->netH, "thunk", NULL, port )) != kOkNetRC)
     goto errLabel;
 
   if( mstrFl )
