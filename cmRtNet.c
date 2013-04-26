@@ -483,7 +483,7 @@ cmRtNetRC_t _cmRtNetSendAck( cmRtNet_t* p, cmRtNetSelId_t ackSelId, const struct
 {
   cmRtNetNode_t* np;
 
-  if((np = _cmRtNetFindNodeFromSockAddr(p,saddr)) != NULL )
+  if((np = _cmRtNetFindNodeFromSockAddr(p,saddr)) == NULL )
     return cmErrMsg(&p->err,kNodeNotFoundNetRC,"The net node associated with an ack cmd was not found. Ack not sent.");
 
   return _cmRtNetSendSyncMsg(p,np,ackSelId,NULL,cmInvalidId,kInvalidStNetId);
