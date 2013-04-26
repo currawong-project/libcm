@@ -267,7 +267,7 @@ cmRtNetRC_t _cmRtNetCreateEndpoint( cmRtNet_t* p, cmRtNetNode_t* np, const cmCha
 }
 
 unsigned _cmRtNetSyncMsgSerialByteCount( const cmRtNetSyncMsg_t* m )
-{ return sizeof(cmRtNetSyncMsg_t) + m->endPtLabel==NULL ? 1 : strlen(m->endPtLabel) + 1; }
+{ return sizeof(cmRtNetSyncMsg_t) + (m->endPtLabel==NULL ? 1 : strlen(m->endPtLabel) + 1); }
 
 cmRtNetRC_t _cmRtNetSerializeSyncMsg( cmRtNet_t* p, const cmRtNetSyncMsg_t* m, void* buf, unsigned n )
 {
@@ -781,9 +781,15 @@ bool _cmRtNetTestThreadFunc(void* param)
 {
   _cmRtNetTest_t* p = (_cmRtNetTest_t*)param;
 
-  
-  if( cmRtNetIsValid(p->netH) && cmRtNetIsInSyncMode(p->netH) )
-    cmRtNetSyncModeSend(p->netH);
+  if( cmRtNetIsValid(p->netH) )
+  {
+    if( cmRtNetIsInSyncMode(p->netH) )
+      cmRtNetSyncModeSend(p->netH);
+
+    cmRtNetReceive(p->netH);
+  }
+
+  cmSleepMs(40);
 
   return true;
 }
