@@ -522,7 +522,7 @@ cmRtNetRC_t  cmRtNetSyncModeRecv( cmRtNetH_t h, const char* data, unsigned dataB
   cmRtNetNode_t*   np = NULL;
   cmRtNetSyncMsg_t m;
 
-  assert( p->syncModeFl );
+  assert( cmRtNetIsSyncModeMsg(data,dataByteCnt));
   
   if( _cmRtNetDeserializeSyncMsg(data,dataByteCnt,&m) != kOkNetRC )
   {
@@ -587,11 +587,13 @@ cmRtNetRC_t  cmRtNetSyncModeRecv( cmRtNetH_t h, const char* data, unsigned dataB
       break;
 
     case kHelloAckSelNetId: // master response
+      assert( p->syncModeFl );
       _cmRtNetRpt(p,"rcv hello ack\n");
       rc = _cmRtNetRecvAck(p,fromAddr,kWaitHelloAckStNetId,kSendEndpointStNetId);
       break;
 
     case kEndpointAckSelNetId: // master response
+      assert( p->syncModeFl );  
       _cmRtNetRpt(p,"rcv endpoint ack\n");
       rc = _cmRtNetRecvAck(p,fromAddr,kWaitEndpointAckStNetId,kSendEndpointStNetId);
       break;
@@ -643,8 +645,8 @@ cmRtNetRC_t _cmRtNetSendNodeSync( cmRtNet_t* p, cmRtNetNode_t* np )
       {
         cmTimeSpec_t t;
         cmTimeGet(&t);
-        unsigned fiveSecs = 5000000;
-        if( cmTimeElapsedMicros(&np->lastSendTime,&t) > fiveSecs)
+        unsigned twentySecs = 20000000;
+        if( cmTimeElapsedMicros(&np->lastSendTime,&t) > twentySecs)
         {
           const cmChar_t* ackStr = np->state==kWaitHelloAckStNetId ? "hello" : "endpoint";
           rc = cmErrMsg(&p->err,kTimeOutErrNetRC,"The node %s:%s:%i did not give a '%s' acknowledge.",cmStringNullGuard(np->label),cmStringNullGuard(np->addr),np->port,ackStr);         
