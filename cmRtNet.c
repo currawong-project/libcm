@@ -835,9 +835,11 @@ void  cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
 
  errLabel:
 
+  cmThreadDestroy(&p->thH);
+
   cmRtNetFree(&p->netH);
 
-  cmThreadDestroy(&p->thH);
+
   return;
 
 }
