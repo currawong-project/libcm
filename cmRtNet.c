@@ -74,7 +74,7 @@ typedef struct
 typedef struct
 {
   cmRtSysMsgHdr_t hdr;
-  cmRtNetSelId_t    selId;
+  cmRtNetSelId_t  selId;
   const cmChar_t* endPtLabel;
   unsigned        endPtId;
 } cmRtNetSyncMsg_t;
@@ -703,6 +703,13 @@ cmRtNetRC_t cmRtNetReceive( cmRtNetH_t h )
   return rc;
 }
 
+bool    cmRtNetIsSyncModeMsg( const void* data, unsigned dataByteCnt )
+{
+  cmRtNetSyncMsg_t* m = (cmRtNetSyncMsg_t*)data;
+  return dataByteCnt >= sizeof(cmRtNetSyncMsg_t) && m->hdr.selId == kNetSyncSelRtId;
+}
+
+
 unsigned  cmRtNetEndPointIndex( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* endPtLabel )
 {
   //cmRtNet_t* p = _cmRtNetHandleToPtr(h);
@@ -748,4 +755,87 @@ void   cmRtNetReport( cmRtNetH_t h )
       cmRptPrintf(rpt,"  endpt: %i %s\n",ep->endPtId,cmStringNullGuard(ep->endPtLabel));
     }
   }
+}
+
+
+//==========================================================================
+
+typedef struct
+{
+  cmThreadH_t thH;
+  cmRtNetH_t netH;
+} _cmRtNetTest_t;
+
+void _cmRtNetTestRecv( void* cbArg, const char* data, unsigned dataByteCnt, const struct sockaddr_in* fromAddr )
+{
+  _cmRtNetTest_t* p = (_cmrtNetTest_t*)cbArg;
+
+  if( cmRtNetIsSyncModeMsg(data,dataByteCnt))
+    cmRtNetSyncModeRecv(p->netH,data,dataByteCnt,fromAddr);
+
+}
+
+
+bool _cmRtNetTestThreadFunc(void* param)
+{
+  _cmrtNetTest_t* p = (_cmRtNetTest_t*)param;
+
+  
+  if( cmRtNetIsValid(p->netH) && cmRtNetIsInSyncMode(p->netH) )
+    cmRtNetSyncModeSend(p->netH);
+
+  return true;
+}
+
+void    cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
+{
+  char c;
+  _cmRtNetTest_t t;
+  cmUdpPort_t port = 5867;
+  _cmRtNetTest_t* p = &t;
+  cmRtNetRC_t rc = kOkNetRC;
+  memset(&t,0,sizeof(t));
+
+  if( cmThreadCreate(&p->thH,_cmRtNetTestThreadFunc,p,&ctx->rpt) != kOkThRC )
+    goto errLabel;
+
+  if((rc = cmRtNetAlloc(ctx,&p->netH,p)) != kOkNetRC )
+    goto errLabel;
+
+  if((rc = cmRtNetCreateNode(p->netH, "local", NULL, port )) != kOkNetRC)
+    goto errLabel;
+
+  if( mstrFl )
+  {
+    if((rc = cmRtNetCreate(p->netH,"whirl", "192.168.15.109", port )) != kOkNetRC )
+      goto errLabel;
+
+    if((rc = cmRtNetEndPoint(p->netH,"thunk_ep0", 0 )) != kOkNetRC )
+      goto errLabel;
+
+    if(( rc = cmRtNetBeginSyncMode(p->netH)) != kOkNetRC )
+      goto errLabel;
+    
+  }
+  else
+  {
+    if((rc = cmRtNetEndPoint(p->netH,"whirl_ep0", 0 )) != kOkNetRC )
+      goto errLabel;
+  }
+  
+  if( cmThreadPause(p->thH,0) != kOkThRC )
+    goto errLabel;
+
+  while( (c=getchar()) != 'q' )
+  {
+    
+  }
+
+ errLabel:
+
+  cmRtNetFree(&p->netH);
+
+  cmThreadDestroy(&p->thH);
+  return;
+
 }

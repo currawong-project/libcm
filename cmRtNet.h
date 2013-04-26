@@ -52,12 +52,13 @@ extern "C" {
 
 
   // Go into 'sync' node.
-  // When a node enters sync mode it systematically transmits all of it's local endpoint 
-  // information to each registered remote node.  Prior to entering sync mode a node 
-  // must therefore have been setup with a list of remote nodes (via cmRtNetCreateNode()) 
-  // and a list of local endpoints (cmRtNetRegisterEndpoint()). 
-  // During sync mode a node sends it's local endpoint list to each registered remote node.
-  // When a remote node receives an endpoint it updates it's own remote node/endpoint 
+  // When a node enters sync mode it systematically transmits all of it's 
+  // local endpoint information to each registered remote node.  Prior to 
+  // entering sync mode a node must therefore have been setup with a list 
+  // of remote nodes (via cmRtNetCreateNode()) and a list of local endpoints 
+  // (cmRtNetRegisterEndpoint()).  During sync mode a node sends it's local 
+  // endpoint list to each registered remote node. When a remote node receives 
+  // an endpoint it updates it's own remote node/endpoint 
   // list.
   cmRtNetRC_t cmRtNetBeginSyncMode( cmRtNetH_t h );
   bool      cmRtNetIsInSyncMode(  cmRtNetH_t h );
@@ -77,6 +78,8 @@ extern "C" {
   // via the callback funcion 'cbFunc' as passed to cmRtNetAlloc()
   cmRtNetRC_t cmRtNetReceive( cmRtNetH_t h );
 
+  bool        cmRtNetIsSyncModeMsg( const void* data, unsigned dataByteCnt );
+
   unsigned  cmRtNetEndPointIndex( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* endPtLabel );
   
 
@@ -84,7 +87,25 @@ extern "C" {
 
   void      cmRtNetReport( cmRtNetH_t h );
     
-  
+  void      cmRtNetTest( cmCtx_t* ctx );
+
+  /*
+    Master:
+      cmRtNetBeginSyncMode().
+      while( cmRtNetIsSyncMode())
+      {
+       // Give the master an oppurtunity to advance it's sync mode state.
+       // When the master is has sync'd with all remote nodes in it's
+       // remote node list then it will automatically exit sync mode.
+       cmRtNetSyncModeSend()
+      }
+
+      _myNetRecv(dataV,dataN,addr)
+     {
+       if( cmRtNetIsSyncModeMsg(dataV,dataN) )
+         cmRtNetSyncModeRecv(dataV,dataN,addr)
+     }   
+   */  
 
 #ifdef __cplusplus
 }
