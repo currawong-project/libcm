@@ -325,7 +325,7 @@ cmRtNetRC_t _cmRtNetSendSyncMsg( cmRtNet_t* p, cmRtNetNode_t* np, cmRtNetSelId_t
   cmRtNetNodeState_t orgState = np->state;
   np->state = nextStId;
 
-  
+ 
   // send the msg
   if( cmIsFlag(np->flags,kSockAddrNetFl) == false )
     udpRC = cmUdpSend2(p->udpH, buf, n, np->addr, np->port );
