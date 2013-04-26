@@ -803,7 +803,12 @@ void  cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
   cmUdpPort_t port = 5876;
   _cmRtNetTest_t* p = &t;
   cmRtNetRC_t rc = kOkNetRC;
+  unsigned hn = cmUdpHostNameMaxCharCount();
+  cmChar_t hostNameStr[ hn ];
   memset(&t,0,sizeof(t));
+
+  if( cmUdpHostName(hostNameStr,hn) != kOkUdpRC )
+    goto errLabel;
 
   if( cmThreadCreate(&p->thH,_cmRtNetTestThreadFunc,p,&ctx->rpt) != kOkThRC )
     goto errLabel;
@@ -811,7 +816,7 @@ void  cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
   if((rc = cmRtNetAlloc(ctx,&p->netH,_cmRtNetTestRecv,p)) != kOkNetRC )
     goto errLabel;
 
-  if((rc = cmRtNetCreateNode(p->netH, "thunk", NULL, port )) != kOkNetRC)
+  if((rc = cmRtNetCreateNode(p->netH, hostNameStr, NULL, port )) != kOkNetRC)
     goto errLabel;
 
   if( mstrFl )
