@@ -11,7 +11,7 @@
 
 enum
 {
-  kLocalNetFl = 0x01,
+  kLocalNetFl    = 0x01,
   kSockAddrNetFl = 0x02
 };
 
@@ -191,6 +191,7 @@ cmRtNetRC_t  _cmRtNetReleaseNode( cmRtNet_t* p, cmRtNetNode_t* np )
 
 cmRtNetRC_t _cmRtNetCreateNode( cmRtNet_t* p, const cmChar_t* label, const cmChar_t* addr, cmUdpPort_t port, const struct sockaddr_in* saddr )
 {
+  cmRtNetRC_t rc = kOkNetRC;
   cmRtNetNode_t* np;
 
   if( label == NULL )
@@ -216,12 +217,20 @@ cmRtNetRC_t _cmRtNetCreateNode( cmRtNet_t* p, const cmChar_t* label, const cmCha
     p->localNode = np;
 
   if( saddr != NULL )
-  {
     np->sockaddr = *saddr;
-    np->flags = cmSetFlag(np->flags,kSockAddrNetFl);
+  else
+  {
+    if( cmUdpInitAddr(p->udpH, np->addr, np->port, &np->sockaddr ) != kOkUdpRC )
+    {
+      rc = cmErrMsg(&p->err,kUdpPortFailNetRC,"IP::port to socket address conversion failed.");
+      goto errLabel;
+    }
   }
 
-  return kOkNetRC;
+  np->flags = cmSetFlag(np->flags,kSockAddrNetFl);
+
+ errLabel:
+  return rc;
 }
 
 cmRtNetEnd_t* _cmRtNetFindNodeEnd(cmRtNetNode_t* np, const cmChar_t* endPtLabel )
@@ -296,6 +305,7 @@ cmRtNetRC_t _cmRtNetSendSyncMsg( cmRtNet_t* p, cmRtNetNode_t* np, cmRtNetSelId_t
 {
   cmRtNetSyncMsg_t m;
   cmRtNetRC_t      rc = kOkNetRC;
+  cmUdpRC_t        udpRC = kOkUdpRC;
 
   m.hdr.rtSubIdx = cmInvalidIdx;
   m.hdr.selId    = kNetSyncSelRtId;
@@ -315,12 +325,12 @@ cmRtNetRC_t _cmRtNetSendSyncMsg( cmRtNet_t* p, cmRtNetNode_t* np, cmRtNetSelId_t
   cmRtNetNodeState_t orgState = np->state;
   np->state = nextStId;
 
+  
   // send the msg
-  cmUdpRC_t udpRC;
-  if( cmIsFlag(np->flags,kSockAddrNetFl) )
-    udpRC = cmUdpSendTo(p->udpH, buf, n, &np->sockaddr );
-  else
+  if( cmIsFlag(np->flags,kSockAddrNetFl) == false )
     udpRC = cmUdpSend2(p->udpH, buf, n, np->addr, np->port );
+  else
+    udpRC = cmUdpSendTo(p->udpH, buf, n, &np->sockaddr );
 
   // check for send errors
   if( udpRC != kOkUdpRC )
