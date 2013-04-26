@@ -781,9 +781,15 @@ bool _cmRtNetTestThreadFunc(void* param)
 {
   _cmRtNetTest_t* p = (_cmRtNetTest_t*)param;
 
-  
-  if( cmRtNetIsValid(p->netH) && cmRtNetIsInSyncMode(p->netH) )
-    cmRtNetSyncModeSend(p->netH);
+  if( cmRtNetIsValid(p->netH) )
+  {
+    if( cmRtNetIsInSyncMode(p->netH) )
+      cmRtNetSyncModeSend(p->netH);
+
+    cmRtNetReceive(p->netH);
+  }
+
+  cmSleepMs(40);
 
   return true;
 }
