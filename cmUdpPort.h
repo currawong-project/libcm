@@ -24,6 +24,8 @@ extern "C" {
     kThreadFailUdpRC,
     kQueueFailUdpRC,
     kRecvBufOverflowUdpRC,
+    kBufTooSmallUdpRC,
+    kHostNameFailUdpRC,
     kTimeOutUdpRC
   };
 
@@ -117,6 +119,9 @@ extern "C" {
   cmUdpRC_t cmUdpInitAddr( cmUdpH_t h, const char* addrStr, cmUdpPort_t portNumber, struct sockaddr_in* retAddrPtr );
 
   const cmChar_t*  cmUdpAddrToString( cmUdpH_t h, const struct sockaddr_in* addr );
+
+  unsigned  cmUdpHostNameMaxCharCount();
+  cmUdpRC_t cmUdpHostName( cmChar_t* buf, unsigned bufByteCnt );
 
 #ifdef __cplusplus
 }

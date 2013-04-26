@@ -562,3 +562,20 @@ const cmChar_t* cmUdpAddrToString( cmUdpH_t h, const struct sockaddr_in* addr )
   p->ntopBuf[INET_ADDRSTRLEN]=0;
   return p->ntopBuf;
 }
+
+unsigned  cmUdpHostNameMaxCharCount()
+{ return HOST_NAME_MAX+1; }
+
+cmUdpRC_t cmUdpHostName( cmChar_t* buf, unsigned bufByteCnt )
+{
+  if( bufByteCnt > 0 )
+    buf[0] = 0;
+
+  if( bufByteCnt < cmUdpHostNameMaxCharCount() )
+    return kBufTooSmallUdpRC;
+
+  if( gethostname(buf,bufByteCnt-1) != 0 )
+    return kHostNameFailUdpRC;
+
+  return kOkUdpRC;
+}
