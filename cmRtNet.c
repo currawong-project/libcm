@@ -792,7 +792,7 @@ void  cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
 {
   char c;
   _cmRtNetTest_t t;
-  cmUdpPort_t port = 5867;
+  cmUdpPort_t port = 5876;
   _cmRtNetTest_t* p = &t;
   cmRtNetRC_t rc = kOkNetRC;
   memset(&t,0,sizeof(t));
