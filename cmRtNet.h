@@ -104,7 +104,38 @@ extern "C" {
      {
        if( cmRtNetIsSyncModeMsg(dataV,dataN) )
          cmRtNetSyncModeRecv(dataV,dataN,addr)
-     }   
+     } 
+
+
+     The 'master' is the machine which cmRtNetBeginSyncMode() is called on.
+     1) 'master' sends local endpoints to all registered remote nodes.
+     2) When a 'slave' receives the kDoneSelNetId msg it transmits
+     it's own local endpoints back to the master.
+
+     a. Each node in the node list has a type id:
+       1. local 
+       2. registered - remote node that was explicitely registered on a master
+       3. received   - remote node that was received from a master
+
+     b. 
+       1. All nodes are created in the 'send-hello' state.
+       2. If a master machine is in 'sync-mode' then it systematically sends
+       each of it's local endpoints to all 'registered' nodes.
+       3. When a slave machine recives a 'hello' it creates a
+       'received' node.
+       4. When a slave machine recieves a 'done' it enters sync mode
+       and systematically sends each of its local endpoints to
+       the 'done' source.
+       
+
+   Protocol:
+     1. A: broadcast - 'hello'
+     2. Bs: respond 'hello' ack
+     3. A: send local node and endpoints to each responder
+     4. A: send done
+     5. Bs: send local endpoints to A
+
+
    */  
 
 #ifdef __cplusplus
