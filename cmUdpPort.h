@@ -41,7 +41,8 @@ extern "C" {
   {
     kNonBlockingUdpFl = 0x00,
     kBlockingUdpFl    = 0x01,
-    kNoQueueUdpFl     = 0x02
+    kNoQueueUdpFl     = 0x02,
+    kBroadcastUdpFl   = 0x04
     
   };
 

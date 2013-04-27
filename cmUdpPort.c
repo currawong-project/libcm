@@ -256,6 +256,18 @@ cmUdpRC_t cmUdpInit(
 
   }
 
+  // if broadcast option was requested.
+  if( cmIsFlag(flags,kBroadcastUdpFl) )
+  {
+    int bcastFl = 1;
+    if( setsockopt( p->sockH, SOL_SOCKET, SO_BROADCAST, &bcastFl, sizeof(bcastFl) ) == cmUdp_SYS_ERR )
+    {
+      rc = cmErrSysMsg(&p->err,kSockOptSetFailUdpRC,errno, "Attempt to set the socket broadcast attribute failed." );
+      goto errLabel;
+    }
+
+  }
+
   if( recvBufByteCnt != 0 )
     p->tempBuf = cmMemAlloc(char,recvBufByteCnt );
 
