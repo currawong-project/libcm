@@ -563,7 +563,7 @@ cmRtNetRC_t cmRtNetRegisterLocalNode( cmRtNetH_t h, const cmChar_t* nodeLabel, c
   }
 
   // if this is the local node then initialze the local socket
-  if( cmUdpInit(p->udpH,port,kNonBlockingUdpFl,_cmRtNetRecv,p,NULL,0,p->udpRecvBufByteCnt,p->udpTimeOutMs) != kOkUdpRC )
+  if( cmUdpInit(p->udpH,port,kNonBlockingUdpFl | kBroadcastUdpFl,_cmRtNetRecv,p,NULL,0,p->udpRecvBufByteCnt,p->udpTimeOutMs) != kOkUdpRC )
   {
     rc = cmErrMsg(&p->err,kUdpPortFailNetRC,"The UDP port initialization failed.");
     goto errLabel;
