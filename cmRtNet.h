@@ -34,6 +34,7 @@ extern "C" {
 
   bool      cmRtNetIsValid( cmRtNetH_t h );
 
+  const cmChar_t* cmRtNetLocalHostName( cmRtNetH_t h );
 
   // Create a network node.
   // The 'nodeLabel' refers to a network device cfg. (see cmDevCfg).
@@ -41,6 +42,7 @@ extern "C" {
   // During sync mode this node will attempt to sync with all
   // nodes in the node list.
   cmRtNetRC_t cmRtNetCreateNode( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* ipAddr, cmUdpPort_t ipPort );
+
 
   // Register the local endpoints.
   // Remote nodes will be able to send messages to these endpoints by
@@ -61,7 +63,7 @@ extern "C" {
   // an endpoint it updates it's own remote node/endpoint 
   // list.
   cmRtNetRC_t cmRtNetBeginSyncMode( cmRtNetH_t h );
-  bool      cmRtNetIsInSyncMode(  cmRtNetH_t h );
+  bool        cmRtNetIsInSyncMode(  cmRtNetH_t h );
 
   // When the network message recieve function (See cmRtNetAlloc() 'cbFunc') 
   // receives a message with the cmRtSysMsgHdr_t.selId == kNetSyncSelRtId

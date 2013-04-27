@@ -415,6 +415,13 @@ cmRtNetRC_t cmRtNetFree( cmRtNetH_t* hp )
   return rc;
 }
 
+const cmChar_t* cmRtNetLocalHostName( cmRtNetH_t h )
+{
+  cmRtNet_t*  p = _cmRtNetHandleToPtr(h);
+  return cmUdpHostName(p->udpH);
+}
+
+
 bool cmRtNetIsValid( cmRtNetH_t h )
 { return h.h !=NULL; }
 
@@ -852,23 +859,24 @@ bool _cmRtNetTestThreadFunc(void* param)
 
 void  cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
 {
-  char c;
-  _cmRtNetTest_t t;
-  cmUdpPort_t port = 5876;
-  _cmRtNetTest_t* p = &t;
-  cmRtNetRC_t rc = kOkNetRC;
-  unsigned hn = cmUdpHostNameMaxCharCount();
-  cmChar_t hostNameStr[ hn ];
+  char            c;
+  _cmRtNetTest_t  t;
+  const cmChar_t* hostNameStr;
+  cmUdpPort_t     port = 5876;
+  _cmRtNetTest_t* p    = &t;
+  cmRtNetRC_t     rc   = kOkNetRC;
   memset(&t,0,sizeof(t));
 
-  if( cmUdpHostName(hostNameStr,hn) != kOkUdpRC )
-    goto errLabel;
 
   if( cmThreadCreate(&p->thH,_cmRtNetTestThreadFunc,p,&ctx->rpt) != kOkThRC )
     goto errLabel;
 
   if((rc = cmRtNetAlloc(ctx,&p->netH,_cmRtNetTestRecv,p)) != kOkNetRC )
     goto errLabel;
+
+  hostNameStr = cmRtNetLocalHostName(p->netH);
+  if( hostNameStr == NULL )
+    hostNameStr = "<no-host-name>";
 
   if((rc = cmRtNetCreateNode(p->netH, hostNameStr, NULL, port )) != kOkNetRC)
     goto errLabel;
