@@ -42,7 +42,9 @@ typedef struct
   unsigned        recvCnt;
   unsigned        queCbCnt;
   unsigned        errCnt;
+  struct sockaddr_in sockaddr;
   cmChar_t        ntopBuf[ INET_ADDRSTRLEN+1 ]; // use INET6_ADDRSTRLEN for IPv6
+  cmChar_t        hnameBuf[ HOST_NAME_MAX+1 ];
 } cmUdp_t;
 
 cmUdpH_t cmUdpNullHandle = cmSTATIC_NULL_HANDLE;
@@ -186,8 +188,6 @@ cmUdpRC_t cmUdpInit(
 {
   cmUdpRC_t rc;
 
-  struct sockaddr_in 	addr;
-
   cmUdp_t* p = _cmUdpHandleToPtr(h);
 
   if((rc = _cmUdpFinal(p)) != kOkUdpRC )
@@ -200,11 +200,11 @@ cmUdpRC_t cmUdpInit(
     return cmErrSysMsg(&p->err, kSockCreateFailUdpRC, errno, "Socket create failed." );	 
 	
   // create the local address		
-  if((rc = _cmUdpInitAddr(p, NULL, port,  &addr )) != kOkUdpRC )
+  if((rc = _cmUdpInitAddr(p, NULL, port,  &p->sockaddr )) != kOkUdpRC )
     goto errLabel;
 			
   // bind the socket to a local address/port	
-  if( (bind( p->sockH, (struct sockaddr*)&addr, sizeof(addr))) == cmUdp_SYS_ERR )
+  if( (bind( p->sockH, (struct sockaddr*)&p->sockaddr, sizeof(p->sockaddr))) == cmUdp_SYS_ERR )
   {
     rc = cmErrSysMsg(&p->err,kSockBindFailUdpRC,errno,"Socket bind failed." );
     goto errLabel;
@@ -286,6 +286,13 @@ cmUdpRC_t cmUdpFinal( cmUdpH_t h )
 
 bool      cmUdpIsValid( cmUdpH_t h )
 { return h.h != NULL; }
+
+const struct sockaddr_in* cmUdpLocalAddr( cmUdpH_t h )
+{
+  cmUdp_t* p = _cmUdpHandleToPtr(h);
+  return &p->sockaddr;
+}
+
 
 
 cmUdpRC_t cmUdpConnect( cmUdpH_t h, const char* remoteAddr, cmUdpPort_t remotePort )
@@ -563,19 +570,18 @@ const cmChar_t* cmUdpAddrToString( cmUdpH_t h, const struct sockaddr_in* addr )
   return p->ntopBuf;
 }
 
-unsigned  cmUdpHostNameMaxCharCount()
-{ return HOST_NAME_MAX+1; }
-
-cmUdpRC_t cmUdpHostName( cmChar_t* buf, unsigned bufByteCnt )
+const cmChar_t* cmUdpHostName( cmUdpH_t h )
 {
-  if( bufByteCnt > 0 )
-    buf[0] = 0;
+  cmUdp_t* p = _cmUdpHandleToPtr(h);
 
-  if( bufByteCnt < cmUdpHostNameMaxCharCount() )
-    return kBufTooSmallUdpRC;
+  _cmUdpClear_errno();
 
-  if( gethostname(buf,bufByteCnt-1) != 0 )
-    return kHostNameFailUdpRC;
-
-  return kOkUdpRC;
+  if( gethostname(p->hnameBuf,HOST_NAME_MAX) != 0 )
+  {
+     cmErrSysMsg(&p->err,kHostNameFailUdpRC,errno, "gethostname() failed." );
+     return NULL;
+  }
+  
+  p->hnameBuf[HOST_NAME_MAX] = 0;
+  return p->hnameBuf;
 }

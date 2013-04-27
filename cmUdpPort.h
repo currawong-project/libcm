@@ -62,6 +62,8 @@ extern "C" {
   cmUdpRC_t cmUdpFinal( cmUdpH_t h );
   bool      cmUdpIsValid( cmUdpH_t h );
 
+  const struct sockaddr_in* cmUdpLocalAddr( cmUdpH_t h );
+
   // Set a destination address for this socket. Once a destination address is set
   // the caller may use cmUdpSend() to communicate with the specified remote socket
   // without having to specify an destination address on each call.
@@ -120,8 +122,9 @@ extern "C" {
 
   const cmChar_t*  cmUdpAddrToString( cmUdpH_t h, const struct sockaddr_in* addr );
 
-  unsigned  cmUdpHostNameMaxCharCount();
-  cmUdpRC_t cmUdpHostName( cmChar_t* buf, unsigned bufByteCnt );
+  const cmChar_t* cmUdpHostName( cmUdpH_t h );
+
+  
 
 #ifdef __cplusplus
 }
