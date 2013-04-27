@@ -539,29 +539,14 @@ void _cmRtSysMidiCallback( const cmMidiPacket_t* pktArray, unsigned pktCnt )
 }
 
 // This funciton is called from the real-time thread
-void _cmRtNetRecv( void* cbArg, const char* data, unsigned dataByteCnt, const struct sockaddr_in* fromAddr )
+void _cmRtSysNetRecv( void* cbArg, const char* data, unsigned dataByteCnt, const struct sockaddr_in* fromAddr )
 {
   _cmRtCfg_t*      cp = (_cmRtCfg_t*)cbArg;
-  cmRtSysMsgHdr_t* hdr  = (cmRtSysMsgHdr_t*)data;
 
-  // is this a network sync. msg.
-  if( hdr->selId == kNetSyncSelRtId )
-  {
-    if( cmRtNetSyncModeRecv(cp->netH, data, dataByteCnt, fromAddr ) != kOkNetRC )
-      cmErrMsg(&cp->p->err,kNetErrRtRC,"Network sync mode receive failed.");
-  }
-  else
-  {
-    cmRtSysH_t h;
-    h.h = cp->p;
-    cmRtSysDeliverMsg(h,data,dataByteCnt,cmInvalidId);
-  }
-
-  // If the network is in sync mode 
-  if( cmRtNetIsValid(cp->netH) && cmRtNetIsInSyncMode(cp->netH) )
-    if( cmRtNetSyncModeSend(cp->netH) != kOkNetRC )
-      cmErrMsg(&cp->p->err,kNetErrRtRC,"Net sync send failed.");
-
+  cmRtSysH_t h;
+  h.h = cp->p;
+  cmRtSysDeliverMsg(h,data,dataByteCnt,cmInvalidId);
+ 
 }
 
 
@@ -953,7 +938,7 @@ cmRtRC_t cmRtSysCfg( cmRtSysH_t h, const cmRtSysSubSys_t* ss, unsigned rtSubIdx 
 
 
   // allocate the network mgr
-  if( cmRtNetAlloc(p->ctx,&cp->netH, _cmRtNetRecv, cp ) != kOkNetRC )
+  if( cmRtNetAlloc(p->ctx,&cp->netH, _cmRtSysNetRecv, cp ) != kOkNetRC )
   {
     rc = _cmRtError(p,kNetErrRtRC,"Network allocation failed.");
     goto errLabel;
@@ -963,7 +948,7 @@ cmRtRC_t cmRtSysCfg( cmRtSysH_t h, const cmRtSysSubSys_t* ss, unsigned rtSubIdx 
   for(j=0; j<ss->netNodeCnt; ++j)
   {
     cmRtSysNetNode_t* nn = ss->netNodeArray + j;
-    if( cmRtNetCreateNode( cp->netH, nn->label, nn->ipAddr, nn->ipPort) != kOkNetRC )
+    if( cmRtNetRegisterLocalNode( cp->netH, nn->label, nn->ipAddr, nn->ipPort) != kOkNetRC )
     {
       rc = _cmRtError(p,kNetErrRtRC,"Network node allocation failed on label:%s addr:%s port:%i.",cmStringNullGuard(nn->label),cmStringNullGuard(nn->ipAddr),nn->ipPort);
       goto errLabel;
