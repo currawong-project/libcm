@@ -41,7 +41,7 @@ extern "C" {
   // Set 'ipAddr' to NULL if this is the local node.
   // During sync mode this node will attempt to sync with all
   // nodes in the node list.
-  cmRtNetRC_t cmRtNetCreateNode( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* ipAddr, cmUdpPort_t ipPort );
+  cmRtNetRC_t cmRtNetRegisterLocalNode( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* ipAddr, cmUdpPort_t ipPort );
 
 
   // Register the local endpoints.
@@ -63,18 +63,7 @@ extern "C" {
   // an endpoint it updates it's own remote node/endpoint 
   // list.
   cmRtNetRC_t cmRtNetBeginSyncMode( cmRtNetH_t h );
-  bool        cmRtNetIsInSyncMode(  cmRtNetH_t h );
 
-  // When the network message recieve function (See cmRtNetAlloc() 'cbFunc') 
-  // receives a message with the cmRtSysMsgHdr_t.selId == kNetSyncSelRtId
-  // it should call this function to update the current sync state of the
-  // cmRtNet.
-  cmRtNetRC_t  cmRtNetSyncModeRecv( cmRtNetH_t h, const char* data, unsigned dataByteCnt, const struct sockaddr_in* fromAddr );
-
-  
-  // When in the network is in sync mode (cmRtNetIsSync()==true) 
-  // the client system must poll this function to update the networks sync state.
-  cmRtNetRC_t cmRtNetSyncModeSend( cmRtNetH_t h );
 
   // This function must be polled to receive incoming network messages
   // via the callback funcion 'cbFunc' as passed to cmRtNetAlloc()
@@ -131,12 +120,13 @@ extern "C" {
        
 
    Protocol:
-     1. A: broadcast - 'hello'
-     2. Bs: respond 'hello' ack
-     3. A: send local node and endpoints to each responder
-     4. A: send done
-     5. Bs: send local endpoints to A
-
+     1.  A: on init bcast 'hello'
+     2.  B: on 'hello'     -  create node-A w/ ei=0      - send 'node'
+     3.  A: on 'node'      -  create node-B w/ ei=0      - send first 'endpt'
+     4.  B: on 'endpt'     -  create endpt on node-A     - ei!=en ? send 'endpt' or send 'done'
+     5.  A: on 'endpt'     -  create endpt on node-B     - ei!=en ? send 'endpt' or send 'done'
+     6.  B: on 'done'      -  mark node-A as 'valid'
+     7.  A: on 'done'      -  mark node-B as 'valid'.
 
    */  
 
