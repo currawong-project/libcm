@@ -553,7 +553,7 @@ const cmChar_t* cmUdpAddrToString( cmUdpH_t h, const struct sockaddr_in* addr )
 
   _cmUdpClear_errno();
   
-  if( inet_ntop(AF_INET, addr,  p->ntopBuf, INET_ADDRSTRLEN) == NULL)
+  if( inet_ntop(AF_INET, &(addr->sin_addr),  p->ntopBuf, INET_ADDRSTRLEN) == NULL)
   {
     cmErrSysMsg(&p->err,kNtoPFailUdpRC,errno, "Network address to string conversion failed." );
     return NULL;
