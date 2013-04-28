@@ -9,66 +9,78 @@
 #include "cmTime.h"
 #include "cmRtSysMsg.h"
 
+// flags for cmRtNetNode_t.flags;
 enum
 {
   kLocalNodeNetFl = 0x01,
   kValidNodeNetFl = 0x02
 };
 
+// flags for cmRtNet_t.flags
+enum
+{
+  kReportSyncNetFl = 0x01
+};
+
 typedef enum
 {
-  kHelloSelNetId,
-  kNodeSelNetId,
-  kEndpointSelNetId,
-  kEndpointAckSelNetId,
-  kDoneSelNetId,
+  kHelloSelNetId,         // broadcast msg (label=node label, id=endpt cnt)
+  kNodeSelNetId,          // define remote node  (label=remote node label, id=endpt cnt)
+  kEndpointSelNetId,      // define remote endpt (label=remote endpt label, id=endpt id)
+  kDoneSelNetId,          // declare all endpts sent
+  kInvalidSelNetId
 } cmRtNetSelId_t;
+
+struct cmRtNetNode_str;
 
 typedef struct cmRtNetEnd_str
 {
-  cmChar_t*              label;
-  unsigned               id;
-  struct cmRtNetEnd_str* link;
+  cmChar_t*               label;
+  unsigned                id;
+  struct cmRtNetNode_str* np;   // Owner node.
+  struct cmRtNetEnd_str*  link;
 } cmRtNetEnd_t;
 
 
 typedef struct cmRtNetNode_str
 {
-  cmChar_t*               label;
-  struct sockaddr_in      sockaddr;
-  cmChar_t*               addr;
-  cmUdpPort_t             port;
-  unsigned                flags;
+  cmChar_t*               label;          // Node label.
+  struct sockaddr_in      sockaddr;       // Socket address
+  cmChar_t*               addr;           // IP Address (human readable)
+  cmUdpPort_t             port;           // Socket port
+  unsigned                flags;          // See kXXXNodeNetFl flags above.
   unsigned                endPtIdx;       // tracks the next endpoint to send during sync-mode
   unsigned                endPtCnt;       // local-node=actual cnt of endpt's remote-node:expected cnt of endpt's
-  cmTimeSpec_t            lastSendTime;
-  cmRtNetEnd_t*           ends;
+  cmTimeSpec_t            lastSendTime;   // Time of last message sent
+  cmRtNetEnd_t*           ends;           // End point list for this node
   struct cmRtNetNode_str* link;
 } cmRtNetNode_t;
 
 typedef struct
 {
-  cmErr_t         err;
-  cmUdpH_t        udpH;
-  cmUdpCallback_t cbFunc;
-  void*           cbArg;
-  cmRtNetNode_t*  nodes;
-  cmRtNetNode_t*  localNode;
-  unsigned        udpRecvBufByteCnt;
-  unsigned        udpTimeOutMs;
-  unsigned        interSyncSendTimeMs;
+  cmErr_t         err;                   // Error state object
+  unsigned        flags;                 // See kXXXNetFl above.
+  cmUdpH_t        udpH;                  // UDP port handle
+  cmUdpCallback_t cbFunc;                // Client callback to receive incoming messages from network.
+  void*           cbArg;                 //
+  cmRtNetNode_t*  nodes;                 // Node list.
+  cmRtNetNode_t*  localNode;             // Pointer to local node (which is also in node list)
+  unsigned        udpRecvBufByteCnt;     // UDP port receive buffer size.
+  unsigned        udpTimeOutMs;          // UDP time-out period
+  cmChar_t*       bcastAddr;             // Network broadcast address
 } cmRtNet_t;
 
-
+// Network synchronization message format
 typedef struct
 {
-  cmRtSysMsgHdr_t hdr;
-  cmRtNetSelId_t  selId;
+  cmRtSysMsgHdr_t hdr;    // standard cmRtSys msg  header 
+  cmRtNetSelId_t  selId;  // message selector id (See kXXXSelNetId above)
   const cmChar_t* label;  // node     or endpoint label
   unsigned        id;     // endptCnt or endpoint id
 } cmRtNetSyncMsg_t;
 
-cmRtNetH_t cmRtNetNullHandle = cmSTATIC_NULL_HANDLE;
+cmRtNetH_t      cmRtNetNullHandle      = cmSTATIC_NULL_HANDLE;
+cmRtNetEndptH_t cmRtNetEndptNullHandle = cmSTATIC_NULL_HANDLE;
 
 cmRtNet_t* _cmRtNetHandleToPtr( cmRtNetH_t h )
 {
@@ -79,7 +91,8 @@ cmRtNet_t* _cmRtNetHandleToPtr( cmRtNetH_t h )
 
 void _cmRtNetVRpt( cmRtNet_t* p, const cmChar_t* fmt, va_list vl )
 {
-  cmRptVPrintf(p->err.rpt,fmt,vl);
+  if( cmIsFlag(p->flags,kReportSyncNetFl) )
+    cmRptVPrintf(p->err.rpt,fmt,vl);
 }
 
 void _cmRtNetRpt( cmRtNet_t* p, const cmChar_t* fmt, ... )
@@ -143,7 +156,7 @@ void _cmRtNetReleaseNodes( cmRtNet_t* p )
 
     np = nnp;
   }
-  p->nodes = NULL;
+  p->nodes     = NULL;
   p->localNode = NULL;
 }
 
@@ -188,7 +201,10 @@ cmRtNetRC_t _cmRtNetCreateNode( cmRtNet_t* p, const cmChar_t* label, const cmCha
   
   np           = cmMemAllocZ(cmRtNetNode_t,1);
   np->label    = cmMemAllocStr(label);
-  np->sockaddr = *saddr;
+
+  if( saddr != NULL )
+    np->sockaddr = *saddr;
+
   np->addr     = addr==NULL ? NULL : cmMemAllocStr(addr);
   np->port     = port;
   np->flags    = flags;
@@ -235,10 +251,20 @@ cmRtNetRC_t _cmRtNetCreateEndpoint( cmRtNet_t* p, cmRtNetNode_t* np, const cmCha
 
   ep->label = cmMemAllocStr(endPtLabel);
   ep->id    = endPtId;
-  ep->link      = np->ends;
-  np->ends      = ep;
+  ep->np    = np;
+  ep->link  = np->ends;
+  np->ends  = ep;
 
   return rc;
+}
+
+unsigned _cmRtNetNodeEndpointCount( cmRtNetNode_t* np )
+{
+  cmRtNetEnd_t* ep = np->ends;
+  unsigned      n  = 0;
+  for(; ep!=NULL; ep=ep->link)
+    ++n;
+  return n;
 }
 
 unsigned _cmRtNetSyncMsgSerialByteCount( const cmRtNetSyncMsg_t* m )
@@ -287,10 +313,9 @@ cmRtNetRC_t _cmRtNetSendSyncMsg( cmRtNet_t* p, cmRtNetNode_t* np, cmRtNetSelId_t
   if((rc = _cmRtNetSerializeSyncMsg(p,&m,buf,n)) != kOkNetRC )
     return rc;
 
- 
   // send the msg
-  if( np==p->localNode )
-    udpRC = cmUdpSend2(p->udpH, buf, n, "255.255.255.255", np->port );
+  if( selId == kHelloSelNetId )
+    udpRC = cmUdpSend2(p->udpH, buf, n, p->bcastAddr, np->port );
   else
     udpRC = cmUdpSendTo(p->udpH, buf, n, &np->sockaddr );
 
@@ -317,10 +342,11 @@ cmRtNetRC_t _cmRtNetFree( cmRtNet_t* p )
 
   _cmRtNetReleaseNodes(p);
 
+  cmMemFree(p->bcastAddr);
+
   cmMemFree(p);
   return rc;
 }
-
 
 cmRtNetRC_t cmRtNetAlloc( cmCtx_t* ctx, cmRtNetH_t* hp, cmUdpCallback_t cbFunc, void* cbArg )
 {
@@ -340,7 +366,6 @@ cmRtNetRC_t cmRtNetAlloc( cmCtx_t* ctx, cmRtNetH_t* hp, cmUdpCallback_t cbFunc, 
 
   p->udpTimeOutMs        = 50;
   p->udpRecvBufByteCnt   = 8192;
-  p->interSyncSendTimeMs = 10;
   p->cbFunc = cbFunc;
   p->cbArg  = cbArg;
 
@@ -386,7 +411,7 @@ cmUdpH_t  cmRtNetUdpPortHandle( cmRtNetH_t h )
   return p->udpH;
 }
 
-cmRtNetRC_t  _cmRtNetSendEndpointReplyMsg( cmRtNet_t* p, cmRtNetNode_t* np )
+cmRtNetRC_t  _cmRtNetSendEndpointReplyMsg( cmRtNet_t* p, cmRtNetNode_t* np, cmRtNetSelId_t srcSelId )
 {
   cmRtNetRC_t     rc = kOkNetRC;
   cmRtNetEnd_t*   ep;
@@ -398,37 +423,58 @@ cmRtNetRC_t  _cmRtNetSendEndpointReplyMsg( cmRtNet_t* p, cmRtNetNode_t* np )
   if( np == NULL )
     return cmErrMsg(&p->err,kNodeNotFoundNetRC,"The net node associated with an endpoint reply was not found.");
 
-  // if all of the endpoints have been sent to this node ...
-  if((ep = _cmRtNetIndexToEndpoint(p,p->localNode,np->endPtIdx)) == NULL )
+  // if we got here by receiving a 'done' msg from the remote node ...
+  if( srcSelId == kDoneSelNetId )
   {
-    if( np->endPtIdx == p->localNode->endPtCnt )
-    {
-      selId = kDoneSelNetId;
-      rptLabel = "done";
-    }
+    // ... then mark the remote node as having recieved all endpoints
+    unsigned n;
+    if((n = _cmRtNetNodeEndpointCount(np)) != np->endPtCnt )
+      rc = cmErrMsg(&p->err,kNodeEndCntErrNetRC,"The node '%s' expected %i endpoints but received %i.",cmStringNullGuard(np->label),np->endPtCnt,n);
     else
-    {
-      selId = kEndpointAckSelNetId;
-      rptLabel = "ep ack";
-    }
-   
+      np->flags = cmSetFlag(np->flags,kValidNodeNetFl);
   }
-  else
+
+  // attempt to get the next local endpoint to send ...
+  if((ep = _cmRtNetIndexToEndpoint(p,p->localNode,np->endPtIdx)) != NULL )
   {
-    msgLabel = ep->label;
+    msgLabel = ep->label;  // ... send next local endpoint
     msgId    = ep->id;
   }
+  else // .... all local endpoints have been sent
+  {
+    selId    = kInvalidSelNetId;  
+    rptLabel = "done";
 
-  // notify the remote node that all endpoints have been sent
-  if((rc = _cmRtNetSendSyncMsg(p,np,selId,msgLabel,msgId )) != kOkNetRC )
-    rc = cmErrMsg(&p->err,rc,"Send '%s' to %s:%s:%i failed.",rptLabel,cmStringNullGuard(np->label),cmStringNullGuard(np->addr),np->port);
-  else
-    _cmRtNetRpt(p,"Sent %s.\n",cmStringNullGuard(rptLabel));
+    // verify that no endpoints are available
+    if( np->endPtIdx < p->localNode->endPtCnt )
+      rc = cmErrMsg(&p->err,kSyncFailNetRC,"More endpoints are available to send but are not reachable.");
+    else
+    {
+      // if the remote node still has endpts to send then continue
+      // sending 'done' messages.
+      if( np->endPtIdx==p->localNode->endPtCnt || srcSelId != kDoneSelNetId )
+        selId = kDoneSelNetId;
+    }   
+  }
 
-  np->endPtIdx += 1;
+  // selId is set to kInvalidSelNetId when we encounter the (stop) criteria
+  if( selId != kInvalidSelNetId )
+  {
+    if((rc = _cmRtNetSendSyncMsg(p,np,selId,msgLabel,msgId )) != kOkNetRC )
+      rc = cmErrMsg(&p->err,rc,"Send '%s' to %s:%s:%i failed.",rptLabel,cmStringNullGuard(np->label),cmStringNullGuard(np->addr),np->port);
+    else
+      _cmRtNetRpt(p,"Sent %s.\n",cmStringNullGuard(rptLabel));
+
+    np->endPtIdx += 1;
+  }
 
   return rc;
-  
+}
+
+bool    _cmRtNetIsSyncModeMsg( const void* data, unsigned dataByteCnt )
+{
+  cmRtNetSyncMsg_t* m = (cmRtNetSyncMsg_t*)data;
+  return dataByteCnt >= sizeof(cmRtNetSyncMsg_t) && m->hdr.selId == kNetSyncSelRtId;
 }
 
 // When the network message recieve function (See cmRtNetAlloc() 'cbFunc') 
@@ -438,10 +484,10 @@ cmRtNetRC_t  _cmRtNetSendEndpointReplyMsg( cmRtNet_t* p, cmRtNetNode_t* np )
 cmRtNetRC_t  _cmRtNetSyncModeRecv( cmRtNet_t* p, const char* data, unsigned dataByteCnt, const struct sockaddr_in* fromAddr )
 {
   cmRtNetRC_t      rc = kOkNetRC;
-  cmRtNetSyncMsg_t m;
+  cmRtNetSyncMsg_t  m;
   m.label = NULL;
 
-  assert( cmRtNetIsSyncModeMsg(data,dataByteCnt));
+  assert( _cmRtNetIsSyncModeMsg(data,dataByteCnt));
   
   if( _cmRtNetDeserializeSyncMsg(data,dataByteCnt,&m) != kOkNetRC )
   {
@@ -449,14 +495,32 @@ cmRtNetRC_t  _cmRtNetSyncModeRecv( cmRtNet_t* p, const char* data, unsigned data
     goto errLabel;
   }
 
+  _cmRtNetRpt(p,"recv from:%s\n",cmUdpAddrToString(p->udpH, fromAddr ));
+
+
   assert( m.hdr.selId == kNetSyncSelRtId );
 
   // attempt to locate the remote node which sent the msg
   cmRtNetNode_t* np = _cmRtNetFindNodeFromSockAddr(p,fromAddr);
 
+
   switch( m.selId )
   {
     case kHelloSelNetId:    
+      // if this is a response to a broadcast from the local node then ignore it
+      if(m.label!=NULL && p->localNode->label!=NULL && (np = _cmRtNetFindNode(p,m.label)) != NULL && strcmp(p->localNode->label,m.label)==0 )
+      {
+        const cmChar_t* fromAddrStr  = cmUdpAddrToString(p->udpH,fromAddr);
+        const cmChar_t* localAddrStr = cmUdpAddrToString(p->udpH,cmUdpLocalAddr(p->udpH));
+
+        if( fromAddrStr!=NULL && localAddrStr!=NULL && strcmp(fromAddrStr,localAddrStr)==0)
+          cmErrMsg(&p->err,kDuplLocalNetRC,"The node label '%s' appears to be duplicated at address %s and locally.",cmStringNullGuard(m.label),fromAddrStr);
+
+        np->sockaddr = *fromAddr;
+        goto errLabel;
+      } 
+      // fall through
+
     case kNodeSelNetId: 
       {
         // if the node already exists ...
@@ -472,17 +536,19 @@ cmRtNetRC_t  _cmRtNetSyncModeRecv( cmRtNet_t* p, const char* data, unsigned data
         if(( rc = _cmRtNetCreateNode(p,m.label,NULL,0,fromAddr,0,m.id)) != kOkNetRC )
           goto errLabel;        
 
+        np = p->nodes; // newest node is always the first node
+
         // send response
         switch( m.selId )
         {
           case kHelloSelNetId:
             _cmRtNetRpt(p,"rcv hello\n"); // reply with local node
-            rc = _cmRtNetSendSyncMsg( p, np, kNodeSelNetId, NULL, p->localNode->endPtCnt );
+            rc = _cmRtNetSendSyncMsg( p, np, kNodeSelNetId, p->localNode->label, p->localNode->endPtCnt );
             break;
 
           case kNodeSelNetId:
             _cmRtNetRpt(p,"rcv node\n");
-            _cmRtNetSendEndpointReplyMsg( p, np ); // reply with first endpoint
+            _cmRtNetSendEndpointReplyMsg( p, np, m.selId ); // reply with first endpoint
             break;
 
           default:
@@ -492,16 +558,14 @@ cmRtNetRC_t  _cmRtNetSyncModeRecv( cmRtNet_t* p, const char* data, unsigned data
       }
       break;
 
-    
-    case kEndpointAckSelNetId:
     case kDoneSelNetId:
-      rc = _cmRtNetSendEndpointReplyMsg(p,np);
+      //case kEndpointAckSelNetId:
+      rc = _cmRtNetSendEndpointReplyMsg(p,np,m.selId);
       break;
 
     case kEndpointSelNetId: 
       {
         cmRtNetEnd_t* ep;
-
 
         // verify the remote node exists.
         if( np == NULL )
@@ -521,7 +585,7 @@ cmRtNetRC_t  _cmRtNetSyncModeRecv( cmRtNet_t* p, const char* data, unsigned data
         }
 
         // reply with a local endpoint or 'done' msg
-        rc = _cmRtNetSendEndpointReplyMsg( p, np );
+        rc = _cmRtNetSendEndpointReplyMsg( p, np, m.selId );
       }
       break;
 
@@ -540,27 +604,21 @@ void _cmRtNetRecv( void* cbArg, const char* data, unsigned dataByteCnt, const st
 {
   cmRtNet_t* p = (cmRtNet_t*)cbArg;
   
-  if( cmRtNetIsSyncModeMsg(data,dataByteCnt))
+  if( _cmRtNetIsSyncModeMsg(data,dataByteCnt))
     _cmRtNetSyncModeRecv(p,data,dataByteCnt,fromAddr);
   else
     p->cbFunc(p->cbArg,data,dataByteCnt,fromAddr);
   
 }
 
-
-
-cmRtNetRC_t cmRtNetRegisterLocalNode( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* ipAddr, cmUdpPort_t port )
+cmRtNetRC_t cmRtNetInitialize( cmRtNetH_t h, const cmChar_t* bcastAddr, const cmChar_t* nodeLabel, const cmChar_t* ipAddr, cmUdpPort_t port )
 {
   cmRtNet_t*  p = _cmRtNetHandleToPtr(h);
   cmRtNetRC_t rc;
-  struct sockaddr_in sockaddr;
 
   // release the local node
-  if( p->localNode != NULL )
-  {    
-    _cmRtNetReleaseNode(p,p->localNode);
-    p->localNode = NULL;
-  }
+  if((rc = cmRtNetFinalize(h)) != kOkNetRC )
+    goto errLabel;
 
   // if this is the local node then initialze the local socket
   if( cmUdpInit(p->udpH,port,kNonBlockingUdpFl | kBroadcastUdpFl,_cmRtNetRecv,p,NULL,0,p->udpRecvBufByteCnt,p->udpTimeOutMs) != kOkUdpRC )
@@ -569,19 +627,13 @@ cmRtNetRC_t cmRtNetRegisterLocalNode( cmRtNetH_t h, const cmChar_t* nodeLabel, c
     goto errLabel;
   }
 
-  // get the socket address
-  if( cmUdpInitAddr(p->udpH, ipAddr, port, &sockaddr ) != kOkUdpRC )
-  {
-    rc = cmErrMsg(&p->err,kUdpPortFailNetRC,"IP::port to socket address conversion failed.");
-    goto errLabel;
-  }
-
   // create the local node
-  if((rc = _cmRtNetCreateNode(p,nodeLabel, ipAddr, port, &sockaddr, kLocalNodeNetFl, 0)) != kOkNetRC )
+  if((rc = _cmRtNetCreateNode(p,nodeLabel, ipAddr, port, NULL, kLocalNodeNetFl, 0)) != kOkNetRC )
     goto errLabel;
 
   // the last created node is always the first node on the list
   p->localNode = p->nodes;
+  p->bcastAddr = cmMemResizeStr(p->bcastAddr,bcastAddr);
 
   // begin listening on the local port
   if( cmUdpEnableListen(p->udpH, true ) != kOkUdpRC )
@@ -609,22 +661,21 @@ cmRtNetRC_t cmRtNetRegisterEndPoint( cmRtNetH_t h, const cmChar_t* endPtLabel, u
   return rc;
 }
 
-cmRtNetRC_t cmRtNetClearAll( cmRtNetH_t h )
+cmRtNetRC_t cmRtNetFinalize( cmRtNetH_t h )
 {
   cmRtNet_t* p = _cmRtNetHandleToPtr(h);
   _cmRtNetReleaseNodes(p);
+  
   return kOkNetRC;
 }
 
-cmRtNetRC_t cmRtNetBeginSyncMode( cmRtNetH_t h )
+cmRtNetRC_t cmRtNetDoSync( cmRtNetH_t h )
 {
   cmRtNet_t* p = _cmRtNetHandleToPtr(h);
 
   // broadcast 'node' msg
-  return _cmRtNetSendSyncMsg( p, p->localNode, kHelloSelNetId, NULL, p->localNode->endPtCnt );
+  return _cmRtNetSendSyncMsg( p, p->localNode, kHelloSelNetId, p->localNode->label, p->localNode->endPtCnt );
 }
-
-
 
 cmRtNetRC_t cmRtNetReceive( cmRtNetH_t h )
 {
@@ -640,24 +691,70 @@ cmRtNetRC_t cmRtNetReceive( cmRtNetH_t h )
   return rc;
 }
 
-bool    cmRtNetIsSyncModeMsg( const void* data, unsigned dataByteCnt )
+cmRtNetRC_t cmRtNetEndpointHandle( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* endptLabel, cmRtNetEndptH_t* hp )
 {
-  cmRtNetSyncMsg_t* m = (cmRtNetSyncMsg_t*)data;
-  return dataByteCnt >= sizeof(cmRtNetSyncMsg_t) && m->hdr.selId == kNetSyncSelRtId;
+  cmRtNetRC_t     rc = kOkNetRC;
+  cmRtNet_t*      p  = _cmRtNetHandleToPtr(h);
+  cmRtNetNode_t* np;
+  cmRtNetEnd_t*  ep;
+
+  if(( np = _cmRtNetFindNode(p,nodeLabel)) == NULL )
+    return cmErrMsg(&p->err,kNodeNotFoundNetRC,"The node '%s' was not found.",cmStringNullGuard(nodeLabel));
+
+
+  if(( ep = _cmRtNetFindNodeEnd(np, endptLabel )) == NULL )
+    return cmErrMsg(&p->err,kEndNotFoundNetRC,"The endpoint '%s' on '%s' on node was not found.",cmStringNullGuard(endptLabel),cmStringNullGuard(nodeLabel));
+
+  hp->h = ep;
+
+  return rc;
+}
+
+cmRtNetRC_t cmRtNetSend( cmRtNetH_t h, cmRtNetEndptH_t epH, const void* msg, unsigned msgByteCnt )
+{
+  cmRtNetRC_t     rc = kOkNetRC;
+  cmRtNet_t*      p  = _cmRtNetHandleToPtr(h);
+  cmRtNetEnd_t*   ep = (cmRtNetEnd_t*)epH.h;
+  
+  assert( ep != NULL );
+  
+  unsigned dN = sizeof(unsigned) + msgByteCnt; 
+  char data[ dN ];
+  unsigned *hdr = (unsigned*)data;
+  hdr[0] = ep->id;
+  memcpy(hdr+1,msg,msgByteCnt);
+  
+  if( cmUdpSendTo(p->udpH, data, dN, &ep->np->sockaddr ) != kOkUdpRC )
+    return cmErrMsg(&p->err,kUdpPortFailNetRC,"Send to node:%s endpt:%s failed.\n",cmStringNullGuard(ep->np->label),cmStringNullGuard(ep->label));
+
+  return rc;
+}
+
+cmRtNetRC_t cmRtNetSendByLabels( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* endptLabel, const void* msg, unsigned msgByteCnt )
+{
+  cmRtNetRC_t     rc  = kOkNetRC;
+  cmRtNetEndptH_t epH = cmRtNetEndptNullHandle;
+
+  if((rc = cmRtNetEndpointHandle(h,nodeLabel,endptLabel,&epH)) != kOkNetRC )
+    return rc;
+
+  return cmRtNetSend(h,epH,msg,msgByteCnt);
 }
 
 
-unsigned  cmRtNetEndPointIndex( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* endPtLabel )
-{
-  //cmRtNet_t* p = _cmRtNetHandleToPtr(h);
-  return cmInvalidIdx;
-}  
 
-cmRtNetRC_t cmRtNetSend( cmRtNetH_t h, unsigned endPointIndex, const void* msg, unsigned msgByteCnt )
+bool cmRtNetReportSyncEnable( cmRtNetH_t h, bool enableFl )
 {
-  cmRtNetRC_t rc = kOkNetRC;
-  //cmRtNet_t* p = _cmRtNetHandleToPtr(h);
-  return rc;
+  cmRtNet_t* p  = _cmRtNetHandleToPtr(h);
+  bool       fl =  cmIsFlag(p->flags,kReportSyncNetFl);
+  p->flags = cmEnaFlag(p->flags,kReportSyncNetFl,enableFl);
+  return fl;  
+}
+
+bool cmRtNetReportSyncIsEnabled( cmRtNetH_t h )
+{
+  cmRtNet_t* p = _cmRtNetHandleToPtr(h);
+  return cmIsFlag(p->flags,kReportSyncNetFl);
 }
 
 void   cmRtNetReport( cmRtNetH_t h )
@@ -699,17 +796,20 @@ void   cmRtNetReport( cmRtNetH_t h )
 typedef struct
 {
   cmThreadH_t thH;
-  cmRtNetH_t netH;
+  cmRtNetH_t  netH;
+  unsigned    msgVal;
 } _cmRtNetTest_t;
 
 void _cmRtNetTestRecv( void* cbArg, const char* data, unsigned dataByteCnt, const struct sockaddr_in* fromAddr )
 {
   //_cmRtNetTest_t* p = (_cmRtNetTest_t*)cbArg;
-
+  
+  unsigned* hdr = (unsigned*)data;
+  printf("%i %i\n",hdr[0],hdr[1]);
 
 }
 
-
+             
 bool _cmRtNetTestThreadFunc(void* param)
 {
   _cmRtNetTest_t* p = (_cmRtNetTest_t*)param;
@@ -728,10 +828,15 @@ void  cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
 {
   char            c;
   _cmRtNetTest_t  t;
-  const cmChar_t* hostNameStr;
   cmUdpPort_t     port = 5876;
   _cmRtNetTest_t* p    = &t;
   cmRtNetRC_t     rc   = kOkNetRC;
+  const cmChar_t* localHostStr   = mstrFl  ? "master"    : "slave";
+  const cmChar_t* localEndpStr   = mstrFl  ? "master_ep" : "slave_ep";
+  const cmChar_t* remoteHostStr  = !mstrFl ? "master"    : "slave";
+  const cmChar_t* remoteEndpStr  = !mstrFl ? "master_ep" : "slave_ep";
+  const cmChar_t* bcastAddr      = "192.168.15.255";
+
   memset(&t,0,sizeof(t));
 
   if( cmThreadCreate(&p->thH,_cmRtNetTestThreadFunc,p,&ctx->rpt) != kOkThRC )
@@ -740,38 +845,37 @@ void  cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
   if((rc = cmRtNetAlloc(ctx,&p->netH,_cmRtNetTestRecv,p)) != kOkNetRC )
     goto errLabel;
 
-  hostNameStr = cmRtNetLocalHostName(p->netH);
-  if( hostNameStr == NULL )
-    hostNameStr = "<no-host-name>";
+  cmRtNetReportSyncEnable(p->netH,true); // enable sync. protocol reporting
 
-  if((rc = cmRtNetRegisterLocalNode(p->netH, hostNameStr, NULL, port )) != kOkNetRC)
+  if((rc = cmRtNetInitialize(p->netH, bcastAddr, localHostStr, NULL, port )) != kOkNetRC)
     goto errLabel;
 
-  if( mstrFl )
-  {
-    if((rc = cmRtNetRegisterEndPoint(p->netH,"thunk_ep0", 0 )) != kOkNetRC )
-      goto errLabel;
-
-    if(( rc = cmRtNetBeginSyncMode(p->netH)) != kOkNetRC )
-      goto errLabel;
-    
-  }
-  else
-  {
-    if((rc = cmRtNetRegisterEndPoint(p->netH,"whirl_ep0", 0 )) != kOkNetRC )
-      goto errLabel;
-  }
+  if((rc = cmRtNetRegisterEndPoint(p->netH,localEndpStr, 0 )) != kOkNetRC )
+    goto errLabel;
   
   if( cmThreadPause(p->thH,0) != kOkThRC )
     goto errLabel;
 
-  cmRptPrintf(&ctx->rpt,"%s q=quit\n", mstrFl ? "Master: " : "Slave: ");
+  cmRptPrintf(&ctx->rpt,"%s t=transmit s=sync r=report q=quit\n", localHostStr );
+
   while( (c=getchar()) != 'q' )
   {
     switch(c)
     {
       case 'r':
         cmRtNetReport(p->netH);
+        break;
+
+      case 's':
+        cmRtNetDoSync(p->netH);
+        break;
+
+      case 't':
+        {
+          if( cmRtNetSendByLabels(p->netH, remoteHostStr, remoteEndpStr, &p->msgVal, sizeof(p->msgVal)) == kOkNetRC )
+            p->msgVal += 1;
+
+        }        
         break;
     }
     
