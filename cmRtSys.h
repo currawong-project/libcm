@@ -165,9 +165,11 @@ extern "C" {
   {
     cmRtSysArgs_t      args;              // Audio device configuration
     cmRtCallback_t     cbFunc;            // DSP system entry point function.
-    void*              cbDataPtr;         // Host provided data for the DSP system callback.   
-    cmRtSysNetNode_t*  netNodeArray;      // One node must be the local node.
-    unsigned           netNodeCnt;        // Count of network nodes or 0 to not use network
+    void*              cbDataPtr;         // Host provided data for the DSP system callback.
+    const cmChar_t*    bcastAddr;         // Network broadcast address.
+    const cmChar_t*    localNodeLabel;    // Network local node address.
+    const cmChar_t*    localIpAddr;       // Network local IP address (default:NULL to use any available address)
+    cmUdpPort_t        localIpPort;       // Network local socket port address
     cmRtSysNetEndpt_t* endptArray;        // Local end points
     unsigned           endptCnt;          // Count of local endpoints.
   } cmRtSysSubSys_t;

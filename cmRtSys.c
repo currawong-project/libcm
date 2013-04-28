@@ -634,7 +634,7 @@ cmRtRC_t _cmRtSysEnable( cmRt_t* p, bool enableFl )
     {
       _cmRtCfg_t* cp = p->ssArray + i;
       if( cmRtNetIsValid(cp->netH) )
-        if( cmRtNetBeginSyncMode(cp->netH) != kOkNetRC )
+        if( cmRtNetDoSync(cp->netH) != kOkNetRC )
           rc = cmErrMsg(&p->err,kNetErrRtRC,"Network Mgr. failed on entering sync mode.");
     }
   
@@ -944,16 +944,12 @@ cmRtRC_t cmRtSysCfg( cmRtSysH_t h, const cmRtSysSubSys_t* ss, unsigned rtSubIdx 
     goto errLabel;
   }
     
-  // register the local and remote notes
-  for(j=0; j<ss->netNodeCnt; ++j)
+  if( cmRtNetInitialize( cp->netH, ss->bcastAddr, ss->localNodeLabel, ss->localIpAddr, ss->localIpPort) != kOkNetRC )
   {
-    cmRtSysNetNode_t* nn = ss->netNodeArray + j;
-    if( cmRtNetRegisterLocalNode( cp->netH, nn->label, nn->ipAddr, nn->ipPort) != kOkNetRC )
-    {
-      rc = _cmRtError(p,kNetErrRtRC,"Network node allocation failed on label:%s addr:%s port:%i.",cmStringNullGuard(nn->label),cmStringNullGuard(nn->ipAddr),nn->ipPort);
-      goto errLabel;
-    }
+    rc = _cmRtError(p,kNetErrRtRC,"Network node initialization failed on label:%s addr:%s port:%i.",cmStringNullGuard(ss->localNodeLabel),cmStringNullGuard(ss->localIpAddr),ss->localIpPort);
+    goto errLabel;
   }
+  
 
   // register the local endpoints
   for(j=0; j<ss->endptCnt; ++j)
