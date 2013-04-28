@@ -63,6 +63,8 @@ extern "C" {
   cmUdpRC_t cmUdpFinal( cmUdpH_t h );
   bool      cmUdpIsValid( cmUdpH_t h );
 
+  // This function may not return a useful value until the 
+  // socket has gone into 'listen' mode.
   const struct sockaddr_in* cmUdpLocalAddr( cmUdpH_t h );
 
   // Set a destination address for this socket. Once a destination address is set
