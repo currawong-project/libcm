@@ -513,7 +513,7 @@ cmRtNetRC_t  _cmRtNetSyncModeRecv( cmRtNet_t* p, const char* data, unsigned data
         const cmChar_t* fromAddrStr  = cmUdpAddrToString(p->udpH,fromAddr);
         const cmChar_t* localAddrStr = cmUdpAddrToString(p->udpH,cmUdpLocalAddr(p->udpH));
 
-        if( fromAddrStr!=NULL && localAddrStr!=NULL && strcmp(fromAddrStr,localAddrStr)==0)
+        if( fromAddrStr!=NULL && localAddrStr!=NULL && strcmp(fromAddrStr,localAddrStr)!=0)
           cmErrMsg(&p->err,kDuplLocalNetRC,"The node label '%s' appears to be duplicated at address %s and locally.",cmStringNullGuard(m.label),fromAddrStr);
 
         np->sockaddr = *fromAddr;
