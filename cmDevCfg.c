@@ -37,7 +37,7 @@ typedef struct cmDcmCfg_str
   {
     cmDcmMidi_t  m;
     cmDcmAudio_t a;
-    cmDcmNet_t   n;
+    //cmDcmNet_t   n;
   } u;
 
   struct cmDcmCfg_str* next;
@@ -128,6 +128,9 @@ void _cmDcmFreeAudio( cmDcmAudio_t* r )
 {
   cmMemFree(r->inDevLabelStr);
   cmMemFree(r->outDevLabelStr);
+  cmMemFree((cmChar_t*)r->netNodeLabel);
+  cmMemFree((cmChar_t*)r->bcastAddr);
+  cmMemFree((cmChar_t*)r->ipAddr);
 }
 
 void _cmDcmDuplAudio( cmDcmAudio_t* d, const cmDcmAudio_t* s )
@@ -136,7 +139,7 @@ void _cmDcmDuplAudio( cmDcmAudio_t* d, const cmDcmAudio_t* s )
   d->outDevLabelStr = cmMemAllocStr(s->outDevLabelStr);
   d->rtSysArgs      = s->rtSysArgs;
 }
-
+/*
 void _cmDcmFreeNet( cmDcmNet_t* r )
 {
   cmMemFree(r->sockAddr);
@@ -148,7 +151,7 @@ void _cmDcmDuplNet( cmDcmNet_t* d, const cmDcmNet_t* s )
   d->portNumber = s->portNumber;
   d->activeFl   = s->activeFl;
 }
-
+*/
 
 void _cmDcmFreeCfg( cmDcm_t* p, cmDcmLoc_t* lp, cmDcmCfg_t* cp )
 {
@@ -168,7 +171,7 @@ void _cmDcmFreeCfg( cmDcm_t* p, cmDcmLoc_t* lp, cmDcmCfg_t* cp )
   {
     case kMidiDcmTId:  _cmDcmFreeMidi(&cp->u.m); break;
     case kAudioDcmTId: _cmDcmFreeAudio(&cp->u.a); break;
-    case kNetDcmTId:   _cmDcmFreeNet(&cp->u.n); break;
+      //case kNetDcmTId:   _cmDcmFreeNet(&cp->u.n); break;
     default:
       assert(0);
       break;
@@ -711,6 +714,8 @@ cmDcRC_t cmDevCfgNameAudioPort(
   unsigned        dspFramesPerCycle,
   unsigned        audioBufCnt,
   double          srate,
+  const cmChar_t* netNodeLabel,
+  const cmChar_t* bcastAddr,
   const cmChar_t* ipAddr,
   cmUdpPort_t     ipPort,
   bool            activeFl )
@@ -771,7 +776,9 @@ cmDcRC_t cmDevCfgNameAudioPort(
   cp->u.a.rtSysArgs.dspFramesPerCycle = dspFramesPerCycle;
   cp->u.a.rtSysArgs.audioBufCnt       = audioBufCnt;
   cp->u.a.rtSysArgs.srate             = srate;
-  cp->u.a.ipAddr                      = ipAddr;
+  cp->u.a.netNodeLabel                = netNodeLabel==NULL ? NULL : cmMemAllocStr(netNodeLabel);
+  cp->u.a.bcastAddr                   = bcastAddr   ==NULL ? NULL : cmMemAllocStr(bcastAddr);
+  cp->u.a.ipAddr                      = ipAddr      ==NULL ? NULL : cmMemAllocStr(ipAddr);
   cp->u.a.ipPort                      = ipPort;
   cp->descStr                         = cmTsPrintfP(cp->descStr,"%sIn: Chs:%i %s\nOut: Chs:%i %s",activeFl?"":"INACTIVE ",inChCnt,cp->u.a.inDevLabelStr,outChCnt,cp->u.a.outDevLabelStr);
   return kOkDcRC;  
@@ -912,7 +919,7 @@ const cmDcmAudio_t* cmDevCfgAudioDevMap(    cmDevCfgH_t h, unsigned usrAppId, un
   return &mp->cfg->u.a;
 }
 
-
+/*
 cmDcRC_t cmDevCfgNameNetPort(
   cmDevCfgH_t     h,
   const cmChar_t* dcLabelStr,
@@ -1005,6 +1012,7 @@ const cmDcmNet_t* cmDevCfgNetDevMap(    cmDevCfgH_t h, unsigned usrAppId, unsign
 
   return &mp->cfg->u.n;
 }
+*/
 
 unsigned        cmDevCfgLocCount(  cmDevCfgH_t h )
 {
@@ -1084,7 +1092,7 @@ cmDcRC_t cmDevCfgLocStore(  cmDevCfgH_t h, const cmChar_t* locLabelStr )
     {
       case kMidiDcmTId:  _cmDcmDuplMidi(&ncp->u.m,&ocp->u.m);  break;
       case kAudioDcmTId: _cmDcmDuplAudio(&ncp->u.a,&ocp->u.a); break;
-      case kNetDcmTId:   _cmDcmDuplNet(  &ncp->u.n,&ocp->u.n); break;
+        //case kNetDcmTId:   _cmDcmDuplNet(  &ncp->u.n,&ocp->u.n); break;
       default:
         assert(0);
         break;
@@ -1265,7 +1273,7 @@ cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPt
 
       cmDcmMidi_t  m;
       cmDcmAudio_t a;
-      cmDcmNet_t   n;
+      //cmDcmNet_t   n;
       
       switch( typeId )
       {
@@ -1295,6 +1303,8 @@ cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPt
               "dspFramesPerCycle", kIntTId,    &a.rtSysArgs.dspFramesPerCycle,
               "audioBufCnt",       kIntTId,    &a.rtSysArgs.audioBufCnt,
               "srate",             kRealTId,   &a.rtSysArgs.srate,
+              "netNodeLabel",      kStringTId, &a.netNodeLabel,
+              "bcastAddr",         kStringTId, &a.bcastAddr,
               "ipAddr",            kStringTId, &a.ipAddr,
               "ipPort",            kIntTId,    &a.ipPort,
               "active",            kBoolTId,   &a.activeFl,
@@ -1311,6 +1321,8 @@ cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPt
                 a.rtSysArgs.dspFramesPerCycle,
                 a.rtSysArgs.audioBufCnt,
                 a.rtSysArgs.srate,
+                a.netNodeLabel,
+                a.bcastAddr,
                 a.ipAddr,
                 a.ipPort,
                 a.activeFl)) != kOkDcRC )
@@ -1319,7 +1331,7 @@ cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPt
           }
 
           break;
-
+          /*
         case kNetDcmTId:
           if( cmJsonMemberValues( cfgObjNp, &errLabelPtr,
               "sockAddr",   kStringTId, &n.sockAddr,
@@ -1335,6 +1347,7 @@ cmDcRC_t _cmDevCfgRead( cmDcm_t* p, cmJsonH_t jsH, const cmJsonNode_t* rootObjPt
             goto errLabel;
 
           break;
+          */
 
         default:
           assert(0);
@@ -1430,12 +1443,15 @@ cmDcRC_t _cmDevCfgWrite( cmDcm_t* p, cmJsonH_t jsH, cmJsonNode_t* rootObjPtr )
             "dspFramesPerCycle", kIntTId,    cp->u.a.rtSysArgs.dspFramesPerCycle,
             "audioBufCnt",       kIntTId,    cp->u.a.rtSysArgs.audioBufCnt,
             "srate",             kRealTId,   cp->u.a.rtSysArgs.srate,
+            "netNodeLabel",      kStringTId, cp->u.a.netNodeLabel,
+            "bcastAddr",         kStringTId, cp->u.a.bcastAddr,
             "ipAddr",            kStringTId, cp->u.a.ipAddr,
             "ipPort",            kIntTId,    cp->u.a.ipPort,
             "active",            kBoolTId,   cp->u.a.activeFl,
             NULL );
           break;
 
+          /*
         case kNetDcmTId:
           cmJsonInsertPairs(jsH, cfgObjNp,
             "sockAddr",  kStringTId, cp->u.n.sockAddr,
@@ -1443,7 +1459,7 @@ cmDcRC_t _cmDevCfgWrite( cmDcm_t* p, cmJsonH_t jsH, cmJsonNode_t* rootObjPtr )
             "activeFl",  kBoolTId,   cp->u.n.activeFl,
             NULL );
           break;
-
+          */
         default:
           assert(0);
           break;

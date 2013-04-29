@@ -59,7 +59,7 @@ extern "C" {
     kInvalidDcmTId, // kInvalidDcmTId must be zero
     kMidiDcmTId,
     kAudioDcmTId,
-    kNetDcmTId
+    //kNetDcmTId
   } cmTypeDcmId_t;
 
   typedef cmRC_t     cmDcRC_t;
@@ -81,11 +81,14 @@ extern "C" {
     cmChar_t*       inDevLabelStr;  // Input audio device label.
     cmChar_t*       outDevLabelStr; // Output audio device label.
     cmRtSysArgs_t   rtSysArgs;      // RT system  cfg recd
+    const cmChar_t* netNodeLabel;
+    const cmChar_t* bcastAddr;      // network broadcast address
     const cmChar_t* ipAddr;         // local network addr or NULL for localhost
     cmUdpPort_t     ipPort;         // local network port
     bool            activeFl;
   } cmDcmAudio_t;
 
+  /*
   typedef struct              
   {
     const cmChar_t* label;      // cfg label
@@ -93,6 +96,7 @@ extern "C" {
     unsigned        portNumber; // socket port number
     bool            activeFl;   // this port is active/inactive
   } cmDcmNet_t;
+  */
 
   extern cmDevCfgH_t cmDevCfgNullHandle;
 
@@ -148,6 +152,8 @@ extern "C" {
     unsigned        dspFramesPerCycle,
     unsigned        audioBufCnt,
     double          srate,
+    const cmChar_t* netNodeLabel,
+    const cmChar_t* bcastAddr,
     const cmChar_t* ipAddr,
     cmUdpPort_t     ipPort,
     bool            activeFl );
@@ -163,7 +169,7 @@ extern "C" {
   
 
   const struct cmRtSysArgs_str* cmDevCfgRtSysArgs( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );
-
+  /*
   cmDcRC_t cmDevCfgNameNetPort(
     cmDevCfgH_t      h,
     const cmChar_t* dcLabelStr,
@@ -176,6 +182,7 @@ extern "C" {
 
   const cmDcmNet_t* cmDevCfgNetCfg( cmDevCfgH_t h, unsigned cfgIdx );
   const cmDcmNet_t* cmDevCfgNetMap( cmDevCfgH_t h, unsigned usrAppId, unsigned usrMapId );
+  */
 
   //---------------------------------------------------------------------------------------
   // Location Management Functions:
