@@ -4,10 +4,12 @@
 #include "cmCtx.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
+#include "cmLinkedHeap.h"
 #include "cmUdpPort.h"
 #include "cmRtNet.h"
 #include "cmTime.h"
 #include "cmRtSysMsg.h"
+#include "cmText.h"
 
 // flags for cmRtNetNode_t.flags;
 enum
@@ -193,7 +195,7 @@ cmRtNetRC_t _cmRtNetCreateNode( cmRtNet_t* p, const cmChar_t* label, const cmCha
   cmRtNetRC_t rc = kOkNetRC;
   cmRtNetNode_t* np;
 
-  if( label == NULL )
+  if( cmTextIsEmpty(label) )
     return cmErrMsg(&p->err,kInvalidLabelNetRC,"A null or blank node label was encountered.");
 
   if((np = _cmRtNetFindNode(p,label)) != NULL )
@@ -620,6 +622,12 @@ cmRtNetRC_t cmRtNetInitialize( cmRtNetH_t h, const cmChar_t* bcastAddr, const cm
   if((rc = cmRtNetFinalize(h)) != kOkNetRC )
     goto errLabel;
 
+  if( cmTextIsEmpty(bcastAddr) )
+  {
+    rc = cmErrMsg(&p->err,kInvalidArgNetRC,"The 'broadcast address' is not valid.");
+    goto errLabel;
+  }
+
   // if this is the local node then initialze the local socket
   if( cmUdpInit(p->udpH,port,kNonBlockingUdpFl | kBroadcastUdpFl,_cmRtNetRecv,p,NULL,0,p->udpRecvBufByteCnt,p->udpTimeOutMs) != kOkUdpRC )
   {
@@ -646,6 +654,17 @@ cmRtNetRC_t cmRtNetInitialize( cmRtNetH_t h, const cmChar_t* bcastAddr, const cm
  errLabel:
   return rc;
 }
+
+
+bool cmRtNetIsInitialized( cmRtNetH_t h )
+{
+  if( cmRtNetIsValid(h) == false )
+    return false;
+
+  cmRtNet_t* p = _cmRtNetHandleToPtr(h);
+  return p->localNode != NULL && cmTextIsNotEmpty(p->bcastAddr);
+}
+
 
 cmRtNetRC_t cmRtNetRegisterEndPoint( cmRtNetH_t h, const cmChar_t* endPtLabel, unsigned endPtId )
 {

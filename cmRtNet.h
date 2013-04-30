@@ -18,6 +18,7 @@ extern "C" {
     kNodeNotFoundNetRC,
     kEndNotFoundNetRC,
     kLocalNodeNetRC,
+    kInvalidArgNetRC,
     kSyncFailNetRC,
     kNodeEndCntErrNetRC
   };
@@ -47,6 +48,7 @@ extern "C" {
   // 'ipPort' refers to the socket port (which may need to be made available 
   // by the machine firewall cfg.)
   cmRtNetRC_t cmRtNetInitialize( cmRtNetH_t h, const cmChar_t* bcastAddr, const cmChar_t* nodeLabel, const cmChar_t* ipAddr, cmUdpPort_t ipPort );
+  bool        cmRtNetIsInitialized( cmRtNetH_t h );
 
   // Register the local endpoints.
   // Endpoints may only be registered once the network is initialized via
