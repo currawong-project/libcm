@@ -1232,6 +1232,46 @@ unsigned cmRtSysSubSystemCount( cmRtSysH_t h )
   return p->ssCnt;
 }
 
+  
+bool     cmRtSysNetIsInitialized( cmRtSysH_t h )
+{
+  cmRt_t* p = _cmRtHandleToPtr(h);
+  unsigned i = 0;
+  for(; i<p->ssCnt; ++i)
+    if( cmRtNetIsInitialized(p->ssArray[i].netH) )
+      return true;
+  return false;
+}
+
+
+cmRtRC_t cmRtSysNetDoSync( cmRtSysH_t h )
+{
+  cmRtRC_t rc = kOkRtRC;
+  cmRt_t*  p  = _cmRtHandleToPtr(h);
+  unsigned i  = 0;
+  for(; i<p->ssCnt; ++i)
+    if( cmRtNetIsInitialized(p->ssArray[i].netH) )
+      cmRtNetDoSync(p->ssArray[i].netH);
+
+  return rc;
+}
+
+cmRtRC_t cmRtSysNetReport( cmRtSysH_t h )
+{
+  cmRtRC_t rc = kOkRtRC;
+  cmRt_t*  p  = _cmRtHandleToPtr(h);
+  unsigned i  = 0;
+  for(; i<p->ssCnt; ++i)
+  {
+    cmRptPrintf(p->err.rpt,"Sub-system:%i\n",i);
+    if( cmRtNetIsValid(p->ssArray[i].netH))
+      cmRtNetDoSync(p->ssArray[i].netH);
+  }
+  return rc;
+  
+}
+
+
 //===========================================================================================================================
 //
 //  cmRtTest()

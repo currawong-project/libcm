@@ -319,6 +319,10 @@ extern "C" {
   // Audio system test and example function.
   void      cmRtSysTest( cmCtx_t* ctx, int argc, const char* argv[] );
 
+  bool     cmRtSysNetIsInitialized( cmRtSysH_t h );
+  cmRtRC_t cmRtSysNetDoSync( cmRtSysH_t h );
+  cmRtRC_t cmRtSysNetReport( cmRtSysH_t h );
+
 
 
 #ifdef __cplusplus
