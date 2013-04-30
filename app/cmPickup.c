@@ -537,6 +537,8 @@ cmPuRC_t _cmPuJsonGainRead( cmPu_t* p, cmJsonH_t jsH, cmJsonNode_t* onp, const c
 {
   cmPuRC_t rc = kOkPuRC;
   cmJsonNode_t* arp;
+  unsigned arrCnt = 0;
+  cmPuCh_t* arr = NULL;
 
   // locate the JSON 'gain' array
   if(( arp = cmJsonFindValue(jsH,label,onp,kArrayTId)) == NULL )
@@ -546,8 +548,7 @@ cmPuRC_t _cmPuJsonGainRead( cmPu_t* p, cmJsonH_t jsH, cmJsonNode_t* onp, const c
   }
 
   // get the count of elements in the 'gain' array
-  unsigned  arrCnt = cmJsonChildCount(arp);
-  cmPuCh_t* arr    = NULL;
+  arrCnt = cmJsonChildCount(arp);
 
   if( arrCnt > 0 )
   {
@@ -572,7 +573,10 @@ cmPuRC_t _cmPuJsonGainRead( cmPu_t* p, cmJsonH_t jsH, cmJsonNode_t* onp, const c
  errLabel:
 
   if( rc != kOkPuRC )
+  {
     cmMemPtrFree(&arr);
+    arrCnt = 0;
+  }
 
   cmMemPtrFree(&p->chArray);
   p->chArray = arr;
