@@ -1719,9 +1719,11 @@ bool  _cmScSetPerfEvent( cmSc_t* p, unsigned locIdx, unsigned smpIdx, unsigned p
 {
   assert(locIdx < p->locCnt );
   cmScoreLoc_t* lp       = p->loc + locIdx;
-  bool          foundFl  = false;
   bool          doneFl   = true;
   unsigned      i;
+#ifndef NDEBUG
+  bool          foundFl  = false;
+#endif
 
   // locate the event at the loc[locIdx]
   for(i=0; i<lp->evtCnt; ++i)
@@ -1735,7 +1737,9 @@ bool  _cmScSetPerfEvent( cmSc_t* p, unsigned locIdx, unsigned smpIdx, unsigned p
       
         ep->perfSmpIdx = smpIdx;
         ep->perfVel    = vel;
+#ifndef NDEBUG
         foundFl        = true;
+#endif
       }
 
       // check if all notes have arrived for this location
