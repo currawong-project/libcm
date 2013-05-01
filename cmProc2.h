@@ -114,7 +114,7 @@ extern "C" {
     kSilenceWfId,
     kPhasorWfId,
     kSeqWfId,            // always incrementing integer sequence (srate,frq,otCnt is ignored)
-  } cmSigGenWaveformId;
+  };
 
   typedef struct
   {
