@@ -1220,6 +1220,9 @@ cmRtSysCtx_t* cmRtSysContext( cmRtSysH_t h, unsigned rtSubIdx )
   if( _cmRtSysVerifyInit(p,true) != kOkRtRC )
     return NULL;
 
+  if( rtSubIdx >= p->ssCnt )
+    return NULL;
+
   return &p->ssArray[rtSubIdx].ctx;
 }
 
