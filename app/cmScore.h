@@ -121,8 +121,6 @@ extern "C" {
 
   typedef cmRC_t     cmScRC_t;
   typedef cmHandle_t cmScH_t;
-
-  typedef void (*cmScCb_t)( void* arg, const void* data, unsigned byteCnt );
   
   extern cmScH_t cmScNullHandle;
 
