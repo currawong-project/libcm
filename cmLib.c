@@ -5,11 +5,13 @@
 #include "cmCtx.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
+#include "cmLinkedHeap.h"
 #include "cmFileSys.h"
 
 #include "cmLib.h"
+#include "cmText.h"
 
-#ifdef OS_LINUX
+#ifndef NDEF
 
 #include <dlfcn.h>
 
@@ -119,7 +121,7 @@ cmLibRC_t cmLibInitialize(  cmCtx_t* ctx, cmLibH_t* hp, const cmChar_t* dirStr )
 
   hp->h = p;
 
-  if( dirStr != NULL )
+  if( cmTextIsNotEmpty(dirStr) )
     if((rc = cmLibScan(*hp,dirStr)) != kOkLibRC )
       hp->h = NULL;
 
