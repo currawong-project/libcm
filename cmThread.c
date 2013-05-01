@@ -10,7 +10,10 @@
 
 #include <pthread.h>
 #include <unistd.h>  // usleep
-//#include <atomic_ops.h>
+
+#ifdef OS_OSX
+#include <libkern/OSAtomic.h>
+#endif
 
 cmThreadH_t cmThreadNullHandle = {NULL};
 
@@ -1254,20 +1257,69 @@ bool cmTs1p1cIsValid( cmTs1p1cH_t h )
 
 
 bool     cmThIntCAS(   int*      addr, int      old, int      new )
-{ return __sync_bool_compare_and_swap(addr,old,new); }
+{
+#ifdef OS_OSX
+  int rv = OSAtomicCompareAndSwap32Barrier(old,new,addr);
+  return rv;
+#endif
+
+#ifdef OS_LINUX 
+  return __sync_bool_compare_and_swap(addr,old,new); 
+#endif
+}
 
 bool     cmThUIntCAS(  unsigned* addr, unsigned old, unsigned new )
-{ return  __sync_bool_compare_and_swap(addr,old,new); }
+{ 
+#ifdef OS_OSX
+  return OSAtomicCompareAndSwap32Barrier((int)old,(int)new,(int*)addr);
+#endif
+
+#ifdef OS_LINUX 
+  return __sync_bool_compare_and_swap(addr,old,new); 
+#endif
+}
 
 bool     cmThFloatCAS( float*    addr, float    old, float    new )
-{ return  __sync_bool_compare_and_swap((unsigned*)addr, *(unsigned*)(&old),*(unsigned*)(&new)); }
+{ 
+#ifdef OS_OSX
+  return  OSAtomicCompareAndSwap32Barrier(*(int*)(&old),*(int*)(&new),(int*)addr ); 
+#endif
+
+#ifdef OS_LINUX
+  return  __sync_bool_compare_and_swap((unsigned*)addr, *(unsigned*)(&old),*(unsigned*)(&new)); 
+#endif
+}
 
 bool     cmThPtrCAS(   void*    addr, void*    old, void*    neww )
 {
+#ifdef OS_OSX
+  // REMOVE THIS HACK AND USE OSAtomicCompareAndSwapPtrBarrier() WHEN
+  // A 64 BIT BUILD IS POSSIBLE ON OS-X.
+  typedef struct 
+  {
+    union 
+    {
+      void* addr;
+      int   val;
+    } u;
+  } s_t;
+
+  s_t ov,nv;
+  
+  ov.u.addr = old;
+  nv.u.addr = neww;
+
+  int rv = OSAtomicCompareAndSwap32Barrier(ov.u.val,nv.u.val,(int*)addr);
+  //int rv = OSAtomicCompareAndSwapPtrBarrier(old,neww,&addr);
+  return rv;
+#endif
+
+#ifdef OS_LINUX
 #ifdef OS_64
   return  __sync_bool_compare_and_swap((long long*)addr, (long long)old, (long long)neww); 
 #else
   return  __sync_bool_compare_and_swap((int*)addr,(int)old,(int)neww); 
+#endif
 #endif
 }
 
@@ -1275,13 +1327,24 @@ bool     cmThPtrCAS(   void*    addr, void*    old, void*    neww )
 
 void     cmThIntIncr(  int*      addr, int      incr )
 {
+#ifdef OS_OSX
+  OSAtomicAdd32Barrier(incr,addr);
+#endif
+
+#ifdef OS_LINUX
   // ... could also use __sync_add_and_fetch() ...
   __sync_fetch_and_add(addr,incr);
+#endif
 }
 
 void     cmThUIntIncr( unsigned* addr, unsigned incr )
 {
+#ifdef OS_OSX
+  OSAtomicAdd32Barrier((int)incr,(int*)addr);
+#endif
+#ifdef OS_LINUX
   __sync_fetch_and_add(addr,incr);
+#endif
 }
 
 void     cmThFloatIncr(float*    addr, float    incr )
@@ -1298,12 +1361,24 @@ void     cmThFloatIncr(float*    addr, float    incr )
 
 void     cmThIntDecr(  int*  addr, int      decr )
 {
+#ifdef OS_OSX
+  OSAtomicAdd32Barrier(-decr,addr);
+#endif
+
+#ifdef OS_LINUX
   __sync_fetch_and_sub(addr,decr);
+#endif
 }
 
 void     cmThUIntDecr( unsigned* addr, unsigned decr )
 {
+#ifdef OS_OSX
+  OSAtomicAdd32Barrier(-((int)decr),(int*)addr);
+#endif
+
+#ifdef OS_LINUX
   __sync_fetch_and_sub(addr,decr);
+#endif
 }
 
 void     cmThFloatDecr(float*    addr, float    decr )
@@ -1897,7 +1972,10 @@ bool _cmTsMp1cCb0(void* param)
 {
   _cmTsMp1cCbParam_t* p = (_cmTsMp1cCbParam_t*)param;
 
-  p->val = __sync_fetch_and_add(&_cmTsMp1cVal,1);
+  //p->val = __sync_fetch_and_add(&_cmTsMp1cVal,1);
+
+  cmThUIntIncr(&_cmTsMp1cVal,1);
+  p->val = _cmTsMp1cVal;
 
   // send the msg
   if( cmTsMp1cEnqueueMsg( p->qH, p, sizeof(_cmTsMp1cCbParam_t)) == kOkThRC )
