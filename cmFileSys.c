@@ -32,6 +32,7 @@ typedef struct
   const cmChar_t* appNameStr;
 #ifdef OS_OSX
   _cmFsOsx_t* p;
+  cmChar_t* prefDir;
 #endif
 #ifdef OS_LINUX
   _cmFsLinux_t* p;
@@ -117,12 +118,25 @@ cmFsRC_t cmFileSysInitialize( cmFileSysH_t* hp, cmCtx_t* ctx, const cmChar_t* ap
     goto errLabel;
   }
 
+  p->appNameStr =  cmLhAllocStr(p->heapH,appNameStr);
+
+  hp->h = p;
+
 #ifdef OS_OSX
   if( (rc = _cmOsxFileSysInit(&p->p, p->heapH, &p->err)) != kOkFsRC )
   {
     rc = _cmFileSysError(p,kOsxFailFsRC,0,"OSX file system initialization failed.");
     goto errLabel;
   }
+
+  const cmChar_t* dir = cmFsMakeFn(p->p->prefDir,appNameStr,NULL,NULL);
+
+  // BUG?
+  // we reuse p->p->prefDir here because the one returned by the platform
+  // specific code is never released  ... which isn't quite right either
+  // See osx/cmFileSysOsx.c.
+  p->p->prefDir = cmLhAllocStr(p->heapH,dir);
+  cmFsFreeFn(dir);
 #endif
 
 #ifdef OS_LINUX
@@ -135,9 +149,6 @@ cmFsRC_t cmFileSysInitialize( cmFileSysH_t* hp, cmCtx_t* ctx, const cmChar_t* ap
   {
 #endif
 
-  p->appNameStr =  cmLhAllocStr(p->heapH,appNameStr);
-
-  hp->h = p;
 
 #ifdef OS_LINUX
 
