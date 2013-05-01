@@ -7,6 +7,7 @@
 #include "cmGlobal.h"
 #include "cmRpt.h"
 #include "cmErr.h"
+#include "cmCtx.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
 #include "cmMidi.h"
@@ -52,7 +53,8 @@ typedef struct
   
 } cmMpRoot;
 
-cmMpRoot _cmMpRoot = { {NULL,NULL,kOkMpRC}, 0, NULL, NULL, NULL, NULL, NULL, NULL };
+cmMpRoot _cmMpRoot;
+cmMpRoot* _cmMpRtPtr = NULL;
 
 cmMpRC_t _cmMpError( cmErr_t* errPtr, cmMpRC_t rc, OSStatus err, const char* fmt, ... )
 { 
@@ -186,7 +188,7 @@ char* _cmMpFormPortLabel( cmErr_t* errPtr, MIDIEntityRef mer, ItemCount pi, bool
   else 
     epr = MIDIEntityGetDestination( mer, pi); 
 
-  if(epr == NULL )
+  if(epr == 0 )
   {
     _cmMpError(errPtr,kSysErrMpRC,noErr,"Get %s endpoiint ref  %i failed.", inputFl ? "source" : "destination",pi);
     return NULL;
@@ -212,7 +214,7 @@ cmMpRC_t _cmMpGetEntityUniqueIdArray( MIDIEntityRef mer, SInt32* idArray, unsign
   {
     epr = inputFl ? MIDIEntityGetSource( mer, pi) : MIDIEntityGetDestination( mer, pi); 
 
-    if(epr == NULL )
+    if(epr == 0 )
     {
       rc = _cmMpError(errPtr,kSysErrMpRC,noErr,"Get %s endpoiint ref  %i failed.",dirLabel,pi);
       goto errLabel;
@@ -254,7 +256,7 @@ cmMpRC_t _cmMpInitPortArray( unsigned devIdx, MIDIPortRef mpr, MIDIEntityRef mer
   {
     MIDIEndpointRef epr = inputFl ? MIDIEntityGetSource(mer,pi) : MIDIEntityGetDestination(mer,pi);
 
-    if( epr == NULL )
+    if( epr == 0 )
       return _cmMpError(errPtr,kSysErrMpRC,noErr,"Get %s endpoiint ref  %i failed.",inputFl ? "source" : "destination", pi);
 
     // if this is an active input port then connect it to the source port
@@ -304,7 +306,7 @@ cmMpRC_t _cmMpIsDeviceActive( unsigned devIdx, MIDIDeviceRef mdr, ItemCount* src
     ItemCount     activeCnt = 0;
     MIDIEntityRef mer;
 
-    if((mer = MIDIDeviceGetEntity( mdr, ei)) == NULL )
+    if((mer = MIDIDeviceGetEntity( mdr, ei)) == 0 )
       return _cmMpError( errPtr,kSysErrMpRC,noErr,"Get midi device %i entity %i failed.",devIdx,ei);
 
     if((rc= _cmMpGetActiveEntityPortCount(mer,true,&srcCnt,&activeCnt,errPtr)) != kOkMpRC )
@@ -343,7 +345,7 @@ cmMpRC_t _cmMpCreateDevice( unsigned devIdx, cmMpDev* drp,  MIDIPortRef inPortRe
   _cmMpDeviceInit(drp);
 
   // get the device ref
-  if((mdr = MIDIGetDevice(devIdx)) == NULL )
+  if((mdr = MIDIGetDevice(devIdx)) == 0 )
     return _cmMpError(errPtr,kSysErrMpRC,noErr,"Get midi device %i failed.",devIdx);
    
   // determine if the device port count and whether it is active
@@ -377,7 +379,7 @@ cmMpRC_t _cmMpCreateDevice( unsigned devIdx, cmMpDev* drp,  MIDIPortRef inPortRe
     unsigned        i;
 
     // get the entity reference
-    if((mer = MIDIDeviceGetEntity( mdr, ei)) == NULL )
+    if((mer = MIDIDeviceGetEntity( mdr, ei)) == 0 )
     {
       rc = _cmMpError(errPtr,kSysErrMpRC,noErr,"Get midi device %i entity %i failed.",devIdx,ei);
       goto errLabel;
@@ -531,13 +533,20 @@ cmMpPort* _cmMpGetPort( cmMpDev* drp, unsigned portIdx, unsigned flags )
   return inputFl ? drp->iPortArray + portIdx : drp->oPortArray + portIdx;
 }
 
-cmMpRC_t cmMpInitialize( cmMpCallback_t cbFunc, void* cbDataPtr, unsigned parserBufByteCnt, const char* appNameStr, cmRpt_t* rpt )
+cmMpRC_t cmMpInitialize( cmCtx_t* c, cmMpCallback_t cbFunc, void* cbDataPtr, unsigned parserBufByteCnt, const char* appNameStr )
 {
   cmMpRC_t                  rc                = kOkMpRC;
 	OSStatus                  err               = noErr;
 	CFStringRef               clientNameStrRef 	= NULL;
 	CFStringRef               inPortNameStrRef	= NULL;
 	CFStringRef               outPortNameStrRef	= NULL;
+  cmRpt_t* rpt = &c->rpt;
+
+  if( _cmMpRtPtr == NULL )
+  {
+    memset(&_cmMpRoot,0,sizeof(_cmMpRoot));
+    _cmMpRtPtr = &_cmMpRoot;
+  }
 
   if((rc = cmMpFinalize()) != kOkMpRC )
     return rc;
@@ -611,28 +620,28 @@ cmMpRC_t cmMpFinalize()
   OSStatus err = noErr;
   cmMpRC_t   rc  = kOkMpRC;
 
-  if( _cmMpRoot.inPortRef != NULL )
+  if( _cmMpRoot.inPortRef != 0 )
   {
     if((err = MIDIPortDispose(_cmMpRoot.inPortRef)) != noErr )
       rc = _cmMpError(&_cmMpRoot.err,kSysErrMpRC,err,"MIDIPortDispose() failed on the input port.");
     else
-      _cmMpRoot.inPortRef = NULL;
+      _cmMpRoot.inPortRef = 0;
   }
 
-  if( _cmMpRoot.outPortRef != NULL )
+  if( _cmMpRoot.outPortRef !=  0 )
   {
     if((err = MIDIPortDispose(_cmMpRoot.outPortRef)) != noErr )
       rc = _cmMpError(&_cmMpRoot.err,kSysErrMpRC,err,"MIDIPortDispose() failed on the output port.");
     else
-      _cmMpRoot.outPortRef = NULL;
+      _cmMpRoot.outPortRef = 0;
   }
 
-  if( _cmMpRoot.clientRef != NULL )
+  if( _cmMpRoot.clientRef != 0 )
   {
     if((err = MIDIClientDispose(_cmMpRoot.clientRef)) != noErr )
       rc = _cmMpError(&_cmMpRoot.err,kSysErrMpRC,err,"MIDIClientDispose() failed.");
     else
-      _cmMpRoot.clientRef = NULL;
+      _cmMpRoot.clientRef = 0;
   }
 
    _cmMpDestroyDeviceArray(&_cmMpRoot);
@@ -641,16 +650,16 @@ cmMpRC_t cmMpFinalize()
    _cmMpRoot.devArray   = NULL;
    _cmMpRoot.cbFunc     = NULL;
    _cmMpRoot.cbDataPtr  = NULL;
-   _cmMpRoot.clientRef  = NULL;
-   _cmMpRoot.inPortRef  = NULL;
-   _cmMpRoot.outPortRef = NULL;
+   _cmMpRoot.clientRef  = 0;
+   _cmMpRoot.inPortRef  = 0;
+   _cmMpRoot.outPortRef = 0;
 
 
   return rc;
 }
 
 bool        cmMpIsInitialized()
-{ return _cmMpRoot.clientRef != NULL; }
+{ return _cmMpRoot.clientRef != 0; }
 
 unsigned      cmMpDeviceCount()
 {
