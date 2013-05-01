@@ -1577,7 +1577,7 @@ cmDspRC_t _cmDspScaleRangeReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspE
 cmDspRC_t _cmDspScaleRangeRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
   cmDspRC_t       rc = kOkDspRC;
-  cmDspScaleRange_t* p  = (cmDspScaleRange_t*)inst;
+  //cmDspScaleRange_t* p  = (cmDspScaleRange_t*)inst;
 
   cmDspSetEvent(ctx,inst,evt);
 
