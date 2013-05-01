@@ -795,7 +795,7 @@ void   cmRtNetReport( cmRtNetH_t h )
 
     cmRptPrintf(rpt,"%s ",cmStringNullGuard(cmUdpAddrToString(p->udpH,&np->sockaddr)));
 
-    if( np->port != cmInvalidId )
+    if( np->port != kInvalidUdpPortNumber )
       cmRptPrintf(rpt,"%i ",np->port );
 
     cmRptPrintf(rpt,"\n");
