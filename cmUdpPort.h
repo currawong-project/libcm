@@ -26,12 +26,13 @@ extern "C" {
     kRecvBufOverflowUdpRC,
     kBufTooSmallUdpRC,
     kHostNameFailUdpRC,
+    kInvalidPortNumbUdpRC,
     kTimeOutUdpRC
   };
 
-  typedef cmRC_t     cmUdpRC_t;
-  typedef cmHandle_t cmUdpH_t;
-  typedef u_short    cmUdpPort_t;
+  typedef cmRC_t         cmUdpRC_t;
+  typedef cmHandle_t     cmUdpH_t;
+  typedef unsigned short cmUdpPort_t;
 
   extern cmUdpH_t cmUdpNullHandle;
 
@@ -44,6 +45,12 @@ extern "C" {
     kNoQueueUdpFl     = 0x02,
     kBroadcastUdpFl   = 0x04
     
+  };
+
+  enum
+  {
+    // port 0 is reserved by and is therefore a convenient invalid port number
+    kInvalidUdpPortNumber = 0 
   };
 
   cmUdpRC_t cmUdpAlloc( cmCtx_t* ctx, cmUdpH_t* hp );

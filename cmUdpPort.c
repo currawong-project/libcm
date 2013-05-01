@@ -18,6 +18,10 @@
 #define cmUdp_SYS_ERR (-1)
 #define cmUdp_NULL_SOCK (-1)
 
+#ifndef HOST_NAME_MAX
+#define HOST_NAME_MAX  _POSIX_HOST_NAME_MAX
+#endif
+
 enum
 {
   kIsConnectedUdpFl = 0x01,
@@ -99,6 +103,9 @@ cmUdpRC_t _cmUdpFree( cmUdp_t* p )
 cmUdpRC_t _cmUdpInitAddr( cmUdp_t* p, const char* addrStr, cmUdpPort_t portNumber, struct sockaddr_in* retAddrPtr )
 {
 	memset(retAddrPtr,0,sizeof(struct sockaddr_in));
+
+  if( portNumber == kInvalidUdpPortNumber )
+    return cmErrMsg(&p->err,kInvalidPortNumbUdpRC,"The port number %i cannot be used.",kInvalidUdpPortNumber);
 	
 	if( addrStr == NULL )
 		retAddrPtr->sin_addr.s_addr 	= htonl(INADDR_ANY);
