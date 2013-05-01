@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-  cmApRC_t      cmApOsxInitialize( cmRpt_t* rpt );
+  cmApRC_t      cmApOsxInitialize( cmRpt_t* rpt, unsigned baseApDevIdx );
   cmApRC_t      cmApOsxFinalize();
   cmApRC_t      cmApOsxDeviceCount();
   const char*   cmApOsxDeviceLabel(          unsigned devIdx );

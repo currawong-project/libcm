@@ -504,7 +504,7 @@ OSStatus _cmApOsxSystemDeviceIOProc(	AudioDeviceID			inDevice,
 }
 
 
-cmApRC_t      cmApOsxInitialize( cmRpt_t* rpt )
+cmApRC_t      cmApOsxInitialize( cmRpt_t* rpt, unsigned baseApDevIdx )
 {
   cmApRC_t       rc            = kOkApRC;
   Boolean        outWritableFl = false;
