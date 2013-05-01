@@ -278,7 +278,7 @@ void _cmGrPlotObjSetSelect( cmGrPlotObj_t* op, bool clearFl )
 }
 
 
-const cmGrColor_t _cmGrPlotColor( cmGrPlotObj_t* op, cmGrColor_t* array )
+cmGrColor_t _cmGrPlotColor( cmGrPlotObj_t* op, cmGrColor_t* array )
 {
   if( _cmGrPlotObjIsFocused(op) )
     return array[kFocusPlGrId];
@@ -1017,7 +1017,7 @@ int             cmGrPlotObjLabelAngle(    cmGrPlObjH_t oh )
   return op->labelAngle;
 }
 
-const cmGrColor_t cmGrPlotObjLabelColor(    cmGrPlObjH_t oh )
+cmGrColor_t cmGrPlotObjLabelColor(    cmGrPlObjH_t oh )
 {
   cmGrPlotObj_t* op = _cmGrPlObjHandleToPtr(oh);
   return op->labelColor;
@@ -1175,14 +1175,14 @@ void            cmGrPlotObjSetLineColor(  cmGrPlObjH_t oh, cmGrPlStateId_t id, c
   op->drawColors[ id ] = c;
 }
 
-const cmGrColor_t cmGrPlotObjLineColor(     cmGrPlObjH_t oh, cmGrPlStateId_t id )
+cmGrColor_t cmGrPlotObjLineColor(     cmGrPlObjH_t oh, cmGrPlStateId_t id )
 {
   cmGrPlotObj_t* op = _cmGrPlObjHandleToPtr(oh);
   assert( id < kMaxPlGrId );
   return op->drawColors[id];
 }
 
-const cmGrColor_t cmGrPlotObjCurLineColor(  cmGrPlObjH_t h )
+cmGrColor_t cmGrPlotObjCurLineColor(  cmGrPlObjH_t h )
 {
   cmGrPlotObj_t* op = _cmGrPlObjHandleToPtr(h);
   return _cmGrPlotColor(op,op->drawColors);
@@ -1195,14 +1195,14 @@ void            cmGrPlotObjSetFillColor(  cmGrPlObjH_t oh, cmGrPlStateId_t id, c
   op->fillColors[ id ] = c;
 }
 
-const cmGrColor_t cmGrPlotObjFillColor(     cmGrPlObjH_t oh, cmGrPlStateId_t id )
+cmGrColor_t cmGrPlotObjFillColor(     cmGrPlObjH_t oh, cmGrPlStateId_t id )
 {
   cmGrPlotObj_t* op = _cmGrPlObjHandleToPtr(oh);
   assert( id < kMaxPlGrId );
   return op->fillColors[id];
 }
 
-const cmGrColor_t cmGrPlotObjCurFillColor(  cmGrPlObjH_t h )
+cmGrColor_t cmGrPlotObjCurFillColor(  cmGrPlObjH_t h )
 {
   cmGrPlotObj_t* op = _cmGrPlObjHandleToPtr(h);
   return _cmGrPlotColor(op,op->fillColors);

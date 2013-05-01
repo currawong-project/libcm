@@ -160,7 +160,7 @@ extern "C" {
   void              cmGrPlotObjSetLabelAttr(  cmGrPlObjH_t oh, unsigned flags, int angle, const cmGrColor_t color );
   unsigned          cmGrPlotObjLabelFlags(    cmGrPlObjH_t oh );
   int               cmGrPlotObjLabelAngle(    cmGrPlObjH_t oh );
-  const cmGrColor_t cmGrPlotObjLabelColor(  cmGrPlObjH_t oh );
+  cmGrColor_t       cmGrPlotObjLabelColor(  cmGrPlObjH_t oh );
   
 
   void              cmGrPlotObjSetStateFlags( cmGrPlObjH_t oh, unsigned flags );
@@ -185,12 +185,12 @@ extern "C" {
   void              cmGrPlotObjSetFont(       cmGrPlObjH_t h, unsigned id, unsigned size, unsigned style );
 
   void              cmGrPlotObjSetLineColor(  cmGrPlObjH_t h, cmGrPlStateId_t id, const cmGrColor_t c );
-  const cmGrColor_t cmGrPlotObjLineColor(     cmGrPlObjH_t h, cmGrPlStateId_t id );
-  const cmGrColor_t cmGrPlotObjCurLineColor(  cmGrPlObjH_t h );
+  cmGrColor_t       cmGrPlotObjLineColor(     cmGrPlObjH_t h, cmGrPlStateId_t id );
+  cmGrColor_t       cmGrPlotObjCurLineColor(  cmGrPlObjH_t h );
 
   void              cmGrPlotObjSetFillColor(  cmGrPlObjH_t h, cmGrPlStateId_t id, const cmGrColor_t c );
-  const cmGrColor_t cmGrPlotObjFillColor(     cmGrPlObjH_t h, cmGrPlStateId_t id );
-  const cmGrColor_t cmGrPlotObjCurFillColor(  cmGrPlObjH_t h );
+  cmGrColor_t       cmGrPlotObjFillColor(     cmGrPlObjH_t h, cmGrPlStateId_t id );
+  cmGrColor_t       cmGrPlotObjCurFillColor(  cmGrPlObjH_t h );
 
   void              cmGrPlotObjSetCb(        cmGrPlObjH_t h, cmGrPlotCbFunc_t func, void* arg );
   cmGrPlotCbFunc_t  cmGrPlotObjCbFunc(       cmGrPlObjH_t h );
