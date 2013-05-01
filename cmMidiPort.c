@@ -352,7 +352,7 @@ cmMpRC_t  cmMpParserMidiTriple(   cmMpParserH_t h, unsigned deltaMicroSecs, cmMi
 {
   cmMpRC_t rc = kOkMpRC;
   cmMpParser_t* p = _cmMpParserFromHandle(h);
-  cmMidiByte_t mb = -1;
+  cmMidiByte_t mb = 0xff; // a midi triple may never have a status of 0xff
 
   if( d0 == 0xff )
     p->dataCnt = 0;
@@ -384,7 +384,7 @@ cmMpRC_t  cmMpParserMidiTriple(   cmMpParserH_t h, unsigned deltaMicroSecs, cmMi
       break;
   }
 
-  if( mb != -1 )
+  if( mb != 0xff )
     _cmMpParserStoreChMsg(p,deltaMicroSecs,mb);
   
   p->dataCnt = cmInvalidCnt;
