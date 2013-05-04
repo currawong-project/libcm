@@ -250,21 +250,37 @@ cmRtRC_t _cmRtSendStateStatusToHost(  _cmRtCfg_t* cp )
   return rc;
 }
 
-// This is only called with _cmRtRecd.engMutexH locked
+// This function is called, within the real-time thread, 
+//  with _cmRtRecd.engMutexH locked, to deliver
+// messages to the real-time DSP processes via cp->ss.cbFunc()
 cmRtRC_t _cmRtDeliverMsgsWithLock( _cmRtCfg_t* cp  )
 {
   int      i;
   cmRtRC_t rc = kOkThRC;
     
-  // as long as their may be a msg wating in the incoming msg queue
+  // as long msg's are in the queue incoming msg queue
   for(i=0; rc == kOkThRC; ++i)
   {
-    // if a msg is waiting transmit it via cfg->cbFunc()
+    // if a msg is waiting transmit it via cp->ss.cbFunc()
     if((rc = cmTsMp1cDequeueMsg(cp->htdQueueH,NULL,0)) == kOkThRC)
       ++cp->status.msgCbCnt;
   }
 
   return rc;
+}
+
+// This funciton is _cmRtDspExecCallback()->cmRtNetReceive() in the 
+// real-time thread to deliver msg's to the DSP process. 
+void _cmRtSysNetRecv( void* cbArg, const char* data, unsigned dataByteCnt, const struct sockaddr_in* fromAddr )
+{
+  _cmRtCfg_t*      cp = (_cmRtCfg_t*)cbArg;
+
+  if( cp->cbEnableFl )
+  {
+    cmRtSysH_t h;
+    h.h = cp->p;
+    cmRtSysDeliverMsg(h,data,dataByteCnt,cmInvalidId); 
+  }
 }
 
 // The DSP execution callback happens through this function.
@@ -281,7 +297,7 @@ void _cmRtDspExecCallback( _cmRtCfg_t* cp )
   cmApBufGetIO(cp->ss.args.inDevIdx, cp->ctx.iChArray, cp->ctx.iChCnt, cp->ss.args.outDevIdx, cp->ctx.oChArray, cp->ctx.oChCnt  );
 
 
-  // calling this function results in callbacks to _cmRtNetRecv()
+  // calling this function results in callbacks to _cmRtSysNetRecv()
   // which in turn calls cmRtSysDeliverMsg() which queues any incoming messages
   // which are then transferred to the DSP processes by the the call to 
   // _cmRtDeliverMsgWithLock() below.
@@ -289,10 +305,10 @@ void _cmRtDspExecCallback( _cmRtCfg_t* cp )
     if( cmRtNetReceive(cp->netH) != kOkNetRC )
       _cmRtError(cp->p,kNetErrRtRC,"Network receive failed.");
 
+  // NOTE: BY DEQUEUEING MSGS FIRST AND THEN SERVICING THE NETWORK
+  // WE COULD ELIMINATE QUEUEING NETWORK MESSAGES - THEY COULD BE
+  // SEND DIRECTLY THROUGH TO THE DSP PROCESSES
 
-  //if( cp->cbEnableFl )
-  //  cmUdpGetAvailData(cp->udpH,NULL,NULL,NULL);
-    
   // if there are msgs waiting to be sent to the DSP process send them. 
   if( cp->cbEnableFl )
     if( cmTsMp1cMsgWaiting(cp->htdQueueH) )
@@ -538,16 +554,6 @@ void _cmRtSysMidiCallback( const cmMidiPacket_t* pktArray, unsigned pktCnt )
 
 }
 
-// This funciton is called from the real-time thread
-void _cmRtSysNetRecv( void* cbArg, const char* data, unsigned dataByteCnt, const struct sockaddr_in* fromAddr )
-{
-  _cmRtCfg_t*      cp = (_cmRtCfg_t*)cbArg;
-
-  cmRtSysH_t h;
-  h.h = cp->p;
-  cmRtSysDeliverMsg(h,data,dataByteCnt,cmInvalidId);
- 
-}
 
 
 cmRtRC_t cmRtSysAllocate( cmRtSysH_t* hp, cmCtx_t* ctx )
