@@ -93,26 +93,26 @@ extern "C" {
 
                   Machine A                          Machine B
      ==================================    ====================================
-     broadcast 'hello' --------------------> create node-A w/ ei=0 -------+
+     broadcast 'hello' ------------------=-> create node-A w/ ei=0 -------+
                                                                           |
-     +<-- create node-B w/ ei=0 <----------- send 'node' <----------------+
+     +<-- create node-B w/ ei=0 <--------=-- send 'node' <----------------+
      |
      +--> switch(ei,m_t)
-     |     ei  < en   : send endpt[ei++] ---> create endpt[] on node-A -->+
+     |     ei  < en  : send endpt[ei++] -=--> create endpt[] on node-A -->+
      |                                                                    |
-     |     ei == en   : ++ei,send 'done' -------------------------------->+                                                    |
+     |     ei == en  : ++ei,send 'done' -=------------------------------->+                                                    |
      |                                                                    |
-     |    m_t!='done' :      send 'done' -------------------------------->+                                                              |
+     |    m_t!='done':      send 'done' -=------------------------------->+                                                              |
      |                                                                    |
-     |    (stop)      :                                                   |
+     |    (stop)     :                                                    |
      |                                                                    |
      |                                                                    v
      |                                                           switch(ei,m_t)
-     +<-- create endpt[] on node-B  <--------- send endpt[ei++] : ei < en
+     +<-- create endpt[] on node-B  <---=----- send endpt[ei++] : ei < en
      | 
-     +<--------------------------------------- send 'done',++ei : ei == en 
+     +<---------------------------------=----- send 'done',++ei : ei == en 
      |
-     +<--------------------------------------- send 'done'      : m_t!= 'done'
+     +<---------------------------------=----- send 'done'      : m_t!= 'done'
                                                                   
                                                                 :  (stop)
 
@@ -121,6 +121,7 @@ extern "C" {
         2)  'en' is the count of local endpoints.
         3)  'm_t' is the msg type (i.e.'hello','node','endpoint','done') 
             of the incoming message.
+        4)  The symbol -=- in the flow chart implies a network transmission.
 
    */  
 

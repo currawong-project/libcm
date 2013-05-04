@@ -734,14 +734,16 @@ cmRtNetRC_t cmRtNetSend( cmRtNetH_t h, cmRtNetEndptH_t epH, const void* msg, uns
   cmRtNetRC_t     rc = kOkNetRC;
   cmRtNet_t*      p  = _cmRtNetHandleToPtr(h);
   cmRtNetEnd_t*   ep = (cmRtNetEnd_t*)epH.h;
-  
+ 
   assert( ep != NULL );
   
-  unsigned dN = sizeof(unsigned) + msgByteCnt; 
+  unsigned dN = sizeof(cmRtSysMsgHdr_t) + msgByteCnt; 
   char data[ dN ];
-  unsigned *hdr = (unsigned*)data;
-  hdr[0] = ep->id;
-  memcpy(hdr+1,msg,msgByteCnt);
+
+  cmRtSysMsgHdr_t* hdr = (cmRtSysMsgHdr_t*)data;
+  hdr->rtSubIdx     = ep->id;
+  hdr->selId        = kMsgSelRtId;
+  memcpy(data+sizeof(cmRtSysMsgHdr_t),msg,msgByteCnt);
   
   if( cmUdpSendTo(p->udpH, data, dN, &ep->np->sockaddr ) != kOkUdpRC )
     return cmErrMsg(&p->err,kUdpPortFailNetRC,"Send to node:%s endpt:%s failed.\n",cmStringNullGuard(ep->np->label),cmStringNullGuard(ep->label));
@@ -812,6 +814,7 @@ void   cmRtNetReport( cmRtNetH_t h )
 //==========================================================================
 #include "cmThread.h"
 
+
 typedef struct
 {
   cmThreadH_t thH;
@@ -819,12 +822,14 @@ typedef struct
   unsigned    msgVal;
 } _cmRtNetTest_t;
 
+// This function is called within the context of cmRtNetReceive().
 void _cmRtNetTestRecv( void* cbArg, const char* data, unsigned dataByteCnt, const struct sockaddr_in* fromAddr )
 {
   //_cmRtNetTest_t* p = (_cmRtNetTest_t*)cbArg;
   
-  unsigned* hdr = (unsigned*)data;
-  printf("%i %i\n",hdr[0],hdr[1]);
+  cmRtSysMsgHdr_t* hdr = (cmRtSysMsgHdr_t*)data;
+  unsigned i = *(unsigned*)(data + sizeof(cmRtSysMsgHdr_t));
+  printf("%i %i\n",hdr->rtSubIdx,i);
 
 }
 

@@ -5,16 +5,18 @@
 extern "C" {
 #endif
 
-  /// Reserved DSP message selector id's (second field of all host<->audio system messages)
+  // Reserved DSP message selector id's (second field of all 
+  // host<->audio system messages)
   enum
   {
     kMidiMsgArraySelRtId = 1000,
     kMidiSysExSelRtId,
     kUiDrvrSelRtId,    // cmUiDriverArg_t message to/from the UI driver
-    kUiSelRtId,      // cmUiDriverArg-t message from the UI mgr to a client 
-    kUiMstrSelRtId,  // indicates a cmDspUiHdr_t msg containing master control information for the audio system
-    kStatusSelRtId,  // indicates the msg is of type cmRtSysStatus_t
+    kUiSelRtId,        // cmUiDriverArg_t message from the UI mgr to a client 
+    kUiMstrSelRtId,    // indicates a cmDspUiHdr_t msg containing master control information for the audio system
+    kStatusSelRtId,    // indicates the msg is of type cmRtSysStatus_t
     kNetSyncSelRtId,   // sent with a cmDspNetMsg_t object  
+    kMsgSelRtId,       // client defined msg transmitted between threads or network nodes
   };
 
   typedef struct
@@ -46,7 +48,7 @@ extern "C" {
 
 
 
-  /// Control id's used to identify the control type of master contols.
+  // Control id's used to identify the control type of master contols.
   enum
   {
     kSliderUiRtId = 0,
@@ -57,28 +59,29 @@ extern "C" {
   };
 
 
-  /// Audio sub-system status record - this message can be transmitted to the host at
-  /// periodic intervals.  See cmRtSysStatusNotifyEnable().
-  /// When transmitted to the host this record acts as the message header.
-  /// This header is followed by two arrays of doubles containing the input and output meter values
-  /// associated with the input and output audio devices.
-  /// Message Layout: [ rtSubIdx kStatusSelId cmRtSysStatus_t iMeterArray[iMeterCnt] oMeterArray[oMeterCnt] ]
+  // Audio sub-system status record - this message can be transmitted to the host at
+  // periodic intervals.  See cmRtSysStatusNotifyEnable().
+  // When transmitted to the host this record acts as the message header.
+  // This header is followed by two arrays of doubles containing the input 
+  // and output meter values associated with the input and output audio devices.
+  // Message Layout: 
+  // [ rtSubIdx kStatusSelId cmRtSysStatus_t iMeterArray[iMeterCnt] oMeterArray[oMeterCnt] ]
   typedef struct
   {
     cmRtSysMsgHdr_t hdr;
 
-    unsigned updateCnt;    ///< count of callbacks from the audio devices.
-    unsigned wakeupCnt;    ///< count of times the audio system thread has woken up after the cond. var has been signaled by the audio update thread.
-    unsigned msgCbCnt;     ///< count of msgs delivered via cmRtCallback() .
-    unsigned audioCbCnt;   ///< count of times the DSP execution was requested via cmRtCallback().    
+    unsigned updateCnt;    // count of callbacks from the audio devices.
+    unsigned wakeupCnt;    // count of times the audio system thread has woken up after the cond. var has been signaled by the audio update thread.
+    unsigned msgCbCnt;     // count of msgs delivered via cmRtCallback() .
+    unsigned audioCbCnt;   // count of times the DSP execution was requested via cmRtCallback().    
 
-    unsigned iDevIdx;      ///< Input device index
-    unsigned oDevIdx;      ///< Output device index
+    unsigned iDevIdx;      // Input device index
+    unsigned oDevIdx;      // Output device index
 
-    unsigned overflowCnt;  ///< count of times the audio input buffers overflowed
-    unsigned underflowCnt; ///< count of times the audio output buffers underflowed
-    unsigned iMeterCnt;    ///< count of input meter channels
-    unsigned oMeterCnt;    ///< count of output meter channels
+    unsigned overflowCnt;  // count of times the audio input buffers overflowed
+    unsigned underflowCnt; // count of times the audio output buffers underflowed
+    unsigned iMeterCnt;    // count of input meter channels
+    unsigned oMeterCnt;    // count of output meter channels
     
   } cmRtSysStatus_t;
 
