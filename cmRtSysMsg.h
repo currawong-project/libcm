@@ -95,6 +95,13 @@ extern "C" {
     // cmMidiMsg msgArray[msgCnt]
   } cmRtSysMidi_t;
 
+  typedef struct
+  {
+    cmRtSysMsgHdr_t hdr;
+    unsigned        endptId;
+    // char msg[ msgByteCnt ]
+  } cmRtNetMsg_t;
+
 #ifdef __cplusplus
 }
 #endif

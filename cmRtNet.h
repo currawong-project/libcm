@@ -55,7 +55,7 @@ extern "C" {
   // cmRtNetInitialize().
   // Remote nodes will be able to send messages to these endpoints by
   // referring to (nodeLabel/endPtLabel)
-  cmRtNetRC_t cmRtNetRegisterEndPoint( cmRtNetH_t h, const cmChar_t* endPtLabel, unsigned endPtId );
+  cmRtNetRC_t cmRtNetRegisterEndPoint( cmRtNetH_t h, unsigned rtSubIdx, const cmChar_t* endPtLabel, unsigned endPtId );
 
   // Delete all nodes and endpoints.
   cmRtNetRC_t cmRtNetFinalize( cmRtNetH_t h );
@@ -69,14 +69,14 @@ extern "C" {
   cmRtNetRC_t cmRtNetReceive( cmRtNetH_t h );
 
   // Get an end point handle for use with cmRtNetSend.
-  cmRtNetRC_t cmRtNetEndpointHandle( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* endptLabel, cmRtNetEndptH_t* hp );
+  cmRtNetRC_t cmRtNetEndpointHandle( cmRtNetH_t h, const cmChar_t* nodeLabel, unsigned rtSubIdx, const cmChar_t* endptLabel, cmRtNetEndptH_t* hp );
 
   // Send a message to a remote endpoint.
   cmRtNetRC_t cmRtNetSend( cmRtNetH_t h, cmRtNetEndptH_t epH, const void* msg, unsigned msgByteCnt );
 
   // Send a message to a remote endpoint. This function is a composite
   // of cmRtNetEndpointHandle() and cmRtNetSend().
-  cmRtNetRC_t cmRtNetSendByLabels( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* endptLabel, const void* msg, unsigned msgByteCnt );
+  cmRtNetRC_t cmRtNetSendByLabels( cmRtNetH_t h, const cmChar_t* nodeLabel, unsigned rtSubIdx, const cmChar_t* endptLabel, const void* msg, unsigned msgByteCnt );
 
   // Enable/disable synchronization protocol reporting.
   // Return the previous state of the report sync. flag.
