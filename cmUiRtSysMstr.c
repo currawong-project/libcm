@@ -9,6 +9,7 @@
 #include "cmThread.h"
 #include "cmUdpPort.h"
 #include "cmRtSysMsg.h"
+#include "cmRtNet.h"
 #include "cmRtSys.h"
 #include "cmUiDrvr.h"
 #include "cmUi.h"

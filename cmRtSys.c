@@ -29,7 +29,7 @@ typedef enum
   kDisableCbCmdId
 } kRtCmdId_t;
 
-cmRtSysH_t cmRtSysNullHandle = { NULL };
+cmRtSysH_t cmRtSysNullHandle = cmSTATIC_NULL_HANDLE;
 
 struct cmRt_str;
 
@@ -961,7 +961,7 @@ cmRtRC_t cmRtSysCfg( cmRtSysH_t h, const cmRtSysSubSys_t* ss, unsigned rtSubIdx 
   for(j=0; j<ss->endptCnt; ++j)
   {
     cmRtSysNetEndpt_t* ep = ss->endptArray + j;
-    if( cmRtNetRegisterEndPoint( cp->netH, ep->label, ep->id ) != kOkNetRC )
+    if( cmRtNetRegisterEndPoint( cp->netH, cp->ctx.rtSubIdx, ep->label, ep->id ) != kOkNetRC )
     {
       rc = _cmRtError(p,kNetErrRtRC,"Network end point allocation failed on label:%s id:%i.",cmStringNullGuard(ep->label),ep->id);
       goto errLabel;
@@ -1279,6 +1279,23 @@ cmRtRC_t cmRtSysNetReport( cmRtSysH_t h )
   return rc;
   
 }
+
+cmRtRC_t cmRtSysNetGetHandle( cmRtSysH_t h, unsigned rtSubIdx, cmRtNetH_t* hp )
+{
+  cmRtRC_t rc = kOkRtRC;
+  cmRt_t*  p  = _cmRtHandleToPtr(h);
+
+  assert( rtSubIdx < p->ssCnt );
+
+  if( rtSubIdx < p->ssCnt )
+  {
+    *hp = p->ssArray[rtSubIdx].netH;
+    return rc;
+  }   
+
+  return cmErrMsg(&p->err,kInvalidArgRtRC,"The rtSubIdx %i is out of range %i.",rtSubIdx,p->ssCnt);
+}
+
 
 
 //===========================================================================================================================
