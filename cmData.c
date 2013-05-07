@@ -1,17 +1,28 @@
+#include "cmGlobal.h"
+#include "cmRpt.h"
+#include "cmErr.h"
+#include "cmCtx.h"
 #include "cmData.h"
-
+#include "cmMem.h"
+#include "cmMallocDebug.h"
 
 cmDtRC_t _cmDataErrNo = kOkDtRC;
+
+typedef struct
+{
+  cmDataFmtId_t tid;
+  unsigned      cnt;
+} cmDataSerialHdr_t;
 
 void _cmDataFreeArray( cmData_t* p )
 {
   if(cmIsFlag(p->flags,kDynPtrDtFl))
   {
-    cmMemFree(p->vp);
-    p->vp    = NULL;
-    p->flags = cmClrFlag(p->flags,kDynPtrFl);
+    cmMemFree(p->u.vp);
+    p->u.vp    = NULL;
+    p->flags = cmClrFlag(p->flags,kDynPtrDtFl);
   }
-  p->tid = cmInvalidDtId;
+  p->tid = kInvalidDtId;
   p->cnt = 0;
 }
 
@@ -22,9 +33,10 @@ void _cmDataFree( cmData_t* p )
     cmMemFree(p);
 }
 
-unsigned _cmDataByteCount( cmData_t* p )
+unsigned _cmDataByteCount( const cmData_t* p )
 {
-  unsigned n = sizeof(cmDataSerialHdr_t)
+  unsigned n = sizeof(cmDataSerialHdr_t);
+
   switch( p->tid )
   {
     case kInvalidDtId:   return 0;
@@ -54,38 +66,41 @@ unsigned _cmDataByteCount( cmData_t* p )
     case kFloatPtrDtId:  return n + p->cnt * sizeof(float);
     case kDoublePtrDtId: return n + p->cnt * sizeof(double);
     case kVoidPtrDtId:   return n + p->cnt * sizeof(char);
+
+    default:
+      return n;
   }
   assert(0);
   return 0;
 }
 
-char            cmDataChar(      const cmData_t* p ) { assert(p->tid==kCharDtId);      p->u.c; }
-unsigned char   cmDataUChar(     const cmData_t* p ) { assert(p->tid==kUCharDtId);     p->u.uc; } 
-short           cmDataShort(     const cmData_t* p ) { assert(p->tid==kShortDtId);     p->u.s; } 
-unsigned short  cmDataUShort(    const cmData_t* p ) { assert(p->tid==kUShortDtId);    p->u.us; } 
-int             cmDataInt(       const cmData_t* p ) { assert(p->tid==kIntDtId);       p->u.i; } 
-unsigned int    cmDataUInt(      const cmData_t* p ) { assert(p->tid==kUIntDtId);      p->u.ui; } 
-long            cmDataLong(      const cmData_t* p ) { assert(p->tid==kLongDtId);      p->u.l; } 
-unsigned long   cmDataULong(     const cmData_t* p ) { assert(p->tid==kULongDtId);     p->u.ul; } 
-float           cmDataFloat(     const cmData_t* p ) { assert(p->tid==kFloatDtId);     p->u.f; } 
-double          cmDataDouble(    const cmData_t* p ) { assert(p->tid==kDoubleDtId);    p->u.d; } 
-cmChar_t*       cmDataStr(       const cmData_t* p ) { assert(p->tid==kStrDtId);       p->u.z; } 
-const cmChar_t* cmDataConstStr(  const cmData_t* p ) { assert(p->tid==kConstStrDtId);  p->u.cz; } 
-void*           cmDataVoidPtr(   const cmData_t* p ) { assert(p->tid==kVoidDtId);      p->u.vp; }
-char*           cmDataCharPtr(   const cmData_t* p ) { assert(p->tid==kCharPtrDtId);   p->u.cp; } 
-unsigned char*  cmDataUCharPtr(  const cmData_t* p ) { assert(p->tid==kUCharPtrDtId);  p->u.ucp; } 
-short*          cmDataShortPtr(  const cmData_t* p ) { assert(p->tid==kShortPtrDtId);  p->u.sp; } 
-unsigned short* cmDataUShortPtr( const cmData_t* p ) { assert(p->tid==kUShortPtrDtId); p->u.usp; } 
-int*            cmDataIntPtr(    const cmData_t* p ) { assert(p->tid==kIntPtrDtId);    p->u.ip; } 
-unsigned int*   cmDataUIntPtr(   const cmData_t* p ) { assert(p->tid==kUIntPtrDtId);   p->u.uip; } 
-long*           cmDataLongPtr(   const cmData_t* p ) { assert(p->tid==kLongPtrDtId);   p->u.lp; } 
-unsigned long*  cmDataULongPtr(  const cmData_t* p ) { assert(p->tid==kULongPtrDtId);  p->u.ulp; } 
-float*          cmDataFloatPtr(  const cmData_t* p ) { assert(p->tid==kFloatPtrDtId);  p->u.fp; } 
-double*         cmDataDoublePtr( const cmData_t* p ) { assert(p->tid==kDoublePtrDtId); p->u.dp; } 
+char            cmDataChar(      const cmData_t* p ) { assert(p->tid==kCharDtId);      return p->u.c; }
+unsigned char   cmDataUChar(     const cmData_t* p ) { assert(p->tid==kUCharDtId);     return p->u.uc; } 
+short           cmDataShort(     const cmData_t* p ) { assert(p->tid==kShortDtId);     return p->u.s; } 
+unsigned short  cmDataUShort(    const cmData_t* p ) { assert(p->tid==kUShortDtId);    return p->u.us; } 
+int             cmDataInt(       const cmData_t* p ) { assert(p->tid==kIntDtId);       return p->u.i; } 
+unsigned int    cmDataUInt(      const cmData_t* p ) { assert(p->tid==kUIntDtId);      return p->u.ui; } 
+long            cmDataLong(      const cmData_t* p ) { assert(p->tid==kLongDtId);      return p->u.l; } 
+unsigned long   cmDataULong(     const cmData_t* p ) { assert(p->tid==kULongDtId);     return p->u.ul; } 
+float           cmDataFloat(     const cmData_t* p ) { assert(p->tid==kFloatDtId);     return p->u.f; } 
+double          cmDataDouble(    const cmData_t* p ) { assert(p->tid==kDoubleDtId);    return p->u.d; } 
+cmChar_t*       cmDataStr(       const cmData_t* p ) { assert(p->tid==kStrDtId);       return p->u.z; } 
+const cmChar_t* cmDataConstStr(  const cmData_t* p ) { assert(p->tid==kConstStrDtId);  return p->u.cz; } 
+void*           cmDataVoidPtr(   const cmData_t* p ) { assert(p->tid==kVoidPtrDtId);   return p->u.vp; }
+char*           cmDataCharPtr(   const cmData_t* p ) { assert(p->tid==kCharPtrDtId);   return p->u.cp; } 
+unsigned char*  cmDataUCharPtr(  const cmData_t* p ) { assert(p->tid==kUCharPtrDtId);  return p->u.ucp; } 
+short*          cmDataShortPtr(  const cmData_t* p ) { assert(p->tid==kShortPtrDtId);  return p->u.sp; } 
+unsigned short* cmDataUShortPtr( const cmData_t* p ) { assert(p->tid==kUShortPtrDtId); return p->u.usp; } 
+int*            cmDataIntPtr(    const cmData_t* p ) { assert(p->tid==kIntPtrDtId);    return p->u.ip; } 
+unsigned int*   cmDataUIntPtr(   const cmData_t* p ) { assert(p->tid==kUIntPtrDtId);   return p->u.uip; } 
+long*           cmDataLongPtr(   const cmData_t* p ) { assert(p->tid==kLongPtrDtId);   return p->u.lp; } 
+unsigned long*  cmDataULongPtr(  const cmData_t* p ) { assert(p->tid==kULongPtrDtId);  return p->u.ulp; } 
+float*          cmDataFloatPtr(  const cmData_t* p ) { assert(p->tid==kFloatPtrDtId);  return p->u.fp; } 
+double*         cmDataDoublePtr( const cmData_t* p ) { assert(p->tid==kDoublePtrDtId); return p->u.dp; } 
 
 unsigned char   cmDataGetUChar(     const cmData_t* p )
 {
-  unsigned char v = kInvalidUChar;
+  unsigned char v = kInvalidDtUChar;
 
   switch( p->tid )
   {
@@ -107,7 +122,7 @@ unsigned char   cmDataGetUChar(     const cmData_t* p )
 
 char  cmDataGetChar( const cmData_t* p )
 {
-  char v = kInvalidChar;
+  char v = kInvalidDtChar;
 
   switch( p->tid )
   {
@@ -129,7 +144,7 @@ char  cmDataGetChar( const cmData_t* p )
 
 short           cmDataGetShort(     const cmData_t* p )
 {
-  short v = kInvalidShort;
+  short v = kInvalidDtShort;
 
   switch( p->tid )
   {
@@ -153,7 +168,7 @@ short           cmDataGetShort(     const cmData_t* p )
 
 unsigned short  cmDataGetUShort(    const cmData_t* p )
 {
-  unsigned short v = kInvalidUShort;
+  unsigned short v = kInvalidDtUShort;
 
   switch( p->tid )
   {
@@ -176,7 +191,7 @@ unsigned short  cmDataGetUShort(    const cmData_t* p )
 
 int             cmDataGetInt(       const cmData_t* p )
 {
-  int v = kInvalidInt;
+  int v = kInvalidDtInt;
 
   switch( p->tid )
   {
@@ -199,7 +214,7 @@ int             cmDataGetInt(       const cmData_t* p )
 
 unsigned int    cmDataGetUInt(      const cmData_t* p )
 {
-  unsigned int v = kInvalidUInt;
+  unsigned int v = kInvalidDtUInt;
 
   switch( p->tid )
   {
@@ -222,7 +237,7 @@ unsigned int    cmDataGetUInt(      const cmData_t* p )
 
 long            cmDataGetLong(      const cmData_t* p )
 {
-  long v = kInvalidLong;
+  long v = kInvalidDtLong;
 
   switch( p->tid )
   {
@@ -245,7 +260,7 @@ long            cmDataGetLong(      const cmData_t* p )
 
 unsigned long   cmDataGetULong(     const cmData_t* p )
 {
-  unsigned long v = kInvalidULong;
+  unsigned long v = kInvalidDtULong;
 
   switch( p->tid )
   {
@@ -268,7 +283,7 @@ unsigned long   cmDataGetULong(     const cmData_t* p )
 
 float           cmDataGetFloat(     const cmData_t* p )
 {
-  float v = kInvalidChar;
+  float v = FLT_MAX;
 
   switch( p->tid )
   {
@@ -291,7 +306,7 @@ float           cmDataGetFloat(     const cmData_t* p )
 
 double          cmDataGetDouble(    const cmData_t* p )
 {
-  double v = kInvalidChar;
+  double v = DBL_MAX;
 
   switch( p->tid )
   {
@@ -323,9 +338,6 @@ const cmChar_t* cmDataGetConstStr(  const cmData_t* p )
   assert( p->tid == kStrDtId || p->tid == kConstStrDtId); 
   return (p->tid == kStrDtId || p->tid == kConstStrDtId) ? p->u.cz : NULL; 
 }
-
-void*           cmDataGetVoidPtr(   const cmData_t* p )
-{ return cmDataVoidPtr(p); }
 
 void*           cmDataGetVoidPtr(   const cmData_t* p )
 {
@@ -388,208 +400,239 @@ double*         cmDataGetDoublePtr( const cmData_t* p )
 { return p->tid == kDoublePtrDtId ? p->u.dp : NULL; }
 
   // Set the value of an existing data object.
-void cmDataSetChar(      cmData_t* p, char v )
+cmData_t* cmDataSetChar(      cmData_t* p, char v )
 {
   _cmDataFreeArray(p);
   p->tid = kCharDtId;
   p->u.c = v;
+  return p;
 }
 
-void cmDataSetUChar(     cmData_t* p, unsigned char v )
+cmData_t* cmDataSetUChar(     cmData_t* p, unsigned char v )
 {
   _cmDataFreeArray(p);
   p->tid = kUCharDtId;
   p->u.uc = v;
+  return p;
 }
 
-void cmDataSetShort(     cmData_t* p, short v )
+cmData_t* cmDataSetShort(     cmData_t* p, short v )
 {
   _cmDataFreeArray(p);
   p->tid = kShortDtId;
   p->u.s = v;
+  return p;
 }
-void cmDataSetUShort(    cmData_t* p, unsigned short v )
+
+cmData_t* cmDataSetUShort(    cmData_t* p, unsigned short v )
 {
   _cmDataFreeArray(p);
   p->tid = kUShortDtId;
   p->u.us = v;
+  return p;
 }
-void cmDataSetInt(       cmData_t* p, int v )
+
+cmData_t* cmDataSetInt(       cmData_t* p, int v )
 {
   _cmDataFreeArray(p);
   p->tid = kCharDtId;
   p->u.c = v;
 }
-void cmDataSetUInt(      cmData_t* p, unsigned int v )
+
+cmData_t* cmDataSetUInt(      cmData_t* p, unsigned int v )
 {
   _cmDataFreeArray(p);
   p->tid = kUIntDtId;
   p->u.ui = v;
+  return p;
 }
-void cmDataSetLong(      cmData_t* p, long v )
+
+cmData_t* cmDataSetLong(      cmData_t* p, long v )
 {
   _cmDataFreeArray(p);
   p->tid = kLongDtId;
   p->u.l = v;
 }
-void cmDataSetULong(     cmData_t* p, unsigned long v )
+
+cmData_t* cmDataSetULong(     cmData_t* p, unsigned long v )
 {
   _cmDataFreeArray(p);
   p->tid = kULongDtId;
   p->u.ul = v;
+  return p;
 }
-void cmDataSetFloat(     cmData_t* p, float v )
+
+cmData_t* cmDataSetFloat(     cmData_t* p, float v )
 {
   _cmDataFreeArray(p);
   p->tid = kFloatDtId;
   p->u.f = v;
+  return p;
 }
-void cmDataSetDouble(    cmData_t* p, double v )
+
+cmData_t* cmDataSetDouble(    cmData_t* p, double v )
 {
   _cmDataFreeArray(p);
   p->tid = kDoubleDtId;
   p->u.d = v;
+  return p;
 }
 
-void cmDataSetStr(       cmData_t* p, cmChar_t* s )
+cmData_t* cmDataSetStr(       cmData_t* p, cmChar_t* s )
 {
   _cmDataFreeArray(p);
   p->tid = kStrDtId;
   p->u.z = s;
+  return p;
 }
 
-void cmDataSetConstStr(  cmData_t* p, const cmChar_t* s )
+cmData_t* cmDataSetConstStr(  cmData_t* p, const cmChar_t* s )
 {
   _cmDataFreeArray(p);
   p->tid = kConstStrDtId;
   p->u.cz = s;
+  return p;
 }
 
 // Set the value of an existing data object to an external array.
 // The array is not copied.
-void cmDataSetVoidPtr(   cmData_t* p, void* vp,          unsigned cnt )
+cmData_t* cmDataSetVoidPtr(   cmData_t* p, void* vp,          unsigned cnt )
 {
-  cmDataSetCharPtr(p,(char*),cnt);  
+  cmDataSetCharPtr(p,(char*)vp,cnt);  
+  p->tid = kVoidPtrDtId;
+  return p;
 }
 
-void cmDataSetCharPtr(   cmData_t* p, char* vp,          unsigned cnt )
+cmData_t* cmDataSetCharPtr(   cmData_t* p, char* vp,          unsigned cnt )
 {
   _cmDataFreeArray(p);
   p->tid  = kCharPtrDtId;
   p->u.cp = vp;
   p->cnt  = cnt;
+  return p;
 }
 
-void cmDataSetUCharPtr(  cmData_t* p, unsigned char* vp,  unsigned cnt )
+cmData_t* cmDataSetUCharPtr(  cmData_t* p, unsigned char* vp,  unsigned cnt )
 {
   _cmDataFreeArray(p);
   p->tid  = kUCharPtrDtId;
   p->u.ucp = vp;
   p->cnt  = cnt;
+  return p;
 }
 
-void cmDataSetShortPtr(  cmData_t* p, short* vp,          unsigned cnt )
+cmData_t* cmDataSetShortPtr(  cmData_t* p, short* vp,          unsigned cnt )
 {
   _cmDataFreeArray(p);
   p->tid  = kShortPtrDtId;
   p->u.sp = vp;
   p->cnt  = cnt;
+  return p;
 }
 
-void cmDataSetUShortPtr( cmData_t* p, unsigned short* vp, unsigned cnt )
+cmData_t* cmDataSetUShortPtr( cmData_t* p, unsigned short* vp, unsigned cnt )
 {
   _cmDataFreeArray(p);
   p->tid   = kUShortPtrDtId;
   p->u.usp = vp;
   p->cnt   = cnt;
+  return p;
 }
 
-void cmDataSetIntPtr(    cmData_t* p, int* vp,            unsigned cnt )
+cmData_t* cmDataSetIntPtr(    cmData_t* p, int* vp,            unsigned cnt )
 {
   _cmDataFreeArray(p);
   p->tid  = kCharPtrDtId;
-  p->u.cp = vp;
+  p->u.ip = vp;
   p->cnt  = cnt;
+  return p;
 }
 
-void cmDataSetUIntPtr(   cmData_t* p, unsigned int* vp,   unsigned cnt )
+cmData_t* cmDataSetUIntPtr(   cmData_t* p, unsigned int* vp,   unsigned cnt )
 {
   _cmDataFreeArray(p);
   p->tid   = kUIntPtrDtId;
   p->u.uip = vp;
   p->cnt   = cnt;
+  return p;
 }
 
-void cmDataSetLongPtr(   cmData_t* p, long* vp,           unsigned cnt )
+cmData_t* cmDataSetLongPtr(   cmData_t* p, long* vp,           unsigned cnt )
 {
   _cmDataFreeArray(p);
   p->tid  = kLongPtrDtId;
   p->u.lp = vp;
   p->cnt  = cnt;
+  return p;
 }
 
-void cmDataSetULongPtr(  cmData_t* p, unsigned long* vp,  unsigned cnt )
+cmData_t* cmDataSetULongPtr(  cmData_t* p, unsigned long* vp,  unsigned cnt )
 {
   _cmDataFreeArray(p);
   p->tid   = kULongPtrDtId;
   p->u.ulp = vp;
   p->cnt   = cnt;
+  return p;
 }
 
-void cmDataSetFloatPtr(  cmData_t* p, float* vp,          unsigned cnt )
+cmData_t* cmDataSetFloatPtr(  cmData_t* p, float* vp,          unsigned cnt )
 {
   _cmDataFreeArray(p);
   p->tid  = kFloatPtrDtId;
   p->u.fp = vp;
   p->cnt  = cnt;
+  return p;
 }
 
-void cmDataSetDoublePtr( cmData_t* p, double* vp,         unsigned cnt )
+cmData_t* cmDataSetDoublePtr( cmData_t* p, double* vp,         unsigned cnt )
 {
   _cmDataFreeArray(p);
   p->tid  = kDoublePtrDtId;
   p->u.dp = vp;
   p->cnt  = cnt;
+  return p;
 }
 
 // Set the value of an existing array based data object. 
 // Allocate the internal array and copy the array into it.
-void cmDataSetStrAlloc( cmData_t* p, const cmChar_t* s )
+cmData_t* cmDataSetStrAlloc( cmData_t* p, const cmChar_t* s )
 {
   if( cmIsFlag(p->flags,kDynPtrDtFl) )
     cmMemResizeStr(p->u.z,s);
   else
   {
     _cmDataFreeArray(p);
-    cmMemAllocStr(p->u.z,s);
+    p->u.z = cmMemAllocStr(s);
   }
   p->tid    = kStrDtId;
   p->flags  = cmSetFlag(p->flags,kDynPtrDtFl);
+  return p;
 }
 
-void cmDataSetConstStrAlloc(  cmData_t* p, const cmChar_t* s )
-{ cmDataSetStrAlloc(p,s); }
+cmData_t* cmDataSetConstStrAlloc(  cmData_t* p, const cmChar_t* s )
+{ return cmDataSetStrAlloc(p,s); }
 
-void cmDataSetVoidAllocPtr(   cmData_t* p, const void* vp, unsigned cnt )
-{ cmDataSetCharAllocPtr(p,(char*)vp,cnt); }
+cmData_t* cmDataSetVoidAllocPtr(   cmData_t* p, const void* vp, unsigned cnt )
+{ return cmDataSetCharAllocPtr(p,(char*)vp,cnt); }
 
-void cmDataSetCharAllocPtr(  cmData_t* p, const char* vp,  unsigned cnt )
+cmData_t* cmDataSetCharAllocPtr(  cmData_t* p, const char* vp,  unsigned cnt )
 {
   if( cmIsFlag(p->flags,kDynPtrDtFl) )
-    cmMemResize(char, p->u.ucp, cnt );
+    p->u.cp = cmMemResize(char, p->u.cp, cnt );
   else
   {
     _cmDataFreeArray(p);
-    p->u.ucp = cmMemAlloc(char, cnt );
+    p->u.cp = cmMemAlloc(char, cnt );
   }
   p->tid   = kCharPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  return p;
 }
 
-void cmDataSetUCharAllocPtr(  cmData_t* p, const unsigned char* vp,  unsigned cnt )
+cmData_t* cmDataSetUCharAllocPtr(  cmData_t* p, const unsigned char* vp,  unsigned cnt )
 {
   if( cmIsFlag(p->flags,kDynPtrDtFl) )
-    cmMemResize(unsigned char, p->u.ucp, cnt );
+    p->u.ucp = cmMemResize(unsigned char, p->u.ucp, cnt );
   else
   {
     _cmDataFreeArray(p);
@@ -597,119 +640,127 @@ void cmDataSetUCharAllocPtr(  cmData_t* p, const unsigned char* vp,  unsigned cn
   }
   p->tid   = kUCharPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  return p;
 }
 
-void cmDataSetShortAllocPtr(  cmData_t* p, const short* vp,          unsigned cnt )
+cmData_t* cmDataSetShortAllocPtr(  cmData_t* p, const short* vp,          unsigned cnt )
 {
   if( cmIsFlag(p->flags,kDynPtrDtFl) )
-    cmMemResize(short, p->u.ucp, cnt );
+    p->u.sp = cmMemResize(short, p->u.sp, cnt );
   else
   {
     _cmDataFreeArray(p);
-    p->u.ucp = cmMemAlloc(short, cnt );
+    p->u.sp = cmMemAlloc(short, cnt );
   }
   p->tid   = kShortPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  return p;
 }
 
-void cmDataSetUShortAllocPtr( cmData_t* p, const unsigned short* vp, unsigned cnt )
+cmData_t* cmDataSetUShortAllocPtr( cmData_t* p, const unsigned short* vp, unsigned cnt )
 {
   if( cmIsFlag(p->flags,kDynPtrDtFl) )
-    cmMemResize(unsigned short, p->u.ucp, cnt );
+    p->u.usp = cmMemResize(unsigned short, p->u.usp, cnt );
   else
   {
     _cmDataFreeArray(p);
-    p->u.ucp = cmMemAlloc(unsigned short, cnt );
+    p->u.usp = cmMemAlloc(unsigned short, cnt );
   }
   p->tid   = kUShortPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
 }
 
-void cmDataSetIntAllocPtr(    cmData_t* p, const int* vp,            unsigned cnt )
+cmData_t* cmDataSetIntAllocPtr(    cmData_t* p, const int* vp,            unsigned cnt )
 {
   if( cmIsFlag(p->flags,kDynPtrDtFl) )
-    cmMemResize(int, p->u.ucp, cnt );
+    p->u.ip = cmMemResize(int, p->u.ip, cnt );
   else
   {
     _cmDataFreeArray(p);
-    p->u.ucp = cmMemAlloc(int, cnt );
+    p->u.ip = cmMemAlloc(int, cnt );
   }
   p->tid   = kIntPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  return p;
 }
 
-void cmDataSetUIntAllocPtr(   cmData_t* p, const unsigned int* vp,   unsigned cnt )
+cmData_t* cmDataSetUIntAllocPtr(   cmData_t* p, const unsigned int* vp,   unsigned cnt )
 {
   if( cmIsFlag(p->flags,kDynPtrDtFl) )
-    cmMemResize(unsigned int, p->u.ucp, cnt );
+    p->u.uip = cmMemResize(unsigned int, p->u.uip, cnt );
   else
   {
     _cmDataFreeArray(p);
-    p->u.ucp = cmMemAlloc(unsigned int, cnt );
+    p->u.uip = cmMemAlloc(unsigned int, cnt );
   }
   p->tid   = kUIntPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  return p;
 }
 
 
-void cmDataSetLongAllocPtr(   cmData_t* p, const long* vp,           unsigned cnt )
+cmData_t* cmDataSetLongAllocPtr(   cmData_t* p, const long* vp,           unsigned cnt )
 {
   if( cmIsFlag(p->flags,kDynPtrDtFl) )
-    cmMemResize(long, p->u.ucp, cnt );
+    p->u.lp = cmMemResize(long, p->u.lp, cnt );
   else
   {
     _cmDataFreeArray(p);
-    p->u.ucp = cmMemAlloc(long, cnt );
+    p->u.lp = cmMemAlloc(long, cnt );
   }
   p->tid   = kLongPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  return p;
 }
 
 
-void cmDataSetULongAllocPtr(  cmData_t* p, const unsigned long* vp,  unsigned cnt )
+cmData_t* cmDataSetULongAllocPtr(  cmData_t* p, const unsigned long* vp,  unsigned cnt )
 {
   if( cmIsFlag(p->flags,kDynPtrDtFl) )
-    cmMemResize(unsigned long, p->u.ucp, cnt );
+    p->u.ulp = cmMemResize(unsigned long, p->u.ulp, cnt );
   else
   {
     _cmDataFreeArray(p);
-    p->u.ucp = cmMemAlloc(unsigned long, cnt );
+    p->u.ulp = cmMemAlloc(unsigned long, cnt );
   }
   p->tid   = kULongPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  return p;
 }
 
 
-void cmDataSetFloatAllocPtr(  cmData_t* p, const float* vp,          unsigned cnt )
+cmData_t* cmDataSetFloatAllocPtr(  cmData_t* p, const float* vp,          unsigned cnt )
 {
   if( cmIsFlag(p->flags,kDynPtrDtFl) )
-    cmMemResize(float, p->u.ucp, cnt );
+    p->u.fp = cmMemResize(float, p->u.fp, cnt );
   else
   {
     _cmDataFreeArray(p);
-    p->u.ucp = cmMemAlloc(float, cnt );
+    p->u.fp = cmMemAlloc(float, cnt );
   }
   p->tid   = kFloatPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  return p;
 }
 
 
-void cmDataSetDoubleAllocPtr( cmData_t* p, const double* vp,         unsigned cnt )
+cmData_t* cmDataSetDoubleAllocPtr( cmData_t* p, const double* vp,         unsigned cnt )
 {
   if( cmIsFlag(p->flags,kDynPtrDtFl) )
-    cmMemResize(double, p->u.ucp, cnt );
+    p->u.dp = cmMemResize(double, p->u.dp, cnt );
   else
   {
     _cmDataFreeArray(p);
-    p->u.ucp = cmMemAlloc(double, cnt );
+    p->u.dp = cmMemAlloc(double, cnt );
   }
   p->tid   = kDoublePtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  return p;
 }
 
   
 
-  // Dynamically allocate a data object and set it's value.
+// Dynamically allocate a data object and set it's value.
 cmData_t* cmDataAllocChar(   char v )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
@@ -784,93 +835,94 @@ cmData_t* cmDataAllocDouble( double v )
 cmData_t* cmDataAllocStr( cmChar_t* str )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetStr(p,v);
+  cmDataSetStr(p,str);
   return p;
 }
 
 cmData_t* cmDataAllocConstStr( const cmChar_t* str )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetConstStr(p,v);
+  cmDataSetConstStr(p,str);
   return p;
 }
 
 // Dynamically allocate a data object and set its array value to an external
 // array. The data is not copied.
-cmData_t* cmDataAllocVoidPtr(   const void* v,           unsigned cnt );
+cmData_t* cmDataAllocVoidPtr(   const void* v,           unsigned cnt )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetCharPtr(p,(const char*)v,cnt);
+  cmDataSetCharPtr(p,(char*)v,cnt);
+  p->tid = kVoidPtrDtId;
   return p;
 }
 
 cmData_t* cmDataAllocCharPtr(   const char* v,           unsigned cnt )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetCharPtr(p,v,cnt);
+  cmDataSetCharPtr(p,(char*)v,cnt);
   return p;
 }
 
-  cmData_t* cmDataAllocUCharPtr(  const unsigned char* v,  unsigned cnt )
+cmData_t* cmDataAllocUCharPtr(  const unsigned char* v,  unsigned cnt )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetUCharPtr(p,v,cnt);
+  cmDataSetUCharPtr(p,(unsigned char*)v,cnt);
   return p;
 }
 
-  cmData_t* cmDataAllocShortPtr(  const short* v,          unsigned cnt )
+cmData_t* cmDataAllocShortPtr(  const short* v,          unsigned cnt )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetShortPtr(p,v,cnt);
+  cmDataSetShortPtr(p,(short*)v,cnt);
   return p;
 }
 
-  cmData_t* cmDataAllocUShortPtr( const unsigned short* v, unsigned cnt )
+cmData_t* cmDataAllocUShortPtr( const unsigned short* v, unsigned cnt )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetUShortPtr(p,v,cnt);
+  cmDataSetUShortPtr(p,(unsigned short*)v,cnt);
   return p;
 }
 
-  cmData_t* cmDataAllocIntPtr(    const int* v,            unsigned cnt )
+cmData_t* cmDataAllocIntPtr(    const int* v,            unsigned cnt )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetIntPtr(p,v,cnt);
+  cmDataSetIntPtr(p,(int*)v,cnt);
   return p;
 }
 
-  cmData_t* cmDataAllocUIntPtr(   const unsigned int* v,   unsigned cnt )
+cmData_t* cmDataAllocUIntPtr(   const unsigned int* v,   unsigned cnt )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetUIntPtr(p,v,cnt);
+  cmDataSetUIntPtr(p,(unsigned int*)v,cnt);
   return p;
 }
 
-  cmData_t* cmDataAllocLongPtr(   const long* v,           unsigned cnt )
+cmData_t* cmDataAllocLongPtr(   const long* v,           unsigned cnt )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetLongPtr(p,v,cnt);
+  cmDataSetLongPtr(p,(long*)v,cnt);
   return p;
 }
 
-  cmData_t* cmDataAllocULongPtr(  const unsigned long* v,  unsigned cnt )
+cmData_t* cmDataAllocULongPtr(  const unsigned long* v,  unsigned cnt )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetULongPtr(p,v,cnt);
+  cmDataSetULongPtr(p,(unsigned long*)v,cnt);
   return p;
 }
 
-  cmData_t* cmDataAllocFloatPtr(  const float* v,          unsigned cnt )
+cmData_t* cmDataAllocFloatPtr(  const float* v,          unsigned cnt )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetFloatPtr(p,v,cnt);
+  cmDataSetFloatPtr(p,(float*)v,cnt);
   return p;
 }
 
-  cmData_t* cmDataAllocDoublePtr( const double* v,         unsigned cnt )
+cmData_t* cmDataAllocDoublePtr( const double* v,         unsigned cnt )
 {
   cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetDoublePtr(p,v,cnt);
+  cmDataSetDoublePtr(p,(double*)v,cnt);
   return p;
 }
 
@@ -956,7 +1008,7 @@ cmData_t* cmDataDoubleAllocPtr( const double* v,         unsigned cnt )
 }
 
 
-void cmDataFree( cmData_t* p )
+void  cmDataFree( cmData_t* p )
 {
   _cmDataFree(p);
 }
@@ -969,7 +1021,7 @@ unsigned cmDataSerializeByteCount( const cmData_t* p )
 
   // if this data type has a child then calculate it's size
   if( kMinStructDtId <= p->tid && p->tid <= kMaxStructDtId && p->u.child != NULL )
-    bn = cmDataSerializeByteCount(p->child);
+    bn = cmDataSerializeByteCount(p->u.child);
   
   // if this data type has siblings get their type
   cmData_t* dp = p->u.child;
@@ -980,11 +1032,6 @@ unsigned cmDataSerializeByteCount( const cmData_t* p )
   return  _cmDataByteCount(p) + bn;
 }
 
-typedef struct
-{
-  cmDataFmtId_t tid;
-  unsigned      cnt;
-} cmDataSerialHdr_t;
 
 
 cmDtRC_t cmDataSerialize( const cmData_t* p, void* buf, unsigned bufByteCnt )

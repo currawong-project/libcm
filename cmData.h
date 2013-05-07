@@ -13,9 +13,9 @@ extern "C" {
 
   enum
   {
-    kInvalidDtChar  = 0xff,
-    kInvalidDtUChar = 0xff,
-    kInvalidDtShort = 0xffff,
+    kInvalidDtChar   = 0xff,
+    kInvalidDtUChar  = 0xff,
+    kInvalidDtShort  = 0xffff,
     kInvalidDtUShort = 0xffff,
     kInvalidDtInt    = 0xffffffff,
     kInvalidDtUInt   = 0xffffffff,
@@ -172,48 +172,49 @@ extern "C" {
 
 
   // Set the value of an existing data object.
-  void cmDataSetChar(      cmData_t* p, char v );
-  void cmDataSetUChar(     cmData_t* p, unsigned char v );
-  void cmDataSetShort(     cmData_t* p, short v );
-  void cmDataSetUShort(    cmData_t* p, unsigned short v );
-  void cmDataSetInt(       cmData_t* p, int v );
-  void cmDataSetUInt(      cmData_t* p, unsigned int v );
-  void cmDataSetLong(      cmData_t* p, long v );
-  void cmDataSetULong(     cmData_t* p, unsigned long v );
-  void cmDataSetFloat(     cmData_t* p, float v );
-  void cmDataSetDouble(    cmData_t* p, double v );
-  void cmDataSetStr(       cmData_t* p, cmChar_t* s );
-  void cmDataSetConstStr(  cmData_t* p, const cmChar_t* s );
+  cmData_t* cmDataSetChar(      cmData_t* p, char v );
+  cmData_t* cmDataSetUChar(     cmData_t* p, unsigned char v );
+  cmData_t* cmDataSetShort(     cmData_t* p, short v );
+  cmData_t* cmDataSetUShort(    cmData_t* p, unsigned short v );
+  cmData_t* cmDataSetInt(       cmData_t* p, int v );
+  cmData_t* cmDataSetUInt(      cmData_t* p, unsigned int v );
+  cmData_t* cmDataSetLong(      cmData_t* p, long v );
+  cmData_t* cmDataSetULong(     cmData_t* p, unsigned long v );
+  cmData_t* cmDataSetFloat(     cmData_t* p, float v );
+  cmData_t* cmDataSetDouble(    cmData_t* p, double v );
+  cmData_t* cmDataSetStr(       cmData_t* p, cmChar_t* s );
+  cmData_t* cmDataSetConstStr(  cmData_t* p, const cmChar_t* s );
 
   // Set the value of an existing data object to an external array.
   // The array is not copied.
-  void cmDataSetVoidPtr(   cmData_t* p, void* vp,           unsigned cnt );
-  void cmDataSetCharPtr(   cmData_t* p, char* vp,           unsigned cnt );
-  void cmDataSetUCharPtr(  cmData_t* p, unsigned char* vp,  unsigned cnt );
-  void cmDataSetShortPtr(  cmData_t* p, short* vp,          unsigned cnt );
-  void cmDataSetUShortPtr( cmData_t* p, unsigned short* vp, unsigned cnt );
-  void cmDataSetIntPtr(    cmData_t* p, int* vp,            unsigned cnt );
-  void cmDataSetUIntPtr(   cmData_t* p, unsigned int* vp,   unsigned cnt );
-  void cmDataSetLongPtr(   cmData_t* p, long* vp,           unsigned cnt );
-  void cmDataSetULongPtr(  cmData_t* p, unsigned long* vp,  unsigned cnt );
-  void cmDataSetFloatPtr(  cmData_t* p, float* vp,          unsigned cnt );
-  void cmDataSetDoublePtr( cmData_t* p, double* vp,         unsigned cnt );
+  cmData_t* cmDataSetVoidPtr(   cmData_t* p, void* vp,           unsigned cnt );
+  cmData_t* cmDataSetCharPtr(   cmData_t* p, char* vp,           unsigned cnt );
+  cmData_t* cmDataSetUCharPtr(  cmData_t* p, unsigned char* vp,  unsigned cnt );
+  cmData_t* cmDataSetShortPtr(  cmData_t* p, short* vp,          unsigned cnt );
+  cmData_t* cmDataSetUShortPtr( cmData_t* p, unsigned short* vp, unsigned cnt );
+  cmData_t* cmDataSetIntPtr(    cmData_t* p, int* vp,            unsigned cnt );
+  cmData_t* cmDataSetUIntPtr(   cmData_t* p, unsigned int* vp,   unsigned cnt );
+  cmData_t* cmDataSetLongPtr(   cmData_t* p, long* vp,           unsigned cnt );
+  cmData_t* cmDataSetULongPtr(  cmData_t* p, unsigned long* vp,  unsigned cnt );
+  cmData_t* cmDataSetFloatPtr(  cmData_t* p, float* vp,          unsigned cnt );
+  cmData_t* cmDataSetDoublePtr( cmData_t* p, double* vp,         unsigned cnt );
 
   // Set the value of an existing array based data object. 
   // Allocate the internal array and copy the array into it.
-  void cmDataSetStrAlloc(       cmData_t* p, const cmChar_t* s );
-  void cmDataSetConstStrAlloc(  cmData_t* p, const cmChar_t* s );
-  void cmDataSetVoidAllocPtr(   cmData_t* p, const void* vp,           unsigned cnt );
-  void cmDataSetCharAllocPtr(   cmData_t* p, const char* vp,           unsigned cnt );
-  void cmDataSetUCharAllocPtr(  cmData_t* p, const unsigned char* vp,  unsigned cnt );
-  void cmDataSetShortAllocPtr(  cmData_t* p, const short* vp,          unsigned cnt );
-  void cmDataSetUShortAllocPtr( cmData_t* p, const unsigned short* vp, unsigned cnt );
-  void cmDataSetIntAllocPtr(    cmData_t* p, const int* vp,            unsigned cnt );
-  void cmDataSetUIntAllocPtr(   cmData_t* p, const unsigned int* vp,   unsigned cnt );
-  void cmDataSetLongAllocPtr(   cmData_t* p, const long* vp,           unsigned cnt );
-  void cmDataSetULongAllocPtr(  cmData_t* p, const unsigned long* vp,  unsigned cnt );
-  void cmDataSetFloatAllocPtr(  cmData_t* p, const float* vp,          unsigned cnt );
-  void cmDataSetDoubleAllocPtr( cmData_t* p, const double* vp,         unsigned cnt );
+  cmData_t* cmDataSetStrAlloc(       cmData_t* p, const cmChar_t* s );
+  cmData_t* cmDataSetConstStrAlloc(  cmData_t* p, const cmChar_t* s );
+  cmData_t* cmDataSetVoidAllocPtr(   cmData_t* p, const void* vp,           unsigned cnt );
+  cmData_t* cmDataSetCharAllocPtr(   cmData_t* p, const char* vp,           unsigned cnt );
+  cmData_t* cmDataSetUCharAllocPtr(  cmData_t* p, const unsigned char* vp,  unsigned cnt );
+  cmData_t* cmDataSetShortAllocPtr(  cmData_t* p, const short* vp,          unsigned cnt );
+  cmData_t* cmDataSetUShortAllocPtr( cmData_t* p, const unsigned short* vp, unsigned cnt );
+  cmData_t* cmDataSetIntAllocPtr(    cmData_t* p, const int* vp,            unsigned cnt );
+  cmData_t* cmDataSetUIntAllocPtr(   cmData_t* p, const unsigned int* vp,   unsigned cnt );
+  cmData_t* cmDataSetLongAllocPtr(   cmData_t* p, const long* vp,           unsigned cnt );
+
+  cmData_t* cmDataSetULongAllocPtr(  cmData_t* p, const unsigned long* vp,  unsigned cnt );
+  cmData_t* cmDataSetFloatAllocPtr(  cmData_t* p, const float* vp,          unsigned cnt );
+  cmData_t* cmDataSetDoubleAllocPtr( cmData_t* p, const double* vp,         unsigned cnt );
   
 
   // Dynamically allocate a data object and set it's value.
@@ -258,6 +259,102 @@ extern "C" {
   cmData_t* cmDataULongAllocPtr(  const unsigned long* v,  unsigned cnt );
   cmData_t* cmDataFloatAllocPtr(  const float* v,          unsigned cnt );
   cmData_t* cmDataDoubleAllocPtr( const double* v,         unsigned cnt );
+
+  //----------------------------------------------------------------------------
+  // Structure related functions
+  //
+
+  // Unlink 'p' from its parents and siblings.
+  cmData_t* cmDataUnlink( cmData_t* p );
+
+  unsigned  cmDataChildCount( cmData_t* p );
+  cmData_t* cmDataChild( cmData_t* p, unsigned index );
+
+  cmData_t* cmDataPrependChild(cmData_t* parent, cmData_t* parent );
+  cmData_t* cmDataAppendChild( cmData_t* parent, cmData_t* child );
+  cmData_t* cmDataInsertChild( cmData_t* parent, cmData_t* child, unsigned index );
+
+
+  //----------------------------------------------------------------------------
+  // Pair related functions
+  //
+  
+  // Get the key/value of a pair
+  cmData_t* cmDataPairKey(          cmData_t* p );
+  cmData_t* cmDataPairValue(        cmData_t* p );
+  
+  // Set the key or value of an existing pair node. 
+  cmData_t* cmDataPairSetValue(     cmData_t* p, cmData_t* value );
+  cmData_t* cmDataPairAllocValue(   cmData_t* p, const cmData_t* value );
+
+  cmData_t* cmDataPairSetKey(       cmData_t* p, cmData_t* key );
+  cmData_t* cmDataPairSetKeyId(     cmData_t* p, unsigned id );
+  cmData_t* cmDataPairSetKeyLabel(  cmData_t* p, const cmChar_t* label );
+  cmData_t* cmDataPairAllocKey(     cmData_t* p, const cmData_t* key );
+
+  // Dynamically allocate a pair node 
+  cmData_t* cmDataAllocPair(      cmData_t* parent, const cmData_t* key,  const cmData_t* value );
+  cmData_t* cmDataAllocPairId(    cmData_t* parent, unsigned  keyId,      cmData_t* value );
+  cmData_t* cmDataAllocPairLabel( cmData_t* parent, const cmChar_t label, cmData_t* value );
+
+  //----------------------------------------------------------------------------
+  // List related functions
+  //
+  
+  // Return the count of ele's in the list.
+  cmData_t* cmDataListCount(  const cmData_t* p );
+
+  // Return the ith element in the list.
+  cmData_t* cmDataListEle(    const cmData_t* p, unsigned index );
+
+  cmData_t* cmDataListMake(  cmData_t* parent, cmData_t* p );
+  cmData_t* cmDataListAlloc( cmData_t* parent);
+
+
+  // Var-args fmt:
+  // <typeId> <value> {<cnt>}
+  // scalar types: <value> is literal,<cnt>   is not included
+  // ptr    types: <value> is pointer,<cnt>   is element count
+  // struct types: <value> is cmData_t, <cnt> is not included
+  cmData_t* cmDataListAllocV(cmData_t* parent, va_list vl );
+  cmData_t* cmDataListAllocA(cmData_t* parent,  ... );
+  
+
+  cmData_t* cmDataListAppendEle( cmData_t* p, cmData_t* ele );
+  cmData_t* cmDataListAppendEleN(cmData_t* p, cmData_t* ele[], unsigned n );
+  cmDtRC_t  cmDataListAppendV(   cmData_t* p, va_list vl );
+  cmDtRC_t  cmDataListAppend(    cmData_t* p, ... );
+
+  cmData_t* cmDataListInsertEle( cmData_t* p, unsigned index, cmData_t* ele );
+  cmData_t* cmDataListInsertEleN(cmData_t* p, cmData_t* ele[], unsigned n );
+  cmDtRC_t  cmDataListInsertV(   cmData_t* p, va_list vl );
+  cmDtRC_t  cmDataListInsert(    cmData_t* p, unsigned index, ... );
+
+ 
+  cmData_t* cmDataListUnlink( cmData_t* p, unsigned index );
+  cmData_t* cmDataListFree(   cmData_t* p, unsigned index );
+
+  //----------------------------------------------------------------------------
+  // Record related functions
+  //
+
+  // Return count of pairs.
+  cmData_t*       cmDataRecdCount(    const cmData_t* p );
+
+  // Return the ith pair.
+  cmData_t*       cmDataRecdEle(      const cmData_t* p, unsigned index );
+
+  // Return the ith value.
+  cmData_t*       cmDataRecdValue(    const cmData_t* p, unsigned index );
+
+  // Return the ith key
+  cmData_t*       cmDataRecdKey(      const cmData_t* p, unsigned index );
+  unsigned        cmDataRecdKeyId(    const cmData_t* p, unsigned index );
+  const cmChar_t* cmDataRecdKeyLabel( const cmData_t* p, unsigned index );
+  
+  cmData_t*       cmRecdMake( cmData_t* p );
+  cmData_t*       cmRecdAlloc();
+  
 
   
 
