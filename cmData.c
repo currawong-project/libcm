@@ -74,6 +74,15 @@ unsigned _cmDataByteCount( const cmData_t* p )
   return 0;
 }
 
+bool cmIsValue(  const cmData_t* p )
+{ return kMinValDtId <= p->tid && p->tid <= kMaxValDtId; }
+
+bool cmIsPtr(    const cmData_t* p )
+{ return kMinPtrDtId <= p->tid && p->tid <= kMaxPtrDtId; }
+
+bool cmIsStruct( const cmData_t* p )
+{ return kMinStructDtId <= p->tid && p->tid <= kMaxStructDtId; }
+
 char            cmDataChar(      const cmData_t* p ) { assert(p->tid==kCharDtId);      return p->u.c; }
 unsigned char   cmDataUChar(     const cmData_t* p ) { assert(p->tid==kUCharDtId);     return p->u.uc; } 
 short           cmDataShort(     const cmData_t* p ) { assert(p->tid==kShortDtId);     return p->u.s; } 
@@ -1013,6 +1022,179 @@ void  cmDataFree( cmData_t* p )
   _cmDataFree(p);
 }
 
+cmData_t* cmDataUnlink( cmData_t* p )
+{
+  if( p->parent == NULL )
+    return p;
+
+  assert( cmDataIsStruct(p->parent) );
+
+  cmData_t* cp = p->u.child;
+  cmData_t* pp = NULL;
+  for(; cp!=NULL; cp=cp->sibling)
+    if( cp == p )
+    {
+      if( pp == NULL )
+        p->parent->u.child = p->sibling;
+      else
+        pp->sibling = cp->sibling;
+    }
+  return p;
+}
+
+unsigned cmDataChildCount( const cmData_t* p )
+{
+  if( !cmDataIsStruct(p) )
+    return 0;
+
+  unsigned n = 0;
+  const cmData_t* cp = p->u.child;
+  for(; cp!=NULL; cp=cp->sibling)
+    ++n;
+
+  return n;
+}
+
+cmData_t* cmDataChild( cmData_t* p, unsigned index )
+{
+  if( !cmDataIsStruct(p) )
+    return NULL;
+
+  unsigned  n  = 0;
+  cmData_t* cp = p->u.child;
+  for(; cp!=NULL; cp=cp->sibling)
+  {
+    if( n == index )
+      break;
+    ++n;
+  }
+
+  return cp;
+}
+
+cmData_t* cmDataPrependChild(cmData_t* parent, cmData_t* p )
+{
+  assert( cmDataIsStruct(p) );
+  
+  p->u.child    = parent->u.child;
+  parent->u.child = p;
+  return p;
+}
+
+cmData_t* cmDataAppendChild( cmData_t* parent, cmData_t* p )
+{
+  assert( cmDataIsStruct(p) );
+
+  cmData_t* cp = parent->u.child;
+  if( cp == NULL )
+    parent->u.child = p;
+  else
+  {
+    for(; cp!=NULL; cp=cp->sibling)
+      if( cp->sibling == NULL )
+      {
+        cp->sibling = p;
+        break;
+      }
+  }
+
+  p->sibling = NULL;
+  return p;
+}
+
+cmData_t* cmDataInsertChild( cmData_t* parent, cmData_t* p, unsigned index )
+{
+  if( !cmDataIsStruct(parent) )
+    return NULL;
+
+  unsigned  n  = 0;
+  cmData_t* cp = parent->u.child;
+  cmData_t* pp = NULL;
+  for(; cp!=NULL; cp=cp->sibling)
+  {
+    if( n == index )
+    {
+      if( pp == NULL )
+      {
+        parent->u.child = p;
+        p->sibling = NULL;
+      }
+      else
+      {
+        p->sibling  = pp->sibling;
+        pp->sibling = p;
+      }
+      break;
+        
+    }
+    ++n;
+  }
+
+  return p;
+  
+}
+
+//----------------------------------------------------------------------------
+
+bool _cmDataPairIsValid( const cmData_t* p )
+{
+  assert( p->tid == kPairDtId );
+
+  const cmData_t* cp = p->u.child;
+  bool fl = cp->u.child == NULL || cp->u.child->sibling == NULL || cp->u.child->sibling->sibling!=NULL;
+  return !fl;
+}
+
+// Get the key/value of a pair
+cmData_t* cmDataPairKey(          cmData_t* p )
+{
+  assert( _cmDataPairIsValid(p) );
+  return p->u.child;
+}
+
+cmData_t* cmDataPairValue(        cmData_t* p )
+{
+  assert( _cmDataPairIsValid(p) );
+  return p->u.child->sibling;
+}
+    
+  // Set the key or value of an existing pair node. 
+cmData_t* cmDataPairSetValue(     cmData_t* p, cmData_t* value )
+{
+}
+
+cmData_t* cmDataPairAllocValue(   cmData_t* p, const cmData_t* value )
+{
+}
+
+cmData_t* cmDataPairSetKey(       cmData_t* p, cmData_t* key )
+{
+}
+
+cmData_t* cmDataPairSetKeyId(     cmData_t* p, unsigned id )
+{
+}
+
+cmData_t* cmDataPairSetKeyLabel(  cmData_t* p, const cmChar_t* label )
+{
+}
+
+cmData_t* cmDataPairAllocKey(     cmData_t* p, const cmData_t* key )
+{
+}
+
+// Dynamically allocate a pair node 
+cmData_t* cmDataAllocPair(      cmData_t* parent, const cmData_t* key,  const cmData_t* value )
+{
+}
+
+cmData_t* cmDataAllocPairId(    cmData_t* parent, unsigned  keyId,      cmData_t* value )
+{
+}
+
+cmData_t* cmDataAllocPairLabel( cmData_t* parent, const cmChar_t label, cmData_t* value )
+{
+}
   
   
 unsigned cmDataSerializeByteCount( const cmData_t* p )

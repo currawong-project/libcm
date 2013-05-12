@@ -27,7 +27,9 @@ extern "C" {
   {
     kInvalidDtId,
 
-    kNullDtId,
+    kMinValDtId,
+
+    kNullDtId = kMinValDtId,
 
     kUCharDtId,
     kCharDtId,
@@ -42,6 +44,7 @@ extern "C" {
 
     kStrDtId,
     kConstStrDtId,
+    kMaxValDtId = kConstStrDtId,
 
     kMinPtrDtId,
     kUCharPtrDtId = kMinPtrDtId,  // cnt=array element count
@@ -116,6 +119,11 @@ extern "C" {
   } cmData_t;
 
   typedef unsigned cmDtRC_t;
+
+  bool cmDataIsValue(  const cmData_t* p );
+  bool cmDataIsPtr(    const cmData_t* p );
+  bool cmDataIsStruct( const cmData_t* p );
+  
 
   // Get the value of an object without conversion.
   // The data type id must match the return type or the
@@ -265,14 +273,24 @@ extern "C" {
   //
 
   // Unlink 'p' from its parents and siblings.
+  // Asserts if parent is not a structure. 
+  // Returns 'p'.
   cmData_t* cmDataUnlink( cmData_t* p );
 
-  unsigned  cmDataChildCount( cmData_t* p );
+  unsigned  cmDataChildCount( const cmData_t* p );
+
+  // Returns NULL if p has no children or index is invalid.
   cmData_t* cmDataChild( cmData_t* p, unsigned index );
 
-  cmData_t* cmDataPrependChild(cmData_t* parent, cmData_t* parent );
-  cmData_t* cmDataAppendChild( cmData_t* parent, cmData_t* child );
-  cmData_t* cmDataInsertChild( cmData_t* parent, cmData_t* child, unsigned index );
+  // Prepend 'p' to 'parents' child list.
+  cmData_t* cmDataPrependChild(cmData_t* parent, cmData_t* p );
+
+  // Append 'p' to the end of 'parent' child list.
+  cmData_t* cmDataAppendChild( cmData_t* parent, cmData_t* p );
+
+  // Insert 'p' at index.  Index must be in the range: 
+  // 0 to cmDataChildCount(parent).
+  cmData_t* cmDataInsertChild( cmData_t* parent, cmData_t* p, unsigned index );
 
 
   //----------------------------------------------------------------------------
