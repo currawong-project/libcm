@@ -8,7 +8,9 @@ extern "C" {
   enum
   {
     kOkDtRC = cmOkRC,
-    kCvtErrDtRC
+    kCvtErrDtRC,
+    kVarArgErrDtRC,
+    kEolDtRC
   };
 
   enum
@@ -79,9 +81,8 @@ extern "C" {
     cmDataFmtId_t      tid;       // data format id
     unsigned           flags;     // 
     struct cmData_str* parent;    // this childs parent
-    struct cmData_str* sibling;   // this childs sibling
-    unsigned           allocCnt;  // allocated count
-    unsigned           cnt;       // actual count
+    struct cmData_str* sibling;   // this childs left sibling
+    unsigned           cnt;       // array ele count
 
     union
     {
@@ -120,9 +121,59 @@ extern "C" {
 
   typedef unsigned cmDtRC_t;
 
+  extern cmData_t cmDataNull;
+
   bool cmDataIsValue(  const cmData_t* p );
   bool cmDataIsPtr(    const cmData_t* p );
   bool cmDataIsStruct( const cmData_t* p );
+
+  /*
+    TODO:
+    0) Figure out a error handling scheme that does not rely on
+    a global errno.  This is not useful in multi-thread environments.
+    It might be ok to go with an 'all errors are fatal' model
+    (except in the var-args functions).
+    Consider the use of a context object for use with functions 
+    that can have runtime errors or need to allocate memory.
+
+    1) Implement the canConvert and willTruncate functions.
+
+    2) Make a set of cmDataAllocXXXPtr() functions which take
+    a flag indicating whether or not to dynamically allocate
+    the array space. This will allow dynamic allocattion to
+    occur at runtime.  Make var args functions for list and
+    record objects which also take this flag.
+    Where ever a function may be implemented using 
+    static/dynamic allocation this flag should be present.
+    (e.g. string allocation for pair labels)
+    This choice is common enough that it may be worth
+    suffixing function names with a capital letter to
+    be clear what the functions memory policy is.
+
+    3) Come up with a var-args format which allows a 
+    hierchy of records to be defined in one line.
+
+    4) Implement the serialization functions.
+
+    5) Implement an ascii string/parse format for writing/reading.
+
+    6) Implement fast lookup of record fields.
+
+    7) Allow for user defined types.  For example a 'matrix'
+    data type. This might be as simple as adding an extra 'user_tid' 
+    field to cmData_t.
+
+    8) Implement type specific cmDataGetRecordValueXXX() functions.
+
+    9) Implement cmDataIsEqual(), cmDataIsLtE(), ...
+
+   */
+
+  bool canConvertType( cmDataFmtId_t srcId, cmDataFmtId_t dstId );
+  bool willTruncate(   cmDataFmtId_t srcId, cmDataFmtId_t dstId );
+  bool canConvertObj(  const cmData_t* srcObj, cmData_t* dstObj );
+  bool willTruncateObj(const cmData_t* srcObj, cmData_t* dstObj );
+    
   
 
   // Get the value of an object without conversion.
@@ -179,7 +230,8 @@ extern "C" {
   double*         cmDataGetDoublePtr( const cmData_t* p );
 
 
-  // Set the value of an existing data object.
+  // Set the value of an existing scalar data object.
+  cmData_t* cmDataSetNull(       cmData_t* p );
   cmData_t* cmDataSetChar(      cmData_t* p, char v );
   cmData_t* cmDataSetUChar(     cmData_t* p, unsigned char v );
   cmData_t* cmDataSetShort(     cmData_t* p, short v );
@@ -194,7 +246,8 @@ extern "C" {
   cmData_t* cmDataSetConstStr(  cmData_t* p, const cmChar_t* s );
 
   // Set the value of an existing data object to an external array.
-  // The array is not copied.
+  // 'vp' is assigned as the data space for the object and therefore must remain
+  // valid for the life of the object.
   cmData_t* cmDataSetVoidPtr(   cmData_t* p, void* vp,           unsigned cnt );
   cmData_t* cmDataSetCharPtr(   cmData_t* p, char* vp,           unsigned cnt );
   cmData_t* cmDataSetUCharPtr(  cmData_t* p, unsigned char* vp,  unsigned cnt );
@@ -208,7 +261,7 @@ extern "C" {
   cmData_t* cmDataSetDoublePtr( cmData_t* p, double* vp,         unsigned cnt );
 
   // Set the value of an existing array based data object. 
-  // Allocate the internal array and copy the array into it.
+  // Dynamically allocate the internal array and copy the array data into it.
   cmData_t* cmDataSetStrAlloc(       cmData_t* p, const cmChar_t* s );
   cmData_t* cmDataSetConstStrAlloc(  cmData_t* p, const cmChar_t* s );
   cmData_t* cmDataSetVoidAllocPtr(   cmData_t* p, const void* vp,           unsigned cnt );
@@ -219,78 +272,112 @@ extern "C" {
   cmData_t* cmDataSetIntAllocPtr(    cmData_t* p, const int* vp,            unsigned cnt );
   cmData_t* cmDataSetUIntAllocPtr(   cmData_t* p, const unsigned int* vp,   unsigned cnt );
   cmData_t* cmDataSetLongAllocPtr(   cmData_t* p, const long* vp,           unsigned cnt );
-
   cmData_t* cmDataSetULongAllocPtr(  cmData_t* p, const unsigned long* vp,  unsigned cnt );
   cmData_t* cmDataSetFloatAllocPtr(  cmData_t* p, const float* vp,          unsigned cnt );
   cmData_t* cmDataSetDoubleAllocPtr( cmData_t* p, const double* vp,         unsigned cnt );
   
 
   // Dynamically allocate a data object and set it's value.
-  cmData_t* cmDataAllocChar(   char v );
-  cmData_t* cmDataAllocUChar(  unsigned char v );
-  cmData_t* cmDataAllocShort(  short v );
-  cmData_t* cmDataAllocUShort( unsigned short v );
-  cmData_t* cmDataAllocInt(    int v );
-  cmData_t* cmDataAllocUInt(   unsigned int v );
-  cmData_t* cmDataAllocLong(   long v );
-  cmData_t* cmDataAllocULong(  unsigned long v );
-  cmData_t* cmDataAllocFloat(  float v );
-  cmData_t* cmDataAllocDouble( double v );
-  cmData_t* cmDataAllocStr(    cmChar_t* str );
-  cmData_t* cmDataAllocConstStr( const cmChar_t* str );
+  cmData_t* cmDataAllocNull(   cmData_t* parent );
+  cmData_t* cmDataAllocChar(   cmData_t* parent, char v );
+  cmData_t* cmDataAllocUChar(  cmData_t* parent, unsigned char v );
+  cmData_t* cmDataAllocShort(  cmData_t* parent, short v );
+  cmData_t* cmDataAllocUShort( cmData_t* parent, unsigned short v );
+  cmData_t* cmDataAllocInt(    cmData_t* parent, int v );
+  cmData_t* cmDataAllocUInt(   cmData_t* parent, unsigned int v );
+  cmData_t* cmDataAllocLong(   cmData_t* parent, long v );
+  cmData_t* cmDataAllocULong(  cmData_t* parent, unsigned long v );
+  cmData_t* cmDataAllocFloat(  cmData_t* parent, float v );
+  cmData_t* cmDataAllocDouble( cmData_t* parent, double v );
 
   // Dynamically allocate a data object and set its array value to an external
-  // array. The data is not copied.
-  cmData_t* cmDataAllocVoidPtr(   const void* v,           unsigned cnt );
-  cmData_t* cmDataAllocCharPtr(   const char* v,           unsigned cnt );
-  cmData_t* cmDataAllocUCharPtr(  const unsigned char* v,  unsigned cnt );
-  cmData_t* cmDataAllocShortPtr(  const short* v,          unsigned cnt );
-  cmData_t* cmDataAllocUShortPtr( const unsigned short* v, unsigned cnt );
-  cmData_t* cmDataAllocIntPtr(    const int* v,            unsigned cnt );
-  cmData_t* cmDataAllocUIntPtr(   const unsigned int* v,   unsigned cnt );
-  cmData_t* cmDataAllocLongPtr(   const long* v,           unsigned cnt );
-  cmData_t* cmDataAllocULongPtr(  const unsigned long* v,  unsigned cnt );
-  cmData_t* cmDataAllocFloatPtr(  const float* v,          unsigned cnt );
-  cmData_t* cmDataAllocDoublePtr( const double* v,         unsigned cnt );
+  // array. v[cnt] is assigned as the internal data space for the object and 
+  // therefore must remain valid for the life of the object. 
+  // See the cmDataXXXAlocPtr() for equivalent functions which dynamically 
+  // allocate the intenal data space.
+  cmData_t* cmDataAllocStr(       cmData_t* parent, cmChar_t* str );
+  cmData_t* cmDataAllocConstStr(  cmData_t* parent, const cmChar_t* str );
+  cmData_t* cmDataAllocCharPtr(   cmData_t* parent, char* v,           unsigned cnt );
+  cmData_t* cmDataAllocUCharPtr(  cmData_t* parent, unsigned char* v,  unsigned cnt );
+  cmData_t* cmDataAllocShortPtr(  cmData_t* parent, short* v,          unsigned cnt );
+  cmData_t* cmDataAllocUShortPtr( cmData_t* parent, unsigned short* v, unsigned cnt );
+  cmData_t* cmDataAllocIntPtr(    cmData_t* parent, int* v,            unsigned cnt );
+  cmData_t* cmDataAllocUIntPtr(   cmData_t* parent, unsigned int* v,   unsigned cnt );
+  cmData_t* cmDataAllocLongPtr(   cmData_t* parent, long* v,           unsigned cnt );
+  cmData_t* cmDataAllocULongPtr(  cmData_t* parent, unsigned long* v,  unsigned cnt );
+  cmData_t* cmDataAllocFloatPtr(  cmData_t* parent, float* v,          unsigned cnt );
+  cmData_t* cmDataAllocDoublePtr( cmData_t* parent, double* v,         unsigned cnt );
+  cmData_t* cmDataAllocVoidPtr(   cmData_t* parent, void* v,           unsigned cnt );
 
 
   // Dynamically allocate a data object and its array value.  
-  // v[cnt] is copied into the allocated array.
-  cmData_t* cmDataVoidAllocPtr(   const void* v,           unsigned cnt );
-  cmData_t* cmDataCharAllocPtr(   const char* v,           unsigned cnt );
-  cmData_t* cmDataUCharAllocPtr(  const unsigned char* v,  unsigned cnt );
-  cmData_t* cmDataShortAllocPtr(  const short* v,          unsigned cnt );
-  cmData_t* cmDataUShortAllocPtr( const unsigned short* v, unsigned cnt );
-  cmData_t* cmDataIntAllocPtr(    const int* v,            unsigned cnt );
-  cmData_t* cmDataUIntAllocPtr(   const unsigned int* v,   unsigned cnt );
-  cmData_t* cmDataLongAllocPtr(   const long* v,           unsigned cnt );
-  cmData_t* cmDataULongAllocPtr(  const unsigned long* v,  unsigned cnt );
-  cmData_t* cmDataFloatAllocPtr(  const float* v,          unsigned cnt );
-  cmData_t* cmDataDoubleAllocPtr( const double* v,         unsigned cnt );
+  // These functions dynamically allocate the internal array data space
+  // and copy v[cnt] into it.
+  cmData_t* cmDataStrAlloc(       cmData_t* parent, cmChar_t* str );
+  cmData_t* cmDataConstStrAlloc(  cmData_t* parent, const cmChar_t* str );
+  cmData_t* cmDataCharAllocPtr(   cmData_t* parent, const char* v,           unsigned cnt );
+  cmData_t* cmDataUCharAllocPtr(  cmData_t* parent, const unsigned char* v,  unsigned cnt );
+  cmData_t* cmDataShortAllocPtr(  cmData_t* parent, const short* v,          unsigned cnt );
+  cmData_t* cmDataUShortAllocPtr( cmData_t* parent, const unsigned short* v, unsigned cnt );
+  cmData_t* cmDataIntAllocPtr(    cmData_t* parent, const int* v,            unsigned cnt );
+  cmData_t* cmDataUIntAllocPtr(   cmData_t* parent, const unsigned int* v,   unsigned cnt );
+  cmData_t* cmDataLongAllocPtr(   cmData_t* parent, const long* v,           unsigned cnt );
+  cmData_t* cmDataULongAllocPtr(  cmData_t* parent, const unsigned long* v,  unsigned cnt );
+  cmData_t* cmDataFloatAllocPtr(  cmData_t* parent, const float* v,          unsigned cnt );
+  cmData_t* cmDataDoubleAllocPtr( cmData_t* parent, const double* v,         unsigned cnt );
+  cmData_t* cmDataVoidAllocPtr(   cmData_t* parent, const void* v,           unsigned cnt );
 
   //----------------------------------------------------------------------------
   // Structure related functions
   //
+
+  // Release an object and any resources held by it.
+  // Note the this function does not unlink the object
+  // from it's parent.  Use cmDataUnlinkAndFree()
+  // to remove a object from it's parent list prior
+  // to releasing it.
+  void      cmDataFree( cmData_t* p );
 
   // Unlink 'p' from its parents and siblings.
   // Asserts if parent is not a structure. 
   // Returns 'p'.
   cmData_t* cmDataUnlink( cmData_t* p );
 
+  // Wrapper function to cmDataUnlink() and cmDataFree().
+  void      cmDataUnlinkAndFree( cmData_t* p );
+
+  // Replace the 'dst' node with the 'src' node and
+  // return 'src'.  This operation does not duplicate
+  // 'src' it simply links in 'src' at the location of
+  // 'dst' and then unlinks and free's 'dst'.
+  cmData_t* cmDataReplace( cmData_t* dst, cmData_t* src );
+
+  // Return the count of child nodes.
+  // 1. Array nodes have one child per array element.
+  // 2. List nodes have one child pair.
+  // 3. Pair nodes have two children.
+  // 4. Leaf nodes have 0 children.
   unsigned  cmDataChildCount( const cmData_t* p );
 
+  // Returns the ith child of 'p'.
   // Returns NULL if p has no children or index is invalid.
   cmData_t* cmDataChild( cmData_t* p, unsigned index );
 
   // Prepend 'p' to 'parents' child list.
+  // The source node 'p' is not duplicated  it is simply linked in.
+  // Returns 'p'. 
   cmData_t* cmDataPrependChild(cmData_t* parent, cmData_t* p );
 
   // Append 'p' to the end of 'parent' child list.
+  // The source node 'p' is not duplicated it is simply linked in.
+  // Returns 'p'.
   cmData_t* cmDataAppendChild( cmData_t* parent, cmData_t* p );
 
   // Insert 'p' at index.  Index must be in the range: 
   // 0 to cmDataChildCount(parent).
-  cmData_t* cmDataInsertChild( cmData_t* parent, cmData_t* p, unsigned index );
+  // The source node 'p' is not duplicated it is simply linked in.
+  // Returns 'p'.
+  cmData_t* cmDataInsertChild( cmData_t* parent, unsigned index, cmData_t* p );
 
 
   //----------------------------------------------------------------------------
@@ -298,32 +385,44 @@ extern "C" {
   //
   
   // Get the key/value of a pair
-  cmData_t* cmDataPairKey(          cmData_t* p );
-  cmData_t* cmDataPairValue(        cmData_t* p );
-  
-  // Set the key or value of an existing pair node. 
-  cmData_t* cmDataPairSetValue(     cmData_t* p, cmData_t* value );
-  cmData_t* cmDataPairAllocValue(   cmData_t* p, const cmData_t* value );
+  cmData_t*       cmDataPairKey(      cmData_t* p );
+  unsigned        cmDataPairKeyId(    cmData_t* p );
+  const cmChar_t* cmDataPairKeyLabel( cmData_t* p );
 
+  cmData_t*       cmDataPairValue(    cmData_t* p );
+  
+  // Set the value of an existing pair node. 
+  // 'value' is not duplicated it is simply linked in place of the
+  // previous pair value node. The previous pair value node is
+  // unlinked and freed.
+  // Returns 'p'.
+  cmData_t* cmDataPairSetValue(     cmData_t* p, cmData_t* value );
+
+  // Set the key of an existing pair node.
+  // 
+  // Returns 'p'.
   cmData_t* cmDataPairSetKey(       cmData_t* p, cmData_t* key );
   cmData_t* cmDataPairSetKeyId(     cmData_t* p, unsigned id );
+  // The data space for the 'label' string is dynamically allocated.
   cmData_t* cmDataPairSetKeyLabel(  cmData_t* p, const cmChar_t* label );
-  cmData_t* cmDataPairAllocKey(     cmData_t* p, const cmData_t* key );
+
+  cmData_t* cmDataMakePair(       cmData_t* parent, cmData_t* p, cmData_t* key, cmData_t* value );
 
   // Dynamically allocate a pair node 
   cmData_t* cmDataAllocPair(      cmData_t* parent, const cmData_t* key,  const cmData_t* value );
-  cmData_t* cmDataAllocPairId(    cmData_t* parent, unsigned  keyId,      cmData_t* value );
-  cmData_t* cmDataAllocPairLabel( cmData_t* parent, const cmChar_t label, cmData_t* value );
+  cmData_t* cmDataAllocPairId(    cmData_t* parent, unsigned  keyId,       cmData_t* value );
+  // The data space for the 'label' string is dynamically allocated.
+  cmData_t* cmDataAllocPairLabel( cmData_t* parent, const cmChar_t* label, cmData_t* value );
 
   //----------------------------------------------------------------------------
   // List related functions
   //
   
   // Return the count of ele's in the list.
-  cmData_t* cmDataListCount(  const cmData_t* p );
+  unsigned  cmDataListCount(  const cmData_t* p );
 
   // Return the ith element in the list.
-  cmData_t* cmDataListEle(    const cmData_t* p, unsigned index );
+  cmData_t* cmDataListEle(    cmData_t* p, unsigned index );
 
   cmData_t* cmDataListMake(  cmData_t* parent, cmData_t* p );
   cmData_t* cmDataListAlloc( cmData_t* parent);
@@ -332,22 +431,22 @@ extern "C" {
   // Var-args fmt:
   // <typeId> <value> {<cnt>}
   // scalar types: <value> is literal,<cnt>   is not included
+  //     null has no <value> or <cnt>
   // ptr    types: <value> is pointer,<cnt>   is element count
   // struct types: <value> is cmData_t, <cnt> is not included
+  // Indicate the end of argument list by setting  <typeId> to kInvalidDtId. 
+  // The memory for array based data types is dynamically allocated.
   cmData_t* cmDataListAllocV(cmData_t* parent, va_list vl );
   cmData_t* cmDataListAllocA(cmData_t* parent,  ... );
   
-
+  // Returns a ptr to 'ele'.
   cmData_t* cmDataListAppendEle( cmData_t* p, cmData_t* ele );
-  cmData_t* cmDataListAppendEleN(cmData_t* p, cmData_t* ele[], unsigned n );
   cmDtRC_t  cmDataListAppendV(   cmData_t* p, va_list vl );
   cmDtRC_t  cmDataListAppend(    cmData_t* p, ... );
 
+  // Return  'p'.
   cmData_t* cmDataListInsertEle( cmData_t* p, unsigned index, cmData_t* ele );
-  cmData_t* cmDataListInsertEleN(cmData_t* p, cmData_t* ele[], unsigned n );
-  cmDtRC_t  cmDataListInsertV(   cmData_t* p, va_list vl );
-  cmDtRC_t  cmDataListInsert(    cmData_t* p, unsigned index, ... );
-
+  cmData_t* cmDataListInsertEleN(cmData_t* p, unsigned index, cmData_t* ele[], unsigned n );
  
   cmData_t* cmDataListUnlink( cmData_t* p, unsigned index );
   cmData_t* cmDataListFree(   cmData_t* p, unsigned index );
@@ -357,26 +456,42 @@ extern "C" {
   //
 
   // Return count of pairs.
-  cmData_t*       cmDataRecdCount(    const cmData_t* p );
+  unsigned        cmDataRecdCount(    const cmData_t* p );
 
   // Return the ith pair.
-  cmData_t*       cmDataRecdEle(      const cmData_t* p, unsigned index );
+  cmData_t*       cmDataRecdEle(      cmData_t* p, unsigned index );
 
   // Return the ith value.
-  cmData_t*       cmDataRecdValue(    const cmData_t* p, unsigned index );
+  cmData_t*       cmDataRecdValueFromIndex( cmData_t* p, unsigned index );
+  cmData_t*       cmDataRecdValueFromId(    cmData_t* p, unsigned id );
+  cmData_t*       cmDataRecdValueFromLabel( cmData_t* p, const cmChar_t* label );
 
   // Return the ith key
-  cmData_t*       cmDataRecdKey(      const cmData_t* p, unsigned index );
-  unsigned        cmDataRecdKeyId(    const cmData_t* p, unsigned index );
-  const cmChar_t* cmDataRecdKeyLabel( const cmData_t* p, unsigned index );
+  cmData_t*       cmDataRecdKey(      cmData_t* p, unsigned index );
+  unsigned        cmDataRecdKeyId(    cmData_t* p, unsigned index );
+  const cmChar_t* cmDataRecdKeyLabel( cmData_t* p, unsigned index );
   
-  cmData_t*       cmRecdMake( cmData_t* p );
-  cmData_t*       cmRecdAlloc();
+  cmData_t*       cmRecdMake( cmData_t* parent, cmData_t* p );
+  cmData_t*       cmRecdAlloc( cmData_t* parent );
+  
+  cmData_t*       cmRecdAppendPair( cmData_t* p, cmData_t* pair );
+
+
+  // Var-args fmt:
+  // <label|id> <typeId>  <value> {<cnt>}
+  // scalar types: <value> is literal,<cnt>   is not included
+  //     null has no <value> or <cnt>
+  // ptr    types: <value> is pointer,<cnt>   is element count
+  // struct types: <value> is cmData_t, <cnt> is not included
+  // Indicate the end of argument list by setting  <typeId> to kInvalidDtId. 
+  // The memory for array based data types is dynamically allocated.
+  cmData_t*       cmDataRecdAllocLabelV( cmData_t* parent, va_list vl );
+  cmData_t*       cmDataRecdAllocLabelA( cmData_t* parent, ... );
+
+  cmData_t*       cmDataRecdAllocIdV( cmData_t* parent, va_list vl );
+  cmData_t*       cmDataRecdAllocIdA( cmData_t* parent, ... );
   
 
-  
-
-  void cmDataFree( cmData_t* p );
 
   
   unsigned cmDataSerializeByteCount( const cmData_t* p );

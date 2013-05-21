@@ -2,17 +2,24 @@
 #include "cmRpt.h"
 #include "cmErr.h"
 #include "cmCtx.h"
-#include "cmData.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
+#include "cmData.h"
 
 cmDtRC_t _cmDataErrNo = kOkDtRC;
+
+cmData_t cmDataNull = { kInvalidDtId,0,NULL,NULL,0 };
 
 typedef struct
 {
   cmDataFmtId_t tid;
   unsigned      cnt;
 } cmDataSerialHdr_t;
+
+void _cmDataSetError( unsigned err )
+{
+  _cmDataErrNo = err;
+}
 
 void _cmDataFreeArray( cmData_t* p )
 {
@@ -28,10 +35,29 @@ void _cmDataFreeArray( cmData_t* p )
 
 void _cmDataFree( cmData_t* p )
 {
+  if( cmDataIsStruct(p) )
+  {
+    cmData_t* cp = p->u.child;
+    for(; cp!=NULL; cp=cp->sibling)
+      _cmDataFree(cp);
+  }
+    
   _cmDataFreeArray(p);
   if( cmIsFlag(p->flags,kDynObjDtFl) )
     cmMemFree(p);
 }
+
+cmData_t* _cmDataAllocNode( cmData_t* parent, cmDataFmtId_t tid )
+{
+  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  p->tid    = tid;
+  p->flags  = kDynObjDtFl;
+  p->parent = parent;
+  if( parent != NULL )
+    return cmDataAppendChild(parent,p);
+  return p;
+}
+
 
 unsigned _cmDataByteCount( const cmData_t* p )
 {
@@ -74,13 +100,13 @@ unsigned _cmDataByteCount( const cmData_t* p )
   return 0;
 }
 
-bool cmIsValue(  const cmData_t* p )
+bool cmDataIsValue(  const cmData_t* p )
 { return kMinValDtId <= p->tid && p->tid <= kMaxValDtId; }
 
-bool cmIsPtr(    const cmData_t* p )
+bool cmDataIsPtr(    const cmData_t* p )
 { return kMinPtrDtId <= p->tid && p->tid <= kMaxPtrDtId; }
 
-bool cmIsStruct( const cmData_t* p )
+bool cmDataIsStruct( const cmData_t* p )
 { return kMinStructDtId <= p->tid && p->tid <= kMaxStructDtId; }
 
 char            cmDataChar(      const cmData_t* p ) { assert(p->tid==kCharDtId);      return p->u.c; }
@@ -124,7 +150,7 @@ unsigned char   cmDataGetUChar(     const cmData_t* p )
     case kFloatDtId:  v = (unsigned char)p->u.f;  break;
     case kDoubleDtId: v = (unsigned char)p->u.d;  break;
     default:
-      _cmDataErrNo = kCvtErrDtRC;
+      _cmDataSetError(kCvtErrDtRC);
   }
   return v;
 }
@@ -146,7 +172,7 @@ char  cmDataGetChar( const cmData_t* p )
     case kFloatDtId:  v = (char)p->u.f;  break;
     case kDoubleDtId: v = (char)p->u.d;  break;
     default:
-      _cmDataErrNo = kCvtErrDtRC;
+      _cmDataSetError(kCvtErrDtRC);
   }
   return v;
 }
@@ -168,7 +194,7 @@ short           cmDataGetShort(     const cmData_t* p )
     case kFloatDtId:  v = (short)p->u.f;  break;
     case kDoubleDtId: v = (short)p->u.d;  break;
     default:
-      _cmDataErrNo = kCvtErrDtRC;
+      _cmDataSetError(kCvtErrDtRC);
   }
 
   return v;
@@ -192,7 +218,7 @@ unsigned short  cmDataGetUShort(    const cmData_t* p )
     case kFloatDtId:  v = (unsigned short)p->u.f;  break;
     case kDoubleDtId: v = (unsigned short)p->u.d;  break;
     default:
-      _cmDataErrNo = kCvtErrDtRC;
+      _cmDataSetError(kCvtErrDtRC);
   }
 
   return v;
@@ -215,7 +241,7 @@ int             cmDataGetInt(       const cmData_t* p )
     case kFloatDtId:  v = (int)p->u.f;  break;
     case kDoubleDtId: v = (int)p->u.d;  break;
     default:
-      _cmDataErrNo = kCvtErrDtRC;
+      _cmDataSetError(kCvtErrDtRC);
   }
 
   return v;
@@ -238,7 +264,7 @@ unsigned int    cmDataGetUInt(      const cmData_t* p )
     case kFloatDtId:  v = (unsigned int)p->u.f;  break;
     case kDoubleDtId: v = (unsigned int)p->u.d;  break;
     default:
-      _cmDataErrNo = kCvtErrDtRC;
+      _cmDataSetError(kCvtErrDtRC);
   }
 
   return v;
@@ -261,7 +287,7 @@ long            cmDataGetLong(      const cmData_t* p )
     case kFloatDtId:  v = (long)p->u.f;  break;
     case kDoubleDtId: v = (long)p->u.d;  break;
     default:
-      _cmDataErrNo = kCvtErrDtRC;
+      _cmDataSetError(kCvtErrDtRC);
   }
 
   return v;
@@ -284,7 +310,7 @@ unsigned long   cmDataGetULong(     const cmData_t* p )
     case kFloatDtId:  v = (unsigned long)p->u.f;  break;
     case kDoubleDtId: v = (unsigned long)p->u.d;  break;
     default:
-      _cmDataErrNo = kCvtErrDtRC;
+      _cmDataSetError(kCvtErrDtRC);
   }
 
   return v;
@@ -307,7 +333,7 @@ float           cmDataGetFloat(     const cmData_t* p )
     case kFloatDtId:  v =        p->u.f;  break;
     case kDoubleDtId: v = (float)p->u.d;  break;
     default:
-      _cmDataErrNo = kCvtErrDtRC;
+      _cmDataSetError(kCvtErrDtRC);
   }
 
   return v;
@@ -330,7 +356,7 @@ double          cmDataGetDouble(    const cmData_t* p )
     case kFloatDtId:  v = (double)p->u.f;  break;
     case kDoubleDtId: v =         p->u.d;  break;
     default:
-      _cmDataErrNo = kCvtErrDtRC;
+      _cmDataSetError(kCvtErrDtRC);
   }
 
   return v;
@@ -408,7 +434,14 @@ float*          cmDataGetFloatPtr(  const cmData_t* p )
 double*         cmDataGetDoublePtr( const cmData_t* p )
 { return p->tid == kDoublePtrDtId ? p->u.dp : NULL; }
 
-  // Set the value of an existing data object.
+// Set the value of an existing data object.
+cmData_t* cmDataSetNull( cmData_t* p )
+{
+  _cmDataFreeArray(p);
+  p->tid = kNullDtId;
+  return p;
+}
+
 cmData_t* cmDataSetChar(      cmData_t* p, char v )
 {
   _cmDataFreeArray(p);
@@ -446,6 +479,7 @@ cmData_t* cmDataSetInt(       cmData_t* p, int v )
   _cmDataFreeArray(p);
   p->tid = kCharDtId;
   p->u.c = v;
+  return p;
 }
 
 cmData_t* cmDataSetUInt(      cmData_t* p, unsigned int v )
@@ -461,6 +495,7 @@ cmData_t* cmDataSetLong(      cmData_t* p, long v )
   _cmDataFreeArray(p);
   p->tid = kLongDtId;
   p->u.l = v;
+  return p;
 }
 
 cmData_t* cmDataSetULong(     cmData_t* p, unsigned long v )
@@ -633,8 +668,10 @@ cmData_t* cmDataSetCharAllocPtr(  cmData_t* p, const char* vp,  unsigned cnt )
     _cmDataFreeArray(p);
     p->u.cp = cmMemAlloc(char, cnt );
   }
+  memcpy(p->u.cp,vp,sizeof(char)*cnt);
   p->tid   = kCharPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  p->cnt   = cnt;
   return p;
 }
 
@@ -647,8 +684,10 @@ cmData_t* cmDataSetUCharAllocPtr(  cmData_t* p, const unsigned char* vp,  unsign
     _cmDataFreeArray(p);
     p->u.ucp = cmMemAlloc(unsigned char, cnt );
   }
+  memcpy(p->u.ucp,vp,sizeof(unsigned char)*cnt);
   p->tid   = kUCharPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  p->cnt   = cnt;
   return p;
 }
 
@@ -661,8 +700,10 @@ cmData_t* cmDataSetShortAllocPtr(  cmData_t* p, const short* vp,          unsign
     _cmDataFreeArray(p);
     p->u.sp = cmMemAlloc(short, cnt );
   }
+  memcpy(p->u.sp,vp,sizeof(short)*cnt);
   p->tid   = kShortPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  p->cnt   = cnt;
   return p;
 }
 
@@ -675,8 +716,11 @@ cmData_t* cmDataSetUShortAllocPtr( cmData_t* p, const unsigned short* vp, unsign
     _cmDataFreeArray(p);
     p->u.usp = cmMemAlloc(unsigned short, cnt );
   }
+  memcpy(p->u.usp,vp,sizeof(unsigned short)*cnt);
   p->tid   = kUShortPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  p->cnt   = cnt;
+  return p;
 }
 
 cmData_t* cmDataSetIntAllocPtr(    cmData_t* p, const int* vp,            unsigned cnt )
@@ -688,8 +732,10 @@ cmData_t* cmDataSetIntAllocPtr(    cmData_t* p, const int* vp,            unsign
     _cmDataFreeArray(p);
     p->u.ip = cmMemAlloc(int, cnt );
   }
+  memcpy(p->u.ip,vp,sizeof(int)*cnt);
   p->tid   = kIntPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  p->cnt   = cnt;
   return p;
 }
 
@@ -702,8 +748,10 @@ cmData_t* cmDataSetUIntAllocPtr(   cmData_t* p, const unsigned int* vp,   unsign
     _cmDataFreeArray(p);
     p->u.uip = cmMemAlloc(unsigned int, cnt );
   }
+  memcpy(p->u.uip,vp,sizeof(unsigned int)*cnt);
   p->tid   = kUIntPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  p->cnt   = cnt;
   return p;
 }
 
@@ -717,8 +765,10 @@ cmData_t* cmDataSetLongAllocPtr(   cmData_t* p, const long* vp,           unsign
     _cmDataFreeArray(p);
     p->u.lp = cmMemAlloc(long, cnt );
   }
+  memcpy(p->u.lp,vp,sizeof(long)*cnt);
   p->tid   = kLongPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  p->cnt   = cnt;
   return p;
 }
 
@@ -732,8 +782,10 @@ cmData_t* cmDataSetULongAllocPtr(  cmData_t* p, const unsigned long* vp,  unsign
     _cmDataFreeArray(p);
     p->u.ulp = cmMemAlloc(unsigned long, cnt );
   }
+  memcpy(p->u.ulp,vp,sizeof(unsigned long)*cnt);
   p->tid   = kULongPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  p->cnt   = cnt;
   return p;
 }
 
@@ -747,8 +799,10 @@ cmData_t* cmDataSetFloatAllocPtr(  cmData_t* p, const float* vp,          unsign
     _cmDataFreeArray(p);
     p->u.fp = cmMemAlloc(float, cnt );
   }
+  memcpy(p->u.fp,vp,sizeof(float)*cnt);
   p->tid   = kFloatPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  p->cnt   = cnt;
   return p;
 }
 
@@ -762,176 +816,181 @@ cmData_t* cmDataSetDoubleAllocPtr( cmData_t* p, const double* vp,         unsign
     _cmDataFreeArray(p);
     p->u.dp = cmMemAlloc(double, cnt );
   }
+  memcpy(p->u.dp,vp,sizeof(double)*cnt);
   p->tid   = kDoublePtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
+  p->cnt   = cnt;
   return p;
 }
 
   
 
 // Dynamically allocate a data object and set it's value.
-cmData_t* cmDataAllocChar(   char v )
+cmData_t* cmDataAllocNull( cmData_t* parent )
+{ return _cmDataAllocNode(parent,kNullDtId); }
+
+cmData_t* cmDataAllocChar(   cmData_t* parent, char v )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kCharDtId);
   cmDataSetChar(p,v);
   return p;
 }
 
-cmData_t* cmDataAllocUChar(  unsigned char v )
+cmData_t* cmDataAllocUChar(  cmData_t* parent, unsigned char v )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kUCharDtId);
   cmDataSetUChar(p,v);
   return p;
 }
 
-cmData_t* cmDataAllocShort(  short v )
+cmData_t* cmDataAllocShort(  cmData_t* parent, short v )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kShortDtId);
   cmDataSetShort(p,v);
   return p;
 }
 
-cmData_t* cmDataAllocUShort( unsigned short v )
+cmData_t* cmDataAllocUShort( cmData_t* parent, unsigned short v )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kUShortDtId);
   cmDataSetUShort(p,v);
   return p;
 }
 
-cmData_t* cmDataAllocInt(    int v )
+cmData_t* cmDataAllocInt(    cmData_t* parent, int v )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kIntDtId);
   cmDataSetInt(p,v);
   return p;
 }
 
-cmData_t* cmDataAllocUInt(   unsigned int v )
+cmData_t* cmDataAllocUInt(   cmData_t* parent, unsigned int v )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kUIntDtId);
   cmDataSetUInt(p,v);
   return p;
 }
 
-cmData_t* cmDataAllocLong(   long v )
+cmData_t* cmDataAllocLong(   cmData_t* parent, long v )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kLongDtId);
   cmDataSetLong(p,v);
   return p;
 }
 
-cmData_t* cmDataAllocULong(  unsigned long v )
+cmData_t* cmDataAllocULong(  cmData_t* parent, unsigned long v )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kULongDtId);
   cmDataSetULong(p,v);
   return p;
 }
 
-cmData_t* cmDataAllocFloat(  float v )
+cmData_t* cmDataAllocFloat(  cmData_t* parent, float v )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kFloatDtId);
   cmDataSetFloat(p,v);
   return p;
 }
 
-cmData_t* cmDataAllocDouble( double v )
+cmData_t* cmDataAllocDouble( cmData_t* parent, double v )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kDoubleDtId);
   cmDataSetDouble(p,v);
   return p;
 }
 
 
-cmData_t* cmDataAllocStr( cmChar_t* str )
+// Dynamically allocate a data object and set its array value to an external
+// array. The data is not copied.
+cmData_t* cmDataAllocStr( cmData_t* parent, cmChar_t* str )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kStrDtId);
   cmDataSetStr(p,str);
   return p;
 }
 
-cmData_t* cmDataAllocConstStr( const cmChar_t* str )
+cmData_t* cmDataAllocConstStr( cmData_t* parent, const cmChar_t* str )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kConstStrDtId);
   cmDataSetConstStr(p,str);
   return p;
 }
 
-// Dynamically allocate a data object and set its array value to an external
-// array. The data is not copied.
-cmData_t* cmDataAllocVoidPtr(   const void* v,           unsigned cnt )
+cmData_t* cmDataAllocCharPtr(   cmData_t* parent, char* v,  unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetCharPtr(p,(char*)v,cnt);
-  p->tid = kVoidPtrDtId;
-  return p;
-}
-
-cmData_t* cmDataAllocCharPtr(   const char* v,           unsigned cnt )
-{
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kCharPtrDtId);
   cmDataSetCharPtr(p,(char*)v,cnt);
   return p;
 }
 
-cmData_t* cmDataAllocUCharPtr(  const unsigned char* v,  unsigned cnt )
+cmData_t* cmDataAllocUCharPtr(  cmData_t* parent, unsigned char* v,  unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kUCharPtrDtId);
   cmDataSetUCharPtr(p,(unsigned char*)v,cnt);
   return p;
 }
 
-cmData_t* cmDataAllocShortPtr(  const short* v,          unsigned cnt )
+cmData_t* cmDataAllocShortPtr(  cmData_t* parent, short* v, unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kShortPtrDtId);
   cmDataSetShortPtr(p,(short*)v,cnt);
   return p;
 }
 
-cmData_t* cmDataAllocUShortPtr( const unsigned short* v, unsigned cnt )
+cmData_t* cmDataAllocUShortPtr( cmData_t* parent, unsigned short* v, unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kUShortPtrDtId);
   cmDataSetUShortPtr(p,(unsigned short*)v,cnt);
   return p;
 }
 
-cmData_t* cmDataAllocIntPtr(    const int* v,            unsigned cnt )
+cmData_t* cmDataAllocIntPtr(    cmData_t* parent, int* v, unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kIntPtrDtId);
   cmDataSetIntPtr(p,(int*)v,cnt);
   return p;
 }
 
-cmData_t* cmDataAllocUIntPtr(   const unsigned int* v,   unsigned cnt )
+cmData_t* cmDataAllocUIntPtr(   cmData_t* parent, unsigned int* v,  unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kUIntPtrDtId);
   cmDataSetUIntPtr(p,(unsigned int*)v,cnt);
   return p;
 }
 
-cmData_t* cmDataAllocLongPtr(   const long* v,           unsigned cnt )
+cmData_t* cmDataAllocLongPtr(   cmData_t* parent, long* v,  unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kLongPtrDtId);
   cmDataSetLongPtr(p,(long*)v,cnt);
   return p;
 }
 
-cmData_t* cmDataAllocULongPtr(  const unsigned long* v,  unsigned cnt )
+cmData_t* cmDataAllocULongPtr(  cmData_t* parent, unsigned long* v,  unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kULongPtrDtId);
   cmDataSetULongPtr(p,(unsigned long*)v,cnt);
   return p;
 }
 
-cmData_t* cmDataAllocFloatPtr(  const float* v,          unsigned cnt )
+cmData_t* cmDataAllocFloatPtr(  cmData_t* parent, float* v, unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kFloatPtrDtId);
   cmDataSetFloatPtr(p,(float*)v,cnt);
   return p;
 }
 
-cmData_t* cmDataAllocDoublePtr( const double* v,         unsigned cnt )
+cmData_t* cmDataAllocDoublePtr( cmData_t* parent, double* v,  unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kDoublePtrDtId);
   cmDataSetDoublePtr(p,(double*)v,cnt);
+  return p;
+}
+
+cmData_t* cmDataAllocVoidPtr(   cmData_t* parent, void* v,  unsigned cnt )
+{
+  cmData_t* p = _cmDataAllocNode(parent,kVoidPtrDtId);
+  cmDataSetCharPtr(p,(char*)v,cnt);
+  p->tid = kVoidPtrDtId;
   return p;
 }
 
@@ -939,83 +998,98 @@ cmData_t* cmDataAllocDoublePtr( const double* v,         unsigned cnt )
 
 // Dynamically allocate a data object and its array value.  
 // v[cnt] is copied into the allocated array.
-cmData_t* cmDataVoidAllocPtr(   const void* v,           unsigned cnt )
+cmData_t* cmDataStrAlloc( cmData_t* parent, cmChar_t* str )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
-  cmDataSetCharAllocPtr(p, (const char*)v, cnt );
+  cmData_t* p = _cmDataAllocNode(parent,kStrDtId);
+  cmDataSetStrAlloc(p,str);
   return p;
 }
 
-cmData_t* cmDataCharAllocPtr(   const char* v,           unsigned cnt )
+cmData_t* cmDataConstStrAlloc( cmData_t* parent, const cmChar_t* str )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kConstStrDtId);
+  cmDataSetConstStrAlloc(p,str);
+  return p;
+}
+
+cmData_t* cmDataCharAllocPtr(   cmData_t* parent, const char* v,  unsigned cnt )
+{
+  cmData_t* p = _cmDataAllocNode(parent,kCharPtrDtId);
   cmDataSetCharAllocPtr(p, v, cnt );
   return p;
 }
 
-cmData_t* cmDataUCharAllocPtr(  const unsigned char* v,  unsigned cnt )
+cmData_t* cmDataUCharAllocPtr(  cmData_t* parent, const unsigned char* v,  unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kUCharPtrDtId);
   cmDataSetUCharAllocPtr(p, v, cnt );
   return p;
 }
 
-cmData_t* cmDataShortAllocPtr(  const short* v,          unsigned cnt )
+cmData_t* cmDataShortAllocPtr(  cmData_t* parent, const short* v, unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kShortPtrDtId);
   cmDataSetShortAllocPtr(p, v, cnt );
   return p;
 }
 
-cmData_t* cmDataUShortAllocPtr( const unsigned short* v, unsigned cnt )
+cmData_t* cmDataUShortAllocPtr( cmData_t* parent, const unsigned short* v, unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kUShortPtrDtId);
   cmDataSetUShortAllocPtr(p, v, cnt );
   return p;
 }
 
-cmData_t* cmDataIntAllocPtr(    const int* v,            unsigned cnt )
+cmData_t* cmDataIntAllocPtr(    cmData_t* parent, const int* v,   unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kIntPtrDtId);
   cmDataSetIntAllocPtr(p, v, cnt );
   return p;
 }
 
-cmData_t* cmDataUIntAllocPtr(   const unsigned int* v,   unsigned cnt )
+cmData_t* cmDataUIntAllocPtr(   cmData_t* parent, const unsigned int* v,   unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kUIntPtrDtId);
   cmDataSetUIntAllocPtr(p, v, cnt );
   return p;
 }
 
-cmData_t* cmDataLongAllocPtr(   const long* v,           unsigned cnt )
+cmData_t* cmDataLongAllocPtr(   cmData_t* parent, const long* v,  unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kLongPtrDtId);
   cmDataSetLongAllocPtr(p, v, cnt );
   return p;
 }
 
-cmData_t* cmDataULongAllocPtr(  const unsigned long* v,  unsigned cnt )
+cmData_t* cmDataULongAllocPtr(  cmData_t* parent, const unsigned long* v,  unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kULongPtrDtId);
   cmDataSetULongAllocPtr(p, v, cnt );
   return p;  
 }
 
-cmData_t* cmDataFloatAllocPtr(  const float* v,          unsigned cnt )
+cmData_t* cmDataFloatAllocPtr(  cmData_t* parent, const float* v, unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kFloatPtrDtId);
   cmDataSetFloatAllocPtr(p, v, cnt );
   return p;  
 }
 
-cmData_t* cmDataDoubleAllocPtr( const double* v,         unsigned cnt )
+cmData_t* cmDataDoubleAllocPtr( cmData_t* parent, const double* v,  unsigned cnt )
 {
-  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  cmData_t* p = _cmDataAllocNode(parent,kDoublePtrDtId);
   cmDataSetDoubleAllocPtr(p, v, cnt );
   return p;  
 }
 
+
+cmData_t* cmDataVoidAllocPtr(   cmData_t* parent, const void* v,  unsigned cnt )
+{
+  cmData_t* p = _cmDataAllocNode(parent,kVoidPtrDtId);
+  cmDataSetCharAllocPtr(p, (const char*)v, cnt );
+  p->tid = kVoidPtrDtId;
+  return p;
+}
 
 void  cmDataFree( cmData_t* p )
 {
@@ -1041,6 +1115,107 @@ cmData_t* cmDataUnlink( cmData_t* p )
     }
   return p;
 }
+
+void cmDataUnlinkAndFree( cmData_t* p )
+{
+  cmDataUnlink(p);
+  cmDataFree(p);
+}
+
+cmData_t* _cmDataDupl( const cmData_t* p, cmData_t* parent )
+{
+  cmData_t* rp = NULL;
+
+  switch( p->tid )
+  {
+    case kNullDtId:      rp = cmDataAllocNull(parent);          break;
+    case kUCharDtId:     rp = cmDataAllocUChar(parent,p->u.uc); break; 
+    case kCharDtId:      rp = cmDataAllocChar(parent,p->u.c);   break;
+    case kUShortDtId:    rp = cmDataAllocShort(parent,p->u.us); break;
+    case kShortDtId:     rp = cmDataAllocUShort(parent,p->u.s); break;
+    case kUIntDtId:      rp = cmDataAllocUInt(parent,p->u.i);   break;
+    case kIntDtId:       rp = cmDataAllocInt(parent,p->u.ui);   break;
+    case kULongDtId:     rp = cmDataAllocULong(parent,p->u.ul); break;
+    case kLongDtId:      rp = cmDataAllocLong(parent,p->u.l);   break;
+    case kFloatDtId:     rp = cmDataAllocFloat(parent,p->u.f);  break;
+    case kDoubleDtId:    rp = cmDataAllocDouble(parent,p->u.d); break;
+
+    case kStrDtId:       rp = cmDataStrAlloc(parent,p->u.z);                break;
+    case kConstStrDtId:  rp = cmDataConstStrAlloc(parent,p->u.cz);          break;
+    case kUCharPtrDtId:  rp = cmDataUCharAllocPtr(parent,p->u.ucp,p->cnt);  break;
+    case kCharPtrDtId:   rp = cmDataCharAllocPtr(parent,p->u.cp,p->cnt);    break;
+    case kUShortPtrDtId: rp = cmDataUShortAllocPtr(parent,p->u.usp,p->cnt); break;
+    case kShortPtrDtId:  rp = cmDataShortAllocPtr(parent,p->u.sp,p->cnt);   break;
+    case kUIntPtrDtId:   rp = cmDataUIntAllocPtr(parent,p->u.uip,p->cnt);   break;
+    case kIntPtrDtId:    rp = cmDataIntAllocPtr(parent,p->u.ip,p->cnt);     break;
+    case kULongPtrDtId:  rp = cmDataULongAllocPtr(parent,p->u.ulp,p->cnt);  break;
+    case kLongPtrDtId:   rp = cmDataLongAllocPtr(parent,p->u.lp,p->cnt);    break;
+    case kFloatPtrDtId:  rp = cmDataFloatAllocPtr(parent,p->u.fp,p->cnt);   break;
+    case kDoublePtrDtId: rp = cmDataDoubleAllocPtr(parent,p->u.dp,p->cnt);  break;
+    case kVoidPtrDtId:   rp = cmDataVoidAllocPtr(parent,p->u.vp,p->cnt);    break;
+
+    case kListDtId:      
+    case kPairDtId:  
+    case kRecordDtId:
+      {
+        rp = _cmDataAllocNode(parent,p->tid);
+        cmData_t* cp  = p->u.child;
+        for(; cp!=NULL; cp=cp->sibling)
+          cmDataAppendChild(rp,_cmDataDupl(cp,rp));
+      }
+      break;
+
+    default:
+      assert(0);
+  }
+
+  return rp;
+}
+
+cmData_t* cmDataDupl( const cmData_t* p )
+{ return _cmDataDupl(p,NULL); }
+
+cmData_t* cmDataReplace( cmData_t* dst, cmData_t* src )
+{
+  if( dst->parent == NULL )
+  {
+    cmDataUnlinkAndFree(dst);
+    src->parent = NULL;
+    return src;
+  }
+
+  cmData_t* parent = dst->parent;
+  cmData_t* cp     = parent->u.child;
+  cmData_t* pp     = NULL;
+  unsigned  i      = 0;
+  unsigned  n      = cmDataChildCount(parent);
+
+  // locate dst's right sibling
+  for(i=0; i<n; ++i,cp=cp->sibling)
+  {
+    
+    if( cp == dst )
+    {
+      // link in 'src' in place of 'dst'
+      src->sibling = dst->sibling;
+
+      // free dst
+      cmDataUnlinkAndFree(dst);
+
+      // update the sibling link to 
+      if( pp == NULL )
+        parent->u.child = src;
+      else
+        pp->sibling = src;
+
+      src->parent = parent;
+      break;
+    }
+    pp = cp;
+  }
+  return src;
+}
+
 
 unsigned cmDataChildCount( const cmData_t* p )
 {
@@ -1083,7 +1258,8 @@ cmData_t* cmDataPrependChild(cmData_t* parent, cmData_t* p )
 
 cmData_t* cmDataAppendChild( cmData_t* parent, cmData_t* p )
 {
-  assert( cmDataIsStruct(p) );
+  assert( cmDataIsStruct(parent) );
+  assert( parent->tid != kRecordDtId || (parent->tid == kRecordDtId && p->tid==kPairDtId));
 
   cmData_t* cp = parent->u.child;
   if( cp == NULL )
@@ -1102,7 +1278,7 @@ cmData_t* cmDataAppendChild( cmData_t* parent, cmData_t* p )
   return p;
 }
 
-cmData_t* cmDataInsertChild( cmData_t* parent, cmData_t* p, unsigned index )
+cmData_t* cmDataInsertChild( cmData_t* parent, unsigned index, cmData_t* p )
 {
   if( !cmDataIsStruct(parent) )
     return NULL;
@@ -1152,6 +1328,19 @@ cmData_t* cmDataPairKey(          cmData_t* p )
   return p->u.child;
 }
 
+unsigned  cmDataPairKeyId(    cmData_t* p )
+{
+  assert( _cmDataPairIsValid(p) );
+  return cmDataGetUInt(p->u.child);
+}
+
+const cmChar_t* cmDataPairKeyLabel( cmData_t* p )
+{
+  assert( _cmDataPairIsValid(p) );
+  return cmDataGetConstStr(p->u.child);
+}
+
+
 cmData_t* cmDataPairValue(        cmData_t* p )
 {
   assert( _cmDataPairIsValid(p) );
@@ -1159,44 +1348,471 @@ cmData_t* cmDataPairValue(        cmData_t* p )
 }
     
   // Set the key or value of an existing pair node. 
-cmData_t* cmDataPairSetValue(     cmData_t* p, cmData_t* value )
+cmData_t* cmDataPairSetValue( cmData_t* p, cmData_t* value )
 {
+  assert( _cmDataPairIsValid(p) );
+  cmDataReplace( cmDataPairValue(p), value );
+  return p;
 }
 
-cmData_t* cmDataPairAllocValue(   cmData_t* p, const cmData_t* value )
+
+cmData_t* cmDataPairSetKey(   cmData_t* p, cmData_t* key )
 {
+  assert( _cmDataPairIsValid(p) );
+  cmDataReplace( cmDataPairValue(p), key );
+  return p;
 }
 
-cmData_t* cmDataPairSetKey(       cmData_t* p, cmData_t* key )
+cmData_t* cmDataPairSetKeyId( cmData_t* p, unsigned id )
 {
-}
-
-cmData_t* cmDataPairSetKeyId(     cmData_t* p, unsigned id )
-{
+  assert( _cmDataPairIsValid(p) );
+  cmDataSetUInt(p->u.child,id);
+  return p;
 }
 
 cmData_t* cmDataPairSetKeyLabel(  cmData_t* p, const cmChar_t* label )
 {
+  assert( _cmDataPairIsValid(p) );
+  cmDataSetConstStrAlloc(p->u.child,label);
+  return p;  
 }
 
-cmData_t* cmDataPairAllocKey(     cmData_t* p, const cmData_t* key )
+
+cmData_t* cmDataMakePair( cmData_t* parent, cmData_t* p, cmData_t* key, cmData_t* value )
 {
+  _cmDataFree(p);
+  p->tid    = kPairDtId;
+  p->parent = parent;
+  p->flags   = 0;
+  p->u.child = NULL;
+  return p;
 }
 
 // Dynamically allocate a pair node 
-cmData_t* cmDataAllocPair(      cmData_t* parent, const cmData_t* key,  const cmData_t* value )
+cmData_t* cmDataAllocPair(  cmData_t* parent, const cmData_t* key, const cmData_t* value )
 {
+  cmData_t* p  = _cmDataAllocNode(parent,kPairDtId);
+  cmData_t* kp = cmDataDupl(key);
+  cmData_t* vp = cmDataDupl(value);
+  cmDataPrependChild(p,vp);
+  cmDataPrependChild(p,kp);
+  return p;
 }
 
-cmData_t* cmDataAllocPairId(    cmData_t* parent, unsigned  keyId,      cmData_t* value )
+cmData_t* cmDataAllocPairId(cmData_t* parent, unsigned  keyId,  cmData_t* value )
 {
+  cmData_t* p  = _cmDataAllocNode(parent,kPairDtId);
+  cmDataAllocUInt(p,keyId);
+  cmDataAppendChild(p,value);
+  return p;
 }
 
-cmData_t* cmDataAllocPairLabel( cmData_t* parent, const cmChar_t label, cmData_t* value )
+cmData_t* cmDataAllocPairLabel( cmData_t* parent, const cmChar_t *label, cmData_t* value )
 {
+  cmData_t* p  = _cmDataAllocNode(parent,kPairDtId);
+  cmDataConstStrAlloc(p,label);
+  cmDataAppendChild(p,value);
+  return p;
 }
   
+//----------------------------------------------------------------------------
+
+unsigned  cmDataListCount(const cmData_t* p )
+{ return cmDataChildCount(p);  }
+
+cmData_t* cmDataListEle(    cmData_t* p, unsigned index )
+{ return cmDataChild(p,index); }
+
+cmData_t* cmDataListMake(  cmData_t* parent, cmData_t* p )
+{
+  _cmDataFree(p);
+  p->parent  = parent;
+  p->tid     = kListDtId;
+  p->flags   = 0;
+  p->u.child = NULL;
+  return p;
+}
+
+cmData_t* cmDataListAlloc( cmData_t* parent)
+{ return _cmDataAllocNode(parent,kListDtId); }
+
+cmDtRC_t  _cmDataParseArgV( cmData_t* parent, va_list vl, cmData_t** vpp )
+{
+  cmDtRC_t  rc  = kOkDtRC;
+  cmData_t* vp  = NULL;
+  unsigned  tid = va_arg(vl,unsigned);
+    
+  switch(tid)
+  {
+    case kInvalidDtId:    rc = kEolDtRC; break;
+    case kNullDtId:       vp = cmDataAllocNull(parent);                                break;
+    case kUCharDtId:      vp = cmDataAllocUChar(    parent,va_arg(vl,int));            break;
+    case kCharDtId:       vp = cmDataAllocChar(     parent,va_arg(vl,int));            break;
+    case kUShortDtId:     vp = cmDataAllocUShort(   parent,va_arg(vl,int));            break;
+    case kShortDtId:      vp = cmDataAllocShort(    parent,va_arg(vl,int));            break;
+    case kUIntDtId:       vp = cmDataAllocUInt(     parent,va_arg(vl,unsigned int));   break;
+    case kIntDtId:        vp = cmDataAllocInt(      parent,va_arg(vl,int));            break;
+    case kULongDtId:      vp = cmDataAllocULong(    parent,va_arg(vl,unsigned long));  break;
+    case kLongDtId:       vp = cmDataAllocLong(     parent,va_arg(vl,long));           break;
+    case kFloatDtId:      vp = cmDataAllocFloat(    parent,va_arg(vl,double));         break;
+    case kDoubleDtId:     vp = cmDataAllocDouble(   parent,va_arg(vl,double));         break;
+
+    case kStrDtId:        vp = cmDataStrAlloc(      parent,va_arg(vl,cmChar_t*));       break;
+    case kConstStrDtId:   vp = cmDataConstStrAlloc( parent,va_arg(vl,const cmChar_t*)); break;
+
+    case kUCharPtrDtId:   
+      {
+        unsigned char* p = va_arg(vl,unsigned char*);
+        vp = cmDataUCharAllocPtr(parent, p, va_arg(vl,unsigned)); 
+      }
+      break;
+
+    case kCharPtrDtId:    
+      {
+        char* p = va_arg(vl,char*);
+        vp = cmDataCharAllocPtr(parent, p,  va_arg(vl,unsigned)); 
+      }
+      break;
+
+    case kUShortPtrDtId:  
+      {
+        unsigned short* p = va_arg(vl,unsigned short*);
+        vp = cmDataUShortAllocPtr(parent, p, va_arg(vl,unsigned)); 
+      }
+      break;
+
+    case kShortPtrDtId:   
+      {
+        short* p = va_arg(vl,short*);
+        vp = cmDataShortAllocPtr(parent, p, va_arg(vl,unsigned)); 
+      }
+      break;
+
+    case kUIntPtrDtId:    
+      {
+        unsigned int* p = va_arg(vl,unsigned int*);
+        vp = cmDataUIntAllocPtr(parent, p, va_arg(vl,unsigned)); 
+      }
+      break;
+
+    case kIntPtrDtId:     
+      {
+        int * p = va_arg(vl,int*);
+        vp = cmDataIntAllocPtr(parent, p,  va_arg(vl,unsigned)); 
+      }
+      break;
+
+    case kULongPtrDtId:   
+      {
+        unsigned long* p = va_arg(vl,unsigned long*);
+        vp = cmDataULongAllocPtr(parent, p, va_arg(vl,unsigned)); 
+      }
+      break;
+
+    case kLongPtrDtId:    
+      {
+        long* p = va_arg(vl,long*);
+        vp = cmDataLongAllocPtr(parent, p, va_arg(vl,unsigned)); 
+      }
+      break;
+
+    case kFloatPtrDtId:   
+      {
+        float* p = va_arg(vl,float*);
+        vp = cmDataFloatAllocPtr(parent, p, va_arg(vl,unsigned)); 
+      }
+      break;
+
+    case kDoublePtrDtId:  
+      {
+        double* p = va_arg(vl,double*);
+        vp = cmDataDoubleAllocPtr(parent,p, va_arg(vl,unsigned)); 
+      }
+      break;
+
+    case kVoidPtrDtId:    
+      {
+        void* p = va_arg(vl,void*);
+        vp = cmDataVoidAllocPtr(parent, p, va_arg(vl,unsigned)); 
+      }
+      break;
+
+    case kListDtId:
+    case kPairDtId:
+    case kRecordDtId:
+      vp = _cmDataAllocNode(parent,tid);
+      break;
+
+    default:
+      _cmDataSetError(kVarArgErrDtRC);
+      break;
+  }
+
+  *vpp = vp;
+
+  return rc;
+}
+
+cmData_t* _cmDataListParseV(cmData_t* parent, va_list vl )
+{
+  cmData_t* p      = NULL;
+  bool      contFl = true;
+
+  while( contFl )
+  {  
+    cmData_t* vp;
+    cmDtRC_t rc = _cmDataParseArgV(parent, vl, &vp);
+    
+    if(rc != kOkDtRC || cmDataAppendChild(parent,vp)==NULL )    
+      contFl = false;      
+
+  }
+  return p;
+}
+
+cmData_t* cmDataListAllocV(cmData_t* parent, va_list vl )
+{
+  cmData_t* p = cmDataListAlloc(parent);
+  _cmDataListParseV(p, vl );
+  return p;
+}
+
+cmData_t* cmDataListAllocA(cmData_t* parent,  ... )
+{
+  va_list vl;
+  va_start(vl,parent);
+  cmData_t* p = cmDataListAllocV(parent,vl);
+  va_end(vl);
+  return p;
+}
   
+
+cmData_t* cmDataListAppendEle( cmData_t* p, cmData_t* ele )
+{ 
+  assert(p->tid == kListDtId);
+  return cmDataAppendChild(p,ele);
+}
+
+cmData_t* cmDataListAppendEleN(cmData_t* p, cmData_t* ele[], unsigned n )
+{
+  assert(p->tid == kListDtId);
+
+  cmData_t* rp = NULL;
+  unsigned i;
+  for(i=0; i<n; ++i)
+  {
+    cmData_t* ep = cmDataAppendChild(p,ele[i]);
+    if( rp == NULL )
+      rp = ep;
+  }
+  return rp;
+}
+
+cmDtRC_t  cmDataListAppendV(   cmData_t* p, va_list vl )
+{
+  if( _cmDataListParseV(p, vl ) == NULL )
+    return _cmDataErrNo;
+
+  return kOkDtRC;
+}
+
+cmDtRC_t  cmDataListAppend(    cmData_t* p, ... )
+{
+  va_list vl;  
+  va_start(vl,p);
+  cmDtRC_t rc = cmDataListAppendV(p,vl); 
+  va_end(vl);
+  return rc;
+}
+
+cmData_t* cmDataListInsertEle( cmData_t* p, unsigned index, cmData_t* ele )
+{ return cmDataInsertChild(p,index,ele); }
+
+cmData_t* cmDataListInsertEleN(cmData_t* p, unsigned index, cmData_t* ele[], unsigned n )
+{
+  unsigned i;
+  for(i=0; i<n; ++i)
+    cmDataListInsertEle(p,index+i,ele[i]);
+  return p;
+}
+
+
+//----------------------------------------------------------------------------
+unsigned       cmDataRecdCount(    const cmData_t* p )
+{ 
+  assert( p->tid == kRecordDtId );
+  return cmDataChildCount(p);
+}
+
+cmData_t*       cmDataRecdEle(      cmData_t* p, unsigned index )
+{
+  assert( p->tid == kRecordDtId );
+  cmData_t* cp = cmDataChild(p,index);
+  assert( p->tid == kPairDtId );
+  return cp;
+}
+
+cmData_t*       cmDataRecdValueFromIndex(    cmData_t* p, unsigned index )
+{
+  assert( p->tid == kRecordDtId );
+  cmData_t* cp =  cmDataChild(p,index);
+  assert( p->tid == kPairDtId );
+  return cmDataPairValue(cp);
+}
+
+cmData_t*       cmDataRecdValueFromId(    cmData_t* p, unsigned id )
+{
+  assert( p->tid == kRecordDtId );
+  cmData_t* cp =  p->u.child;
+  for(; cp!=NULL; cp=cp->sibling)
+    if( cmDataPairKeyId(cp) == id )
+      break;
+      
+  assert( cp!=NULL && cp->tid==kPairDtId );
+
+  return cmDataPairValue(cp);
+}
+
+cmData_t*       cmDataRecdValueFromLabel(    cmData_t* p, const cmChar_t* label )
+{
+  assert( p->tid == kRecordDtId );
+  cmData_t* cp =  p->u.child;
+  for(; cp!=NULL; cp=cp->sibling)
+  {
+    const cmChar_t* lp = cmDataPairKeyLabel(cp);
+
+    if( lp!=NULL && strcmp(lp,label)==0 )
+      break;
+  }    
+  assert( cp!=NULL && cp->tid==kPairDtId );
+
+  return cmDataPairValue(cp);
+}
+
+cmData_t*       cmDataRecdKey(      cmData_t* p, unsigned index )
+{
+  assert( p->tid == kRecordDtId );
+  cmData_t* cp =  cmDataChild(p,index);
+  assert( p->tid == kPairDtId );
+  return cmDataPairKey(cp);
+}
+
+unsigned        cmDataRecdKeyId(    cmData_t* p, unsigned index )
+{
+  cmData_t* kp = cmDataRecdKey(p,index);
+  return cmDataGetUInt(kp);
+}
+
+const cmChar_t* cmDataRecdKeyLabel( cmData_t* p, unsigned index )
+{
+  cmData_t* kp = cmDataRecdKey(p,index);
+  return cmDataGetConstStr(kp);
+}
+  
+cmData_t*       cmRecdMake( cmData_t* parent, cmData_t* p )
+{
+  _cmDataFree(p);
+  p->parent  = parent;
+  p->tid     = kRecordDtId;
+  p->flags   = 0;
+  p->u.child = NULL;
+  return p;
+}
+
+cmData_t*       cmRecdAlloc(cmData_t* parent)
+{ return _cmDataAllocNode(parent,kRecordDtId); }
+
+cmData_t* cmRecdAppendPair( cmData_t* p, cmData_t* pair )
+{
+  assert( p!=NULL && p->tid==kRecordDtId);
+  cmDataAppendChild(p,pair);
+  return p;
+}
+
+
+cmDtRC_t  _cmDataRecdParseV(cmData_t* parent, unsigned idFl, va_list vl )
+{
+  assert( parent != NULL && parent->tid == kRecordDtId );
+  bool      contFl = true;
+  cmDtRC_t  rc     = kOkDtRC;
+
+  // for each record field
+  while( contFl )
+  {  
+    cmData_t*       vp    = NULL;
+    unsigned        id    = cmInvalidId;
+    const cmChar_t* label = NULL;
+
+    // parse the field idenfier
+    if( idFl )
+      id    = va_arg(vl,unsigned);     // numeric field identifier
+    else
+      label = va_arg(vl,const char*);  // text field label identifier
+    
+    // validate the field identifier
+    if( id==kInvalidDtId || label==NULL )
+      break;
+
+    // parse the field data
+    if((rc =_cmDataParseArgV( NULL, vl, &vp )) != kOkDtRC )
+    {
+      contFl = false;
+    }
+    else
+    {
+      // create the field pair
+      if( idFl )
+        cmDataAllocPairId(parent,id,vp);
+      else
+        cmDataAllocPairLabel(parent,label,vp);
+    }
+  }
+  return rc;
+}
+
+cmData_t*       cmDataRecdAllocLabelV( cmData_t* parent, va_list vl )
+{
+  cmData_t* p = cmRecdAlloc(parent);
+  cmDtRC_t rc = _cmDataRecdParseV(p, false, vl );
+  if( rc != kOkDtRC )
+  {
+    cmDataFree(p);
+    p = NULL;
+  }
+  return p;
+}
+
+cmData_t*       cmDataRecdAllocLabelA( cmData_t* parent, ... )
+{
+  va_list vl;
+  va_start(vl,parent);
+  cmData_t* p = cmDataRecdAllocLabelV(parent,vl);
+  va_end(vl);
+  return p;
+}
+
+cmData_t*       cmDataRecdAllocIdV( cmData_t* parent, va_list vl )
+{
+  cmData_t* p = cmRecdAlloc(parent);
+  cmDtRC_t rc = _cmDataRecdParseV(p, true, vl );
+  if( rc != kOkDtRC )
+  {
+    cmDataFree(p);
+    p = NULL;
+  }
+  return p;
+}
+
+cmData_t*       cmDataRecdAllocIdA( cmData_t* parent, ... )
+{
+  va_list vl;
+  va_start(vl,parent);
+  cmData_t* p = cmDataRecdAllocIdV(parent,vl);
+  va_end(vl);
+  return p;
+}
+
+//----------------------------------------------------------------------------  
 unsigned cmDataSerializeByteCount( const cmData_t* p )
 {
   unsigned bn = 0;
@@ -1218,18 +1834,130 @@ unsigned cmDataSerializeByteCount( const cmData_t* p )
 
 cmDtRC_t cmDataSerialize( const cmData_t* p, void* buf, unsigned bufByteCnt )
 {
+  return kOkDtRC;
 }
 
 cmDtRC_t cmDataDeserialize( const void* buf, unsigned bufByteCnt, cmData_t** pp )
 {
+  return kOkDtRC;
 }
 
-void     cmDataPrint( const cmData_t* p, cmRpt_t* rpt )
+#define parr(rpt,fmt,arr,n) do{int i=0; cmRptPrintf(rpt,"[ "); for(;i<n;++i) cmRptPrintf(rpt,fmt,arr[i]); cmRptPrintf(rpt," ]"); }while(0) 
+
+void _cmDataPrintIndent( cmRpt_t* rpt, unsigned indent )
 {
+  unsigned j=0;
+  for(; j<indent; ++j)
+    cmRptPrintf(rpt," ");
 }
+
+void     _cmDataPrint( const cmData_t* p, cmRpt_t* rpt, unsigned indent )
+{
+  cmData_t* cp;
+
+  //_cmDataPrintIndent(rpt,indent);
+
+  switch(p->tid)
+  {
+    case kNullDtId:       cmRptPrintf(rpt,"<null>"); break;
+    case kUCharDtId:      cmRptPrintf(rpt,"%c ",cmDataGetUChar(p));  break;
+    case kCharDtId:       cmRptPrintf(rpt,"%c ",cmDataGetChar(p));   break;
+    case kUShortDtId:     cmRptPrintf(rpt,"%i ",cmDataGetUShort(p)); break;
+    case kShortDtId:      cmRptPrintf(rpt,"%i ",cmDataGetShort(p));  break;
+    case kUIntDtId:       cmRptPrintf(rpt,"%i ",cmDataGetUInt(p));   break;
+    case kIntDtId:        cmRptPrintf(rpt,"%i ",cmDataGetInt(p));    break;
+    case kULongDtId:      cmRptPrintf(rpt,"%i ",cmDataGetULong(p));  break;
+    case kLongDtId:       cmRptPrintf(rpt,"%i ",cmDataGetLong(p));   break;
+    case kFloatDtId:      cmRptPrintf(rpt,"%f ",cmDataGetFloat(p));  break;
+    case kDoubleDtId:     cmRptPrintf(rpt,"%f ",cmDataGetDouble(p)); break;
+
+    case kStrDtId:        cmRptPrintf(rpt,"%s ",cmDataGetStr(p));      break;
+    case kConstStrDtId:   cmRptPrintf(rpt,"%s ",cmDataGetConstStr(p)); break;
+
+    case kUCharPtrDtId:   parr(rpt,"%c ",cmDataGetUCharPtr(p), p->cnt); break;
+    case kCharPtrDtId:    parr(rpt,"%c ",cmDataGetCharPtr(p),  p->cnt); break;
+    case kUShortPtrDtId:  parr(rpt,"%i ",cmDataGetUShortPtr(p),p->cnt); break;
+    case kShortPtrDtId:   parr(rpt,"%i ",cmDataGetShortPtr(p), p->cnt); break;
+    case kUIntPtrDtId:    parr(rpt,"%i ",cmDataGetUIntPtr(p),  p->cnt); break;
+    case kIntPtrDtId:     parr(rpt,"%i ",cmDataGetIntPtr(p),   p->cnt); break;
+    case kULongPtrDtId:   parr(rpt,"%i ",cmDataGetULongPtr(p), p->cnt); break;
+    case kLongPtrDtId:    parr(rpt,"%i ",cmDataGetLongPtr(p),  p->cnt); break;
+    case kFloatPtrDtId:   parr(rpt,"%f ",cmDataGetFloatPtr(p), p->cnt); break;
+    case kDoublePtrDtId:  parr(rpt,"%f ",cmDataGetDoublePtr(p),p->cnt); break;
+
+    case kVoidPtrDtId:    cmRptPrintf(rpt,"<void:%i>",p->cnt); break;
+
+    case kPairDtId:
+      _cmDataPrint(p->u.child,rpt,indent);
+      cmRptPrintf(rpt," : ");
+      _cmDataPrint(p->u.child->sibling,rpt,indent);
+      cmRptPrintf(rpt,"\n");
+      break;
+
+    case kListDtId:
+      cmRptPrintf(rpt,"(\n");
+      indent += 2;
+      cp = p->u.child;
+      for(; cp!=NULL; cp=cp->sibling)
+      {
+        _cmDataPrintIndent(rpt,indent);
+        _cmDataPrint(cp,rpt,indent);
+        cmRptPrintf(rpt,"\n");
+      }
+      indent -= 2;
+      _cmDataPrintIndent(rpt,indent);
+      cmRptPrintf(rpt,")\n");
+      break;
+
+    case kRecordDtId:
+      cmRptPrintf(rpt,"{\n");
+      indent += 2;
+      cp = p->u.child;
+      for(; cp!=NULL; cp=cp->sibling)
+      {
+        _cmDataPrintIndent(rpt,indent);
+        _cmDataPrint(cp,rpt, indent);        
+      }
+      indent -= 2;
+      _cmDataPrintIndent(rpt,indent);
+      cmRptPrintf(rpt,"}\n");
+      break;
+
+    default:
+      break;
+  }
+}
+
+void cmDataPrint( const cmData_t* p, cmRpt_t* rpt )
+{ _cmDataPrint(p,rpt,0); }
 
 void     cmDataTest( cmCtx_t* ctx )
 {
+  float farr[] = { 1.23, 45.6, 7.89 };
+
+  cmData_t* d0 = cmDataRecdAllocLabelA(NULL,
+    "name",kConstStrDtId,"This is a string.",
+    "id",  kUIntDtId,    21,
+    "real",kFloatDtId, 1.23,
+    "arr", kFloatPtrDtId, farr, 3,
+    NULL);
+  
+  cmDataPrint(d0,&ctx->rpt);
+  cmDataFree(d0);
+
+  cmData_t* d1 = cmDataListAllocA(NULL,
+    kUIntDtId, 53,
+    kStrDtId, "Blah blah",
+    kFloatPtrDtId, farr, 3,
+    kInvalidDtId );
+
+
+  cmDataPrint(d1,&ctx->rpt);
+  cmDataFree(d1);
+
+
+
+  cmRptPrintf(&ctx->rpt,"Done!.\n");
 }
 
 
