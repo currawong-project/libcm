@@ -7,9 +7,6 @@
 // calculate elapsed time.
 //)
 
-#ifdef OS_OSX
-#include "osx/clock_gettime_stub.h"
-#endif
 
 #ifndef cmTime_h   
 #define cmTime_h
