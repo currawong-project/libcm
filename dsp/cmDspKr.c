@@ -372,6 +372,10 @@ cmDspRC_t _cmDspTimeLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
   switch( evt->dstVarId )
   {
+    case kAudPathTlId:
+      cmDspSetEvent(ctx,inst,evt);
+      break;
+
     case kCursTlId:
       cmDspSetEvent(ctx,inst,evt);
       break;
