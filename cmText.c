@@ -102,6 +102,7 @@ cmChar_t*    _cmTextSysVPrintf( cmTextSysH_t h, cmLHeapH_t lhH, bool staticFl, c
   unsigned     m = vsnprintf(s,n+1,fmt,vl1);
   assert(m==n);
   s[n] = 0;
+  va_end(vl1);
   return s;
 }
 
