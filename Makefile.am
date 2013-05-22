@@ -77,8 +77,7 @@ if OS_LINUX
 endif
 
 if OS_OSX
-  cmSRC += src/libcm/osx/clock_gettime_stub.c src/libcm/osx/cmMidiOsx.c src/libcm/osx/cmAudioPortOsx.c src/libcm/osx/cmFileSysOsx.c
-  cmHDR += src/libcm/osx/clock_gettime_stub.h	
+  cmSRC += src/libcm/osx/cmMidiOsx.c src/libcm/osx/cmAudioPortOsx.c src/libcm/osx/cmFileSysOsx.c
 endif
 
 
