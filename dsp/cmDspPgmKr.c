@@ -93,6 +93,9 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   if( krLoadRsrc(h,&err,&r) != kOkDspRC )
     return rc;
 
+  unsigned   preGrpSymId  = cmDspSysPresetRegisterGroup(h,"TimeLine");
+
+
   cmDspInst_t* tlp  = cmDspSysAllocInst(h,"TimeLine",    "tl",  2, r.tlFn, r.audPath );
   cmDspInst_t* scp  = cmDspSysAllocInst(h,"Score",       "sc",  1, r.scFn );
   cmDspInst_t* php  = cmDspSysAllocInst(h,"Phasor",      NULL,  1, cmDspSysSampleRate(h) );
@@ -106,12 +109,11 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* even_sr  = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.8,   1.1, 0.0, 1.0 );
   cmDspInst_t* even_rt  = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
 
-
   cmDspInst_t* dyn_sr   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0,   4.0, 0.01, 1.0 );
-  cmDspInst_t* dyn_rt  = cmDspSysAllocInst(h,  "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
+  cmDspInst_t* dyn_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
 
-  cmDspInst_t* tempo_sr = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4, 80.0, 120.0, 0.01, 1.0 );
-  cmDspInst_t* tempo_rt  = cmDspSysAllocInst(h,"Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
+  cmDspInst_t* tempo_sr = cmDspSysAllocInst(h,"ScaleRange",  NULL,  4, 80.0, 120.0, 0.01, 1.0 );
+  cmDspInst_t* tempo_rt = cmDspSysAllocInst(h,"Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
 
   cmDspInst_t* cost_sr  = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0,    1.0, 0.001, 1.0 );
   cmDspInst_t* cost_rt  = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
@@ -144,62 +146,75 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* prt  = cmDspSysAllocInst(h,"Printer", NULL,   1, "TEMPO:");
   cmDspInst_t* prc  = cmDspSysAllocInst(h,"Printer", NULL,   1, "COST:");
   //cmDspInst_t* prv  = cmDspSysAllocInst(h,"Printer", NULL,   1, "Value:");
+
+  //--------------- Preset controls
+  cmDspInst_t* preset    = cmDspSysAllocInst(   h, "Preset", NULL, 1, preGrpSymId );
+  cmDspInst_t* presetLbl = cmDspSysAllocInst(   h, "Text",   "Preset",      1, "" );
+  cmDspInst_t* storeBtn  = cmDspSysAllocButton( h, "store",  0);
+  cmDspInst_t* recallBtn = cmDspSysAllocButton( h, "recall", 0);
+  cmDspSysInstallCb(   h, presetLbl, "val", preset, "label",NULL);
+  cmDspSysInstallCb(   h, storeBtn,  "sym", preset, "cmd", NULL );
+  cmDspSysInstallCb(   h, recallBtn, "sym", preset, "cmd", NULL );
+  
+
+  cmDspInst_t* adir = cmDspSysAllocInst(h,"Fname",  "audDir",   3, true,NULL,r.audPath);
+
   cmDspSysNewColumn(h,0);
 
-  cmDspInst_t* md0p = cmDspSysAllocInst(h,"Scalar", "Mode",      5, kNumberDuiId, 0.0, 4.0, 1.0, 1.0);
-  cmDspInst_t* ws0p = cmDspSysAllocInst(h,"MsgList","wndSmpCnt", 3, "wndSmpCnt", NULL, 2);
-  cmDspInst_t* hf0p = cmDspSysAllocInst(h,"MsgList","hopFact",   3, "hopFact",   NULL, 2);
-  cmDspInst_t* th0p = cmDspSysAllocInst(h,"Scalar", "threshold", 5, kNumberDuiId, 0.0, 100.0, 1.0,  60.0 );
-  cmDspInst_t* us0p = cmDspSysAllocInst(h,"Scalar", "upr slope", 5, kNumberDuiId, 0.0,  10.0, 0.01,  0.0 ); 
-  cmDspInst_t* ls0p = cmDspSysAllocInst(h,"Scalar", "lwr slope", 5, kNumberDuiId, 0.3,  10.0, 0.01,  2.0 );
-  cmDspInst_t* of0p = cmDspSysAllocInst(h,"Scalar", "offset",    5, kNumberDuiId, 0.0, 100.0, 0.01, 30.0 );
-  cmDspInst_t* iv0p = cmDspSysAllocInst(h,"Scalar", "invert",    5, kNumberDuiId, 0.0,   1.0, 1.0,   0.0 );  
-  cmDspInst_t* wet0  = cmDspSysAllocInst(h,"Scalar", "wet",      5, kNumberDuiId, 0.0,    1.0,0.001,  1.0 );  
+  cmDspInst_t* md0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "Mode",      0.0, 4.0, 1.0, 1.0);
+  cmDspInst_t* ws0p = cmDspSysAllocMsgListP(h,preGrpSymId,NULL,"wndSmpCnt", NULL, "wndSmpCnt", 2);
+  cmDspInst_t* hf0p = cmDspSysAllocMsgListP(h,preGrpSymId,NULL,"hopFact",   NULL, "hopFact",   2);
+  cmDspInst_t* th0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "threshold", 0.0, 100.0, 1.0,  60.0 );
+  cmDspInst_t* us0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "upr slope", 0.0,  10.0, 0.01,  0.0 ); 
+  cmDspInst_t* ls0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "lwr slope", 0.3,  10.0, 0.01,  2.0 );
+  cmDspInst_t* of0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "offset",    0.0, 100.0, 0.01, 30.0 );
+  cmDspInst_t* iv0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "invert",    0.0,   1.0, 1.0,   0.0 );  
+  cmDspInst_t* wet0  = cmDspSysAllocScalarP(h,preGrpSymId,NULL, "wet",       0.0,    1.0,0.001,  1.0 );  
   cmDspSysNewColumn(h,0);
 
   //cmDspInst_t* al1p = cmDspSysAllocInst(h,"MsgList","audFiles", 2, "audFiles",NULL);
   //cmDspInst_t* fl1p = cmDspSysAllocInst(h,"MsgList","audFrags1", 2, "audFrags",NULL);
   //cmDspInst_t* fn1p = cmDspSysAllocInst(h,"Sprintf","filename", 1, "%s/%s_%02i.wav");
-  cmDspInst_t* md1p = cmDspSysAllocInst(h,"Scalar", "Mode1",      5, kNumberDuiId, 0.0, 4.0, 1.0, 1.0);
-  cmDspInst_t* ws1p = cmDspSysAllocInst(h,"MsgList","wndSmpCnt1", 3, "wndSmpCnt", NULL, 2);
-  cmDspInst_t* hf1p = cmDspSysAllocInst(h,"MsgList","hopFact1",   3, "hopFact",   NULL, 2);
-  cmDspInst_t* th1p = cmDspSysAllocInst(h,"Scalar", "threshold1", 5, kNumberDuiId, 0.0, 100.0, 1.0,  60.0 );
-  cmDspInst_t* us1p = cmDspSysAllocInst(h,"Scalar", "upr slope1", 5, kNumberDuiId, 0.0,  10.0, 0.01,  0.0 ); 
-  cmDspInst_t* ls1p = cmDspSysAllocInst(h,"Scalar", "lwr slope1", 5, kNumberDuiId, 0.3,  10.0, 0.01,  2.0 );
-  cmDspInst_t* of1p = cmDspSysAllocInst(h,"Scalar", "offset1",    5, kNumberDuiId, 0.0, 100.0, 0.01, 30.0 );
-  cmDspInst_t* iv1p = cmDspSysAllocInst(h,"Scalar", "invert1",    5, kNumberDuiId, 0.0,   1.0, 1.0,   0.0 );  
-  cmDspInst_t* wet1  = cmDspSysAllocInst(h,"Scalar", "wet1",      5, kNumberDuiId, 0.0,    1.0,0.001,  1.0 );  
+  cmDspInst_t* md1p  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "Mode1",      0.0, 4.0, 1.0, 1.0);
+  cmDspInst_t* ws1p  = cmDspSysAllocMsgListP(h,preGrpSymId,NULL, "wndSmpCnt1", NULL, "wndSmpCnt", 2);
+  cmDspInst_t* hf1p  = cmDspSysAllocMsgListP(h,preGrpSymId,NULL, "hopFact1",   NULL, "hopFact",   2);
+  cmDspInst_t* th1p  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "threshold1", 0.0, 100.0, 1.0,  60.0 );
+  cmDspInst_t* us1p  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "upr slope1", 0.0,  10.0, 0.01,  0.0 ); 
+  cmDspInst_t* ls1p  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "lwr slope1", 0.3,  10.0, 0.01,  2.0 );
+  cmDspInst_t* of1p  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "offset1",    0.0, 100.0, 0.01, 30.0 );
+  cmDspInst_t* iv1p  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "invert1",    0.0,   1.0, 1.0,   0.0 );  
+  cmDspInst_t* wet1  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "wet1",       0.0,    1.0,0.001,  1.0 );  
 
   cmDspSysNewColumn(h,0);
   cmDspInst_t* ogain = cmDspSysAllocInst(h,"Scalar", "Out Gain",   5, kNumberDuiId, 0.0,   10.0,0.01,   3.0 );  
   //cmDspInst_t* reload = cmDspSysAllocInst(h,"Button", "Reload",     2, kButtonDuiId, 0.0 );
 
-  cmDspInst_t* min_dyn   = cmDspSysAllocScalar( h, "Min In Dyn",      0.0, 10.0, 1.0, 0.0);
-  cmDspInst_t* max_dyn   = cmDspSysAllocScalar( h, "Max In Dyn",      0.0, 10.0, 1.0, 4.0);
-  cmDspInst_t* menu_dyn   = cmDspSysAllocInst(  h, "MsgList","DynSel", 3, "measMenu", NULL, measRtChCnt-1);
+  cmDspInst_t* min_dyn   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Dyn",      0.0, 10.0, 1.0, 0.0);
+  cmDspInst_t* max_dyn   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Dyn",      0.0, 10.0, 1.0, 4.0);
+  cmDspInst_t* menu_dyn  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "DynSel", NULL, "measMenu", measRtChCnt-1);
 
-  cmDspInst_t* min_even   = cmDspSysAllocScalar( h, "Min In Even",    0.0, 1.0, 0.001, 0.75);
-  cmDspInst_t* max_even   = cmDspSysAllocScalar( h, "Max In Even",    0.0, 3.0, 0.001, 1.0);
-  cmDspInst_t* menu_even   = cmDspSysAllocInst(  h, "MsgList","EvenSel", 3, "measMenu", NULL, measRtChCnt-1);
-
-  cmDspSysNewColumn(h,0);
-  cmDspInst_t* min_tempo   = cmDspSysAllocScalar( h, "Min In Tempo",   0.0, 200.0, 1.0, 80.0);
-  cmDspInst_t* max_tempo   = cmDspSysAllocScalar( h, "Max In Tempo",   0.0, 200.0, 1.0, 120.0);
-  cmDspInst_t* menu_tempo   = cmDspSysAllocInst(  h, "MsgList","TempoSel", 3, "measMenu", NULL, measRtChCnt-1);
-
-  cmDspInst_t* min_cost   = cmDspSysAllocScalar( h, "Min In Cost",      0.0, 1.0, 0.01, 0.0);
-  cmDspInst_t* max_cost   = cmDspSysAllocScalar( h, "Max In Cost",      0.0, 1.0, 0.01, 1.0);
-  cmDspInst_t* menu_cost   = cmDspSysAllocInst(  h, "MsgList","CostSel", 3, "measMenu", NULL, measRtChCnt-1);
+  cmDspInst_t* min_even   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Even",    0.0, 1.0, 0.001, 0.75);
+  cmDspInst_t* max_even   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Even",    0.0, 3.0, 0.001, 1.0);
+  cmDspInst_t* menu_even  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "EvenSel", NULL, "measMenu", measRtChCnt-1);
 
   cmDspSysNewColumn(h,0);
-  cmDspInst_t* min_thrh   = cmDspSysAllocScalar( h, "Min Thresh",      0.0, 100.0, 1.0, 30.0);
-  cmDspInst_t* max_thrh   = cmDspSysAllocScalar( h, "Max Thresh",      0.0, 100.0, 1.0, 80.0);
+  cmDspInst_t* min_tempo   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Tempo",   0.0, 200.0, 1.0, 80.0);
+  cmDspInst_t* max_tempo   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Tempo",   0.0, 200.0, 1.0, 120.0);
+  cmDspInst_t* menu_tempo  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "TempoSel", NULL, "measMenu", measRtChCnt-1);
 
-  cmDspInst_t* min_upr   = cmDspSysAllocScalar( h, "Min Upr",          -1.0, 1.0, 0.001, -0.5);
-  cmDspInst_t* max_upr   = cmDspSysAllocScalar( h, "Max Upr",          -1.0, 1.0, 0.001, 0.5);
+  cmDspInst_t* min_cost   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Cost",      0.0, 1.0, 0.01, 0.0);
+  cmDspInst_t* max_cost   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Cost",      0.0, 1.0, 0.01, 1.0);
+  cmDspInst_t* menu_cost  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "CostSel", NULL, "measMenu", measRtChCnt-1);
 
-  cmDspInst_t* min_lwr   = cmDspSysAllocScalar( h, "Min Lwr",          0.0, -1.0, 5.0, 1.0);
-  cmDspInst_t* max_lwr   = cmDspSysAllocScalar( h, "Max Lwr",          0.0, -1.0, 5.0, 3.0);
+  cmDspSysNewColumn(h,0);
+  cmDspInst_t* min_thrh   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min Thresh",      0.0, 100.0, 1.0, 30.0);
+  cmDspInst_t* max_thrh   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max Thresh",      0.0, 100.0, 1.0, 80.0);
+
+  cmDspInst_t* min_upr   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min Upr",          -1.0, 1.0, 0.001, -0.5);
+  cmDspInst_t* max_upr   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max Upr",          -1.0, 1.0, 0.001, 0.5);
+
+  cmDspInst_t* min_lwr   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min Lwr",          0.0, -1.0, 5.0, 1.0);
+  cmDspInst_t* max_lwr   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max Lwr",          0.0, -1.0, 5.0, 3.0);
 
 
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
@@ -231,6 +246,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   // wave-table to time-line cursor
   cmDspSysInstallCb(   h, wtp, "fidx",tlp,  "curs", NULL); 
+
+  cmDspSysInstallCb(h, adir, "out", tlp, "path", NULL );
 
   // start connections
   cmDspSysInstallCb(h, onb, "sym", tlp, "reset", NULL );
