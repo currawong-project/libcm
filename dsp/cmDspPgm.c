@@ -2177,14 +2177,14 @@ cmDspRC_t _cmDspSysPgm_Preset( cmDspSysH_t h, void** userPtrPtr )
   double          sgHz      = 500;
   double          sgGain    = 0.02;
   unsigned        grpSymId  = cmDspSysPresetRegisterGroup(h,"test");
-  const cmChar_t* preLbl    = NULL;
+  const cmChar_t* prefixLabel    = NULL;
 
   cmDspInst_t* sg  = cmDspSysAllocInst(   h, "SigGen",    NULL, 3, sgHz, sgShapeId, sgGain );
   cmDspInst_t* ao  =  cmDspSysAllocAudioOut( h, 0, 1.0 );
   
-  cmDspInst_t* shape  = cmDspSysAllocScalarP( h, grpSymId, preLbl, "Shape",     0.0, 3.0,     1.0,  sgShapeId);
-  cmDspInst_t* hz     = cmDspSysAllocScalarP( h, grpSymId, preLbl, "Hz",        0.0, 10000.0, 0.01, sgHz);
-  cmDspInst_t* gain   = cmDspSysAllocScalarP( h, grpSymId, preLbl, "Gain",      0.0, 1.0,     0.01, sgGain);
+  cmDspInst_t* shape  = cmDspSysAllocScalarP( h, grpSymId, prefixLabel, "Shape",     0.0, 3.0,     1.0,  sgShapeId);
+  cmDspInst_t* hz     = cmDspSysAllocScalarP( h, grpSymId, prefixLabel, "Hz",        0.0, 10000.0, 0.01, sgHz);
+  cmDspInst_t* gain   = cmDspSysAllocScalarP( h, grpSymId, prefixLabel, "Gain",      0.0, 1.0,     0.01, sgGain);
   
   cmDspInst_t* preset    = cmDspSysAllocInst(   h, "Preset", NULL, 1, grpSymId );
   cmDspInst_t* presetLbl = cmDspSysAllocInst(   h, "Text",   "Preset",      1, "" );
