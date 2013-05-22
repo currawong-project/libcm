@@ -12,14 +12,8 @@
 #include "cmMidiFile.h"
 #include "cmMidiFilePlay.h"
 #include "cmThread.h" // cmSleepUs()
+#include "cmTime.h"
 
-#ifdef OS_OSX
-#include "osx/clock_gettime_stub.h"
-#endif
-
-#ifdef OS_LINUX
-#include <time.h> // clock_gettime()
-#endif
 
 typedef struct
 {
@@ -286,7 +280,7 @@ void _cmMfpTestTimer()
   
   // t0 will be the base time which all other times will be 
   // set relative to.
-  clock_gettime(CLOCK_REALTIME,&t0);
+  cmTimeGet(&t0);
   t2 = t0;
   t2.tv_sec = 0;
 
@@ -295,7 +289,7 @@ void _cmMfpTestTimer()
     cmSleepUs(suspendUsecs);
 
     
-    clock_gettime(CLOCK_REALTIME,&t1);
+    cmTimeGet(&t1);
     t1.tv_sec -= t0.tv_sec;
 
     unsigned d0usec = _cmMfpElapsedMicroSecs(&t0,&t1);
@@ -350,7 +344,7 @@ cmMfpRC_t cmMfpTest( const char* fn, cmCtx_t* ctx )
   if((rc = cmMfpSeek( mfpH, 60 * 1000000 )) != kOkMfpRC )
     goto errLabel;
 
-  clock_gettime(CLOCK_REALTIME,&base);
+  cmTimeGet(&base);
   t0 = base;
   t0.tv_sec = 0;
 
@@ -359,7 +353,7 @@ cmMfpRC_t cmMfpTest( const char* fn, cmCtx_t* ctx )
   {
     cmSleepUs(suspendUsecs);
     
-    clock_gettime(CLOCK_REALTIME,&t1);    
+    cmTimeGet(&t1);    
     t1.tv_sec -= base.tv_sec;
 
     unsigned dusecs = _cmMfpElapsedMicroSecs(&t0,&t1);

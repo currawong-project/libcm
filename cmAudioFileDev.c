@@ -8,16 +8,7 @@
 #include "cmThread.h"
 #include "cmAudioPort.h"
 #include "cmAudioFileDev.h"
-
-
-#ifdef OS_OSX
-#include "osx/clock_gettime_stub.h"
-#endif
-
-#ifdef OS_LINUX
-#include <time.h> // clock_gettime()
-#endif
-
+#include "cmTime.h"
 
 cmAfdH_t cmAfdNullHandle = cmSTATIC_NULL_HANDLE;
 
@@ -148,7 +139,7 @@ bool _cmAudioDevThreadFunc(void* param)
   if( p->cycleCnt == 0 )
   {
     // get the baseTime - all other times will be relative to this time
-    clock_gettime(CLOCK_REALTIME,&p->baseTime);
+    cmTimeGet(&p->baseTime);
     p->nextTime = p->baseTime;
     p->nextTime.tv_sec = 0;
     _cmAfdIncrNextTime(p);
@@ -158,7 +149,7 @@ bool _cmAudioDevThreadFunc(void* param)
   if( p->runFl )
   {
     // get the current time as an offset from baseTime.
-    clock_gettime(CLOCK_REALTIME,&t0);
+    cmTimeGet(&t0);
     t0.tv_sec -= p->baseTime.tv_sec;
 
     // get length of time to next exec point
