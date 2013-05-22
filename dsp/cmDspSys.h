@@ -57,7 +57,7 @@ extern "C" {
   const cmChar_t* cmDspSysPresetGroupLabel(    cmDspSysH_t h, unsigned groupIdx );
   cmDspRC_t       cmDspSysPresetGroupJsonList( cmDspSysH_t h, cmJsonH_t* jsHPtr );
   
-  // A 'preset' is a collection of stored DSP instances and there variables.  A preset belongs
+  // A 'preset' is a collection of stored DSP instances and their variables.  A preset belongs
   // to a group.  A given group may have multiple presets. Each preset represents a saved
   // instance/var state.
   unsigned        cmDspSysPresetPresetCount(   cmDspSysH_t h, unsigned groupIdx );
@@ -266,7 +266,9 @@ extern "C" {
   cmDspRC_t cmDspRsrcRealArray(   cmDspSysH_t h, unsigned* np, cmReal_t**  vpp, ... );
   cmDspRC_t cmDspRsrcStringArray( cmDspSysH_t h, unsigned* np, const cmChar_t*** vpp, ... );
  
-  
+
+  cmDspRC_t cmDspRsrcWriteStringV( cmDspSysH_t h, const cmChar_t* v, va_list vl );
+  cmDspRC_t cmDspRsrcWriteString(  cmDspSysH_t h, const cmChar_t* v, ... );
 
 
 #ifdef __cplusplus

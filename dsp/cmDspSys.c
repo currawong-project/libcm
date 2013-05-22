@@ -480,13 +480,13 @@ cmDspRC_t cmDspSysUnload( cmDspSysH_t h )
   // finalize the pgm specific JSON tree
   if( cmJsonIsValid(p->ctx.rsrcJsH))
   {
-    //if( cmJsonWrite(p->ctx.rsrcJsH, cmJsonRoot(p->ctx.rsrcJsH), p->rsrcFn ) != kOkJsRC )
-    //  rc = cmErrMsg(&p->err,kJsonFailDspRC,"JSON file write failed on '%s'.",cmStringNullGuard(p->rsrcFn));
-    //else
-    //{
-      if( cmJsonFinalize(&p->ctx.rsrcJsH) != kOkJsRC )
-        rc = cmErrMsg(&p->err,kJsonFailDspRC,"Resource JSON finalization failed.");
-      //}
+    // if the JSON tree has been modified.
+    if( cmJsonIsModified(p->ctx.rsrcJsH) )
+      if( cmJsonWrite(p->ctx.rsrcJsH, cmJsonRoot(p->ctx.rsrcJsH), p->rsrcFn ) != kOkJsRC )
+        rc = cmErrMsg(&p->err,kJsonFailDspRC,"JSON resource file write failed on '%s'.",cmStringNullGuard(p->rsrcFn));
+    
+    if( cmJsonFinalize(&p->ctx.rsrcJsH) != kOkJsRC )
+      rc = cmErrMsg(&p->err,kJsonFailDspRC,"Resource JSON finalization failed.");
   }
   
   // release the JSON file name
@@ -1850,6 +1850,51 @@ cmDspRC_t _cmDspRsrcPath( cmDspSysH_t h, cmChar_t** pathPtr, va_list vl )
   return rc;
 }
 
+cmDspRC_t _cmDspRsrcWritePath( cmDspSysH_t h, cmChar_t** pathStrRef, cmChar_t** varStrRef, va_list vl )
+{
+  unsigned  i;
+  cmDspRC_t rc        = kOkDspRC;;
+  cmDsp_t*  p         = _cmDspHandleToPtr(h);
+  cmChar_t* path      = NULL;
+  unsigned  maxArgCnt = 10;
+  cmChar_t* prevStr   = NULL;
+
+  *pathStrRef = NULL;
+  *varStrRef  = NULL;
+ 
+  for(i=0; i<maxArgCnt; ++i )
+  {
+    cmChar_t* str;
+
+    if((str = va_arg(vl,cmChar_t* )) == NULL )
+      break;
+    
+    if( prevStr != NULL )
+      path = cmTextAppendSS(path,"/");
+    path = cmTextAppendSS(path,prevStr);    
+
+    prevStr = str;    
+  }
+
+  if( i >= maxArgCnt )
+  {
+    rc = cmErrMsg(&p->err,kJsonFailDspRC,"A resource path, beginning with '%25s', does not contain a terminating NULL.", cmStringNullGuard(path) );
+    goto errLabel;
+  }
+
+  // duplicate the string onto the program linked heap
+  if( path != NULL )
+    *pathStrRef = cmLhAllocStr( cmDspSysLHeap(h), path);
+
+  *varStrRef  = prevStr;
+
+ errLabel:
+  cmMemFree(path);
+
+  return rc;
+
+}
+
 cmDspRC_t cmDspRsrcBoolV(    cmDspSysH_t h, bool* vp, va_list vl )
 {
   assert(vp != NULL);
@@ -1861,7 +1906,9 @@ cmDspRC_t cmDspRsrcBoolV(    cmDspSysH_t h, bool* vp, va_list vl )
     return rc;
 
   if((rc = cmJsonPathToBool( cmDspSysPgmRsrcHandle(h), NULL, NULL, path, vp )) != kOkJsRC )
-    return cmErrMsg(&p->err,kJsonFailDspRC,"'bool' resource not found at path:'%s'.",cmStringNullGuard(path));
+    rc =  cmErrMsg(&p->err,kJsonFailDspRC,"'bool' resource not found at path:'%s'.",cmStringNullGuard(path));
+
+  cmLhFree(cmDspSysLHeap(h),path);
 
   return rc;
 }
@@ -1877,7 +1924,9 @@ cmDspRC_t cmDspRsrcIntV(    cmDspSysH_t h, int* vp, va_list vl )
     return rc;
 
   if((rc = cmJsonPathToInt( cmDspSysPgmRsrcHandle(h), NULL, NULL, path, vp )) != kOkJsRC )
-    return cmErrMsg(&p->err,kJsonFailDspRC,"'int' resource not found at path:'%s'.",cmStringNullGuard(path));
+    rc = cmErrMsg(&p->err,kJsonFailDspRC,"'int' resource not found at path:'%s'.",cmStringNullGuard(path));
+
+  cmLhFree(cmDspSysLHeap(h),path);
 
   return rc;  
 }
@@ -1893,7 +1942,9 @@ cmDspRC_t cmDspRsrcUIntV(   cmDspSysH_t h, unsigned* vp, va_list vl )
     return rc;
 
   if((rc = cmJsonPathToUInt( cmDspSysPgmRsrcHandle(h), NULL, NULL, path, vp )) != kOkJsRC )
-    return cmErrMsg(&p->err,kJsonFailDspRC,"'uint' resource not found at path:'%s'.",cmStringNullGuard(path));
+    rc = cmErrMsg(&p->err,kJsonFailDspRC,"'uint' resource not found at path:'%s'.",cmStringNullGuard(path));
+
+  cmLhFree(cmDspSysLHeap(h),path);
 
   return rc;  
 }
@@ -1909,7 +1960,9 @@ cmDspRC_t cmDspRsrcDblV(   cmDspSysH_t h, double* vp, va_list vl )
     return rc;
 
   if((rc = cmJsonPathToReal( cmDspSysPgmRsrcHandle(h), NULL, NULL, path, vp )) != kOkJsRC )
-    return cmErrMsg(&p->err,kJsonFailDspRC,"'real' resource not found at path:'%s'.",cmStringNullGuard(path));
+    rc = cmErrMsg(&p->err,kJsonFailDspRC,"'real' resource not found at path:'%s'.",cmStringNullGuard(path));
+
+  cmLhFree(cmDspSysLHeap(h),path);
 
   return rc;  
 }
@@ -1926,9 +1979,11 @@ cmDspRC_t cmDspRsrcRealV(   cmDspSysH_t h, cmReal_t* vp, va_list vl )
     return rc;
 
   if((rc = cmJsonPathToReal( cmDspSysPgmRsrcHandle(h), NULL, NULL, path, &dval )) != kOkJsRC )
-    return cmErrMsg(&p->err,kJsonFailDspRC,"'real' resource not found at path:'%s'.",cmStringNullGuard(path));
+    rc = cmErrMsg(&p->err,kJsonFailDspRC,"'real' resource not found at path:'%s'.",cmStringNullGuard(path));
+  else
+    *vp = dval;
 
-  *vp = dval;
+  cmLhFree(cmDspSysLHeap(h),path);
 
   return rc;  
 }
@@ -1944,7 +1999,9 @@ cmDspRC_t cmDspRsrcStringV( cmDspSysH_t h, const cmChar_t** vp, va_list vl )
     return rc;
 
   if((rc = cmJsonPathToString( cmDspSysPgmRsrcHandle(h), NULL, NULL, path, vp )) != kOkJsRC )
-    return cmErrMsg(&p->err,kJsonFailDspRC,"'string' resource not found at path:'%s'.",cmStringNullGuard(path));
+    rc = cmErrMsg(&p->err,kJsonFailDspRC,"'string' resource not found at path:'%s'.",cmStringNullGuard(path));
+
+  cmLhFree(cmDspSysLHeap(h),path);
 
   return rc;  
 }
@@ -1961,9 +2018,12 @@ cmDspRC_t cmDspRsrcArrayCountV( cmDspSysH_t h, unsigned *n, va_list vl )
     return rc;
 
   if((rc = cmJsonPathToArray( cmDspSysPgmRsrcHandle(h), NULL, NULL, path, &np )) != kOkJsRC )
-    return cmErrMsg(&p->err,kJsonFailDspRC,"'array' resource not found at path:'%s'.",cmStringNullGuard(path));
+    rc = cmErrMsg(&p->err,kJsonFailDspRC,"'array' resource not found at path:'%s'.",cmStringNullGuard(path));
+  else
+    *n = cmJsonChildCount(np);
 
-  *n = cmJsonChildCount(np);
+  cmLhFree(cmDspSysLHeap(h),path);
+
   return rc;  
 
 }
@@ -1979,12 +2039,15 @@ cmDspRC_t _cmDspRsrcArrayV( cmDspSysH_t h, unsigned* np, cmJsonNode_t** npp, cmC
     return rc;
 
   if((rc = cmJsonPathToArray( jsH, NULL, NULL, path, npp )) != kOkJsRC )
-    return cmErrMsg(&p->err,kJsonFailDspRC,"'array' resource not found at path:'%s'.",cmStringNullGuard(path));
+    rc = cmErrMsg(&p->err,kJsonFailDspRC,"'array' resource not found at path:'%s'.",cmStringNullGuard(path));
+  else
+  {
+    if((*np = cmJsonChildCount(*npp)) != 0 )
+      *pathPtrPtr = path;
 
-  if((*np = cmJsonChildCount(*npp)) == 0 )
-    return rc;
+  }
 
-  *pathPtrPtr = path;
+  cmLhFree(cmDspSysLHeap(h),path);
 
   return rc;
 }
@@ -2012,6 +2075,8 @@ cmDspRC_t cmDspRsrcBoolArrayV(   cmDspSysH_t h, unsigned* np, bool** vpp, va_lis
   *vpp = vp;
   *np  = n;
 
+  cmLhFree(cmDspSysLHeap(h),path);
+
   return rc;
 }
 
@@ -2037,6 +2102,8 @@ cmDspRC_t cmDspRsrcIntArrayV(   cmDspSysH_t h, unsigned* np, int** vpp, va_list 
 
   *vpp = vp;
   *np  = n;
+
+  cmLhFree(cmDspSysLHeap(h),path);
 
   return rc;
 }
@@ -2064,6 +2131,8 @@ cmDspRC_t cmDspRsrcUIntArrayV(  cmDspSysH_t h, unsigned* np, unsigned** vpp, va_
   *vpp = vp;
   *np  = n;
 
+  cmLhFree(cmDspSysLHeap(h),path);
+
   return rc;
 }
 
@@ -2090,8 +2159,9 @@ cmDspRC_t cmDspRsrcDblArrayV(  cmDspSysH_t h, unsigned* np, double** vpp, va_lis
   *vpp = vp;
   *np  = n;
 
-  return rc;
+  cmLhFree(cmDspSysLHeap(h),path);
 
+  return rc;
 }
 
 cmDspRC_t cmDspRsrcRealArrayV(  cmDspSysH_t h, unsigned* np, cmReal_t** vpp, va_list vl )
@@ -2122,6 +2192,8 @@ cmDspRC_t cmDspRsrcRealArrayV(  cmDspSysH_t h, unsigned* np, cmReal_t** vpp, va_
   *vpp = vp;
   *np  = n;
 
+  cmLhFree(cmDspSysLHeap(h),path);
+
   return rc;
 }
 
@@ -2147,6 +2219,8 @@ cmDspRC_t cmDspRsrcStringArrayV(cmDspSysH_t h, unsigned* np, const cmChar_t*** v
 
   *vpp = vp;
   *np  = n;
+
+  cmLhFree(cmDspSysLHeap(h),path);
 
   return rc;
 }
@@ -2255,6 +2329,40 @@ cmDspRC_t cmDspRsrcStringArray( cmDspSysH_t h, unsigned* np, const cmChar_t*** v
   va_list vl;
   va_start(vl,vpp);
   cmDspRC_t rc = cmDspRsrcStringArrayV(h,np,vpp,vl);
+  va_end(vl);
+  return rc;
+}
+
+cmDspRC_t cmDspRsrcWriteStringV( cmDspSysH_t h, const cmChar_t*  v, va_list vl )
+{
+  cmDsp_t*      p                = _cmDspHandleToPtr(h);
+  cmChar_t*     pathStr          = NULL;
+  cmChar_t*     varStr           = NULL;
+  cmJsonH_t     jsH              = cmDspSysPgmRsrcHandle(h);
+  cmJsonNode_t* parentObjNodePtr = NULL;
+  cmDspRC_t     rc;
+
+  if((rc = _cmDspRsrcWritePath(h,&pathStr,&varStr,vl)) != kOkDspRC )
+    goto errLabel;
+
+  if((parentObjNodePtr = cmJsonFindPathValue( jsH, pathStr, cmJsonRoot(jsH), kPairTId )) == NULL )
+    rc = cmErrMsg(&p->err,kJsonFailDspRC,"The parent object '%s' for variable '%s' could not be found.",cmStringNullGuard(pathStr),cmStringNullGuard(varStr)); 
+
+  if( cmJsonInsertOrReplacePairString( jsH, parentObjNodePtr, varStr, kStringTId, v ) != kOkJsRC )
+    rc = cmErrMsg(&p->err,kJsonFailDspRC,"Write 'string' resource value failed for path '%s' and variable '%s'",cmStringNullGuard(pathStr),cmStringNullGuard(varStr)); 
+
+ errLabel:
+  if( pathStr != NULL )
+    cmLhFree(cmDspSysLHeap(h),pathStr);
+
+  return rc;    
+}
+
+cmDspRC_t cmDspRsrcWriteString( cmDspSysH_t h, const cmChar_t* v, ... )
+{
+  va_list vl;
+  va_start(vl,v);
+  cmDspRC_t rc = cmDspRsrcWriteStringV(h,v,vl);
   va_end(vl);
   return rc;
 }
