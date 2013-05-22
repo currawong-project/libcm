@@ -925,7 +925,7 @@ cmTlRC_t   cmTimeLineInitializeFromFile( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbF
   if((rc = cmTimeLineInitialize(ctx,hp,cbFunc,cbArg)) != kOkTlRC )
     return rc;
 
-  return  cmTimeLineReadJson(*hp,fn);
+  return cmTimeLineReadJson(hp,fn);
 }
 
 const cmChar_t* cmTimeLineFileName( cmTlH_t h )
@@ -1317,7 +1317,7 @@ cmTlRC_t _cmTlParseErr( cmErr_t* err, const cmChar_t* errLabelPtr, unsigned idx,
   return rc;
 }
     
-cmTlRC_t cmTimeLineReadJson(  cmTlH_t h, const cmChar_t* ifn )
+cmTlRC_t cmTimeLineReadJson(  cmTlH_t* hp, const cmChar_t* ifn )
 {
   cmTlRC_t        rc  = kOkTlRC;
   cmJsonH_t       jsH = cmJsonNullHandle;
@@ -1325,7 +1325,7 @@ cmTlRC_t cmTimeLineReadJson(  cmTlH_t h, const cmChar_t* ifn )
   const cmChar_t* errLabelPtr;
   int i;
 
-  _cmTl_t* p = _cmTlHandleToPtr(h);
+  _cmTl_t* p = _cmTlHandleToPtr(*hp);
  
   // open the json file
   if( cmJsonInitializeFromFile(&jsH, ifn, &p->ctx ) != kOkJsRC )
@@ -1381,7 +1381,7 @@ cmTlRC_t cmTimeLineReadJson(  cmTlH_t h, const cmChar_t* ifn )
 
  errLabel:
   if( rc != kOkTlRC )
-    _cmTimeLineFinalize(p);
+    cmTimeLineFinalize(hp);
 
   cmJsonFinalize(&jsH);
   return rc;
@@ -1604,7 +1604,7 @@ cmTlRC_t     cmTimeLineTest( cmCtx_t* ctx, const cmChar_t* jsFn )
   if((rc = cmTimeLineInitialize(ctx,&tlH,NULL,NULL)) != kOkTlRC )
     return rc;
 
-  if((rc = cmTimeLineReadJson(tlH,jsFn)) != kOkTlRC )
+  if((rc = cmTimeLineReadJson(&tlH,jsFn)) != kOkTlRC )
     goto errLabel;
 
   if((rc = cmTimeLineInsert(tlH,"Mark",kMarkerTlId,"My Marker",10,0,NULL,0)) != kOkTlRC )

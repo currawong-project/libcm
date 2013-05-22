@@ -181,7 +181,7 @@ extern "C" {
     unsigned        seqId ); 
   
   // See src/data/tl0.json for an example JSON file.
-  cmTlRC_t cmTimeLineReadJson(  cmTlH_t h, const cmChar_t* ifn );
+  cmTlRC_t cmTimeLineReadJson(  cmTlH_t* hp, const cmChar_t* ifn );
 
   // Return a count of sequences contained within this timeline.
   unsigned cmTimeLineSeqCount( cmTlH_t h );
