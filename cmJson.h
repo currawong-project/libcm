@@ -118,6 +118,12 @@ extern "C" {
   // Returns true if 'h' is a valid cmJsonH_t handle.
   bool          cmJsonIsValid(    cmJsonH_t h );
 
+  // Returns true if the tree has been modified since it was initialized.
+  // If changes to the tree are done directly on the nodes, rather than using
+  // the API functions, then this function may not indicate the actual
+  // modification state of the tree.
+  bool          cmJsonIsModified( cmJsonH_t h );
+
   // Build the internal tree by parsing a text buffer. 
   // altRootPtr is an optional alternate root ptr which can be used
   // append to an existing tree. Set to altRootPtr to

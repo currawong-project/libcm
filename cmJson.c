@@ -73,6 +73,7 @@ typedef struct
   char*              serialBufPtr;   // serial buffer pointer
   unsigned           serialByteCnt;  // count of bytes in serialBuf[]
   bool               reportErrPosnFl;// report the file posn of syntax errors
+  bool               modifiedFl;     // the tree has been modified since it was created.
 } cmJs_t;
 
 cmJsToken_t _cmJsTokenArray[] = 
@@ -318,8 +319,14 @@ cmJsRC_t      cmJsonFinalize(   cmJsonH_t* hp )
 
 
 
-bool          cmJsonIsValid( cmJsonH_t h )
+bool  cmJsonIsValid( cmJsonH_t h )
 { return h.h != NULL; }
+
+bool  cmJsonIsModified( cmJsonH_t h )
+{
+  cmJs_t* p = _cmJsonHandleToPtr(h);
+  return p->modifiedFl;
+}
 
 cmJsRC_t _cmJsonLinkInChild( cmJs_t* p, cmJsonNode_t* parentPtr, cmJsonNode_t* np )
 {
@@ -431,6 +438,9 @@ cmJsRC_t _cmJsonCreateNode( cmJs_t* p, cmJsonNode_t* parentPtr, unsigned newNode
 
     p->rootPtr = np;
   }
+
+  p->modifiedFl = true;
+
   return rc;
 }
 
@@ -814,6 +824,7 @@ cmJsRC_t _cmJsonParse(cmJsonH_t h, const char* buf, unsigned bufCharCnt, const c
     rc = _cmJsonSyntaxError( p, "The lexer failed: %s.", cmLexRcToMsg(cmLexErrorRC(p->lexH)));
 
   p->reportErrPosnFl = false;
+  p->modifiedFl      = false;
 
   return rc;
 }
@@ -823,75 +834,6 @@ cmJsRC_t      cmJsonParse(      cmJsonH_t h, const char* buf, unsigned bufCharCn
 
 cmJsRC_t      cmJsonParseFile(  cmJsonH_t h, const char* fn, cmJsonNode_t* altRootPtr )
 { return _cmJsonParse(h,NULL,0,fn,altRootPtr); }
-
-/*
-cmJsRC_t      cmJsonParseFile(  cmJsonH_t h, const char* fn )
-{
-  cmJsRC_t rc      = kOkJsRC;
-  FILE*    fp      = NULL;
-  cmJs_t*  p       = _cmJsonHandleToPtr(h);
-  unsigned n       = 0;
-  char*    textBuf = NULL;
-
-  assert( fn != NULL && p != NULL );
-  
-  // open the file
-  if((fp = fopen(fn,"rb")) == NULL )
-    return _cmJsonError(p,kFileOpenErrJsRC,"Unable to open the file:'%s'.",fn);
-
-  // seek to the end
-  if( fseek(fp,0,SEEK_END) != 0 )
-  {
-    rc= _cmJsonError(p,kFileSeekErrJsRC,"Unable to seek to the end of '%s'.",fn);
-    goto errLabel;
-  }
-
-  // get the length of the file
-  if( (n=ftell(fp)) == 0 )
-  {
-    rc = _cmJsonError(p,kFileOpenErrJsRC,"The file '%s' appears to be empty.",fn);
-    goto errLabel;
-  }
-
-  // rewind the file
-  if( fseek(fp,0,SEEK_SET) != 0 )
-  {
-    rc = _cmJsonError(p,kFileSeekErrJsRC,"Unable to seek to the beginning of '%s'.",fn);
-    goto errLabel;
-  }
-
-  // allocate the text buffer
-  if((textBuf = cmMemAllocZ( char, n+1)) == NULL )
-  {
-    rc = _cmJsonError(p,kMemAllocErrJsRC,"Unable to allocate the text file buffer for:'%s'.",fn);
-    goto errLabel;
-  }
-
-  // read the file into the text buffer
-  if( fread(textBuf,n,1,fp) != 1 )
-  {
-    rc = _cmJsonError(p,kFileReadErrJsRC,"File read failed on:'%s'.",fn);
-    goto errLabel;
-  }  
-
-  rc = cmJsonParse(h,textBuf,n,NULL); 
-
- errLabel:
-
-  // close the file
-  if( fclose(fp) != 0 )
-  {
-    rc =  _cmJsonError(p,kFileCloseErrJsRC,"File close failed on:'%s'.",fn);
-    goto errLabel;
-  }
-
-  // free the buffer
-  if( textBuf != NULL )
-    cmMemFree(textBuf);
-
-  return rc;
-}
-*/
 
 cmJsonNode_t* cmJsonRoot(  cmJsonH_t h )
 {  
@@ -1938,30 +1880,42 @@ cmJsRC_t      cmJsonCreateBoolArray(   cmJsonH_t h, cmJsonNode_t* parentPtr, uns
 
 cmJsRC_t    cmJsonSetInt(    cmJsonH_t h, cmJsonNode_t*  np, int         ival )
 {
+  cmJs_t* p = _cmJsonHandleToPtr(h);
+
   if( np->typeId != kIntTId )
-    return _cmJsonError(_cmJsonHandleToPtr(h),kInvalidNodeTypeJsRC,"Cannot assign type 'int' to node type '%s'.",_cmJsonNodeTypeIdToLabel(np->typeId));
+    return _cmJsonError(p,kInvalidNodeTypeJsRC,"Cannot assign type 'int' to node type '%s'.",_cmJsonNodeTypeIdToLabel(np->typeId));
 
   np->u.intVal = ival;
 
+  p->modifiedFl = true;
+  
   return kOkJsRC;
 }
 
 cmJsRC_t    cmJsonSetReal(   cmJsonH_t h, cmJsonNode_t * np, double      rval )
 {
+  cmJs_t* p = _cmJsonHandleToPtr(h);
+
   if( np->typeId != kRealTId )
-    return _cmJsonError(_cmJsonHandleToPtr(h),kInvalidNodeTypeJsRC,"Cannot assign type 'real' to node type '%s'.",_cmJsonNodeTypeIdToLabel(np->typeId));
+    return _cmJsonError(p,kInvalidNodeTypeJsRC,"Cannot assign type 'real' to node type '%s'.",_cmJsonNodeTypeIdToLabel(np->typeId));
 
   np->u.realVal = rval;
+
+  p->modifiedFl = true;
 
   return kOkJsRC;
 }
 
 cmJsRC_t    cmJsonSetBool(   cmJsonH_t h, cmJsonNode_t * np, bool        bval )
 {
+  cmJs_t* p = _cmJsonHandleToPtr(h);
+
   if( np->typeId == kTrueTId || np->typeId==kFalseTId )
-    return _cmJsonError(_cmJsonHandleToPtr(h),kInvalidNodeTypeJsRC,"Cannot assign type 'bool' to node type '%s'.",_cmJsonNodeTypeIdToLabel(np->typeId));
+    return _cmJsonError(p,kInvalidNodeTypeJsRC,"Cannot assign type 'bool' to node type '%s'.",_cmJsonNodeTypeIdToLabel(np->typeId));
 
   np->u.boolVal = bval;
+
+  p->modifiedFl = true;
 
   return kOkJsRC;  
 }
@@ -1980,6 +1934,8 @@ cmJsRC_t    cmJsonSetString( cmJsonH_t h, cmJsonNode_t*  np, const char* sval )
   else
     return  _cmJsonSetString(p,np,sval,sn);
 
+  p->modifiedFl = true;
+  
   return kOkJsRC;
 }
 
@@ -2331,9 +2287,13 @@ cmJsRC_t  _cmJsonInsertOrReplacePair( cmJsonH_t h, cmJsonNode_t* objectNodePtr, 
  errLabel:
   
   if( rc == kOkJsRC )
+  {
     if( retNodePtrPtr != NULL )
       *retNodePtrPtr = pairNodePtr;
 
+    p->modifiedFl = true;
+
+  }
   return rc;
 }
 
@@ -2631,6 +2591,8 @@ cmJsRC_t _cmJsonRemoveNode( cmJs_t* p, cmJsonNode_t* np, bool freeFl, bool balan
     cmLHeapFree(p->heapH,np);
     */
   } 
+
+  p->modifiedFl = true;
 
   return kOkJsRC;
 }
