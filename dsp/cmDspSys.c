@@ -1870,8 +1870,12 @@ cmDspRC_t _cmDspRsrcWritePath( cmDspSysH_t h, cmChar_t** pathStrRef, cmChar_t** 
       break;
     
     if( prevStr != NULL )
-      path = cmTextAppendSS(path,"/");
-    path = cmTextAppendSS(path,prevStr);    
+    {
+      if( path != NULL )
+        path = cmTextAppendSS(path,"/");
+
+      path = cmTextAppendSS(path,prevStr);    
+    }
 
     prevStr = str;    
   }
@@ -2333,20 +2337,41 @@ cmDspRC_t cmDspRsrcStringArray( cmDspSysH_t h, unsigned* np, const cmChar_t*** v
   return rc;
 }
 
+cmDspRC_t _cmDspWritePathAndParent( cmDspSysH_t h, cmChar_t** pathRef, cmChar_t** varLabelRef, cmJsonNode_t** parentRef, va_list vl )
+{
+  cmDsp_t*      p                = _cmDspHandleToPtr(h);
+  cmJsonH_t     jsH              = cmDspSysPgmRsrcHandle(h);
+  cmDspRC_t     rc;
+
+  if((rc = _cmDspRsrcWritePath(h,pathRef,varLabelRef,vl)) != kOkDspRC )
+    goto errLabel;
+
+  if( *pathRef == NULL )
+    *parentRef = cmJsonRoot(jsH);
+  else
+    *parentRef = cmJsonFindPathValue( jsH, *pathRef, cmJsonRoot(jsH), kPairTId );
+    
+  if( *parentRef == NULL )
+  {
+    rc = cmErrMsg(&p->err,kJsonFailDspRC,"The parent object '%s' for variable '%s' could not be found.",cmStringNullGuard(*pathRef),cmStringNullGuard(*varLabelRef)); 
+    goto errLabel;
+  }
+
+ errLabel:
+  return rc;
+}
+
 cmDspRC_t cmDspRsrcWriteStringV( cmDspSysH_t h, const cmChar_t*  v, va_list vl )
 {
   cmDsp_t*      p                = _cmDspHandleToPtr(h);
-  cmChar_t*     pathStr          = NULL;
-  cmChar_t*     varStr           = NULL;
   cmJsonH_t     jsH              = cmDspSysPgmRsrcHandle(h);
+  cmChar_t*     varStr           = NULL;
+  cmChar_t*     pathStr          = NULL;
   cmJsonNode_t* parentObjNodePtr = NULL;
   cmDspRC_t     rc;
 
-  if((rc = _cmDspRsrcWritePath(h,&pathStr,&varStr,vl)) != kOkDspRC )
+  if((rc = _cmDspWritePathAndParent(h, &pathStr, &varStr, &parentObjNodePtr,  vl )) != kOkDspRC )
     goto errLabel;
-
-  if((parentObjNodePtr = cmJsonFindPathValue( jsH, pathStr, cmJsonRoot(jsH), kPairTId )) == NULL )
-    rc = cmErrMsg(&p->err,kJsonFailDspRC,"The parent object '%s' for variable '%s' could not be found.",cmStringNullGuard(pathStr),cmStringNullGuard(varStr)); 
 
   if( cmJsonInsertOrReplacePairString( jsH, parentObjNodePtr, varStr, kStringTId, v ) != kOkJsRC )
     rc = cmErrMsg(&p->err,kJsonFailDspRC,"Write 'string' resource value failed for path '%s' and variable '%s'",cmStringNullGuard(pathStr),cmStringNullGuard(varStr)); 

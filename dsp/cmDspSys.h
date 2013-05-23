@@ -268,6 +268,7 @@ extern "C" {
  
 
   cmDspRC_t cmDspRsrcWriteStringV( cmDspSysH_t h, const cmChar_t* v, va_list vl );
+
   cmDspRC_t cmDspRsrcWriteString(  cmDspSysH_t h, const cmChar_t* v, ... );
 
 
