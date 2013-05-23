@@ -13,6 +13,7 @@
 #include "cmFileSys.h"
 #include "cmSymTbl.h"
 #include "cmJson.h"
+#include "cmText.h"
 #include "cmPrefs.h"
 #include "cmProcObj.h"
 #include "cmDspValue.h"
@@ -5166,6 +5167,119 @@ struct cmDspClass_str* cmNetSendClassCons( cmDspCtx_t* ctx )
 }
 
 //==========================================================================================================================================
+enum
+{
+  kBaseInPtsId,
+};
+
+cmDspClass_t _cmRsrcWrDC;
+
+typedef struct
+{
+  cmDspInst_t inst;
+  char**      pathArray;
+  unsigned    pathCnt;
+} cmDspRsrcWr_t;
+
+cmDspInst_t*  _cmDspRsrcWrAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  va_list       vl1;
+  va_copy(vl1,vl);
+
+  if( va_cnt < 1 )
+  {
+    cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'RsrcWr' constructor argument list must contain at least one resource path specificiation.");
+    return NULL;
+  }
+
+  unsigned      pathCnt    = va_cnt;
+  unsigned      argCnt    = pathCnt;
+  cmDspVarArg_t args[argCnt+1];
+
+  char**       pathArray   = cmMemAllocZ(char*,pathCnt);
+
+  unsigned i;
+
+  for(i=0; i<pathCnt; ++i)
+  {
+    // get the path
+    const cmChar_t* pathLabel = va_arg(vl,const char*);
+    assert( pathLabel != NULL );
+
+    // store the path name
+    pathArray[i] = cmMemAllocStr(pathLabel);
+
+    cmDspArgSetup(ctx, args+kBaseInPtsId+i, pathLabel, cmInvalidId, kBaseInPtsId+i, 0, 0, kInDsvFl  | kTypeDsvMask, cmTsPrintfH(ctx->lhH,"%s Input.",pathLabel) );
+
+  }
+
+  cmDspArgSetupNull(args + argCnt);
+
+  cmDspRsrcWr_t* p = cmDspInstAlloc(cmDspRsrcWr_t,ctx,classPtr,args,instSymId,id,storeSymId,0,vl1);
+
+  p->pathCnt     = pathCnt;
+  p->pathArray   = pathArray;
+
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspRsrcWrFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRsrcWr_t* p = (cmDspRsrcWr_t*)inst;
+  int i;
+  for(i=0; i<p->pathCnt; ++i)
+    cmMemFree(p->pathArray[i]);
+  cmMemFree(p->pathArray);
+
+  return kOkDspRC;
+}
+
+cmDspRC_t _cmDspRsrcWrReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  return kOkDspRC;
+}
+
+
+cmDspRC_t _cmDspRsrcWrRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRsrcWr_t* p = (cmDspRsrcWr_t*)inst;
+  cmDspRC_t rc = kOkDspRC;
+
+    
+  // if a msg of any type is recieved on an input port - send out the associated symbol
+  if( kBaseInPtsId <= evt->dstVarId && evt->dstVarId < kBaseInPtsId + p->pathCnt )
+  {
+    unsigned idx = evt->dstVarId - kBaseInPtsId;
+    assert( idx < p->pathCnt );
+
+    if( cmDsvIsStrz(evt->valuePtr) )
+    {
+      rc = cmDspRsrcWriteString( ctx->dspH, cmDsvStrz(evt->valuePtr), p->pathArray[idx], NULL );
+    }
+
+  }
+
+  return rc;
+}
+
+struct cmDspClass_str* cmRsrcWrClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmRsrcWrDC,ctx,"RsrcWr",
+    NULL,
+    _cmDspRsrcWrAlloc,
+    _cmDspRsrcWrFree,
+    _cmDspRsrcWrReset,
+    NULL,
+    _cmDspRsrcWrRecv,
+    NULL,
+    NULL,
+    "Set the value of a resource variable.");
+
+  return &_cmRsrcWrDC;
+}
+
+//==========================================================================================================================================
 
 //==========================================================================================================================================
 
@@ -5205,6 +5319,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
 
   cmShiftBufClassCons,
   cmNetSendClassCons,
+  cmRsrcWrClassCons,
 
   cmDelayClassCons,
   cmPShiftClassCons,
