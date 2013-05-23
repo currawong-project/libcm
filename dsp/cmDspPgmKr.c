@@ -93,8 +93,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   if( krLoadRsrc(h,&err,&r) != kOkDspRC )
     return rc;
 
-  unsigned   preGrpSymId  = cmDspSysPresetRegisterGroup(h,"TimeLine");
-
+  unsigned   preGrpSymId     = cmDspSysPresetRegisterGroup(h,"TimeLine");
+  unsigned   compPreGrpSymId = cmDspSysPresetRegisterGroup(h,"Compressor"); 
 
   cmDspInst_t* tlp  = cmDspSysAllocInst(h,"TimeLine",    "tl",  2, r.tlFn, r.audPath );
   cmDspInst_t* scp  = cmDspSysAllocInst(h,"Score",       "sc",  1, r.scFn );
@@ -421,14 +421,15 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
 
   cmDspSysNewPage(h,"Compressor");
-  cmDspInst_t* cmp0_byp   = cmDspSysAllocCheck(  h, "Bypass0", 1.0 );
-  cmDspInst_t* cmp0_igain = cmDspSysAllocScalar( h, "In Gain0",  0.0,   10.0, 0.1, cmpInGain);
-  cmDspInst_t* cmp0_thr   = cmDspSysAllocScalar( h, "ThreshDb0", -100.0, 0.0, 0.1, cmpThreshDb);
-  cmDspInst_t* cmp0_rat   = cmDspSysAllocScalar( h, "Ratio0",    0.1, 100, 0.1, cmpRatio_num);
-  cmDspInst_t* cmp0_atk   = cmDspSysAllocScalar( h, "Atk Ms0",   0.0, 1000.0, 0.1, cmpAtkMs);
-  cmDspInst_t* cmp0_rls   = cmDspSysAllocScalar( h, "Rls Ms0",   0.0, 1000.0, 0.1, cmpRlsMs);
-  cmDspInst_t* cmp0_mkup  = cmDspSysAllocScalar( h, "Makeup0",   0.0, 10.0,   0.01, cmpMakeup);
-  cmDspInst_t* cmp0_wnd   = cmDspSysAllocScalar( h, "Wnd Ms0",   1.0, cmpWndMaxMs, 1.0, cmpWndMs );
+
+  cmDspInst_t* cmp0_byp   = cmDspSysAllocCheckP(  h,  compPreGrpSymId, NULL, "Bypass0", 1.0 );
+  cmDspInst_t* cmp0_igain = cmDspSysAllocScalarP( h,  compPreGrpSymId, NULL, "In Gain0", 0.0,   10.0, 0.1, cmpInGain );
+  cmDspInst_t* cmp0_thr   = cmDspSysAllocScalarP( h,  compPreGrpSymId, NULL, "ThreshDb0", -100.0, 0.0, 0.1, cmpThreshDb);
+  cmDspInst_t* cmp0_rat   = cmDspSysAllocScalarP( h,  compPreGrpSymId, NULL, "Ratio0",    0.1, 100, 0.1, cmpRatio_num);
+  cmDspInst_t* cmp0_atk   = cmDspSysAllocScalarP( h,  compPreGrpSymId, NULL, "Atk Ms0",   0.0, 1000.0, 0.1, cmpAtkMs);
+  cmDspInst_t* cmp0_rls   = cmDspSysAllocScalarP( h,  compPreGrpSymId, NULL, "Rls Ms0",   0.0, 1000.0, 0.1, cmpRlsMs);
+  cmDspInst_t* cmp0_mkup  = cmDspSysAllocScalarP( h,  compPreGrpSymId, NULL, "Makeup0",   0.0, 10.0,   0.01, cmpMakeup);
+  cmDspInst_t* cmp0_wnd   = cmDspSysAllocScalarP( h,  compPreGrpSymId, NULL, "Wnd Ms0",   1.0, cmpWndMaxMs, 1.0, cmpWndMs );
   cmDspInst_t* cmp0_mtr   = cmDspSysAllocInst(h,"Meter","Env0", 3, 0.0, 0.0, 1.0);
 
   cmDspSysInstallCb(h, cmp0_byp,  "out", cmp0, "bypass", NULL );
@@ -442,14 +443,14 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, cmp0,      "env", cmp0_mtr, "in", NULL );
 
   cmDspSysNewColumn(h,0);
-  cmDspInst_t* cmp1_byp   = cmDspSysAllocCheck(  h, "Bypass1", 1.0 );
-  cmDspInst_t* cmp1_igain = cmDspSysAllocScalar( h, "In Gain1",  0.0,   10.0, 0.1, cmpInGain);
-  cmDspInst_t* cmp1_thr   = cmDspSysAllocScalar( h, "ThreshDb1", -100.0, 0.0, 0.1, cmpThreshDb);
-  cmDspInst_t* cmp1_rat   = cmDspSysAllocScalar( h, "Ratio1",    0.1, 100, 0.1, cmpRatio_num);
-  cmDspInst_t* cmp1_atk   = cmDspSysAllocScalar( h, "Atk Ms1",   0.0, 1000.0, 0.1, cmpAtkMs);
-  cmDspInst_t* cmp1_rls   = cmDspSysAllocScalar( h, "Rls Ms1",   0.0, 1000.0, 0.1, cmpRlsMs);
-  cmDspInst_t* cmp1_mkup  = cmDspSysAllocScalar( h, "Makeup1",   0.0, 10.0,   0.01, cmpMakeup);
-  cmDspInst_t* cmp1_wnd   = cmDspSysAllocScalar( h, "Wnd Ms1",   1.0, cmpWndMaxMs, 1.0, cmpWndMs );
+  cmDspInst_t* cmp1_byp   = cmDspSysAllocCheckP(  h, compPreGrpSymId, NULL, "Bypass1", 1.0 );
+  cmDspInst_t* cmp1_igain = cmDspSysAllocScalarP( h, compPreGrpSymId, NULL, "In Gain1",  0.0,   10.0, 0.1, cmpInGain);
+  cmDspInst_t* cmp1_thr   = cmDspSysAllocScalarP( h, compPreGrpSymId, NULL, "ThreshDb1", -100.0, 0.0, 0.1, cmpThreshDb);
+  cmDspInst_t* cmp1_rat   = cmDspSysAllocScalarP( h, compPreGrpSymId, NULL, "Ratio1",    0.1, 100, 0.1, cmpRatio_num);
+  cmDspInst_t* cmp1_atk   = cmDspSysAllocScalarP( h, compPreGrpSymId, NULL, "Atk Ms1",   0.0, 1000.0, 0.1, cmpAtkMs);
+  cmDspInst_t* cmp1_rls   = cmDspSysAllocScalarP( h, compPreGrpSymId, NULL, "Rls Ms1",   0.0, 1000.0, 0.1, cmpRlsMs);
+  cmDspInst_t* cmp1_mkup  = cmDspSysAllocScalarP( h, compPreGrpSymId, NULL, "Makeup1",   0.0, 10.0,   0.01, cmpMakeup);
+  cmDspInst_t* cmp1_wnd   = cmDspSysAllocScalarP( h, compPreGrpSymId, NULL, "Wnd Ms1",   1.0, cmpWndMaxMs, 1.0, cmpWndMs );
   cmDspInst_t* cmp1_mtr   = cmDspSysAllocInst(h,"Meter","Env1", 3, 0.0, 0.0, 1.0);
 
   cmDspSysInstallCb(h, cmp1_byp,  "out", cmp1, "bypass", NULL );
@@ -462,6 +463,19 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, cmp1_wnd,  "val", cmp1, "wnd", NULL );
   cmDspSysInstallCb(h, cmp1,      "env", cmp1_mtr, "in", NULL );
 
+  //--------------- Compressor Preset controls
+  cmDspSysNewColumn(h,0);
+  cmDspInst_t* comp_preset    = cmDspSysAllocInst(   h, "Preset", NULL, 1, compPreGrpSymId );
+  cmDspInst_t* comp_presetLbl = cmDspSysAllocInst(   h, "Text",   "Comp_Preset",      1, "" );
+  cmDspInst_t* comp_storeBtn  = cmDspSysAllocButton( h, "comp_store",  0);
+  cmDspInst_t* comp_recallBtn = cmDspSysAllocButton( h, "comp_recall", 0);
+  cmDspInst_t* comp_pts       = cmDspSysAllocInst(   h, "PortToSym", NULL, 2, "store", "recall");
+
+  cmDspSysInstallCb(   h, comp_presetLbl, "val",    comp_preset, "label",NULL);
+  cmDspSysInstallCb(   h, comp_storeBtn,  "out",    comp_pts,    "store", NULL );
+  cmDspSysInstallCb(   h, comp_recallBtn, "out",    comp_pts,    "recall", NULL );
+  cmDspSysInstallCb(   h, comp_pts,       "store",  comp_preset, "cmd", NULL );
+  cmDspSysInstallCb(   h, comp_pts,       "recall", comp_preset, "cmd", NULL );
 
   return rc;
 }

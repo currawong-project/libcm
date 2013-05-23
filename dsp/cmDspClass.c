@@ -250,7 +250,7 @@ void* cmDspInstAllocate(
   return p;
 }
 
-#ifdef OS_X
+#ifdef OS_OSX
 va_list  _cmDspParseArgV( cmDspVarArg_t* a, va_list vl )
 #else
 void  _cmDspParseArgV( cmDspVarArg_t* a, va_list vl )
@@ -262,7 +262,7 @@ void  _cmDspParseArgV( cmDspVarArg_t* a, va_list vl )
   a->cn      = va_arg(vl,unsigned);
   a->flags   = va_arg(vl,unsigned);
   a->doc     = va_arg(vl,const char*);  
-#ifdef OS_X
+#ifdef OS_OSX
   return vl;
 #endif
 }
@@ -285,7 +285,7 @@ void* cmDspInstAllocateV(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned instB
     
     argCnt += repeatCnt;
 
-#ifdef OS_X
+#ifdef OS_OSX
     vl1 = 
 #endif
       _cmDspParseArgV(&a,vl1);
@@ -297,7 +297,7 @@ void* cmDspInstAllocateV(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned instB
   {
     cmDspVarArg_t a;
     
-#ifdef OS_X
+#ifdef OS_OSX
     vl2 = 
 #endif
       _cmDspParseArgV(&a,vl2);
