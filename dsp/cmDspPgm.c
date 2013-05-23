@@ -2182,7 +2182,8 @@ cmDspRC_t _cmDspSysPgm_Preset( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* sg  = cmDspSysAllocInst(   h, "SigGen",    NULL, 3, sgHz, sgShapeId, sgGain );
   cmDspInst_t* ao  =  cmDspSysAllocAudioOut( h, 0, 1.0 );
   
-  cmDspInst_t* shape  = cmDspSysAllocScalarP( h, grpSymId, prefixLabel, "Shape",     0.0, 3.0,     1.0,  sgShapeId);
+  cmDspInst_t* shapes = cmDspSysAllocMsgListP(h, grpSymId, prefixLabel, "Shape", NULL, "shapeList", 0 );
+  cmDspInst_t* gains  = cmDspSysAllocMsgListP(h, grpSymId, prefixLabel, "Gains", NULL, "gainMenu", 0 );
   cmDspInst_t* hz     = cmDspSysAllocScalarP( h, grpSymId, prefixLabel, "Hz",        0.0, 10000.0, 0.01, sgHz);
   cmDspInst_t* gain   = cmDspSysAllocScalarP( h, grpSymId, prefixLabel, "Gain",      0.0, 1.0,     0.01, sgGain);
   
@@ -2196,9 +2197,10 @@ cmDspRC_t _cmDspSysPgm_Preset( cmDspSysH_t h, void** userPtrPtr )
     goto errLabel;
 
   cmDspSysConnectAudio(h, sg,    "out", ao, "in" );
-  cmDspSysInstallCb(   h, shape, "val", sg, "shape", NULL );
+  cmDspSysInstallCb(   h, shapes,"out", sg, "shape", NULL );
   cmDspSysInstallCb(   h, hz,    "val", sg, "hz",    NULL );
   cmDspSysInstallCb(   h, gain,  "val", sg, "gain",  NULL );
+  cmDspSysInstallCb(   h, gains, "out", gain, "val",  NULL );
   
   cmDspSysInstallCb(   h, presetLbl, "val", preset, "label",NULL);
   cmDspSysInstallCb(   h, storeBtn,  "sym", preset, "cmd", NULL );
@@ -2207,6 +2209,34 @@ cmDspRC_t _cmDspSysPgm_Preset( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+cmDspRC_t _cmDspSysPgm_RsrcWr( cmDspSysH_t h, void** userPtrPtr )
+{
+  cmDspRC_t    rc      = kOkDspRC;
+
+  const cmChar_t* lbl1 = "rsrc1";
+  const cmChar_t* lbl2 = "rsrc2";
+  const cmChar_t* str1 = NULL;
+  const cmChar_t* str2 = NULL;
+
+  if( cmDspRsrcString(h,&str1, lbl1, NULL ) != kOkDspRC )
+    str1 = "1";
+
+  if( cmDspRsrcString(h,&str2, lbl2, NULL ) != kOkDspRC )
+    str2 = "2";
+
+  cmDspInst_t* rsrcWr  = cmDspSysAllocInst( h, "RsrcWr", NULL,    2, lbl1, lbl2 );
+  cmDspInst_t* textUi0 = cmDspSysAllocInst( h, "Text",   "Value1",      1, str1 );
+  cmDspInst_t* textUi1 = cmDspSysAllocInst( h, "Text",   "Value2",      1, str2 );
+
+  if((rc = cmDspSysLastRC(h)) != kOkDspRC )
+    goto errLabel;
+
+  cmDspSysInstallCb( h, textUi0, "val", rsrcWr, "rsrc1", NULL );
+  cmDspSysInstallCb( h, textUi1, "val", rsrcWr, "rsrc2", NULL );
+
+ errLabel:
+  return rc;
+}
 
 cmDspRC_t _cmDspSysPgm_1Up( cmDspSysH_t h, void** userPtrPtr )
 {
@@ -2407,6 +2437,7 @@ _cmDspSysPgm_t _cmDspSysPgmArray[] =
   { "1Up",           _cmDspSysPgm_1Up,          NULL, NULL },
   { "PortToSym",     _cmDspSysPgm_PortToSym,    NULL, NULL },
   { "preset",        _cmDspSysPgm_Preset,       NULL, NULL },
+  { "rsrcWr",        _cmDspSysPgm_RsrcWr,       NULL, NULL },
   { "router",        _cmDspSysPgm_Router,       NULL, NULL },
   { "1ofN",          _cmDspSysPgm_1ofN,         NULL, NULL },
   { "NofM",          _cmDspSysPgm_NofM,         NULL, NULL },
