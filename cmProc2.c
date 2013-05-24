@@ -3859,6 +3859,8 @@ void _cmSpecDistBump( cmSpecDist_t* p, cmReal_t* x, unsigned binCnt, double thre
   y = minDb + abs(minDb) * y;
   */
   unsigned i=0;
+
+  printf("%f %f %f\n",thresh,p->lwrSlope,x[0]);
   
   double minDb = -100.0;
   thresh = -thresh;
