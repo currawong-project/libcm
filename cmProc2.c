@@ -3838,8 +3838,50 @@ cmReal_t  _cmSpecDistCentMode( cmSpecDist_t* p, cmReal_t* X1m )
   return spcUnit;
 }
 
-void _cmSpecDistFlipAbove( cmSpecDist_t* p, cmReal_t* X1m)
+void _cmSpecDistBump( cmSpecDist_t* p, cmReal_t* x, unsigned binCnt, double thresh)
 {
+  /*
+  thresh *= -1;
+  minDb = -100;
+
+  if db < minDb
+     db = minDb;
+  endif
+  
+  if db > thresh 
+    y = 1;
+  else
+    x =  (minDb - db)/(minDb - thresh);
+
+    y = x + (x - (x.^coeff));    
+  endif
+
+  y = minDb + abs(minDb) * y;
+  */
+  unsigned i=0;
+  
+  double minDb = -100.0;
+  thresh = -thresh;
+
+  for(i=0; i<binCnt; ++i)
+  {
+    double y;
+
+    if( x[i] < minDb )
+      x[i] = minDb;
+
+    if( x[i] > thresh )
+      y = 1;
+    else
+    {
+      y  = (minDb - x[i])/(minDb - thresh);
+      y += y - pow(y,p->lwrSlope);
+    }
+
+    x[i] = minDb + (-minDb) * y;
+
+  }
+
   
 }
 
@@ -3915,7 +3957,10 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
         break;
 
       case 4:
-        _cmSpecDistFlipAbove(p,X1m);
+        _cmSpecDistBump(p,X1m, p->pva->binCnt, p->thresh);
+        break;
+
+      case 5:
         break;
 
       default:
