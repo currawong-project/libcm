@@ -68,8 +68,11 @@ cmHDR += src/libcm/cmProcObj.h src/libcm/cmProc.h src/libcm/cmProc2.h src/libcm/
 cmSRC += src/libcm/cmProcObj.c src/libcm/cmProc.c src/libcm/cmProc2.c src/libcm/cmProc3.c src/libcm/cmProc4.c src/libcm/cmProcTest.c
 
 
-cmHDR += src/libcm/app/cmOnset.h src/libcm/app/cmTimeLine.h src/libcm/app/cmScore.h src/libcm/app/cmPickup.h src/libcm/cmRbm.h
-cmSRC += src/libcm/app/cmOnset.c src/libcm/app/cmTimeLine.c src/libcm/app/cmScore.c src/libcm/app/cmPickup.c src/libcm/cmRbm.c
+cmHDR += src/libcm/app/cmOnset.h src/libcm/app/cmTimeLine.h src/libcm/app/cmScore.h src/libcm/app/cmScoreProc.h 
+cmSRC += src/libcm/app/cmOnset.c src/libcm/app/cmTimeLine.c src/libcm/app/cmScore.c src/libcm/app/cmScoreProc.c 
+
+cmHDR += src/libcm/app/cmPickup.h src/libcm/cmRbm.h
+cmSRC += src/libcm/app/cmPickup.c src/libcm/cmRbm.c
 
 if OS_LINUX
  cmSRC += src/libcm/linux/cmFileSysLinux.c  src/libcm/linux/cmAudioPortAlsa.c src/libcm/linux/cmMidiAlsa.c
