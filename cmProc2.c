@@ -3860,7 +3860,7 @@ void _cmSpecDistBump( cmSpecDist_t* p, cmReal_t* x, unsigned binCnt, double thre
   */
   unsigned i=0;
 
-  printf("%f %f %f\n",thresh,p->lwrSlope,x[0]);
+  //printf("%f %f %f\n",thresh,p->lwrSlope,x[0]);
   
   double minDb = -100.0;
   thresh = -thresh;
@@ -3958,8 +3958,9 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
         }
         break;
 
-      case 4:
+      case kBumpSdId:
         _cmSpecDistBump(p,X1m, p->pva->binCnt, p->thresh);
+        _cmSpecDistBasicMode(p,X1m,p->pva->binCnt,p->thresh);
         break;
 
       case 5:

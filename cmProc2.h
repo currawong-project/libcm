@@ -772,6 +772,7 @@ extern "C" {
     kBasicModeSdId,   // 1 - fixed thresh
     kSpecCentSdId,    // 2 - thresh = max magn - (offset * spec_cent)
     kAmpEnvSdId,      // 3 - thresh = max magn - offset
+    kBumpSdId,
     kModeSdCnt
   };
 
