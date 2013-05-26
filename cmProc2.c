@@ -3959,7 +3959,7 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
         break;
 
       case kBumpSdId:
-        _cmSpecDistBump(p,X1m, p->pva->binCnt, p->thresh);
+        _cmSpecDistBump(p,X1m, p->pva->binCnt, p->offset);
         _cmSpecDistBasicMode(p,X1m,p->pva->binCnt,p->thresh);
         break;
 
