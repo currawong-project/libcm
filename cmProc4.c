@@ -1275,7 +1275,8 @@ cmRC_t     cmScMatchFinal( cmScMatch* p )
 
 cmRC_t  _cmScMatchInitMtx( cmScMatch* p, unsigned rn, unsigned cn )
 {
-  if( rn >p->mrn && cn > p->mcn )
+  //if( rn >p->mrn && cn > p->mcn )
+  if( rn*cn > p->mrn*p->mcn )
     return cmCtxRtCondition( &p->obj, cmInvalidArgRC, "MIDI sequence length must be less than %i. Score sequence length must be less than %i.",p->mmn,p->msn); 
 
   // if the size of the mtx is not changing then there is nothing to do
