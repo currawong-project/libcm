@@ -161,13 +161,15 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysNewColumn(h,0);
 
+  double dfltOffset = 2.0; // 30.0;
+
   cmDspInst_t* md0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "Mode",      0.0, 4.0, 1.0, 1.0);
   cmDspInst_t* ws0p = cmDspSysAllocMsgListP(h,preGrpSymId,NULL,"wndSmpCnt", NULL, "wndSmpCnt", 2);
   cmDspInst_t* hf0p = cmDspSysAllocMsgListP(h,preGrpSymId,NULL,"hopFact",   NULL, "hopFact",   2);
   cmDspInst_t* th0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "threshold", 0.0, 100.0, 1.0,  60.0 );
   cmDspInst_t* us0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "upr slope", 0.0,  10.0, 0.01,  0.0 ); 
   cmDspInst_t* ls0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "lwr slope", 0.3,  10.0, 0.01,  2.0 );
-  cmDspInst_t* of0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "offset",    0.0, 100.0, 0.01, 30.0 );
+  cmDspInst_t* of0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "offset",    0.0, 100.0, 0.01, dfltOffset );
   cmDspInst_t* iv0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "invert",    0.0,   1.0, 1.0,   0.0 );  
   cmDspInst_t* wet0  = cmDspSysAllocScalarP(h,preGrpSymId,NULL, "wet",       0.0,    1.0,0.001,  1.0 );  
   cmDspSysNewColumn(h,0);
@@ -181,7 +183,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* th1p  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "threshold1", 0.0, 100.0, 1.0,  60.0 );
   cmDspInst_t* us1p  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "upr slope1", 0.0,  10.0, 0.01,  0.0 ); 
   cmDspInst_t* ls1p  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "lwr slope1", 0.3,  10.0, 0.01,  2.0 );
-  cmDspInst_t* of1p  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "offset1",    0.0, 100.0, 0.01, 30.0 );
+  cmDspInst_t* of1p  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "offset1",    0.0, 100.0, 0.01, dfltOffset );
   cmDspInst_t* iv1p  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "invert1",    0.0,   1.0, 1.0,   0.0 );  
   cmDspInst_t* wet1  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "wet1",       0.0,    1.0,0.001,  1.0 );  
 
