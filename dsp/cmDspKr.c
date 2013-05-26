@@ -961,6 +961,7 @@ void _cmScFolMatcherCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
     // send 'set' values that were calculated on the previous call to cmScMeasExec()
     unsigned i;
     for(i=ap->sfp->smp->vsi; i<ap->sfp->smp->nsi; ++i)
+      if(ap->sfp->smp->set[i].value != DBL_MAX )
     {
 
       switch( ap->sfp->smp->set[i].sp->varId )
