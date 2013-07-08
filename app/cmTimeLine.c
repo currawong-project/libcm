@@ -774,20 +774,23 @@ cmTlRC_t _cmTlAllocMidiFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
   return rc;
 }
 
-cmTlRC_t _cmTlAllocMarkerRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar_t* refIdStr, int begSmpIdx, unsigned durSmpCnt, unsigned seqId, const cmChar_t* text )
+cmTlRC_t _cmTlAllocMarkerRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar_t* refIdStr, int begSmpIdx, unsigned durSmpCnt, unsigned seqId, const cmChar_t* text, unsigned bar, const cmChar_t* sectionStr )
 {
-  cmTlRC_t      rc = kOkTlRC;
-  _cmTlObj_t*   op = NULL;
-  const cmChar_t* textStr = text==NULL ? "" : text;
+  cmTlRC_t        rc      = kOkTlRC;
+  _cmTlObj_t*     op      = NULL;
+  const cmChar_t* textStr = text==NULL       ? "" : text;
+  const cmChar_t* sectStr = sectionStr==NULL ? "" : sectionStr;
 
   // add memory at the end of the the cmTlMarker_t record to hold the text string.
-  unsigned recdByteCnt = sizeof(cmTlMarker_t) + strlen(textStr) + 1;
+  unsigned recdByteCnt = sizeof(cmTlMarker_t) + strlen(textStr) + sizeof(bar) + strlen(sectStr) + 2;
+
 
   if((rc = _cmTlAllocRecd(p,nameStr,refIdStr,begSmpIdx,durSmpCnt,kMarkerTlId,seqId,recdByteCnt,&op)) != kOkTlRC )
     goto errLabel;
 
   assert(op != NULL);
 
+  // get a ptr to the marker part of the object 
   cmTlMarker_t* mp = _cmTimeLineMarkerObjPtr(p,op->obj);
 
   assert(mp != NULL );
@@ -795,9 +798,15 @@ cmTlRC_t _cmTlAllocMarkerRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar
   // copy the marker text string into the memory just past the cmTlMarker_t recd.
   cmChar_t* tp = (cmChar_t*)(mp + 1);
   strcpy(tp,textStr);
+  
+  // copy the section label string into memory just past the markers text string
+  cmChar_t* sp = strlen(tp) + 1;
+  strcpy(sp,sectStr);
 
-  mp->text = tp;
-  op->obj->text = tp;
+  mp->text       = tp;
+  mp->sectionStr = sp;
+  mp->bar        = bar;
+  op->obj->text  = tp;
 
   // notify listeners
   //_cmTlNotifyListener(p, kInsertMsgTlId, op );
@@ -843,7 +852,7 @@ cmTlRC_t _cmTlAllocAudioEvtRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
   return rc;
 }
 
-cmTlRC_t _cmTlAllocRecdFromJson(_cmTl_t* p,const cmChar_t* nameStr, const cmChar_t* typeIdStr,const cmChar_t* refIdStr, int begSmpIdx, unsigned durSmpCnt, unsigned seqId, const cmChar_t* textStr)
+cmTlRC_t _cmTlAllocRecdFromJson(_cmTl_t* p,const cmChar_t* nameStr, const cmChar_t* typeIdStr,const cmChar_t* refIdStr, int begSmpIdx, unsigned durSmpCnt, unsigned seqId, const cmChar_t* textStr, unsigned bar, const cmChar_t* sectionStr)
 {
   cmTlRC_t   rc    = kOkTlRC;
   unsigned   typeId = _cmTlIdLabelToId(p,typeIdStr);
@@ -852,7 +861,7 @@ cmTlRC_t _cmTlAllocRecdFromJson(_cmTl_t* p,const cmChar_t* nameStr, const cmChar
   {
     case kAudioFileTlId: rc = _cmTlAllocAudioFileRecd(p,nameStr,refIdStr,begSmpIdx,          seqId,textStr); break;
     case kMidiFileTlId:  rc = _cmTlAllocMidiFileRecd( p,nameStr,refIdStr,begSmpIdx,          seqId,textStr); break;
-    case kMarkerTlId:    rc = _cmTlAllocMarkerRecd(   p,nameStr,refIdStr,begSmpIdx,durSmpCnt,seqId,textStr); break;
+    case kMarkerTlId:    rc = _cmTlAllocMarkerRecd(   p,nameStr,refIdStr,begSmpIdx,durSmpCnt,seqId,textStr,bar,sectionStr); break;
     case kAudioEvtTlId:  rc = _cmTlAllocAudioEvtRecd( p,nameStr,refIdStr,begSmpIdx,durSmpCnt,seqId,textStr); break;
     default:
       rc = cmErrMsg(&p->err,kParseFailTlRC,"'%s' is not a valid 'objArray' record type.",cmStringNullGuard(typeIdStr));
@@ -1146,7 +1155,7 @@ cmTlRC_t cmTimeLineInsert( cmTlH_t h, const cmChar_t* nameStr, unsigned typeId,
 {
   _cmTl_t* p = _cmTlHandleToPtr(h);
   
-  return _cmTlAllocRecdFromJson(p, nameStr, _cmTlIdToLabel(p,typeId), refObjNameStr, begSmpIdx, durSmpCnt, seqId, fn); 
+  return _cmTlAllocRecdFromJson(p, nameStr, _cmTlIdToLabel(p,typeId), refObjNameStr, begSmpIdx, durSmpCnt, seqId, fn, 0, NULL); 
 }
 
 cmTlObj_t* _cmTimeLineFindFile( _cmTl_t* p, const cmChar_t* fn, unsigned typeId )
@@ -1356,6 +1365,8 @@ cmTlRC_t cmTimeLineReadJson(  cmTlH_t* hp, const cmChar_t* ifn )
     unsigned        durSmpCnt;
     unsigned        seqId;
     const cmChar_t* textStr;
+    unsigned        bar = 0;
+    const cmChar_t* sectStr = NULL;
 
     if( cmJsonMemberValues(rp,&errLabelPtr,
         "label",kStringTId,&nameStr,
@@ -1365,6 +1376,8 @@ cmTlRC_t cmTimeLineReadJson(  cmTlH_t* hp, const cmChar_t* ifn )
         "smpCnt",kIntTId,&durSmpCnt,
         "trackId",kIntTId,&seqId,
         "textStr",kStringTId,&textStr,
+        "bar",    kIntTId | kOptArgJsFl,&bar,
+        "sectStr",kStringTId | kOptArgJsFl,&sectStr,
         NULL) != kOkJsRC )
     {
       rc = _cmTlParseErr(&p->err, errLabelPtr, i, ifn );
@@ -1372,7 +1385,7 @@ cmTlRC_t cmTimeLineReadJson(  cmTlH_t* hp, const cmChar_t* ifn )
     }
 
 
-    if((rc = _cmTlAllocRecdFromJson(p,nameStr,typeIdStr,refIdStr,begSmpIdx,durSmpCnt,seqId,textStr)) != kOkTlRC )
+    if((rc = _cmTlAllocRecdFromJson(p,nameStr,typeIdStr,refIdStr,begSmpIdx,durSmpCnt,seqId,textStr,bar,sectStr)) != kOkTlRC )
       goto errLabel;
     
   }

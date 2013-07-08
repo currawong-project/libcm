@@ -94,8 +94,10 @@ extern "C" {
 
   typedef struct
   {
-    cmTlObj_t       obj;
-    const cmChar_t* text;
+    cmTlObj_t        obj;
+    const cmChar_t*  text;
+    unsigned         bar;
+    const cmChar_t*  sectionStr; 
   } cmTlMarker_t;
 
   extern cmTlH_t cmTimeLineNullHandle;
