@@ -151,6 +151,9 @@ extern "C" {
   unsigned      cmScoreEvtCount( cmScH_t h );
   cmScoreEvt_t* cmScoreEvt( cmScH_t h, unsigned idx );
 
+  // Given a bar number return the associated 'bar' event record.
+  cmScoreEvt_t* cmScoreBarEvt( cmScH_t h, unsigned barNumb );
+
   // Access section records
   unsigned      cmScoreSectionCount( cmScH_t h );
   cmScoreSection_t* cmScoreSection( cmScH_t h, unsigned idx );
@@ -159,6 +162,9 @@ extern "C" {
   unsigned      cmScoreLocCount( cmScH_t h );
   cmScoreLoc_t* cmScoreLoc( cmScH_t h, unsigned idx );
   void          cmScorePrintLoc( cmScH_t h );
+
+  // Return the location associated with a given score event.
+  cmScoreLoc_t* cmScoreEvtLoc( cmScH_t h, const cmScoreEvt_t* evt );
 
   // Return the count of sets.
   unsigned      cmScoreSetCount( cmScH_t h );
@@ -169,6 +175,7 @@ extern "C" {
   // cmScMsg_t record.
   cmScRC_t      cmScoreSeqNotify( cmScH_t h );
 
+  /*
   void          cmScoreClearPerfInfo( cmScH_t h );
 
   // Assign 'smpIdx' and 'vel'  to the event matching 'pitch' at 'locIdx'
@@ -186,7 +193,8 @@ extern "C" {
   
   // Set the performed dynamic level of a score event.
   void          cmScoreSetPerfDynLevel( cmScH_t h, unsigned evtIdx, unsigned dynLvl );
-
+  */
+  
   typedef enum
   {
     kInvalidMsgScId,

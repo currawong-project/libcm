@@ -1231,6 +1231,17 @@ cmScoreEvt_t* cmScoreEvt( cmScH_t h, unsigned idx )
   return p->array + idx;
 }
 
+cmScoreEvt_t* cmScoreBarEvt( cmScH_t h, unsigned barNumb )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  unsigned i = 0;
+  for(; i<p->cnt; ++i)
+    if( p->array[i].typeId==kBarEvtScId && p->array[i].barNumb==barNumb )
+      return p->array + i;
+
+  return NULL;
+}
+
 unsigned      cmScoreSectionCount( cmScH_t h )
 { 
   cmSc_t* p = _cmScHandleToPtr(h);
@@ -1261,6 +1272,22 @@ cmScoreLoc_t* cmScoreLoc( cmScH_t h, unsigned idx )
   }
   return p->loc + idx;
 }
+
+cmScoreLoc_t* cmScoreEvtLoc( cmScH_t h, const cmScoreEvt_t* evt )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  unsigned i;
+  if( evt != NULL )
+    for(i=0; i<p->locCnt; ++i)
+    {
+      unsigned j;
+      for(j=0; j<p->loc[i].evtCnt; ++j)
+        if( p->loc[i].evtArray[j] == evt )
+          return p->loc + i;
+    }
+  return NULL;
+}
+
 
 
 void cmScorePrintLoc( cmScH_t h )
