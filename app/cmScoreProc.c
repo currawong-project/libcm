@@ -8,6 +8,7 @@
 #include "cmLinkedHeap.h"
 #include "cmSymTbl.h"
 #include "cmJson.h"
+#include "cmFile.h"
 #include "cmMidi.h"
 #include "cmMidiFile.h"
 #include "cmAudioFile.h"
@@ -15,18 +16,33 @@
 #include "cmTimeLine.h"
 #include "cmScoreProc.h"
 
+#include "cmProcObj.h"
+#include "cmProc4.h"
+
 enum
 {
   kOkSpRC,
   kJsonFailSpRC,
   kScoreFailSpRC,
-  kTimeLineFailSpRC
+  kTimeLineFailSpRC,
+  kScoreMatchFailSpRC,
+  kFileFailSpRC,
 };
+
+typedef struct _cmScMeas_t
+{
+  cmTlMarker_t*       markPtr;  // time-line marker in which this 'set' exists
+  cmScoreSet_t*       setPtr;   // score set on which this measurment is based
+  double              value;    // the value of the measurement
+  double              cost;     // the quality of the perf->score match 
+  struct _cmScMeas_t* link;
+} _cmScMeas_t;
 
 
 typedef struct
 {
   cmErr_t         err;
+  cmCtx*          ctx;
   cmScH_t         scH;
   const cmChar_t* tlFn;
   cmTlH_t         tlH;
@@ -34,6 +50,12 @@ typedef struct
   unsigned*       dynArray;
   unsigned        dynCnt;
   double          srate;
+  cmScMeas*       meas;
+  cmScMatcher*    match;
+
+  cmTlMarker_t*   curMarkPtr;
+  _cmScMeas_t*    list_beg;
+  _cmScMeas_t*    list_end;
 } cmSp_t;
 
 
@@ -102,11 +124,14 @@ cmSpRC_t _cmScoreProcInit( cmCtx_t* ctx, cmSp_t* p, const cmChar_t* rsrcFn  )
     goto errLabel;
   }
 
-  if( cmTimeLineInitialize(ctx, &p->tlH, NULL, NULL ) != kOkTlRC )
+  // load the time-line file
+  if( cmTimeLineInitializeFromFile(ctx, &p->tlH, NULL, NULL, tlFn ) != kOkTlRC )
   {
     rc = cmErrMsg(&p->err,kTimeLineFailSpRC,"Time line load failed for time line file:%s.",cmStringNullGuard(tlFn));
     goto errLabel;
   }
+
+  p->ctx  = cmCtxAlloc(NULL, &ctx->rpt, cmLHeapNullHandle, cmSymTblNullHandle );
 
  errLabel:
   return rc;
@@ -115,6 +140,8 @@ cmSpRC_t _cmScoreProcInit( cmCtx_t* ctx, cmSp_t* p, const cmChar_t* rsrcFn  )
 cmSpRC_t _cmScoreProcFinal( cmSp_t* p )
 {
   cmSpRC_t rc = kOkSpRC;
+
+  cmCtxFree(&p->ctx);
 
   if( cmScoreFinalize(&p->scH) != kOkScRC )
     cmErrMsg(&p->err,kScoreFailSpRC,"Score finalize failed.");
@@ -130,10 +157,233 @@ cmSpRC_t _cmScoreProcFinal( cmSp_t* p )
   return rc;
 }
 
+cmSpRC_t _cmScWriteMeasFile( cmCtx_t* ctx, cmSp_t* sp, const cmChar_t* outFn )
+{
+  cmFileH_t fH = cmFileNullHandle;
+  cmSpRC_t rc = kOkSpRC;
+  unsigned i;
+
+  if( cmFileOpen(&fH,outFn,kWriteFileFl,&ctx->rpt) != kOkFileRC )
+  {
+    rc = cmErrMsg(&sp->err,kFileFailSpRC,"Unable to create the output file '%s'.",cmStringNullGuard(outFn));
+    goto errLabel;
+  }
+
+  cmFilePrintf(fH,"{\n");
+
+  _cmScMeas_t* mp = sp->list_beg;
+  for(; mp!=NULL; mp=mp->link)
+  {
+    const cmChar_t* typeLabel = NULL;
+    switch(mp->setPtr->varId)
+    {
+      case kEvenVarScId: typeLabel="even"; break;
+      case kDynVarScId:  typeLabel="dyn";  break;
+      case kTempoVarScId:typeLabel="tempo";break;
+      default:
+        { assert(0); }
+    }
+
+    for(i=0; i<mp->setPtr->sectCnt; ++i)
+    {
+      cmFilePrintf(fH,"{seq:%i mark:\"%s\" typeId:%i typeLabel:\"%s\" loc:%i evt:%i sect:\"%s\" value:%f cost:%f }\n",
+        mp->markPtr->obj.seqId,
+        cmStringNullGuard(mp->markPtr->obj.name),
+        mp->setPtr->varId,
+        typeLabel,
+        mp->setPtr->sectArray[i]->locPtr->index,
+        mp->setPtr->sectArray[i]->begEvtIndex,
+        cmStringNullGuard(mp->setPtr->sectArray[i]->label),
+        mp->value,
+        mp->cost );
+    } 
+  }
+
+  cmFilePrintf(fH,"}\n");
+
+ errLabel:
+  if( cmFileClose(&fH) != kOkFileRC )
+    cmErrMsg(&sp->err,kFileFailSpRC,"The output file close failed on '%s'.",cmStringNullGuard(outFn));
+
+  return rc;
+}
+
+void _cmScMatchCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
+{
+  cmSp_t*   sp = (cmSp_t*)arg;
+  cmScMeas* sm = sp->meas;
+
+  if( cmScMeasExec(sm, rp->mni, rp->locIdx, rp->scEvtIdx, rp->flags, rp->smpIdx, rp->pitch, rp->vel ) == cmOkRC )
+  {
+    unsigned i;
+    for(i=sm->vsi; i<sm->nsi; ++i)
+      // ignore set's which did not produce a valid value
+      if(sm->set[i].value != DBL_MAX )
+      {
+        _cmScMeas_t* r = cmMemAllocZ(_cmScMeas_t,1);
+        r->markPtr = sp->curMarkPtr;
+        r->setPtr  = sm->set[i].sp;
+        r->value   = sm->set[i].value;
+        r->cost    = sm->set[i].match_cost;
+
+        if( sp->list_beg == NULL )
+        {
+          sp->list_beg = r;
+          sp->list_end = r;
+        }
+        else
+        {
+          sp->list_end->link = r;
+          sp->list_end       = r;
+        }
+      }    
+  }
+}
+
+
+cmSpRC_t _cmScoreGenAllMeasurements(cmCtx_t* ctx, cmSp_t* sp, const cmChar_t* outFn)
+{
+  cmSpRC_t rc     = kOkSpRC;
+  unsigned midiN  = 7;
+  unsigned scWndN = 10;
+  unsigned seqN   = cmTimeLineSeqCount(sp->tlH);
+  double   srate  = cmTimeLineSampleRate(sp->tlH);
+  unsigned seqId;
+
+  assert( sp->srate == srate);
+
+  // allocate the performance eval. object
+  sp->meas = cmScMeasAlloc( sp->ctx, NULL, sp->scH, sp->srate, sp->dynArray, sp->dynCnt );
+  assert( sp->meas != NULL );
+
+  // allocate the score matcher
+  sp->match = cmScMatcherAlloc(sp->ctx,NULL,sp->srate,sp->scH,scWndN,midiN,_cmScMatchCb,sp);
+  assert(sp->match != NULL );
+
+  
+  // for each time line sequence
+  for(seqId=0; seqId<seqN; ++seqId)
+  {
+    cmTlObj_t* o0p = NULL;
+  
+    // for each 'marker' in this time line sequence
+    while(  (o0p = cmTimeLineNextTypeObj(sp->tlH, o0p, seqId, kMarkerTlId)) != NULL )
+    {
+      // get the 'marker' recd
+      cmTlMarker_t* markPtr = cmTimeLineMarkerObjPtr(sp->tlH,o0p);
+      assert( markPtr != NULL );
+
+      // if the marker does not have a valid start bar location
+      if( markPtr->bar == 0 )
+        continue;
+
+      // set the marker ptr (which is used in _cmScMatchCb())
+      sp->curMarkPtr = markPtr;
+
+      // get the end-of-marker time as a sample index
+      unsigned markEndSmpIdx = markPtr->obj.seqSmpIdx + markPtr->obj.durSmpCnt;
+
+      // get the score event associated with the marker's bar number.
+      const cmScoreEvt_t* evtPtr = cmScoreBarEvt(sp->scH,markPtr->bar);
+      assert( evtPtr != NULL );
+
+
+      // get the score location associated with the markers bar score event
+      const cmScoreLoc_t* locPtr = cmScoreEvtLoc(sp->scH,evtPtr);
+      assert( locPtr != NULL );
+
+      cmRptPrintf(&ctx->rpt,"Processing loc:%i seq:%i %s %s\n",locPtr->index,seqId,cmStringNullGuard(markPtr->obj.name),cmStringNullGuard(markPtr->text));
+
+      // reset the performance evaluation object
+      if( cmScMeasReset(sp->meas) != cmOkRC )
+      {
+        cmErrMsg(&sp->err,kScoreMatchFailSpRC,"The score performance evaluation object failed on reset.");
+        continue;
+      }
+      
+      // reset the score matcher to begin searching at the bar location
+      if( cmScMatcherReset(sp->match, locPtr->index ) != cmOkRC )
+      {
+        cmErrMsg(&sp->err,kScoreMatchFailSpRC,"The score matcher reset failed on location: %i.",locPtr->index);
+        continue;
+      }
+
+      cmTlObj_t* o1p = o0p;
+
+      // as long as more MIDI events are available get the next MIDI msg 
+      while( (rc == kOkSpRC) && (o1p = cmTimeLineNextTypeObj(sp->tlH, o1p, seqId, kMidiEvtTlId )) != NULL )
+      {
+        cmTlMidiEvt_t* mep = cmTimeLineMidiEvtObjPtr(sp->tlH,o1p);
+        assert(mep != NULL );
+
+        // if the msg falls after the end of the marker then we are done
+        if( mep->obj.seqSmpIdx != cmInvalidIdx && mep->obj.seqSmpIdx > markEndSmpIdx )
+          break;
+
+        
+        // if the time line MIDI msg a note-on
+        if( mep->msg->status == kNoteOnMdId )
+        {
+          cmRC_t cmRC = cmScMatcherExec(sp->match, mep->obj.seqSmpIdx, mep->msg->status, mep->msg->u.chMsgPtr->d0, mep->msg->u.chMsgPtr->d1, NULL );
+
+          switch( cmRC )
+          {
+            case cmOkRC:         // continue processing MIDI events
+              break;
+
+            case cmEofRC:        // end of the score was encountered
+              break;
+
+            case cmInvalidArgRC: // p->eli was not set correctly
+              rc = cmErrMsg(&sp->err,kScoreMatchFailSpRC,"The score matcher failed due to an invalid argument.");
+              goto errLabel;
+              break;
+
+            case cmSubSysFailRC: // scan resync failed
+              rc = cmErrMsg(&sp->err,kScoreMatchFailSpRC,"The score matcher failed on resync.");
+              cmScMatcherPrint(sp->match);
+              //goto errLabel;
+              break;
+
+            default:
+              { assert(0); }
+          }
+        }
+      }
+
+      rc = kOkSpRC;
+    }
+  }
+
+
+ errLabel:
+
+  if((rc = _cmScWriteMeasFile(ctx, sp, outFn )) != kOkSpRC )
+    cmErrMsg(&sp->err,kFileFailSpRC,"The measurement output did not complete without errors."); 
+
+  _cmScMeas_t* mp = sp->list_beg;
+  while(mp!=NULL)
+  {
+    _cmScMeas_t* np = mp->link;
+    cmMemFree(mp);
+    mp = np;
+  }
+
+  if( cmScMatcherFree(&sp->match) != cmOkRC )
+    cmErrMsg(&sp->err,kScoreMatchFailSpRC,"The score matcher release failed.");
+
+  if( cmScMeasFree(&sp->meas) != cmOkRC )
+    cmErrMsg(&sp->err,kScoreMatchFailSpRC,"The performance evaluation object failed.");
+
+
+  return rc;
+}
+
 unsigned cmScoreProc(cmCtx_t* ctx)
 {
   cmSpRC_t rc = kOkSpRC;
   const cmChar_t* rsrcFn = "/home/kevin/.kc/time_line.js";
+  const cmChar_t* outFn  = "/home/kevin/temp/meas0.js";
   cmSp_t sp;
 
   memset(&sp,0,sizeof(sp));
@@ -143,7 +393,10 @@ unsigned cmScoreProc(cmCtx_t* ctx)
   if((rc = _cmScoreProcInit(ctx,&sp,rsrcFn)) != kOkSpRC )
     goto errLabel;
   
+  _cmScoreGenAllMeasurements(ctx,&sp,outFn);
 
+  //cmScorePrint(sp.scH,&ctx->rpt);
+  //cmScorePrintLoc(sp.scH);
 
  
  errLabel:
