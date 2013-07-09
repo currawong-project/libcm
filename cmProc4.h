@@ -334,7 +334,7 @@ typedef void (*cmScMatcherCb_t)( struct cmScMatcher_str* p, void* arg, cmScMatch
    cmScMatchMidi_t*     midiBuf;  // midiBuf[mn]
 
    cmScMatcherResult_t* res;      // res[rn]
-   unsigned             rn;       // length of res[]
+   unsigned             rn;       // length of res[] (set to 2*score event count)
    unsigned             ri;       // next avail res[] recd.
 
    double               s_opt;          // 
@@ -354,7 +354,23 @@ typedef void (*cmScMatcherCb_t)( struct cmScMatcher_str* p, void* arg, cmScMatch
 
 
 
-cmScMatcher* cmScMatcherAlloc( cmCtx* c, cmScMatcher* p, double srate, cmScH_t scH, unsigned scWndN, unsigned midiWndN, cmScMatcherCb_t cbFunc, void* cbArg );
+cmScMatcher* cmScMatcherAlloc( 
+  cmCtx*          c,        // Program context.
+  cmScMatcher*    p,        // Existing cmScMatcher to reallocate or NULL to allocate a new cmScMatcher.
+  double          srate,    // System sample rate.
+  cmScH_t         scH,      // Score handle.  See cmScore.h.
+  unsigned        scWndN,   // Length of the scores active search area. ** See Note.
+  unsigned        midiWndN, // Length of the MIDI active note buffer.    ** See Note.
+  cmScMatcherCb_t cbFunc,   // A cmScMatcherCb_t function to be called to notify the recipient of changes in the score matcher status.
+  void*           cbArg );  // User argument to 'cbFunc'.
+
+// The cmScMatcher maintains an internal cmScMatch object which is used to attempt to find the
+// best match between the current MIDI active note buffer and the current score search area.
+// 'scWndN' is used to set the cmScMatch 'locN' argument.
+// 'midiWndN' sets the length of the MIDI FIFO which is used to match to the score with
+// each recceived MIDI note.
+// 'midiWndN' must be <= 'scWndN'.
+
 cmRC_t       cmScMatcherFree(  cmScMatcher** pp );
 cmRC_t       cmScMatcherInit(  cmScMatcher* p, double srate, cmScH_t scH, unsigned scWndN, unsigned midiWndN, cmScMatcherCb_t cbFunc, void* cbArg );
 cmRC_t       cmScMatcherFinal( cmScMatcher* p );
@@ -362,7 +378,7 @@ cmRC_t       cmScMatcherFinal( cmScMatcher* p );
 // 'scLocIdx' is a score index as used by cmScoreLoc(scH) not into p->mp->loc[].
 cmRC_t       cmScMatcherReset( cmScMatcher* p, unsigned scLocIdx );
 
-// Slide a score window hopCnt times, beginning at 'bli' (an
+// Slide a score window 'hopCnt' times, beginning at 'bli' (an
 // index int p->mp->loc[]) looking for the best match to p->midiBuf[].  
 // The score window contain scWndN (p->mp->mcn-1) score locations.
 // Returns the index into p->mp->loc[] of the start of the best
@@ -395,6 +411,7 @@ cmRC_t     cmScMatcherStep(  cmScMatcher* p );
 // cmSubSysFailRC - a scan resync failed in cmScMatcherStep().
 cmRC_t     cmScMatcherExec(  cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1, unsigned* scLocIdxPtr );
 
+void cmScMatcherPrint( cmScMatcher* p );
 
 //=======================================================================================================================
 
@@ -424,17 +441,17 @@ typedef struct
   double           srate;    // 
   cmScMatch*       mp;       //
   unsigned         mii;      // next avail recd in midiBuf[]
-  unsigned         mn;       // length of of midiBuf[]
+  unsigned         mn;       // length of of midiBuf[]  (init. to 2*cmScoreEvtCount())
   cmScMatchMidi_t* midiBuf;  // midiBuf[mn]
 
-  unsigned         sn;       // length of set[]
+  unsigned         sn;       // length of set[] (init. to cmScoreSetCount())
   cmScMeasSet_t*   set;      // set[sn]  
 
   unsigned         dn;       // length of dynRef[]
   unsigned*        dynRef;   // dynRef[dn]  
 
-  unsigned         nsi;      // next set index
-  unsigned         nsli;     // next score location index
+  unsigned         nsi;      // next set index to fill (this is the set[] we are waiting to complete)
+  unsigned         nsli;     // next score location index we are expecting to receive
 
   unsigned         vsi;      // set[vsi:nsi-1] indicates sets with new values following a call to cmScMeasExec()
   unsigned         vsli;     // vsli:nsli-1 indicates cmScore loc's to check for section triggers following a call to cmScMeasExec()
@@ -467,7 +484,6 @@ cmRC_t    cmScMeasReset( cmScMeas* p );
 // 'locIdx' is the location index into cmScMatcher.mp->loc[] associated with 
 // this event.
 cmRC_t    cmScMeasExec(  cmScMeas* p, unsigned mni,  unsigned locIdx, unsigned scEvtIdx, unsigned flags, unsigned smpIdx, unsigned pitch, unsigned vel );
-
 
 //=======================================================================================================================
 
