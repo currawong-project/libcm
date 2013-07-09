@@ -1277,7 +1277,9 @@ cmRC_t  _cmScMatchInitMtx( cmScMatch* p, unsigned rn, unsigned cn )
 {
   //if( rn >p->mrn && cn > p->mcn )
   if( rn*cn > p->mrn*p->mcn )
+  {
     return cmCtxRtCondition( &p->obj, cmInvalidArgRC, "MIDI sequence length must be less than %i. Score sequence length must be less than %i.",p->mmn,p->msn); 
+  }
 
   // if the size of the mtx is not changing then there is nothing to do
   if( rn == p->rn && cn == p->cn )
@@ -1990,10 +1992,26 @@ cmRC_t cmScMatcherReset( cmScMatcher* p, unsigned scLocIdx )
   p->ili           = 0;
 
   // convert scLocIdx to an index into p->mp->loc[]
-  unsigned i;
-  for(i=0; i<p->mp->locN; ++i)
-    if( p->mp->loc[i].scLocIdx == scLocIdx )
-      p->ili = i;
+  unsigned i = 0;
+  while(1)
+  {
+    for(i=0; i<p->mp->locN; ++i)
+      if( p->mp->loc[i].scLocIdx == scLocIdx )
+      {
+        p->ili = i;
+        break;
+      }
+
+    assert(p->mp->locN>0);
+    if( i!=p->mp->locN || scLocIdx==p->mp->loc[p->mp->locN-1].scLocIdx)
+      break;
+
+    scLocIdx += 1;
+  }
+
+  if( i==p->mp->locN)
+    return cmCtxRtCondition( &p->obj, cmSubSysFailRC, "Score matcher reset failed."); 
+
 
   return cmOkRC;
 }
@@ -2240,7 +2258,9 @@ cmRC_t     cmScMatcherExec(  cmScMatcher* p, unsigned smpIdx, unsigned status, c
   if( fl && p->mbi == 0 )
   {
     if( (p->begSyncLocIdx = cmScMatcherScan(p,p->ili,p->initHopCnt)) == cmInvalidIdx )
+    {
       rc = cmInvalidArgRC; // signal init. scan sync. fail
+    }
     else
     {
       //cmScMatcherPrintPath(p);
@@ -2314,6 +2334,7 @@ typedef struct cmScMatcherPrint_str
   unsigned                     mni; 
   unsigned                     pitch;
   unsigned                     vel; 
+  unsigned                     barNumb;
 } cmScMatcherPrint_t;
 
 void  _cmScMatcherInsertPrint(cmScMatcherPrint_t* a, unsigned i, unsigned* anp, unsigned aan, const cmScMatcherResult_t* rp, unsigned scLocIdx )
@@ -2389,6 +2410,7 @@ void cmScMatcherPrint( cmScMatcher* p )
       pp->mni      = cmInvalidIdx;
       pp->pitch    = ep->pitch;
       pp->vel      = kInvalidMidiVelocity;
+      pp->barNumb  = ep->barNumb;
     }
 
   }
@@ -2487,7 +2509,7 @@ void cmScMatcherPrint( cmScMatcher* p )
   
   for(i=0; i<an; ++i)
   {
-    printf("%4i %4i %4s %c%c%c\n",a[i].scLocIdx,a[i].mni,
+    printf("%4i %4i %4i %4s %c%c%c\n",a[i].scLocIdx,a[i].barNumb,a[i].mni,
       cmIsFlag(a[i].flags,kSmBarFl)   ? "|" : cmMidiToSciPitch(a[i].pitch,NULL,0),
       cmIsFlag(a[i].flags,kSmNoteFl)  ? 'n' : ' ',
       cmIsFlag(a[i].flags,kSmMatchFl) ? 'm' : (cmIsFlag(a[i].flags,kSmTransFl) ? 't' : ' '),
@@ -2495,6 +2517,9 @@ void cmScMatcherPrint( cmScMatcher* p )
            );
   }
   
+
+  cmMemFree(a);
+
 }
 
 
@@ -2992,7 +3017,7 @@ void _cmScMeasPrintResult( cmScMeas* p,  cmScMeasSet_t* sp, _cmScMeasResult_t* r
 void _cmScMeasCalcVal( cmScMeas* p, cmScMeasSet_t* sp, int n_mii )
 {
   unsigned mn = 0;
-  int      i;
+  int      i,k = cmInvalidIdx;
 
   if( n_mii == 0 )
     return;
@@ -3003,18 +3028,20 @@ void _cmScMeasCalcVal( cmScMeas* p, cmScMeasSet_t* sp, int n_mii )
   //  prior to the set's begScLocIdx.
   for(i=n_mii; i>=0; --i)
   {
-    ++mn;
-
     if( p->midiBuf[i].locIdx != cmInvalidIdx )
     {
+      k = i;
       unsigned scLocIdx = p->mp->loc[ p->midiBuf[i].locIdx ].scLocIdx;
       if( scLocIdx < sp->bsli )
         break;
     }
   }
 
-  i = cmMax(0,i);
+  assert(k != cmInvalidIdx);
+  mn = n_mii - k + 1;
+  i  = k;
 
+  assert(i>=0);
   assert(mn>0);
 
   // Create a copy of the the MIDI buffer to prevent the
@@ -3032,8 +3059,11 @@ void _cmScMeasCalcVal( cmScMeas* p, cmScMeasSet_t* sp, int n_mii )
   // event's prior to the one at p->midiBuf[n_mii] were assigned.
   assert( (i==0 || p->midiBuf[i].locIdx!=cmInvalidIdx) && p->midiBuf[i+mn-1].locIdx != cmInvalidIdx);
 
-  unsigned          bli      = p->midiBuf[i].locIdx;
-  unsigned          ln       = p->midiBuf[i+mn-1].locIdx - bli + 1;
+  unsigned          l0i      = cmMin(p->midiBuf[i].locIdx,p->midiBuf[i+mn-1].locIdx);
+  unsigned          l1i      = cmMax(p->midiBuf[i].locIdx,p->midiBuf[i+mn-1].locIdx);
+
+  unsigned          bli      = l0i;
+  unsigned          ln       = l1i - bli + 1;
   double            min_cost = DBL_MAX;
   _cmScMeasResult_t r;
   memset(&r,0,sizeof(r));
@@ -3111,6 +3141,11 @@ cmRC_t cmScMeasExec( cmScMeas* p, unsigned mni, unsigned locIdx, unsigned scEvtI
   p->midiBuf[n_mii].smpIdx   = smpIdx;
   p->midiBuf[n_mii].pitch    = pitch;
   p->midiBuf[n_mii].vel      = vel;
+
+  // setting vsi=nsi and vsli=nsli will indicate to the calling
+  // program that no new sets are ready.
+  p->vsi  = p->nsi;
+  p->vsli = p->nsli;
 
   if( locIdx == cmInvalidIdx )
     return cmOkRC;
