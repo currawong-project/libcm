@@ -980,6 +980,9 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
       break;
     }
 
+    // set the score file line number
+    p->array[j].line = i + 1;
+
     secs = DBL_MAX;
 
     switch(tid)
@@ -1236,7 +1239,7 @@ cmScoreEvt_t* cmScoreBarEvt( cmScH_t h, unsigned barNumb )
   cmSc_t* p = _cmScHandleToPtr(h);
   unsigned i = 0;
   for(; i<p->cnt; ++i)
-    if( p->array[i].typeId==kBarEvtScId && p->array[i].barNumb==barNumb )
+    if( p->array[i].type==kBarEvtScId && p->array[i].barNumb==barNumb )
       return p->array + i;
 
   return NULL;
@@ -1905,18 +1908,26 @@ void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
 {
   cmSc_t* p = _cmScHandleToPtr(h);
   unsigned i;
-  for(i=0; i<20 /*p->cnt*/; ++i)
+  for(i=0; i<p->cnt; ++i)
   {
     cmScoreEvt_t* r = p->array + i;
     switch(r->type)
     {
-      case kNonEvtScId:
-        cmRptPrintf(rpt,"%5i %3i %3i %s 0x%2x %c%c%c %s\n",
+      case kBarEvtScId:
+        cmRptPrintf(rpt,"%5i %5i %3i bar\n",
           i,
+          r->line,
+          r->barNumb );
+        break;
+
+      case kNonEvtScId:
+        cmRptPrintf(rpt,"%5i %5i %3i %3i %s %5s %c%c%c %s\n",
+          i,
+          r->line,
           r->barNumb,
           r->barNoteIdx,
           cmScEvtTypeIdToLabel(r->type),
-          r->pitch,
+          cmMidiToSciPitch(r->pitch,NULL,0),
           cmIsFlag(r->flags,kEvenScFl)  ? 'e' : ' ',
           cmIsFlag(r->flags,kTempoScFl) ? 't' : ' ',
           cmIsFlag(r->flags,kDynScFl)   ? 'd' : ' ',

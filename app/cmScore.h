@@ -87,6 +87,7 @@ extern "C" {
     unsigned     perfSmpIdx;   // Time this event was performed or cmInvalidIdx if the event was not performed.
     unsigned     perfVel;      // Velocity of the performed note or 0 if the note was not performed.
     unsigned     perfDynLvl;   // Index into dynamic level ref. array assoc'd with perfVel  
+    unsigned     line;         // Line number of this event in the score file.
   } cmScoreEvt_t;
 
   typedef struct cmScoreSet_str
@@ -175,7 +176,6 @@ extern "C" {
   // cmScMsg_t record.
   cmScRC_t      cmScoreSeqNotify( cmScH_t h );
 
-  /*
   void          cmScoreClearPerfInfo( cmScH_t h );
 
   // Assign 'smpIdx' and 'vel'  to the event matching 'pitch' at 'locIdx'
@@ -193,7 +193,6 @@ extern "C" {
   
   // Set the performed dynamic level of a score event.
   void          cmScoreSetPerfDynLevel( cmScH_t h, unsigned evtIdx, unsigned dynLvl );
-  */
   
   typedef enum
   {
