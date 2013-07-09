@@ -800,7 +800,7 @@ cmTlRC_t _cmTlAllocMarkerRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar
   strcpy(tp,textStr);
   
   // copy the section label string into memory just past the markers text string
-  cmChar_t* sp = strlen(tp) + 1;
+  cmChar_t* sp = tp + strlen(tp) + 1;
   strcpy(sp,sectStr);
 
   mp->text       = tp;

@@ -96,8 +96,8 @@ extern "C" {
   {
     cmTlObj_t        obj;
     const cmChar_t*  text;
-    unsigned         bar;
-    const cmChar_t*  sectionStr; 
+    unsigned         bar;            // measure (bar) in which this marker starts
+    const cmChar_t*  sectionStr;     // the section in which this marker starts
   } cmTlMarker_t;
 
   extern cmTlH_t cmTimeLineNullHandle;
@@ -137,7 +137,7 @@ extern "C" {
 
   cmTlObj_t*       cmTlIdToObjPtr( cmTlH_t h, unsigned uid );
 
-  // Cast a genereic cmTlObj_t pointer to a specificy type.
+  // Cast a genereic cmTlObj_t pointer to a specific type.
   cmTlMidiFile_t*  cmTimeLineMidiFileObjPtr(  cmTlH_t h, cmTlObj_t* op );
   cmTlAudioFile_t* cmTimeLineAudioFileObjPtr( cmTlH_t h, cmTlObj_t* op );
   cmTlMidiEvt_t*   cmTimeLineMidiEvtObjPtr(   cmTlH_t h, cmTlObj_t* op );
