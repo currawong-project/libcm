@@ -39,6 +39,7 @@ typedef struct
   const cmChar_t* audPath;
   const cmChar_t* scFn;
   const cmChar_t* modFn;
+  const cmChar_t* measFn;
 } krRsrc_t;
 
 cmDspRC_t krLoadRsrc(cmDspSysH_t h, cmErr_t* err, krRsrc_t* r)
@@ -51,6 +52,7 @@ cmDspRC_t krLoadRsrc(cmDspSysH_t h, cmErr_t* err, krRsrc_t* r)
   cmDspRsrcString(h,&r->audPath,"tlAudioFilePath", NULL);
   cmDspRsrcString(h,&r->scFn,   "scoreFn",         NULL);
   cmDspRsrcString(h,&r->modFn,  "modFn",           NULL);
+  cmDspRsrcString(h,&r->measFn, "measFn",          NULL);
 
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
     cmErrMsg(err,rc,"A KR DSP resource load failed.");
@@ -104,6 +106,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* mfp  = cmDspSysAllocInst(h,"MidiFilePlay",NULL,  0 );
   //cmDspInst_t* mip  = cmDspSysAllocInst(h,"MidiIn",      NULL,  0 );
   cmDspInst_t* sfp  = cmDspSysAllocInst(h,"ScFol",       NULL,  1, r.scFn );
+  cmDspInst_t* amp  = cmDspSysAllocInst(h,"ActiveMeas",  NULL,  1, 100 );
   cmDspInst_t* modp = cmDspSysAllocInst(h,"ScMod",       NULL,  2, r.modFn, "m1" );
 
   cmDspInst_t* even_sr  = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.8,   1.1, 0.0, 1.0 );
@@ -157,7 +160,19 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(   h, recallBtn, "sym", preset, "cmd", NULL );
   
 
-  cmDspInst_t* adir = cmDspSysAllocInst(h,"Fname",  "audDir",   3, true,NULL,r.audPath);
+  cmDspInst_t* adir    = cmDspSysAllocInst(   h, "Fname",  "audDir",   3, true,NULL,r.audPath);
+  cmDspInst_t* clrBtn  = cmDspSysAllocButton( h, "clear",  0);
+  cmDspInst_t* prtBtn  = cmDspSysAllocButton( h, "print",  0);
+  cmDspInst_t* mlst    = cmDspSysAllocInst(   h, "MsgList",   NULL, 3, "meas", r.measFn, 2);
+  cmDspInst_t* addSym  = cmDspSysAllocInst(   h, "PortToSym", NULL, 1, "add" );  
+
+  cmDspSysInstallCb( h, clrBtn, "sym",   amp, "cmd",  NULL );
+  cmDspSysInstallCb( h, prtBtn, "sym",   amp, "cmd",  NULL );
+  cmDspSysInstallCb( h, addSym, "out-1", amp, "cmd",  NULL );
+  cmDspSysInstallCb( h, mlst,   "loc",    amp, "loc", NULL );
+  cmDspSysInstallCb( h, mlst,   "typeId", amp, "type",NULL );
+  cmDspSysInstallCb( h, mlst,   "val",    amp, "val", NULL );
+  cmDspSysInstallCb( h, mlst,   "cost",   amp, "cst", NULL );
 
   cmDspSysNewColumn(h,0);
 
