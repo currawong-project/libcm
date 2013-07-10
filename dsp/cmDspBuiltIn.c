@@ -5370,7 +5370,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmScModClassCons,
   cmGSwitchClassCons,
   cmScaleRangeClassCons,
-
+  cmActiveMeasClassCons,
   NULL,
 };
 

@@ -1621,3 +1621,226 @@ struct cmDspClass_str* cmScaleRangeClassCons( cmDspCtx_t* ctx )
 
   return &_cmScaleRangeDC;
 }
+
+
+//==========================================================================================================================================
+
+enum
+{
+  kCntAmId,
+  kSflocAmId,
+  kLocAmId,
+  kTypeAmId,
+  kValueAmId,
+  kCstAmId,
+  kCmdAmId,
+  kEvenAmId,
+  kDynAmId,
+  kTempoAmId,
+  kCostAmId
+};
+
+cmDspClass_t _cmActiveMeasDC;
+
+typedef struct
+{
+  unsigned loc;
+  unsigned type;
+  double   value;
+  double   cost;
+} cmDspActiveMeasRecd_t;
+
+int cmDspActiveMeasRecdCompare(const void * p0, const void * p1)
+{
+  return ((int)((cmDspActiveMeasRecd_t*)p0)->loc) - (int)(((cmDspActiveMeasRecd_t*)p1)->loc);
+}
+
+typedef struct
+{
+  cmDspInst_t            inst;
+  unsigned               addSymId;
+  unsigned               clearSymId;
+  unsigned               printSymId;    
+  cmDspActiveMeasRecd_t* array; // array[cnt]
+  unsigned               cnt;   
+  unsigned               nextEmptyIdx;
+  unsigned               nextFullIdx;
+} cmDspActiveMeas_t;
+
+cmDspInst_t*  _cmDspActiveMeasAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+
+  cmDspVarArg_t args[] =
+  {
+    { "cnt",      kCntAmId,      0,0, kInDsvFl  | kUIntDsvFl,    "Maximum count of active measurements."},
+    { "sfloc",    kSflocAmId,    0,0, kInDsvFl  | kUIntDsvFl,    "Score follower location input." },
+    { "loc",      kLocAmId,      0,0, kInDsvFl  | kUIntDsvFl,    "Meas. location." },
+    { "type",     kTypeAmId,     0,0, kInDsvFl  | kUIntDsvFl,    "Meas. Type." },
+    { "val",      kValueAmId,    0,0, kInDsvFl  | kDoubleDsvFl,  "Meas. Value."},
+    { "cst",      kCstAmId,      0,0, kInDsvFl  | kDoubleDsvFl,  "Meas. Cost."},
+    { "cmd",      kCmdAmId,      0,0, kInDsvFl  | kSymDsvFl,     "Commands:add | clear | print"}, 
+    { "even",     kEvenAmId,     0,0, kOutDsvFl | kDoubleDsvFl,  "Even out"},
+    { "dyn",      kDynAmId,      0,0, kOutDsvFl | kDoubleDsvFl,  "Dyn out"},
+    { "tempo",    kTempoAmId,    0,0, kOutDsvFl | kDoubleDsvFl,  "Tempo out"},
+    { "cost",     kCostAmId,     0,0, kOutDsvFl | kDoubleDsvFl,  "Cost out"},
+    { NULL, 0, 0, 0, 0 }
+  };
+
+
+
+  cmDspActiveMeas_t* p = cmDspInstAlloc(cmDspActiveMeas_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+
+  p->addSymId   = cmSymTblRegisterStaticSymbol(ctx->stH,"add");
+  p->clearSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"clear");
+  p->printSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"print");
+
+  cmDspSetDefaultUInt(  ctx,&p->inst,kCntAmId,  0,100);
+  cmDspSetDefaultDouble(ctx,&p->inst,kEvenAmId, 0,0);
+  cmDspSetDefaultDouble(ctx,&p->inst,kDynAmId,  0,0);
+  cmDspSetDefaultDouble(ctx,&p->inst,kTempoAmId,0,0);
+  cmDspSetDefaultDouble(ctx,&p->inst,kTempoAmId,0,0);
+
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspActiveMeasPrint(cmDspCtx_t* ctx, cmDspActiveMeas_t* p )
+{
+  unsigned i;
+  for(i=0; i<p->nextEmptyIdx; ++i)
+  {
+    const cmChar_t* label = "<null>";
+    switch( p->array[i].type )
+    {
+      case kEvenVarScId:    label="even "; break;
+      case kDynVarScId:     label="dyn  "; break;
+      case kTempoVarScId:   label="tempo"; break;
+      default:
+        { assert(0); }
+    }
+
+    cmRptPrintf(ctx->rpt,"loc:%i %s %f %f\n",p->array[i].loc,label,p->array[i].value,p->array[i].cost);
+  }
+
+  return kOkDspRC;
+}
+
+cmDspRC_t _cmDspActiveMeasClear(cmDspCtx_t* ctx, cmDspActiveMeas_t* p )
+{
+  p->nextEmptyIdx = 0;
+  p->nextFullIdx  = cmInvalidIdx;
+  return kOkDspRC;
+}
+
+cmDspRC_t _cmDspActiveMeasFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspActiveMeas_t* p  = (cmDspActiveMeas_t*)inst;
+  _cmDspActiveMeasClear(ctx,p);
+  cmMemPtrFree(&p->array);
+  return kOkDspRC;
+}
+
+cmDspRC_t _cmDspActiveMeasReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t          rc = kOkDspRC;
+  cmDspActiveMeas_t* p  = (cmDspActiveMeas_t*)inst;
+
+  cmDspApplyAllDefaults(ctx,inst);
+
+  unsigned cnt = cmMax(100,cmDspUInt(inst,kCntAmId));
+  _cmDspActiveMeasFree(ctx,inst,evt);
+  p->array = cmMemAllocZ(cmDspActiveMeasRecd_t,cnt);
+  p->cnt   = cnt;
+  return rc;
+}
+
+cmDspRC_t _cmDspActiveMeasRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t       rc = kOkDspRC;
+  cmDspActiveMeas_t* p  = (cmDspActiveMeas_t*)inst;
+
+  cmDspSetEvent(ctx,inst,evt);
+
+  switch( evt->dstVarId )
+  {
+    case kSflocAmId:
+      if( p->nextFullIdx != cmInvalidIdx )
+      {
+        unsigned sflocIdx = cmDspUInt(inst,kSflocAmId);
+        for(; p->nextFullIdx < p->nextEmptyIdx; p->nextFullIdx++)
+        {
+          cmDspActiveMeasRecd_t* r = p->array + p->nextFullIdx;
+          if( r->loc > sflocIdx )
+            break;
+
+          unsigned varId = cmInvalidId;
+          switch( r->type )
+          {
+            case kEvenVarScId:   varId = kEvenAmId;  break;
+            case kDynVarScId:    varId = kDynAmId;   break;
+            case kTempoVarScId:  varId = kTempoAmId; break;
+            default:
+              { assert(0); }
+          }
+
+          cmDspSetDouble(ctx,inst,varId,r->value);
+          cmDspSetDouble(ctx,inst,kCostAmId,r->value);
+        } 
+        
+
+      }
+      break;
+
+    case kCmdAmId:
+      {
+        unsigned cmdSymId = cmDspSymbol(inst,kCmdAmId);
+
+        if( cmdSymId == p->addSymId )
+        {
+          if( p->nextEmptyIdx >= p->cnt )
+            cmDspInstErr(ctx,inst,kProcFailDspRC,"The active measurement list is full cnt=%i.",p->cnt);
+          else
+          {
+            cmDspActiveMeasRecd_t* r = p->array + p->nextEmptyIdx;
+            r->loc   = cmDspUInt(  inst,kLocAmId);
+            r->type  = cmDspUInt(  inst,kTypeAmId);
+            r->value = cmDspDouble(inst,kValueAmId);
+            r->cost  = cmDspDouble(inst,kCstAmId);
+            p->nextEmptyIdx += 1;
+
+            qsort(p->array,p->nextEmptyIdx,sizeof(p->array[0]),cmDspActiveMeasRecdCompare);
+
+            if( p->nextEmptyIdx == 1 && p->nextFullIdx == cmInvalidIdx )
+              p->nextFullIdx = 0;
+
+          }
+        }
+          
+        if( cmdSymId == p->clearSymId )
+          rc = _cmDspActiveMeasClear(ctx,p);
+        else
+          if( cmdSymId == p->printSymId )
+            rc = _cmDspActiveMeasPrint(ctx,p);
+      }
+      break;
+
+  }
+  return rc;
+}
+
+
+struct cmDspClass_str* cmActiveMeasClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmActiveMeasDC,ctx,"ActiveMeas",
+    NULL,
+    _cmDspActiveMeasAlloc,
+    _cmDspActiveMeasFree,
+    _cmDspActiveMeasReset,
+    NULL,
+    _cmDspActiveMeasRecv,
+    NULL,NULL,
+    "Scale a value inside an input range to a value in the output range.");
+
+  return &_cmActiveMeasDC;
+}
+

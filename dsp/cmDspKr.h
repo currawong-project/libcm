@@ -13,6 +13,7 @@ extern "C" {
   struct cmDspClass_str* cmScModClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmGSwitchClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmScaleRangeClassCons( cmDspCtx_t* ctx );
+  struct cmDspClass_str* cmActiveMeasClassCons( cmDspCtx_t* ctx );
 
 #ifdef __cplusplus
 }
