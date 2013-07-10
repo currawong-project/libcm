@@ -903,7 +903,7 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     { "d1",    kD1SfId,       0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI data byte 1"},
     { "smpidx",kSmpIdxSfId,   0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI time tag as a sample index"},
     { "cmd",   kCmdSfId,      0, 0, kInDsvFl | kSymDsvFl,                     "Command input: print | quiet"},
-    { "out",   kOutSfId,      0, 0, kOutDsvFl| kUIntDsvFl,                    "Current score index."},
+    { "out",   kOutSfId,      0, 0, kOutDsvFl| kUIntDsvFl,                    "Current score location index."},
     { "dyn",   kDynSfId,      0, 0, kOutDsvFl| kDoubleDsvFl,                  "Dynamic value."},
     { "even",  kEvenSfId,     0, 0, kOutDsvFl| kDoubleDsvFl,                  "Evenness value."},
     { "tempo", kTempoSfId,    0, 0, kOutDsvFl| kDoubleDsvFl,                  "Tempo value."},
@@ -1660,7 +1660,8 @@ typedef struct
   cmDspInst_t            inst;
   unsigned               addSymId;
   unsigned               clearSymId;
-  unsigned               printSymId;    
+  unsigned               printSymId;
+  unsigned               rewindSymId;
   cmDspActiveMeasRecd_t* array; // array[cnt]
   unsigned               cnt;   
   unsigned               nextEmptyIdx;
@@ -1678,7 +1679,7 @@ cmDspInst_t*  _cmDspActiveMeasAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
     { "type",     kTypeAmId,     0,0, kInDsvFl  | kUIntDsvFl,    "Meas. Type." },
     { "val",      kValueAmId,    0,0, kInDsvFl  | kDoubleDsvFl,  "Meas. Value."},
     { "cst",      kCstAmId,      0,0, kInDsvFl  | kDoubleDsvFl,  "Meas. Cost."},
-    { "cmd",      kCmdAmId,      0,0, kInDsvFl  | kSymDsvFl,     "Commands:add | clear | print"}, 
+    { "cmd",      kCmdAmId,      0,0, kInDsvFl  | kSymDsvFl,     "Commands:add | clear | dump | rewind"}, 
     { "even",     kEvenAmId,     0,0, kOutDsvFl | kDoubleDsvFl,  "Even out"},
     { "dyn",      kDynAmId,      0,0, kOutDsvFl | kDoubleDsvFl,  "Dyn out"},
     { "tempo",    kTempoAmId,    0,0, kOutDsvFl | kDoubleDsvFl,  "Tempo out"},
@@ -1692,7 +1693,8 @@ cmDspInst_t*  _cmDspActiveMeasAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
 
   p->addSymId   = cmSymTblRegisterStaticSymbol(ctx->stH,"add");
   p->clearSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"clear");
-  p->printSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"print");
+  p->printSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"dump");
+  p->rewindSymId= cmSymTblRegisterStaticSymbol(ctx->stH,"rewind");
 
   cmDspSetDefaultUInt(  ctx,&p->inst,kCntAmId,  0,100);
   cmDspSetDefaultDouble(ctx,&p->inst,kEvenAmId, 0,0);
@@ -1821,6 +1823,9 @@ cmDspRC_t _cmDspActiveMeasRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
         else
           if( cmdSymId == p->printSymId )
             rc = _cmDspActiveMeasPrint(ctx,p);
+          else
+            if(cmdSymId == p->rewindSymId )
+              p->nextFullIdx = 0;
       }
       break;
 
