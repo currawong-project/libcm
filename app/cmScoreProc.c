@@ -169,7 +169,7 @@ cmSpRC_t _cmScWriteMeasFile( cmCtx_t* ctx, cmSp_t* sp, const cmChar_t* outFn )
     goto errLabel;
   }
 
-  cmFilePrintf(fH,"{\n");
+  cmFilePrintf(fH,"{\n meas : \n[\n[\"seq\" \"mark\" \"typeId\" \"typeLabel\" \"loc\" \"evt\" \"sec\" \"val\" \"cost\" ]\n");
 
   _cmScMeas_t* mp = sp->list_beg;
   for(; mp!=NULL; mp=mp->link)
@@ -186,7 +186,7 @@ cmSpRC_t _cmScWriteMeasFile( cmCtx_t* ctx, cmSp_t* sp, const cmChar_t* outFn )
 
     for(i=0; i<mp->setPtr->sectCnt; ++i)
     {
-      cmFilePrintf(fH,"{seq:%i mark:\"%s\" typeId:%i typeLabel:\"%s\" loc:%i evt:%i sect:\"%s\" value:%f cost:%f }\n",
+      cmFilePrintf(fH,"[ %i \"%s\" %i \"%s\" %i %i \"%s\" %f %f ]\n",
         mp->markPtr->obj.seqId,
         cmStringNullGuard(mp->markPtr->obj.name),
         mp->setPtr->varId,
@@ -199,7 +199,7 @@ cmSpRC_t _cmScWriteMeasFile( cmCtx_t* ctx, cmSp_t* sp, const cmChar_t* outFn )
     } 
   }
 
-  cmFilePrintf(fH,"}\n");
+  cmFilePrintf(fH,"\n]\n}\n");
 
  errLabel:
   if( cmFileClose(&fH) != kOkFileRC )
@@ -383,7 +383,7 @@ unsigned cmScoreProc(cmCtx_t* ctx)
 {
   cmSpRC_t rc = kOkSpRC;
   const cmChar_t* rsrcFn = "/home/kevin/.kc/time_line.js";
-  const cmChar_t* outFn  = "/home/kevin/temp/meas0.js";
+  const cmChar_t* outFn  = "/home/kevin/src/cmkc/src/kc/data/meas0.js";
   cmSp_t sp;
 
   memset(&sp,0,sizeof(sp));
