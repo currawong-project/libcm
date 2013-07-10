@@ -162,17 +162,24 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspInst_t* adir    = cmDspSysAllocInst(   h, "Fname",  "audDir",   3, true,NULL,r.audPath);
   cmDspInst_t* clrBtn  = cmDspSysAllocButton( h, "clear",  0);
-  cmDspInst_t* prtBtn  = cmDspSysAllocButton( h, "print",  0);
+  cmDspInst_t* prtBtn  = cmDspSysAllocButton( h, "dump",  0);
   cmDspInst_t* mlst    = cmDspSysAllocInst(   h, "MsgList",   NULL, 3, "meas", r.measFn, 2);
-  cmDspInst_t* addSym  = cmDspSysAllocInst(   h, "PortToSym", NULL, 1, "add" );  
+  cmDspInst_t* amCmd  = cmDspSysAllocInst(   h, "PortToSym", NULL, 2, "add", "rewind" );  
 
-  cmDspSysInstallCb( h, clrBtn, "sym",   amp, "cmd",  NULL );
-  cmDspSysInstallCb( h, prtBtn, "sym",   amp, "cmd",  NULL );
-  cmDspSysInstallCb( h, addSym, "out-1", amp, "cmd",  NULL );
+  cmDspSysInstallCb( h, clrBtn, "sym",    amp, "cmd",  NULL );
+  cmDspSysInstallCb( h, prtBtn, "sym",    amp, "cmd",  NULL );
+  cmDspSysInstallCb( h, amCmd, "add",     amp, "cmd",  NULL );
+  cmDspSysInstallCb( h, amCmd, "rewind",  amp, "cmd",  NULL );
   cmDspSysInstallCb( h, mlst,   "loc",    amp, "loc", NULL );
   cmDspSysInstallCb( h, mlst,   "typeId", amp, "type",NULL );
   cmDspSysInstallCb( h, mlst,   "val",    amp, "val", NULL );
   cmDspSysInstallCb( h, mlst,   "cost",   amp, "cst", NULL );
+  cmDspSysInstallCb( h, mlst,   "cost",   amCmd, "add", NULL );
+  cmDspSysInstallCb( h, sfp,    "out",    amp, "sfloc", NULL );
+  cmDspSysInstallCb( h, amp,    "even",   prd, "in", NULL );
+  cmDspSysInstallCb( h, amp,    "dyn",    pre, "in", NULL );
+  cmDspSysInstallCb( h, amp,    "tempo",  prt, "in", NULL );
+  cmDspSysInstallCb( h, amp,    "cost",   prc, "in", NULL );
 
   cmDspSysNewColumn(h,0);
 
@@ -271,6 +278,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, onb, "sym", scp, "send",  NULL );
   cmDspSysInstallCb(h, onb, "sym", mfp, "sel",   NULL );
   cmDspSysInstallCb(h, onb, "sym", pts, "on",    NULL );
+  cmDspSysInstallCb(h, onb, "sym", amCmd, "rewind", NULL );
   cmDspSysInstallCb(h, pts, "on",  wtp, "cmd",   NULL );
   cmDspSysInstallCb(h, pts, "on",  modp,"cmd",   NULL );
 
@@ -318,10 +326,10 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   // score follower to modulator and printers
   cmDspSysInstallCb(h, sfp, "out",  modp, "index", NULL );
   cmDspSysInstallCb(h, sfp, "out",  prp, "in",  NULL );
-  cmDspSysInstallCb(h, sfp, "even", pre, "in", NULL );
-  cmDspSysInstallCb(h, sfp, "dyn",  prd, "in", NULL );
-  cmDspSysInstallCb(h, sfp, "tempo",prt, "in", NULL );
-  cmDspSysInstallCb(h, sfp, "cost", prc, "in", NULL );
+  //cmDspSysInstallCb(h, sfp, "even", pre, "in", NULL );
+  //cmDspSysInstallCb(h, sfp, "dyn",  prd, "in", NULL );
+  //cmDspSysInstallCb(h, sfp, "tempo",prt, "in", NULL );
+  //cmDspSysInstallCb(h, sfp, "cost", prc, "in", NULL );
 
   cmDspSysInstallCb(h, prtb, "sym", sfp, "cmd", NULL );
   cmDspSysInstallCb(h, qtb,  "sym", sfp, "cmd", NULL );
@@ -376,7 +384,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, modp, "xf1",  xfad, "gate-1", NULL );
 
   // DYN -> scaleRange -> Router -> var scaleRange
-  cmDspSysInstallCb(h, sfp,      "dyn",     dyn_sr,  "val_in",  NULL );
+  cmDspSysInstallCb(h, amp,    "dyn",    dyn_sr, "val_in", NULL );
+  //cmDspSysInstallCb(h, sfp,      "dyn",     dyn_sr,  "val_in",  NULL );
   cmDspSysInstallCb(h, min_dyn,  "val",     dyn_sr,  "min_in",  NULL );
   cmDspSysInstallCb(h, max_dyn,  "val",     dyn_sr,  "max_in",  NULL );
   cmDspSysInstallCb(h, dyn_sr,   "val_out", dyn_rt,  "f-in",    NULL );
@@ -386,7 +395,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, dyn_rt,   "f-out-2", lwr_sr,  "val_in",  NULL );
 
   // EVEN -> scaleRange -> Router  -> var scaleRange
-  cmDspSysInstallCb(h, sfp,      "even",     even_sr,  "val_in",  NULL );
+  cmDspSysInstallCb(h, amp,    "even",    even_sr, "val_in", NULL );
+  //cmDspSysInstallCb(h, sfp,      "even",     even_sr,  "val_in",  NULL );
   cmDspSysInstallCb(h, min_even,  "val",     even_sr,  "min_in",  NULL );
   cmDspSysInstallCb(h, max_even,  "val",     even_sr,  "max_in",  NULL );
   cmDspSysInstallCb(h, even_sr,   "val_out", even_rt,  "f-in",    NULL );
@@ -396,7 +406,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, even_rt,   "f-out-2", lwr_sr,  "val_in",  NULL );
 
   // TEMPO -> scaleRange -> Router  -> var scaleRange
-  cmDspSysInstallCb(h, sfp,      "tempo",     tempo_sr,  "val_in",  NULL );
+  cmDspSysInstallCb(h, amp,    "tempo",    tempo_sr, "val_in", NULL );
+  //cmDspSysInstallCb(h, sfp,      "tempo",     tempo_sr,  "val_in",  NULL );
   cmDspSysInstallCb(h, min_tempo,  "val",     tempo_sr,  "min_in",  NULL );
   cmDspSysInstallCb(h, max_tempo,  "val",     tempo_sr,  "max_in",  NULL );
   cmDspSysInstallCb(h, tempo_sr,   "val_out", tempo_rt,  "f-in",    NULL );
@@ -406,7 +417,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, tempo_rt,   "f-out-2", lwr_sr,  "val_in",  NULL );
 
   // COST -> scaleRange -> Router  -> var scaleRange 
-  cmDspSysInstallCb(h, sfp,      "cost",     cost_sr,  "val_in",  NULL );
+  cmDspSysInstallCb(h, amp,      "cost",    cost_sr, "val_in", NULL );
+  //cmDspSysInstallCb(h, sfp,      "cost",     cost_sr,  "val_in",  NULL );
   cmDspSysInstallCb(h, min_cost,  "val",     cost_sr,  "min_in",  NULL );
   cmDspSysInstallCb(h, max_cost,  "val",     cost_sr,  "max_in",  NULL );
   cmDspSysInstallCb(h, cost_sr,   "val_out", cost_rt,  "f-in",    NULL );
