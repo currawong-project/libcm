@@ -56,9 +56,11 @@ typedef struct
   cmTlMarker_t*   curMarkPtr;
   _cmScMeas_t*    list_beg;
   _cmScMeas_t*    list_end;
+  _cmScMeas_t*    slist_beg; 
 } cmSp_t;
 
 
+// read the dynamics reference array from the time-line project file.
 cmSpRC_t _cmJsonReadDynArray( cmJsonH_t jsH, unsigned** dynArray, unsigned* dynCnt )
 {
   cmJsonNode_t* np;
@@ -157,22 +159,49 @@ cmSpRC_t _cmScoreProcFinal( cmSp_t* p )
   return rc;
 }
 
+unsigned _cmScMeasSectCount( cmSp_t* sp )
+{
+  const _cmScMeas_t* mp = sp->list_beg;
+  unsigned n = 0;
+  for(; mp != NULL; mp=mp->link)
+    n += mp->setPtr->sectCnt;
+
+  return n;
+}
+
+
+
+typedef struct
+{
+  unsigned        srcSeqId;
+  const cmChar_t* srcMarkNameStr;
+  unsigned        srcTypeId;
+  const cmChar_t* srcTypeLabelStr;
+  unsigned        dstScLocIdx;
+  unsigned        dstEvtIdx;
+  const cmChar_t* dstSectLabelStr;
+  double          value;
+  double          cost;
+} _cmScMeasSect_t;
+
+int _cmScMeasSectCompare( const void* p0, const void* p1 )
+{
+  _cmScMeasSect_t* m0 = (_cmScMeasSect_t*)p0;
+  _cmScMeasSect_t* m1 = (_cmScMeasSect_t*)p1;
+
+  return (int)m0->dstScLocIdx - (int)m1->dstScLocIdx;
+}
+
 cmSpRC_t _cmScWriteMeasFile( cmCtx_t* ctx, cmSp_t* sp, const cmChar_t* outFn )
 {
   cmFileH_t fH = cmFileNullHandle;
   cmSpRC_t rc = kOkSpRC;
-  unsigned i;
-
-  if( cmFileOpen(&fH,outFn,kWriteFileFl,&ctx->rpt) != kOkFileRC )
-  {
-    rc = cmErrMsg(&sp->err,kFileFailSpRC,"Unable to create the output file '%s'.",cmStringNullGuard(outFn));
-    goto errLabel;
-  }
-
-  cmFilePrintf(fH,"{\n meas : \n[\n[\"seq\" \"mark\" \"typeId\" \"typeLabel\" \"loc\" \"evt\" \"sec\" \"val\" \"cost\" ]\n");
-
+  unsigned i,j,k;
   _cmScMeas_t* mp = sp->list_beg;
-  for(; mp!=NULL; mp=mp->link)
+
+  unsigned scnt = _cmScMeasSectCount(sp);
+  _cmScMeasSect_t sarray[ scnt ];
+  for(i=0,k=0; k<scnt && mp!=NULL; ++i,mp=mp->link)
   {
     const cmChar_t* typeLabel = NULL;
     switch(mp->setPtr->varId)
@@ -183,6 +212,58 @@ cmSpRC_t _cmScWriteMeasFile( cmCtx_t* ctx, cmSp_t* sp, const cmChar_t* outFn )
       default:
         { assert(0); }
     }
+
+    for(j=0; j<mp->setPtr->sectCnt; ++j,++k)
+    {
+      _cmScMeasSect_t* r = sarray + k;
+
+        r->srcSeqId        = mp->markPtr->obj.seqId,
+        r->srcMarkNameStr  = cmStringNullGuard(mp->markPtr->obj.name),
+        r->srcTypeId       = mp->setPtr->varId,
+        r->srcTypeLabelStr = typeLabel,
+        r->dstScLocIdx     = mp->setPtr->sectArray[j]->locPtr->index,
+        r->dstEvtIdx       = mp->setPtr->sectArray[j]->begEvtIndex,
+        r->dstSectLabelStr = cmStringNullGuard(mp->setPtr->sectArray[j]->label),
+        r->value           = mp->value,
+        r->cost            = mp->cost;
+
+    }
+  }
+
+  assert(mp==NULL && k==scnt);
+
+  qsort(sarray,scnt,sizeof(sarray[0]),_cmScMeasSectCompare);
+
+  if( cmFileOpen(&fH,outFn,kWriteFileFl,&ctx->rpt) != kOkFileRC )
+  {
+    rc = cmErrMsg(&sp->err,kFileFailSpRC,"Unable to create the output file '%s'.",cmStringNullGuard(outFn));
+    goto errLabel;
+  }
+
+  cmFilePrintf(fH,"{\n meas : \n[\n[  \"sec\"  \"typeLabel\"  \"val\" \"cost\" \"loc\" \"evt\" \"seq\" \"mark\" \"typeId\" ]\n");
+
+  for(i=0; i<scnt; ++i)
+  {
+    _cmScMeasSect_t* r = sarray + i;
+
+      cmFilePrintf(fH,"[  \"%s\"  \"%s\"  %f %f  %i %i %i \"%s\" %i ]\n",
+        r->dstSectLabelStr,
+        r->srcTypeLabelStr,
+        r->value,
+        r->cost,
+        r->dstScLocIdx,
+        r->dstEvtIdx,
+        r->srcSeqId,
+        r->srcMarkNameStr,
+        r->srcTypeId
+                   );
+
+  }
+
+  /*
+  mp = sp->list_beg;
+  for(; mp!=NULL; mp=mp->link)
+  {
 
     for(i=0; i<mp->setPtr->sectCnt; ++i)
     {
@@ -198,6 +279,7 @@ cmSpRC_t _cmScWriteMeasFile( cmCtx_t* ctx, cmSp_t* sp, const cmChar_t* outFn )
         mp->cost );
     } 
   }
+  */
 
   cmFilePrintf(fH,"\n]\n}\n");
 
@@ -207,6 +289,7 @@ cmSpRC_t _cmScWriteMeasFile( cmCtx_t* ctx, cmSp_t* sp, const cmChar_t* outFn )
 
   return rc;
 }
+
 
 void _cmScMatchCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
 {
