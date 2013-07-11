@@ -174,10 +174,10 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb( h, mlst,   "typeId", amp, "type",NULL );
   cmDspSysInstallCb( h, mlst,   "val",    amp, "val", NULL );
   cmDspSysInstallCb( h, mlst,   "cost",   amp, "cst", NULL );
-  cmDspSysInstallCb( h, mlst,   "cost",   amCmd, "add", NULL );
+  cmDspSysInstallCb( h, mlst,   "typeId", amCmd, "add", NULL );
   cmDspSysInstallCb( h, sfp,    "out",    amp, "sfloc", NULL );
-  cmDspSysInstallCb( h, amp,    "even",   prd, "in", NULL );
-  cmDspSysInstallCb( h, amp,    "dyn",    pre, "in", NULL );
+  cmDspSysInstallCb( h, amp,    "even",   pre, "in", NULL );
+  cmDspSysInstallCb( h, amp,    "dyn",    prd, "in", NULL );
   cmDspSysInstallCb( h, amp,    "tempo",  prt, "in", NULL );
   cmDspSysInstallCb( h, amp,    "cost",   prc, "in", NULL );
 
