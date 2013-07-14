@@ -54,6 +54,7 @@ cmChar_t* cmMdAllocStr(      void* orgStrPtr, const cmChar_t* str, unsigned n, u
   n += 1;
   cmChar_t* cp = cmMdAllocate(orgStrPtr,n,sizeof(cmChar_t),flags);
   strncpy(cp,str,n);
+  cp[n-1] = 0;
   return cp;
 }
 
