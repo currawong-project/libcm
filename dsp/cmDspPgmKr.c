@@ -109,21 +109,33 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* amp  = cmDspSysAllocInst(h,"ActiveMeas",  NULL,  1, 100 );
   cmDspInst_t* modp = cmDspSysAllocInst(h,"ScMod",       NULL,  2, r.modFn, "m1" );
 
-  cmDspInst_t* even_sr  = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.8,   1.1, 0.0, 1.0 );
-  cmDspInst_t* even_rt  = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
+  cmDspInst_t* even_sr_0  = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.8,   1.1, 0.0, 1.0 );
+  cmDspInst_t* even_rt_0  = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
+  cmDspInst_t* dyn_sr_0   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0,   4.0, 0.01, 1.0 );
+  cmDspInst_t* dyn_rt_0   = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
+  cmDspInst_t* tempo_sr_0 = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4, 80.0, 120.0, 0.01, 1.0 );
+  cmDspInst_t* tempo_rt_0 = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
+  cmDspInst_t* cost_sr_0  = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0,    1.0, 0.001, 1.0 );
+  cmDspInst_t* cost_rt_0  = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
 
-  cmDspInst_t* dyn_sr   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0,   4.0, 0.01, 1.0 );
-  cmDspInst_t* dyn_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
+  cmDspInst_t* thrh_sr_0  = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0, 0.01, 100.0 );
+  cmDspInst_t* upr_sr_0   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0, -1.0, 5.0 );
+  cmDspInst_t* lwr_sr_0   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0, -5.0, 5.0 );
 
-  cmDspInst_t* tempo_sr = cmDspSysAllocInst(h,"ScaleRange",  NULL,  4, 80.0, 120.0, 0.01, 1.0 );
-  cmDspInst_t* tempo_rt = cmDspSysAllocInst(h,"Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
 
-  cmDspInst_t* cost_sr  = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0,    1.0, 0.001, 1.0 );
-  cmDspInst_t* cost_rt  = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
+  cmDspInst_t* even_sr_1  = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.8,   1.1, 0.0, 1.0 );
+  cmDspInst_t* even_rt_1  = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
+  cmDspInst_t* dyn_sr_1   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0,   4.0, 0.01, 1.0 );
+  cmDspInst_t* dyn_rt_1   = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
+  cmDspInst_t* tempo_sr_1 = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4, 80.0, 120.0, 0.01, 1.0 );
+  cmDspInst_t* tempo_rt_1 = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
+  cmDspInst_t* cost_sr_1  = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0,    1.0, 0.001, 1.0 );
+  cmDspInst_t* cost_rt_1  = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtChCnt, measRtChCnt-1 );
 
-  cmDspInst_t* thrh_sr  = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0, 0.01, 100.0 );
-  cmDspInst_t* upr_sr   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0, -1.0, 5.0 );
-  cmDspInst_t* lwr_sr   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0, -5.0, 5.0 );
+  cmDspInst_t* thrh_sr_1  = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0, 0.01, 100.0 );
+  cmDspInst_t* upr_sr_1   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0, -1.0, 5.0 );
+  cmDspInst_t* lwr_sr_1   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0, -5.0, 5.0 );
+
 
   cmDspInst_t* kr0p = cmDspSysAllocInst(h,"Kr",          NULL,   2, krWndSmpCnt, krHopFact );
   cmDspInst_t* kr1p = cmDspSysAllocInst(h,"Kr",          NULL,   2, krWndSmpCnt, krHopFact );
@@ -158,9 +170,11 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(   h, presetLbl, "val", preset, "label",NULL);
   cmDspSysInstallCb(   h, storeBtn,  "sym", preset, "cmd", NULL );
   cmDspSysInstallCb(   h, recallBtn, "sym", preset, "cmd", NULL );
-  
 
   cmDspInst_t* adir    = cmDspSysAllocInst(   h, "Fname",  "audDir",   3, true,NULL,r.audPath);
+  
+
+  //--------------- Recorded evaluation and Active Measurement related controls
   cmDspInst_t* clrBtn  = cmDspSysAllocButton( h, "clear",  0);
   cmDspInst_t* prtBtn  = cmDspSysAllocButton( h, "dump",  0);
   cmDspInst_t* mlst    = cmDspSysAllocInst(   h, "MsgList",   NULL, 3, "meas", r.measFn, 2);
@@ -185,6 +199,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   double dfltOffset = 2.0; // 30.0;
 
+  // ------   Spectral distortion controls 0
   cmDspInst_t* md0p = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "Mode",      0.0, 4.0, 1.0, 1.0);
   cmDspInst_t* ws0p = cmDspSysAllocMsgListP(h,preGrpSymId,NULL,"wndSmpCnt", NULL, "wndSmpCnt", 2);
   cmDspInst_t* hf0p = cmDspSysAllocMsgListP(h,preGrpSymId,NULL,"hopFact",   NULL, "hopFact",   2);
@@ -196,9 +211,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* wet0  = cmDspSysAllocScalarP(h,preGrpSymId,NULL, "wet",       0.0,    1.0,0.001,  1.0 );  
   cmDspSysNewColumn(h,0);
 
-  //cmDspInst_t* al1p = cmDspSysAllocInst(h,"MsgList","audFiles", 2, "audFiles",NULL);
-  //cmDspInst_t* fl1p = cmDspSysAllocInst(h,"MsgList","audFrags1", 2, "audFrags",NULL);
-  //cmDspInst_t* fn1p = cmDspSysAllocInst(h,"Sprintf","filename", 1, "%s/%s_%02i.wav");
+  // ------   Spectral distortion controls 1
   cmDspInst_t* md1p  = cmDspSysAllocScalarP( h,preGrpSymId,NULL, "Mode1",      0.0, 4.0, 1.0, 1.0);
   cmDspInst_t* ws1p  = cmDspSysAllocMsgListP(h,preGrpSymId,NULL, "wndSmpCnt1", NULL, "wndSmpCnt", 2);
   cmDspInst_t* hf1p  = cmDspSysAllocMsgListP(h,preGrpSymId,NULL, "hopFact1",   NULL, "hopFact",   2);
@@ -213,32 +226,67 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ogain = cmDspSysAllocInst(h,"Scalar", "Out Gain",   5, kNumberDuiId, 0.0,   10.0,0.01,   3.0 );  
   //cmDspInst_t* reload = cmDspSysAllocInst(h,"Button", "Reload",     2, kButtonDuiId, 0.0 );
 
-  cmDspInst_t* min_dyn   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Dyn",      0.0, 10.0, 1.0, 0.0);
-  cmDspInst_t* max_dyn   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Dyn",      0.0, 10.0, 1.0, 4.0);
-  cmDspInst_t* menu_dyn  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "DynSel", NULL, "measMenu", measRtChCnt-1);
+  cmDspSysNewPage(h,"Sc/Rgn");
 
-  cmDspInst_t* min_even   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Even",    0.0, 1.0, 0.001, 0.75);
-  cmDspInst_t* max_even   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Even",    0.0, 3.0, 0.001, 1.0);
-  cmDspInst_t* menu_even  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "EvenSel", NULL, "measMenu", measRtChCnt-1);
+  // -------- Measurement Scale/Ranges controls 0
+  cmDspInst_t* min_dyn_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Dyn 0",      0.0, 10.0, 1.0, 0.0);
+  cmDspInst_t* max_dyn_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Dyn 0",      0.0, 10.0, 1.0, 4.0);
+  cmDspInst_t* menu_dyn_0  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "DynSel 0", NULL, "measMenu", measRtChCnt-1);
 
-  cmDspSysNewColumn(h,0);
-  cmDspInst_t* min_tempo   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Tempo",   0.0, 200.0, 1.0, 80.0);
-  cmDspInst_t* max_tempo   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Tempo",   0.0, 200.0, 1.0, 120.0);
-  cmDspInst_t* menu_tempo  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "TempoSel", NULL, "measMenu", measRtChCnt-1);
-
-  cmDspInst_t* min_cost   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Cost",      0.0, 1.0, 0.01, 0.0);
-  cmDspInst_t* max_cost   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Cost",      0.0, 1.0, 0.01, 1.0);
-  cmDspInst_t* menu_cost  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "CostSel", NULL, "measMenu", measRtChCnt-1);
+  cmDspInst_t* min_even_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Even 0",    0.0, 1.0, 0.001, 0.75);
+  cmDspInst_t* max_even_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Even 0",    0.0, 3.0, 0.001, 1.0);
+  cmDspInst_t* menu_even_0  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "EvenSel 0", NULL, "measMenu", measRtChCnt-1);
 
   cmDspSysNewColumn(h,0);
-  cmDspInst_t* min_thrh   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min Thresh",      0.0, 100.0, 1.0, 30.0);
-  cmDspInst_t* max_thrh   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max Thresh",      0.0, 100.0, 1.0, 80.0);
+  cmDspInst_t* min_tempo_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Tempo 0",   0.0, 200.0, 1.0, 80.0);
+  cmDspInst_t* max_tempo_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Tempo 0",   0.0, 200.0, 1.0, 120.0);
+  cmDspInst_t* menu_tempo_0  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "TempoSel 0", NULL, "measMenu", measRtChCnt-1);
 
-  cmDspInst_t* min_upr   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min Upr",          -1.0, 1.0, 0.001, -0.5);
-  cmDspInst_t* max_upr   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max Upr",          -1.0, 1.0, 0.001, 0.5);
+  cmDspInst_t* min_cost_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Cost 0",      0.0, 1.0, 0.01, 0.0);
+  cmDspInst_t* max_cost_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Cost 0",      0.0, 1.0, 0.01, 1.0);
+  cmDspInst_t* menu_cost_0  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "CostSel 0", NULL, "measMenu", measRtChCnt-1);
 
-  cmDspInst_t* min_lwr   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min Lwr",          0.0, -1.0, 5.0, 1.0);
-  cmDspInst_t* max_lwr   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max Lwr",          0.0, -1.0, 5.0, 3.0);
+  // -------- Parameter Scale/Ranges controls 0
+  cmDspSysNewColumn(h,0);
+  cmDspInst_t* min_thrh_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min Thresh 0",      0.0, 100.0, 1.0, 30.0);
+  cmDspInst_t* max_thrh_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max Thresh 0",      0.0, 100.0, 1.0, 80.0);
+
+  cmDspInst_t* min_upr_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min Upr 0",          -1.0, 1.0, 0.001, -0.5);
+  cmDspInst_t* max_upr_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max Upr 0",          -1.0, 1.0, 0.001, 0.5);
+
+  cmDspInst_t* min_lwr_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min Lwr 0",          0.0, -1.0, 5.0, 1.0);
+  cmDspInst_t* max_lwr_0   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max Lwr 0",          0.0, -1.0, 5.0, 3.0);
+
+
+  // -------- Measurement Scale/Ranges controls 0
+  cmDspSysNewColumn(h,0);
+  cmDspInst_t* min_dyn_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Dyn 1",      0.0, 10.0, 1.0, 0.0);
+  cmDspInst_t* max_dyn_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Dyn 1",      0.0, 10.0, 1.0, 4.0);
+  cmDspInst_t* menu_dyn_1  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "DynSel 1", NULL, "measMenu", measRtChCnt-1);
+
+  cmDspInst_t* min_even_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Even 1",    0.0, 1.0, 0.001, 0.75);
+  cmDspInst_t* max_even_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Even 1",    0.0, 3.0, 0.001, 1.0);
+  cmDspInst_t* menu_even_1  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "EvenSel 1", NULL, "measMenu", measRtChCnt-1);
+
+  cmDspSysNewColumn(h,0);
+  cmDspInst_t* min_tempo_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Tempo 1",   0.0, 200.0, 1.0, 80.0);
+  cmDspInst_t* max_tempo_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Tempo 1",   0.0, 200.0, 1.0, 120.0);
+  cmDspInst_t* menu_tempo_1  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "TempoSel 1", NULL, "measMenu", measRtChCnt-1);
+
+  cmDspInst_t* min_cost_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min In Cost 1",      0.0, 1.0, 0.01, 0.0);
+  cmDspInst_t* max_cost_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max In Cost 1",      0.0, 1.0, 0.01, 1.0);
+  cmDspInst_t* menu_cost_1  = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, "CostSel 1", NULL, "measMenu", measRtChCnt-1);
+
+  // -------- Parameter Scale/Ranges controls 0
+  cmDspSysNewColumn(h,0);
+  cmDspInst_t* min_thrh_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min Thresh 1",      0.0, 100.0, 1.0, 30.0);
+  cmDspInst_t* max_thrh_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max Thresh 1",      0.0, 100.0, 1.0, 80.0);
+
+  cmDspInst_t* min_upr_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min Upr 1",          -1.0, 1.0, 0.001, -0.5);
+  cmDspInst_t* max_upr_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max Upr 1",          -1.0, 1.0, 0.001, 0.5);
+
+  cmDspInst_t* min_lwr_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Min Lwr 1",          0.0, -1.0, 5.0, 1.0);
+  cmDspInst_t* max_lwr_1   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, "Max Lwr 1",          0.0, -1.0, 5.0, 3.0);
 
 
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
@@ -363,6 +411,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, tlp, "mfn",  prp, "in",  NULL );
   cmDspSysInstallCb(h, tlp, "sel",  prp, "in",  NULL );
 
+  /*
   cmDspSysInstallCb(h, modp, "mod0", md0p, "val", NULL );
   cmDspSysInstallCb(h, modp, "win0", kr0p, "wndn",NULL );
   cmDspSysInstallCb(h, modp, "thr0", th0p, "val", NULL );
@@ -372,81 +421,171 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, modp, "inv0", iv0p, "val", NULL );
   cmDspSysInstallCb(h, modp, "wet0", wet0, "val", NULL );
   cmDspSysInstallCb(h, modp, "xf0",  xfad, "gate-0", NULL );
+  */
+  cmDspSysInstallCb(h, modp, "thr0", th0p, "val", NULL );
+  cmDspSysInstallCb(h, modp, "mint0", min_thrh_0, "val", NULL );
+  cmDspSysInstallCb(h, modp, "maxt0", max_thrh_0, "val", NULL );
+  cmDspSysInstallCb(h, modp, "minu0", min_upr_0, "val", NULL );
+  cmDspSysInstallCb(h, modp, "maxu0", max_upr_0, "val", NULL );
+  cmDspSysInstallCb(h, modp, "minl0", min_lwr_0, "val", NULL );
+  cmDspSysInstallCb(h, modp, "maxl0", max_lwr_0, "val", NULL );
 
+
+  /*
   cmDspSysInstallCb(h, modp, "mod1", md1p, "val", NULL );
   cmDspSysInstallCb(h, modp, "win1", kr1p, "wndn",NULL );
-  cmDspSysInstallCb(h, modp, "thr1", th1p, "val", NULL );
   cmDspSysInstallCb(h, modp, "upr1", us1p, "val", NULL );
   cmDspSysInstallCb(h, modp, "lwr1", ls1p, "val", NULL );
   cmDspSysInstallCb(h, modp, "off1", of1p, "val", NULL );
   cmDspSysInstallCb(h, modp, "inv1", iv1p, "val", NULL );
   cmDspSysInstallCb(h, modp, "wet1", wet1, "val", NULL );
   cmDspSysInstallCb(h, modp, "xf1",  xfad, "gate-1", NULL );
+  */
+  cmDspSysInstallCb(h, modp, "thr1", th1p, "val", NULL );
+  cmDspSysInstallCb(h, modp, "mint1", min_thrh_1, "val", NULL );
+  cmDspSysInstallCb(h, modp, "maxt1", max_thrh_1, "val", NULL );
+  cmDspSysInstallCb(h, modp, "minu1", min_upr_1, "val", NULL );
+  cmDspSysInstallCb(h, modp, "maxu1", max_upr_1, "val", NULL );
+  cmDspSysInstallCb(h, modp, "minl1", min_lwr_1, "val", NULL );
+  cmDspSysInstallCb(h, modp, "maxl1", max_lwr_1, "val", NULL );
+
+  // =========================================================================
+  //  Scale Range Connections 0
+  //
 
   // DYN -> scaleRange -> Router -> var scaleRange
-  cmDspSysInstallCb(h, amp,    "dyn",    dyn_sr, "val_in", NULL );
-  //cmDspSysInstallCb(h, sfp,      "dyn",     dyn_sr,  "val_in",  NULL );
-  cmDspSysInstallCb(h, min_dyn,  "val",     dyn_sr,  "min_in",  NULL );
-  cmDspSysInstallCb(h, max_dyn,  "val",     dyn_sr,  "max_in",  NULL );
-  cmDspSysInstallCb(h, dyn_sr,   "val_out", dyn_rt,  "f-in",    NULL );
-  cmDspSysInstallCb(h, menu_dyn, "out",     dyn_rt,  "sel",     NULL );
-  cmDspSysInstallCb(h, dyn_rt,   "f-out-0", thrh_sr, "val_in",  NULL );
-  cmDspSysInstallCb(h, dyn_rt,   "f-out-1", upr_sr,  "val_in",  NULL );
-  cmDspSysInstallCb(h, dyn_rt,   "f-out-2", lwr_sr,  "val_in",  NULL );
+  cmDspSysInstallCb(h, amp,    "dyn",    dyn_sr_0, "val_in", NULL );
+  //cmDspSysInstallCb(h, sfp,      "dyn",     dyn_sr_0,  "val_in",  NULL );
+  cmDspSysInstallCb(h, min_dyn_0,  "val",     dyn_sr_0,  "min_in",  NULL );
+  cmDspSysInstallCb(h, max_dyn_0,  "val",     dyn_sr_0,  "max_in",  NULL );
+  cmDspSysInstallCb(h, dyn_sr_0,   "val_out", dyn_rt_0,  "f-in",    NULL );
+  cmDspSysInstallCb(h, menu_dyn_0, "out",     dyn_rt_0,  "sel",     NULL );
+  cmDspSysInstallCb(h, dyn_rt_0,   "f-out-0", thrh_sr_0, "val_in",  NULL );
+  cmDspSysInstallCb(h, dyn_rt_0,   "f-out-1", upr_sr_0,  "val_in",  NULL );
+  cmDspSysInstallCb(h, dyn_rt_0,   "f-out-2", lwr_sr_0,  "val_in",  NULL );
 
   // EVEN -> scaleRange -> Router  -> var scaleRange
-  cmDspSysInstallCb(h, amp,    "even",    even_sr, "val_in", NULL );
-  //cmDspSysInstallCb(h, sfp,      "even",     even_sr,  "val_in",  NULL );
-  cmDspSysInstallCb(h, min_even,  "val",     even_sr,  "min_in",  NULL );
-  cmDspSysInstallCb(h, max_even,  "val",     even_sr,  "max_in",  NULL );
-  cmDspSysInstallCb(h, even_sr,   "val_out", even_rt,  "f-in",    NULL );
-  cmDspSysInstallCb(h, menu_even, "out",     even_rt,  "sel",     NULL );
-  cmDspSysInstallCb(h, even_rt,   "f-out-0", thrh_sr, "val_in",  NULL );
-  cmDspSysInstallCb(h, even_rt,   "f-out-1", upr_sr,  "val_in",  NULL );
-  cmDspSysInstallCb(h, even_rt,   "f-out-2", lwr_sr,  "val_in",  NULL );
+  cmDspSysInstallCb(h, amp,    "even",    even_sr_0, "val_in", NULL );
+  //cmDspSysInstallCb(h, sfp,      "even",     even_sr_0,  "val_in",  NULL );
+  cmDspSysInstallCb(h, min_even_0,  "val",     even_sr_0,  "min_in",  NULL );
+  cmDspSysInstallCb(h, max_even_0,  "val",     even_sr_0,  "max_in",  NULL );
+  cmDspSysInstallCb(h, even_sr_0,   "val_out", even_rt_0,  "f-in",    NULL );
+  cmDspSysInstallCb(h, menu_even_0, "out",     even_rt_0,  "sel",     NULL );
+  cmDspSysInstallCb(h, even_rt_0,   "f-out-0", thrh_sr_0, "val_in",  NULL );
+  cmDspSysInstallCb(h, even_rt_0,   "f-out-1", upr_sr_0,  "val_in",  NULL );
+  cmDspSysInstallCb(h, even_rt_0,   "f-out-2", lwr_sr_0,  "val_in",  NULL );
 
   // TEMPO -> scaleRange -> Router  -> var scaleRange
-  cmDspSysInstallCb(h, amp,    "tempo",    tempo_sr, "val_in", NULL );
-  //cmDspSysInstallCb(h, sfp,      "tempo",     tempo_sr,  "val_in",  NULL );
-  cmDspSysInstallCb(h, min_tempo,  "val",     tempo_sr,  "min_in",  NULL );
-  cmDspSysInstallCb(h, max_tempo,  "val",     tempo_sr,  "max_in",  NULL );
-  cmDspSysInstallCb(h, tempo_sr,   "val_out", tempo_rt,  "f-in",    NULL );
-  cmDspSysInstallCb(h, menu_tempo, "out",     tempo_rt,  "sel",     NULL );
-  cmDspSysInstallCb(h, tempo_rt,   "f-out-0", thrh_sr, "val_in",  NULL );
-  cmDspSysInstallCb(h, tempo_rt,   "f-out-1", upr_sr,  "val_in",  NULL );
-  cmDspSysInstallCb(h, tempo_rt,   "f-out-2", lwr_sr,  "val_in",  NULL );
+  cmDspSysInstallCb(h, amp,    "tempo",    tempo_sr_0, "val_in", NULL );
+  //cmDspSysInstallCb(h, sfp,      "tempo",     tempo_sr_0,  "val_in",  NULL );
+  cmDspSysInstallCb(h, min_tempo_0,  "val",     tempo_sr_0,  "min_in",  NULL );
+  cmDspSysInstallCb(h, max_tempo_0,  "val",     tempo_sr_0,  "max_in",  NULL );
+  cmDspSysInstallCb(h, tempo_sr_0,   "val_out", tempo_rt_0,  "f-in",    NULL );
+  cmDspSysInstallCb(h, menu_tempo_0, "out",     tempo_rt_0,  "sel",     NULL );
+  cmDspSysInstallCb(h, tempo_rt_0,   "f-out-0", thrh_sr_0, "val_in",  NULL );
+  cmDspSysInstallCb(h, tempo_rt_0,   "f-out-1", upr_sr_0,  "val_in",  NULL );
+  cmDspSysInstallCb(h, tempo_rt_0,   "f-out-2", lwr_sr_0,  "val_in",  NULL );
 
   // COST -> scaleRange -> Router  -> var scaleRange 
-  cmDspSysInstallCb(h, amp,      "cost",    cost_sr, "val_in", NULL );
-  //cmDspSysInstallCb(h, sfp,      "cost",     cost_sr,  "val_in",  NULL );
-  cmDspSysInstallCb(h, min_cost,  "val",     cost_sr,  "min_in",  NULL );
-  cmDspSysInstallCb(h, max_cost,  "val",     cost_sr,  "max_in",  NULL );
-  cmDspSysInstallCb(h, cost_sr,   "val_out", cost_rt,  "f-in",    NULL );
-  cmDspSysInstallCb(h, menu_cost, "out",     cost_rt,  "sel",     NULL );
-  cmDspSysInstallCb(h, cost_rt,   "f-out-0", thrh_sr, "val_in",  NULL );
-  cmDspSysInstallCb(h, cost_rt,   "f-out-1", upr_sr,  "val_in",  NULL );
-  cmDspSysInstallCb(h, cost_rt,   "f-out-2", lwr_sr,  "val_in",  NULL );
+  cmDspSysInstallCb(h, amp,      "cost",    cost_sr_0, "val_in", NULL );
+  //cmDspSysInstallCb(h, sfp,      "cost",     cost_sr_0,  "val_in",  NULL );
+  cmDspSysInstallCb(h, min_cost_0,  "val",     cost_sr_0,  "min_in",  NULL );
+  cmDspSysInstallCb(h, max_cost_0,  "val",     cost_sr_0,  "max_in",  NULL );
+  cmDspSysInstallCb(h, cost_sr_0,   "val_out", cost_rt_0,  "f-in",    NULL );
+  cmDspSysInstallCb(h, menu_cost_0, "out",     cost_rt_0,  "sel",     NULL );
+  cmDspSysInstallCb(h, cost_rt_0,   "f-out-0", thrh_sr_0, "val_in",  NULL );
+  cmDspSysInstallCb(h, cost_rt_0,   "f-out-1", upr_sr_0,  "val_in",  NULL );
+  cmDspSysInstallCb(h, cost_rt_0,   "f-out-2", lwr_sr_0,  "val_in",  NULL );
 
 
   // THRESH scaleRange -> FX
-  cmDspSysInstallCb(h, min_thrh, "val",     thrh_sr, "min_out", NULL );
-  cmDspSysInstallCb(h, max_thrh, "val",     thrh_sr, "max_out", NULL );
-  cmDspSysInstallCb(h, thrh_sr,  "val_out", th0p,    "val",     NULL );
-  cmDspSysInstallCb(h, thrh_sr,  "val_out", th1p,    "val",     NULL );
+  cmDspSysInstallCb(h, min_thrh_0, "val",     thrh_sr_0, "min_out", NULL );
+  cmDspSysInstallCb(h, max_thrh_0, "val",     thrh_sr_0, "max_out", NULL );
+  cmDspSysInstallCb(h, thrh_sr_0,  "val_out", th0p,    "val",     NULL );
 
 
   // UPR scaleRange -> FX
-  cmDspSysInstallCb(h, min_upr, "val",     upr_sr, "min_out", NULL );
-  cmDspSysInstallCb(h, max_upr, "val",     upr_sr, "max_out", NULL );
-  cmDspSysInstallCb(h, upr_sr,  "val_out", us0p,    "val",     NULL );
-  cmDspSysInstallCb(h, upr_sr,  "val_out", us1p,    "val",     NULL );
+  cmDspSysInstallCb(h, min_upr_0, "val",     upr_sr_0, "min_out", NULL );
+  cmDspSysInstallCb(h, max_upr_0, "val",     upr_sr_0, "max_out", NULL );
+  cmDspSysInstallCb(h, upr_sr_0,  "val_out", us0p,    "val",     NULL );
 
 
   // LWR scaleRange -> FX
-  cmDspSysInstallCb(h, min_lwr, "val",     lwr_sr, "min_out", NULL );
-  cmDspSysInstallCb(h, max_lwr, "val",     lwr_sr, "max_out", NULL );
-  cmDspSysInstallCb(h, lwr_sr,  "val_out", ls0p,    "val",     NULL );
-  cmDspSysInstallCb(h, lwr_sr,  "val_out", ls1p,    "val",     NULL );
+  cmDspSysInstallCb(h, min_lwr_0, "val",     lwr_sr_0, "min_out", NULL );
+  cmDspSysInstallCb(h, max_lwr_0, "val",     lwr_sr_0, "max_out", NULL );
+  cmDspSysInstallCb(h, lwr_sr_0,  "val_out", ls0p,    "val",     NULL );
+
+
+  // =========================================================================
+  //  Scale Range Connections 1
+  //
+
+  // DYN -> scaleRange -> Router -> var scaleRange
+  cmDspSysInstallCb(h, amp,    "dyn",    dyn_sr_1, "val_in", NULL );
+  //cmDspSysInstallCb(h, sfp,      "dyn",     dyn_sr_1,  "val_in",  NULL );
+  cmDspSysInstallCb(h, min_dyn_1,  "val",     dyn_sr_1,  "min_in",  NULL );
+  cmDspSysInstallCb(h, max_dyn_1,  "val",     dyn_sr_1,  "max_in",  NULL );
+  cmDspSysInstallCb(h, dyn_sr_1,   "val_out", dyn_rt_1,  "f-in",    NULL );
+  cmDspSysInstallCb(h, menu_dyn_1, "out",     dyn_rt_1,  "sel",     NULL );
+  cmDspSysInstallCb(h, dyn_rt_1,   "f-out-0", thrh_sr_1, "val_in",  NULL );
+  cmDspSysInstallCb(h, dyn_rt_1,   "f-out-1", upr_sr_1,  "val_in",  NULL );
+  cmDspSysInstallCb(h, dyn_rt_1,   "f-out-2", lwr_sr_1,  "val_in",  NULL );
+
+  // EVEN -> scaleRange -> Router  -> var scaleRange
+  cmDspSysInstallCb(h, amp,    "even",    even_sr_1, "val_in", NULL );
+  //cmDspSysInstallCb(h, sfp,      "even",     even_sr_1,  "val_in",  NULL );
+  cmDspSysInstallCb(h, min_even_1,  "val",     even_sr_1,  "min_in",  NULL );
+  cmDspSysInstallCb(h, max_even_1,  "val",     even_sr_1,  "max_in",  NULL );
+  cmDspSysInstallCb(h, even_sr_1,   "val_out", even_rt_1,  "f-in",    NULL );
+  cmDspSysInstallCb(h, menu_even_1, "out",     even_rt_1,  "sel",     NULL );
+  cmDspSysInstallCb(h, even_rt_1,   "f-out-0", thrh_sr_1, "val_in",  NULL );
+  cmDspSysInstallCb(h, even_rt_1,   "f-out-1", upr_sr_1,  "val_in",  NULL );
+  cmDspSysInstallCb(h, even_rt_1,   "f-out-2", lwr_sr_1,  "val_in",  NULL );
+
+  // TEMPO -> scaleRange -> Router  -> var scaleRange
+  cmDspSysInstallCb(h, amp,    "tempo",    tempo_sr_1, "val_in", NULL );
+  //cmDspSysInstallCb(h, sfp,      "tempo",     tempo_sr_1,  "val_in",  NULL );
+  cmDspSysInstallCb(h, min_tempo_1,  "val",     tempo_sr_1,  "min_in",  NULL );
+  cmDspSysInstallCb(h, max_tempo_1,  "val",     tempo_sr_1,  "max_in",  NULL );
+  cmDspSysInstallCb(h, tempo_sr_1,   "val_out", tempo_rt_1,  "f-in",    NULL );
+  cmDspSysInstallCb(h, menu_tempo_1, "out",     tempo_rt_1,  "sel",     NULL );
+  cmDspSysInstallCb(h, tempo_rt_1,   "f-out-0", thrh_sr_1, "val_in",  NULL );
+  cmDspSysInstallCb(h, tempo_rt_1,   "f-out-1", upr_sr_1,  "val_in",  NULL );
+  cmDspSysInstallCb(h, tempo_rt_1,   "f-out-2", lwr_sr_1,  "val_in",  NULL );
+
+  // COST -> scaleRange -> Router  -> var scaleRange 
+  cmDspSysInstallCb(h, amp,      "cost",    cost_sr_1, "val_in", NULL );
+  //cmDspSysInstallCb(h, sfp,      "cost",     cost_sr_1,  "val_in",  NULL );
+  cmDspSysInstallCb(h, min_cost_1,  "val",     cost_sr_1,  "min_in",  NULL );
+  cmDspSysInstallCb(h, max_cost_1,  "val",     cost_sr_1,  "max_in",  NULL );
+  cmDspSysInstallCb(h, cost_sr_1,   "val_out", cost_rt_1,  "f-in",    NULL );
+  cmDspSysInstallCb(h, menu_cost_1, "out",     cost_rt_1,  "sel",     NULL );
+  cmDspSysInstallCb(h, cost_rt_1,   "f-out-0", thrh_sr_1, "val_in",  NULL );
+  cmDspSysInstallCb(h, cost_rt_1,   "f-out-1", upr_sr_1,  "val_in",  NULL );
+  cmDspSysInstallCb(h, cost_rt_1,   "f-out-2", lwr_sr_1,  "val_in",  NULL );
+
+
+  // THRESH scaleRange -> FX
+  cmDspSysInstallCb(h, min_thrh_1, "val",     thrh_sr_1, "min_out", NULL );
+  cmDspSysInstallCb(h, max_thrh_1, "val",     thrh_sr_1, "max_out", NULL );
+  cmDspSysInstallCb(h, thrh_sr_1,  "val_out", th1p,    "val",     NULL );
+
+
+  // UPR scaleRange -> FX
+  cmDspSysInstallCb(h, min_upr_1, "val",     upr_sr_1, "min_out", NULL );
+  cmDspSysInstallCb(h, max_upr_1, "val",     upr_sr_1, "max_out", NULL );
+  cmDspSysInstallCb(h, upr_sr_1,  "val_out", us1p,    "val",     NULL );
+
+
+  // LWR scaleRange -> FX
+  cmDspSysInstallCb(h, min_lwr_1, "val",     lwr_sr_1, "min_out", NULL );
+  cmDspSysInstallCb(h, max_lwr_1, "val",     lwr_sr_1, "max_out", NULL );
+  cmDspSysInstallCb(h, lwr_sr_1,  "val_out", ls1p,    "val",     NULL );
+
+
+
+
+
 
 
   cmDspSysNewPage(h,"Compressor");
