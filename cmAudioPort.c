@@ -51,6 +51,10 @@ cmAp_t* _ap = NULL;
 
 cmApRC_t      _cmApIndexToDev( unsigned devIdx, cmApDriver_t** drvPtrPtr, unsigned* devIdxPtr )
 {
+  assert( drvPtrPtr != NULL && devIdxPtr != NULL );
+  *drvPtrPtr = NULL;
+  *devIdxPtr = cmInvalidIdx;
+
   unsigned i;
   for(i=0; i<_ap->drvCnt; ++i)
     if( _ap->drvArray[i].begDevIdx != cmInvalidIdx )
@@ -204,8 +208,8 @@ unsigned cmApDeviceCount()
 
 const char*   cmApDeviceLabel( unsigned devIdx )
 {
-  cmApDriver_t* dp;
-  unsigned      di;
+  cmApDriver_t* dp = NULL;
+  unsigned      di = cmInvalidIdx;
   cmApRC_t      rc;
 
   if( devIdx == cmInvalidIdx )
@@ -233,8 +237,8 @@ unsigned      cmApDeviceLabelToIndex( const cmChar_t* label )
 
 unsigned      cmApDeviceChannelCount(   unsigned devIdx, bool inputFl )
 {
-  cmApDriver_t* dp;
-  unsigned      di;
+  cmApDriver_t* dp = NULL;
+  unsigned      di = cmInvalidIdx;
   cmApRC_t      rc;
 
   if( devIdx == cmInvalidIdx )
@@ -248,8 +252,8 @@ unsigned      cmApDeviceChannelCount(   unsigned devIdx, bool inputFl )
 
 double        cmApDeviceSampleRate(     unsigned devIdx )
 {
-  cmApDriver_t* dp;
-  unsigned      di;
+  cmApDriver_t* dp = NULL;
+  unsigned      di = cmInvalidIdx;
   cmApRC_t      rc;
 
   if((rc = _cmApIndexToDev(devIdx,&dp,&di)) != kOkApRC )
@@ -260,8 +264,8 @@ double        cmApDeviceSampleRate(     unsigned devIdx )
 
 unsigned      cmApDeviceFramesPerCycle( unsigned devIdx, bool inputFl )
 {
-  cmApDriver_t* dp;
-  unsigned      di;
+  cmApDriver_t* dp = NULL;
+  unsigned      di = cmInvalidIdx;
   cmApRC_t      rc;
 
   if( devIdx == cmInvalidIdx )

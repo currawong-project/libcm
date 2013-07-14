@@ -271,9 +271,9 @@ _cmTlObj_t* _cmTlFindRecdBefore( _cmTl_t* p, const _cmTlObj_t* np )
 
   // calc the absolute time of this object
   //int         absSmpIdx = _cmTlStartTime(np->obj);
-  int         rsi;
-  _cmTlObj_t* rp        = NULL;
-  _cmTlObj_t* op        = p->seq[np->obj->seqId].first;
+  int         rsi = 0;
+  _cmTlObj_t* rp  = NULL;
+  _cmTlObj_t* op  = p->seq[np->obj->seqId].first;
 
   //printf("type:%i %i\n",np->obj->typeId,absSmpIdx);
 

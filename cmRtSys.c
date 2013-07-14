@@ -1464,7 +1464,9 @@ void cmRtSysTest( cmCtx_t* ctx, int argc, const char* argv[] )
   cmRtSysStatus_t status;
   _cmRtTestCbRecd    cbRecd = {1000.0,0,48000.0,0};
   cmRpt_t* rpt = &ctx->rpt;
-  
+  memset(&status,0,sizeof(status));
+
+
   unsigned meterMs = 50;
   unsigned ssCnt = 1;
   unsigned rtSubIdx = 0;

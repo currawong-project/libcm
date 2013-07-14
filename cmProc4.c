@@ -2437,8 +2437,8 @@ void cmScMatcherPrint( cmScMatcher* p )
     // if this result did not match a score event
     if( cmIsFlag(rp->flags,kSmFalsePosFl) )
     {
-      unsigned            d_min;
-      cmScMatcherPrint_t* dp = NULL;
+      unsigned            d_min    = 0;
+      cmScMatcherPrint_t* dp       = NULL;
       unsigned            scLocIdx = cmInvalidIdx;
 
       // if this result does not have a valid locIdx 
@@ -3942,6 +3942,8 @@ cmRC_t  _cmScModGetParam( cmScModulator* p, const cmScModParam_t* pp, double* va
   switch( pp->pid )
   {
     case kInvalidModPId:
+      rc  = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "An invalid parameter was encountered.");
+      goto errLabel;
       break;
 
     case kLiteralModPId:
@@ -4059,7 +4061,7 @@ bool  _cmScModExec( cmScModulator* p, cmScModVar_t* vp )
     case kSetLineModTId:
     case kLineModTId:
       {
-        double v1, td;
+        double v1=0, td=0;
 
         // get the target value
         if((rc = _cmScModGetParam(p,&vp->entry->end,&v1)) != cmOkRC) 

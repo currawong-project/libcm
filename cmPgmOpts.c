@@ -856,6 +856,9 @@ cmPoRC_t  _cmPgmOptIndexToPtr( _cmPo_t* p, unsigned idx, const _cmPoArg_t** app 
   unsigned          n = 0;
   const _cmPoArg_t* a = p->args;
 
+  assert(app != NULL );
+  *app = NULL;
+
   while( a != NULL && n < idx )
   {
     ++n;
@@ -872,28 +875,31 @@ cmPoRC_t  _cmPgmOptIndexToPtr( _cmPo_t* p, unsigned idx, const _cmPoArg_t** app 
   
 unsigned cmPgmOptNumId( cmPgmOptH_t h, unsigned argIdx )
 {
-  const _cmPoArg_t* a;
+  const _cmPoArg_t* a = NULL;
   cmPoRC_t          rc;
   if((rc = _cmPgmOptIndexToPtr(_cmPoHandleToPtr(h),argIdx,&a)) != kOkPoRC )
     return cmInvalidId;
+  assert( a != NULL );
   return a->opt->numId;
 }
 
 unsigned cmPgmOptCharId( cmPgmOptH_t h, unsigned argIdx )
 {
-  const _cmPoArg_t* a;
+  const _cmPoArg_t* a = NULL;
   cmPoRC_t          rc;
   if((rc = _cmPgmOptIndexToPtr(_cmPoHandleToPtr(h),argIdx,&a)) != kOkPoRC )
     return cmInvalidId;
+  assert(a != NULL );
   return a->opt->charId;
 }
 
 const cmChar_t* cmPgmOptWordId( cmPgmOptH_t h, unsigned argIdx )
 {
-  const _cmPoArg_t* a;
+  const _cmPoArg_t* a = NULL;
   cmPoRC_t          rc;
   if((rc = _cmPgmOptIndexToPtr(_cmPoHandleToPtr(h),argIdx,&a)) != kOkPoRC )
     return NULL;
+  assert(a!=NULL);
   return a->opt->wordId;
 }
 
