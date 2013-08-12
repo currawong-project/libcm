@@ -148,15 +148,18 @@ cmAiRC_t _cmAdIfReadCfgFile( cmAi_t* p, cmCtx_t* ctx )
 }
 
 
-cmAiRC_t _cmAdIfSendIntMsg(cmAiH_t h, unsigned selId, unsigned asSubIdx, unsigned flags, unsigned iv, double dv )
+cmAiRC_t _cmAdIfSendIntMsg(cmAiH_t h, unsigned selId, unsigned asSubIdx, unsigned flags, unsigned iv, double dv, const cmChar_t* str )
 {  
   cmAi_t*      p = _cmAiHandleToPtr( h );
   cmDspValue_t v;
 
-  if(iv == cmInvalidIdx )
-    cmDsvSetDouble(&v,dv);
+  if(str != NULL )
+    cmDsvSetStrcz(&v,str);
   else
-    cmDsvSetUInt(&v,iv);
+    if(iv == cmInvalidIdx )
+      cmDsvSetDouble(&v,dv);
+    else
+      cmDsvSetUInt(&v,iv);
  
   if( cmMsgSend(&p->err,asSubIdx,kUiSelAsId,selId,flags,cmInvalidId,cmInvalidId,&v,p->parms.audDspFunc,p->parms.audDspFuncDataPtr) != kOkMsgRC )
     return cmErrMsg(&p->err,kSendFailAiRC,"The integer message sel id:%i value:%i transmission failed.",selId,iv);
@@ -245,25 +248,29 @@ cmAiRC_t       cmAdIfRecvAudDspMsg( cmAiH_t h, unsigned msgByteCnt, const void* 
 }
 
 cmAiRC_t        cmAdIfDeviceReport( cmAiH_t h )
-{ return _cmAdIfSendIntMsg(h,kDevReportDuiId,cmInvalidIdx,0,cmInvalidIdx,0.0); }
+{ return _cmAdIfSendIntMsg(h,kDevReportDuiId,cmInvalidIdx,0,cmInvalidIdx,0.0,NULL); }
  
 cmAiRC_t        cmAdIfSetAudioSysCfg(   cmAiH_t h, unsigned asCfgIdx )
-{ return _cmAdIfSendIntMsg(h,kSetAudioCfgDuiId,cmInvalidIdx,0,asCfgIdx,0.0); }
+{ return _cmAdIfSendIntMsg(h,kSetAudioCfgDuiId,cmInvalidIdx,0,asCfgIdx,0.0,NULL); }
 
 cmAiRC_t        cmAdIfSetAudioDevice(   cmAiH_t h, unsigned asSubIdx, bool inputFl, unsigned devIdx )
-{ return _cmAdIfSendIntMsg(h,kSetAudioDevDuiId,asSubIdx,inputFl,devIdx,0.0); }
+{ return _cmAdIfSendIntMsg(h,kSetAudioDevDuiId,asSubIdx,inputFl,devIdx,0.0,NULL); }
 
 cmAiRC_t        cmAdIfSetSampleRate(  cmAiH_t h, unsigned asSubIdx, double srate )
-{ return _cmAdIfSendIntMsg(h,kSetSampleRateDuiId,asSubIdx,0,cmInvalidIdx,srate); }
+{ return _cmAdIfSendIntMsg(h,kSetSampleRateDuiId,asSubIdx,0,cmInvalidIdx,srate,NULL); }
 
 cmAiRC_t        cmAdIfLoadProgram(   cmAiH_t h, unsigned asSubIdx, unsigned pgmIdx )
-{ return _cmAdIfSendIntMsg(h,kSetPgmDuiId,asSubIdx,0,pgmIdx,0.0); }
+{ return _cmAdIfSendIntMsg(h,kSetPgmDuiId,asSubIdx,0,pgmIdx,0.0,NULL); }
+
+cmAiRC_t        cmAdIfPrintPgm(   cmAiH_t h,unsigned asSubIdx, const cmChar_t* fn )
+{ return _cmAdIfSendIntMsg(h,kPrintPgmDuiId,asSubIdx,0,cmInvalidIdx,0.0,fn); }
+
   
 cmAiRC_t        cmAdIfEnableAudio( cmAiH_t h, bool enableFl )
-{ return _cmAdIfSendIntMsg(h,kEnableDuiId,cmInvalidIdx,enableFl,cmInvalidIdx,0.0); }
+{ return _cmAdIfSendIntMsg(h,kEnableDuiId,cmInvalidIdx,enableFl,cmInvalidIdx,0.0,NULL); }
 
 cmAiRC_t        cmAdIfEnableStatusNotify( cmAiH_t h, bool enableFl )
-{ return _cmAdIfSendIntMsg(h,kSetNotifyEnableDuiId,cmInvalidIdx,enableFl,cmInvalidIdx,0.0); }
+{ return _cmAdIfSendIntMsg(h,kSetNotifyEnableDuiId,cmInvalidIdx,enableFl,cmInvalidIdx,0.0,NULL); }
 
 cmAiRC_t        cmAdIfSendMsgToAudioDSP( 
   cmAiH_t             h, 
@@ -287,5 +294,5 @@ cmAiRC_t        cmAdIfSendMsgToAudioDSP(
 
 
 cmAiRC_t        cmAdIfDispatchMsgToHost(  cmAiH_t h ) 
-{ return _cmAdIfSendIntMsg(h,kClientMsgPollDuiId,cmInvalidIdx,0,cmInvalidIdx,0.0); }
+{ return _cmAdIfSendIntMsg(h,kClientMsgPollDuiId,cmInvalidIdx,0,cmInvalidIdx,0.0,NULL); }
 

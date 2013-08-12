@@ -47,6 +47,7 @@ extern "C" {
     kClientMsgPollDuiId,   // Periodic check for and deliver messages waiting in the audio system for delivery to the client. 
     kSendMsgDuiId,         // forward msg to the audio system
     kDevReportDuiId,       // print a device report
+    kPrintPgmDuiId,        // write the currently loaded pgm as a JSON file
 
     kRightAlignDuiId = 0,  // label alignment id used by kLabelDuiId 
     kLeftAlignDuiId,  

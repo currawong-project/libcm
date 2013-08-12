@@ -177,7 +177,7 @@ extern "C" {
   typedef struct cmDspInst_str
   {
     struct cmDspClass_str* classPtr;  // ptr to class for this instance
-    unsigned               symId;     // optional instance label symbol id
+    unsigned               symId;     // optional unique instance label symbol id
     unsigned               id;        // id is unique among all insts
     unsigned               flags;     // See kXXXInstFl above
     cmDspVar_t*            varArray;  //

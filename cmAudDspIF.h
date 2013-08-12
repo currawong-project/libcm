@@ -118,6 +118,10 @@ extern "C" {
   // prior to calling this function.
   cmAiRC_t        cmAdIfLoadProgram(    cmAiH_t h, unsigned asSubIdx, unsigned pgmIdx );
 
+  // Print a representation (instances and connections) of the loaded program 
+  // to a JSON file.
+  cmAiRC_t        cmAdIfPrintPgm(   cmAiH_t h, unsigned asSubIdx, const cmChar_t* fn );
+
   // Start the audio streaming. 
   // An audio configuration must have been selected via cmAdIfSetAudioSysCfg()
   // and a DSP program must have been selected via cmAdIfLoadProgram() 

@@ -943,12 +943,12 @@ cmAdRC_t _cmAudDspLoadPgm( cmAd_t* p, unsigned asSubSysIdx, unsigned pgmIdx )
 
   // the audio system must be configured before a program is loaded
   if((rc = _cmAdIsAudioSysLoaded(p)) != kOkAdRC )
-    return cmErrMsg(&p->err,rc,"Program load failed.");
+    return cmErrMsg(&p->err,rc,"The audio system is not configured. Program load failed.");
 
   // validate the sub-system index arg.
   if( asSubSysIdx!=cmInvalidIdx && asSubSysIdx >= p->dsSsCnt )
   {
-    rc = cmErrMsg(&p->err,kInvalidSubSysIdxAdRC,"The sub-system index %i is invalid.",asSubSysIdx);
+    rc = cmErrMsg(&p->err,kInvalidSubSysIdxAdRC,"The sub-system index %i is invalid. Program load failed.",asSubSysIdx);
     goto errLabel;
   }
 
@@ -976,6 +976,36 @@ cmAdRC_t _cmAudDspLoadPgm( cmAd_t* p, unsigned asSubSysIdx, unsigned pgmIdx )
 
       // notify the host of the new program
       _cmAdSendIntMsgToHost(p,i,kSetPgmDuiId,0,pgmIdx);
+    }
+
+ errLabel:
+  return rc;
+}
+
+cmAdRC_t _cmAudDspPrintPgm( cmAd_t* p, unsigned asSubSysIdx, const cmChar_t* fn )
+{
+  cmAdRC_t rc = kOkAdRC;
+  unsigned i;
+
+  // the audio system must be configured before a program is loaded
+  if((rc = _cmAdIsAudioSysLoaded(p)) != kOkAdRC )
+    return cmErrMsg(&p->err,rc,"The audio system is not configured. Program print failed.");
+
+  // validate the sub-system index arg.
+  if( asSubSysIdx!=cmInvalidIdx && asSubSysIdx >= p->dsSsCnt )
+  {
+    rc = cmErrMsg(&p->err,kInvalidSubSysIdxAdRC,"The sub-system index %i is invalid. Program print failed.",asSubSysIdx);
+    goto errLabel;
+  }
+
+  // for each sub-system
+  for(i=0; i<p->dsSsCnt; ++i)
+    if(  i==asSubSysIdx || asSubSysIdx==cmInvalidIdx )
+    {
+      if( cmDspSysPrintPgm(p->dsSsArray[i].dsH,fn) != kOkDspRC )
+        rc = cmErrMsg(&p->err,kDspSysFailAdRC,"The program print failed.");
+      
+      break;
     }
 
  errLabel:
@@ -1292,6 +1322,10 @@ cmAdRC_t cmAudDspReceiveClientMsg( cmAdH_t h, unsigned msgByteCnt, const void* m
 
     case kClientMsgPollDuiId:
       rc = _cmAudDspClientMsgPoll(p);
+      break;
+
+    case kPrintPgmDuiId:
+      _cmAudDspPrintPgm(p,m->asSubIdx,cmDsvStrcz(&m->value));
       break;
 
     default:
