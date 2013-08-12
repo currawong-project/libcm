@@ -103,8 +103,8 @@ extern "C" {
   extern cmTlH_t cmTimeLineNullHandle;
 
   // 
-  cmTlRC_t        cmTimeLineInitialize( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg );
-  cmTlRC_t        cmTimeLineInitializeFromFile( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg, const cmChar_t* fn );
+  cmTlRC_t        cmTimeLineInitialize( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg, const cmChar_t* prefixPath );
+  cmTlRC_t        cmTimeLineInitializeFromFile( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg, const cmChar_t* fn, const cmChar_t* prefixPath );
 
   const cmChar_t* cmTimeLineFileName( cmTlH_t h );
 
@@ -194,9 +194,9 @@ extern "C" {
   cmTlRC_t cmTimeLineWrite( cmTlH_t h, const cmChar_t* fn );
 
   cmTlRC_t cmTimeLinePrint( cmTlH_t h, cmRpt_t* rpt );
-  cmTlRC_t cmTimeLinePrintFn( cmCtx_t* ctx, const cmChar_t* fn, cmRpt_t* rpt );
+  cmTlRC_t cmTimeLinePrintFn( cmCtx_t* ctx, const cmChar_t* tlFn, const cmChar_t* prefixPath, cmRpt_t* rpt );
 
-  cmTlRC_t cmTimeLineTest( cmCtx_t* ctx, const cmChar_t* jsFn  );
+  cmTlRC_t cmTimeLineTest( cmCtx_t* ctx, const cmChar_t* tlFn, const cmChar_t* prefixPath  );
 
   // The time-line notifies listeners of initialization and finalization
   // events via calling a cmTlCbFunc_t function.  The argument to this 

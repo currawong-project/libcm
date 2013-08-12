@@ -85,6 +85,7 @@ cmSpRC_t _cmScoreProcInit( cmCtx_t* ctx, cmSp_t* p, const cmChar_t* rsrcFn  )
   cmSpRC_t        rc     = kOkSpRC;
   const cmChar_t* scFn   = NULL;
   const cmChar_t* tlFn   = NULL;
+  const cmChar_t* tlPrefixPath = NULL;
 
   p->srate = 96000;
 
@@ -111,6 +112,14 @@ cmSpRC_t _cmScoreProcInit( cmCtx_t* ctx, cmSp_t* p, const cmChar_t* rsrcFn  )
     goto errLabel;
   }
 
+  // get the time line data file prefix path
+  if( cmJsonPathToString( p->jsH, NULL, NULL, "tlPrefixPath", &tlPrefixPath ) != kOkJsRC )
+  {
+    rc = cmErrMsg(&p->err,kJsonFailSpRC,"Unable to locate the time line data file prefix path in the main resource file:%s",cmStringNullGuard(rsrcFn));
+    goto errLabel;
+  }
+
+
   // read the dynamics reference array
   if((rc = _cmJsonReadDynArray( p->jsH, &p->dynArray, &p->dynCnt )) != kOkSpRC )
   {
@@ -127,7 +136,7 @@ cmSpRC_t _cmScoreProcInit( cmCtx_t* ctx, cmSp_t* p, const cmChar_t* rsrcFn  )
   }
 
   // load the time-line file
-  if( cmTimeLineInitializeFromFile(ctx, &p->tlH, NULL, NULL, tlFn ) != kOkTlRC )
+  if( cmTimeLineInitializeFromFile(ctx, &p->tlH, NULL, NULL, tlFn, tlPrefixPath ) != kOkTlRC )
   {
     rc = cmErrMsg(&p->err,kTimeLineFailSpRC,"Time line load failed for time line file:%s.",cmStringNullGuard(tlFn));
     goto errLabel;

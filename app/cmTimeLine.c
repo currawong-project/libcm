@@ -10,6 +10,7 @@
 #include "cmAudioFile.h"
 #include "cmMidi.h"
 #include "cmMidiFile.h"
+#include "cmFileSys.h"
 #include "cmTimeLine.h"
 
 // id's used to track the type of a serialized object
@@ -55,6 +56,7 @@ typedef struct
   unsigned        nextSeqId;
   cmTlCb_t        cbFunc;
   void*           cbArg;
+  cmChar_t*       prefixPath;
   unsigned        nextUId;
   char*           tmpBuf;  
   unsigned        seqCnt;
@@ -592,10 +594,17 @@ cmTlRC_t _cmTlAllocAudioFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmC
   cmRC_t            afRC        = cmOkRC;
   cmTlRC_t          rc;
   _cmTlObj_t*       op          = NULL;
+
+  // prepend the time-line path prefix to the filename
+  fn = cmFsMakeFn( p->prefixPath, fn, NULL, NULL );
+
   unsigned          recdByteCnt = sizeof(cmTlAudioFile_t) + strlen(fn) + 1;
 
   if( cmAudioFileIsValid( afH = cmAudioFileNewOpen(fn, &info, &afRC, p->err.rpt )) == false )
-    return cmErrMsg(&p->err,kAudioFileFailTlRC,"The time line audio file '%s' could not be opened.",cmStringNullGuard(fn));
+  {
+    rc = cmErrMsg(&p->err,kAudioFileFailTlRC,"The time line audio file '%s' could not be opened.",cmStringNullGuard(fn));
+    goto errLabel;
+  }
 
   if((rc = _cmTlAllocRecd(p,nameStr,refIdStr,begSmpIdx,info.frameCnt,kAudioFileTlId,seqId,recdByteCnt,&op)) != kOkTlRC )
     goto errLabel;
@@ -621,6 +630,8 @@ cmTlRC_t _cmTlAllocAudioFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmC
   //_cmTlNotifyListener(p, kInsertMsgTlId, op );
 
  errLabel:
+  cmFsFreeFn(fn);
+
   if( rc != kOkTlRC )
     cmAudioFileDelete(&afH);
   
@@ -718,6 +729,9 @@ cmTlRC_t _cmTlAllocMidiFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
   cmTlRC_t      rc  = kOkTlRC;
   _cmTlObj_t*   op  = NULL;
 
+  // prepend the time-line path prefix to the filename
+  fn = cmFsMakeFn( p->prefixPath, fn, NULL, NULL );
+
   // open the midi file
   if( cmMidiFileOpen(fn, &mfH, &p->ctx ) != kOkMfRC )
     return cmErrMsg(&p->err,kMidiFileFailTlRC,"The time line midi file '%s' could not be opened.",cmStringNullGuard(fn));
@@ -763,6 +777,8 @@ cmTlRC_t _cmTlAllocMidiFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
 
   
  errLabel:
+  cmFsFreeFn(fn);
+
   if( rc != kOkTlRC )
   {
     cmMidiFileClose(&mfH);
@@ -890,6 +906,8 @@ cmTlRC_t _cmTimeLineFinalize( _cmTl_t* p )
 
   cmMemPtrFree(&p->tmpBuf);
 
+  cmMemPtrFree(&p->prefixPath);
+
   cmMemPtrFree(&p);
 
 
@@ -899,7 +917,7 @@ cmTlRC_t _cmTimeLineFinalize( _cmTl_t* p )
   return cmErrMsg(&p->err,kFinalizeFailTlRC,"Finalize failed.");
 }
 
-cmTlRC_t cmTimeLineInitialize( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg )
+cmTlRC_t cmTimeLineInitialize( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg, const cmChar_t* prefixPath )
 {
   cmTlRC_t rc;
 
@@ -909,9 +927,10 @@ cmTlRC_t cmTimeLineInitialize( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void*
   _cmTl_t* p = cmMemAllocZ( _cmTl_t, 1 );
 
   cmErrSetup(&p->err,&ctx->rpt,"Time Line");
-  p->ctx    = *ctx;
-  p->cbFunc = cbFunc;
-  p->cbArg  = cbArg;
+  p->ctx        = *ctx;
+  p->cbFunc     = cbFunc;
+  p->cbArg      = cbArg;
+  p->prefixPath = cmMemAllocStr(prefixPath);
 
   if(cmLHeapIsValid( p->lH = cmLHeapCreate( 8192, ctx )) == false )
   {
@@ -928,10 +947,10 @@ cmTlRC_t cmTimeLineInitialize( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void*
   return rc;
 }
 
-cmTlRC_t   cmTimeLineInitializeFromFile( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg, const cmChar_t* fn )
+cmTlRC_t   cmTimeLineInitializeFromFile( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg, const cmChar_t* fn, const cmChar_t* prefixPath )
 {
   cmTlRC_t rc;
-  if((rc = cmTimeLineInitialize(ctx,hp,cbFunc,cbArg)) != kOkTlRC )
+  if((rc = cmTimeLineInitialize(ctx,hp,cbFunc,cbArg,prefixPath)) != kOkTlRC )
     return rc;
 
   return cmTimeLineReadJson(hp,fn);
@@ -1595,12 +1614,12 @@ cmTlRC_t cmTimeLinePrint( cmTlH_t h, cmRpt_t* rpt )
   return kOkTlRC;
 }
 
-cmTlRC_t cmTimeLinePrintFn( cmCtx_t* ctx, const cmChar_t* fn, cmRpt_t* rpt )
+cmTlRC_t cmTimeLinePrintFn( cmCtx_t* ctx, const cmChar_t* fn, const cmChar_t* prefixPath, cmRpt_t* rpt )
 {
   cmTlRC_t rc;
   cmTlH_t h = cmTimeLineNullHandle;
 
-  if((rc = cmTimeLineInitializeFromFile(ctx,&h,NULL,NULL,fn)) != kOkTlRC )
+  if((rc = cmTimeLineInitializeFromFile(ctx,&h,NULL,NULL,fn,prefixPath)) != kOkTlRC )
     return rc;
 
   cmTimeLinePrint(h,rpt);
@@ -1609,12 +1628,12 @@ cmTlRC_t cmTimeLinePrintFn( cmCtx_t* ctx, const cmChar_t* fn, cmRpt_t* rpt )
 }
 
 
-cmTlRC_t     cmTimeLineTest( cmCtx_t* ctx, const cmChar_t* jsFn )
+cmTlRC_t     cmTimeLineTest( cmCtx_t* ctx, const cmChar_t* jsFn, const cmChar_t* prefixPath )
 {
   cmTlRC_t rc  = kOkTlRC;
   cmTlH_t  tlH = cmTimeLineNullHandle;
 
-  if((rc = cmTimeLineInitialize(ctx,&tlH,NULL,NULL)) != kOkTlRC )
+  if((rc = cmTimeLineInitialize(ctx,&tlH,NULL,NULL,prefixPath)) != kOkTlRC )
     return rc;
 
   if((rc = cmTimeLineReadJson(&tlH,jsFn)) != kOkTlRC )
