@@ -2430,7 +2430,6 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
 _cmDspSysPgm_t _cmDspSysPgmArray[] = 
 {
   { "time_line",     _cmDspSysPgm_TimeLine,     NULL, NULL },
-  { "switcher",      _cmDspSysPgm_Switcher,     NULL, NULL },
   { "main",          _cmDspSysPgm_Main,         NULL, NULL },
   { "array",         _cmDspSysPgm_Array,        NULL, NULL },
   { "line",          _cmDspSysPgm_Line,         NULL, NULL },
