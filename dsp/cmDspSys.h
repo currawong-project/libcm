@@ -46,6 +46,9 @@ extern "C" {
   enum { kSyncPreDspId, kSyncPendingDspId, kSyncSuccessDspId, kSyncFailDspId };
   unsigned cmDspSysSyncState( cmDspSysH_t h );
 
+  // Print the loaded program (instances and connections) to a JSON file.
+  cmDspRC_t cmDspSysPrintPgm( cmDspSysH_t h, const cmChar_t* outFn );
+
   //----------------------------------------------------------------------------------------------------
   // Preset function:
   //

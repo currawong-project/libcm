@@ -317,6 +317,87 @@ cmDspRC_t cmDspSysLastRC( cmDspSysH_t h )
   return cmErrLastRC(&p->err);
 }
 
+
+// This function is assigns a unique symbol id (cmDspInst_t.symId)
+// to all DSP instances whose symId is set to cmInvalidId.
+cmDspRC_t _cmDspSysAssignUniqueInstSymId( cmDsp_t* p )
+{
+  typedef struct class_str
+  {
+    const cmChar_t* label;
+    unsigned        cnt;
+    struct class_str* link;
+  } class_t;
+
+
+  cmDspRC_t rc = kOkDspRC;
+  class_t*  map = NULL;
+
+  _cmDspInst_t* dip = p->instList;
+
+  for(; dip!=NULL; dip=dip->linkPtr)
+  {
+    cmDspInst_t* ip = dip->instPtr;
+    
+    // if this instance does not have a valid symbol id then create one
+    if( ip->symId == cmInvalidId )
+    {
+      // look for the instance class in map[]
+      class_t* mp = map;
+      for(; mp!=NULL; mp=mp->link)
+        if( strcmp(ip->classPtr->labelStr,mp->label) == 0 )
+          break;
+
+      // if map[] does not yet have a recd for this class ....
+      if( mp == NULL )
+      {
+        mp = cmMemAllocZ(class_t,1);  // ... then make one
+        mp->label = ip->classPtr->labelStr;
+        mp->link  = map;
+        map = mp;
+      }
+     
+      // generate a new unique symbol
+      while( ip->symId==cmInvalidId && mp->cnt != cmInvalidId )
+      {
+        // increment the instance count for this class
+        mp->cnt += 1;
+
+        // form a symbol label
+        cmChar_t* idStr = cmTsPrintfP(NULL,"%s-%i",ip->classPtr->labelStr,mp->cnt);
+
+        // register the new symbol
+        unsigned symId = cmSymTblRegisterSymbol(p->ctx.stH,idStr); 
+
+        cmMemFree(idStr); // the symbol label is no longer need
+
+        // if the symbol has not yet been used then it must be unique 
+        if( _cmDspSysInstSymIdToPtr(p,symId) == NULL )
+          ip->symId = symId;
+        else
+          cmSymTblRemove(p->ctx.stH,symId);  // ... otherwise remove the symbol and try again
+
+      }
+
+      // check for the very unlikely case that no unique symbol could be generated
+      if(mp->cnt == cmInvalidId )
+        rc = cmErrMsg(&p->err,kSymNotFoundDspRC,"All DSP instances were not assigned a unique symbol id.");
+
+    }
+  }
+
+  // free the class list
+  class_t* mp = map;
+  while( mp != NULL )
+  {
+    class_t* np = mp->link;
+    cmMemFree(mp);
+    mp = np;
+  }
+
+  return rc;
+}
+
 cmDspRC_t cmDspSysLoad( cmDspSysH_t  h,  cmAudioSysCtx_t* asCtx, unsigned pgmIdx )
 {
   cmDspRC_t       rc;
@@ -427,6 +508,8 @@ cmDspRC_t cmDspSysLoad( cmDspSysH_t  h,  cmAudioSysCtx_t* asCtx, unsigned pgmIdx
     cmErrMsg(&p->err,rc,"DSP system sync failed.");
     goto errLabel;
   }
+
+  rc = _cmDspSysAssignUniqueInstSymId(p);
 
  errLabel:
   if( rc != kOkDspRC )
@@ -672,6 +755,90 @@ unsigned cmDspSysSyncState( cmDspSysH_t h )
   cmDsp_t* p = _cmDspHandleToPtr(h);
   return p->syncState;
 }
+
+cmDspRC_t cmDspSysPrintPgm( cmDspSysH_t h, const cmChar_t* outFn )
+{
+  cmDsp_t*  p = _cmDspHandleToPtr(h);
+  cmDspRC_t rc = kOkDspRC;
+  cmJsonH_t jsH = cmJsonNullHandle;
+
+  if( cmJsonInitialize(&jsH, &p->cmCtx ) != kOkJsRC )
+    return cmErrMsg(&p->err,kJsonFailDspRC,"JSON output object create failed.");
+
+
+  // create the root object
+  cmJsonNode_t* onp = cmJsonCreateObject(jsH,NULL);
+  assert( onp != NULL );
+
+  // create the instance array
+  cmJsonNode_t* iap = cmJsonInsertPairArray(jsH, cmJsonRoot(jsH), "inst_array" );
+  assert( iap != NULL );
+  
+  // create the connection array
+  cmJsonNode_t* cap = cmJsonInsertPairArray(jsH, cmJsonRoot(jsH), "conn_array" );
+  assert( cap != NULL );
+
+  _cmDspInst_t* dip = p->instList;
+
+  for(; dip!=NULL; dip=dip->linkPtr)
+  {
+    cmDspInst_t* ip = dip->instPtr;
+
+    onp   = cmJsonCreateObject(jsH,iap);
+    
+    if( cmJsonInsertPairs(jsH, onp, 
+        "class", kStringTId, ip->classPtr->labelStr,
+        "label", kStringTId, cmSymTblLabel(p->ctx.stH,ip->symId),
+        "id",    kIntTId,    ip->symId,
+        NULL ) != kOkJsRC )
+    {
+      rc = cmErrMsg(&p->err,kJsonFailDspRC,"JSON DSP instance create failed.");
+      goto errLabel;
+    }
+
+    unsigned i;
+    for(i=0; i<ip->varCnt; ++i)
+    {
+      const cmDspVar_t* v = ip->varArray + i;
+
+      cmDspCb_t* cp = v->cbList;
+
+      for(; cp!=NULL; cp=cp->linkPtr)
+      {
+        const cmDspVar_t* dvar = cmDspVarIdToCPtr(cp->dstInstPtr, cp->dstVarId );
+
+        onp   = cmJsonCreateObject(jsH,cap);
+
+        assert(dvar != NULL);
+
+        if(cmJsonInsertPairs(jsH,onp,
+            "sid",  kStringTId, cmSymTblLabel(p->ctx.stH,ip->symId),
+            "svar", kStringTId, cmSymTblLabel(p->ctx.stH,v->symId),
+            "did",  kStringTId, cmSymTblLabel(p->ctx.stH,cp->dstInstPtr->symId),
+            "dvar", kStringTId, cmSymTblLabel(p->ctx.stH,dvar->symId),
+            NULL ) != kOkJsRC )
+        {
+          rc = cmErrMsg(&p->err,kJsonFailDspRC,"JSON DSP connect create failed.");
+          goto errLabel;
+        }
+      }
+    }
+  }
+
+  if( cmJsonWrite(jsH,NULL,outFn) != kOkJsRC )
+  {
+    rc = cmErrMsg(&p->err,kJsonFailDspRC,"JSON file write failed on '%s.",cmStringNullGuard(outFn));
+    goto errLabel;
+  }
+
+  if( cmJsonFinalize(&jsH) != kOkJsRC )
+    rc = cmErrMsg(&p->err,kJsonFailDspRC,"JSON tree release failed.");
+
+ errLabel:
+
+  return rc;
+}
+
 
 unsigned        cmDspSysPresetGroupCount( cmDspSysH_t h )
 { 
@@ -1567,12 +1734,25 @@ cmDspInst_t* cmDspSysAllocScalar(     cmDspSysH_t h, const cmChar_t* label, cmRe
 { return _cmDspSysAllocScalar(h,cmInvalidId,label,min,max,step,val,label); }
 
 
-cmChar_t*  _cmDspSysFormLabel( cmDspSysH_t h, const cmChar_t* prefixLabel, const cmChar_t* label )
-{ return cmTsPrintfH(cmDspSysLHeap(h),"%s-%s",prefixLabel,label);  }
+cmChar_t*  _cmDspSysFormLabel( cmDspSysH_t h, unsigned presetGrpSymId, const cmChar_t* prefixLabel, const cmChar_t* label )
+{ 
+  cmDsp_t* p = _cmDspHandleToPtr(h);
+
+  if( prefixLabel == NULL )
+  {
+    if(( prefixLabel = cmSymTblLabel(p->ctx.stH,presetGrpSymId)) == NULL )
+      cmErrMsg(&p->err,kInvalidArgDspRC,"The prefix label was not given for the DSP instance '%s'.",cmStringNullGuard(label));
+  }
+
+  if( label == NULL )
+    cmErrMsg(&p->err,kInvalidArgDspRC,"NULL was passed where a DSP instance label was expected.");
+
+  return cmTsPrintfH(cmDspSysLHeap(h),"%s-%s",cmStringNullGuard(prefixLabel),cmStringNullGuard(label));  
+}
 
 cmDspInst_t* cmDspSysAllocScalarP(     cmDspSysH_t h, unsigned presetGrpSymId, const cmChar_t* prefixLabel, const cmChar_t* label, cmReal_t min, cmReal_t max, cmReal_t step, cmReal_t val )
 {
-  return _cmDspSysAllocScalar(h,presetGrpSymId,_cmDspSysFormLabel(h,prefixLabel,label),min,max,step,val,label);
+  return _cmDspSysAllocScalar(h,presetGrpSymId,_cmDspSysFormLabel(h,presetGrpSymId,prefixLabel,label),min,max,step,val,label);
 }
 
 cmDspInst_t* cmDspSysAllocScalarRsrc( cmDspSysH_t h, const cmChar_t* label, cmReal_t min, cmReal_t max, cmReal_t step, const cmChar_t* rsrcPath )
@@ -1604,7 +1784,7 @@ cmDspInst_t* _cmDspSysAllocButton(     cmDspSysH_t h, unsigned btnTypeId, unsign
 
 cmDspInst_t* cmDspSysAllocButtonP(    cmDspSysH_t h, const cmChar_t* prefixLabel, const cmChar_t* label, cmReal_t val )
 {
-  return cmDspSysAllocButton(h,_cmDspSysFormLabel(h,prefixLabel,label),val);
+  return cmDspSysAllocButton(h,_cmDspSysFormLabel(h,cmInvalidId,prefixLabel,label),val);
 }
 
 cmDspInst_t* _cmDspSysAllocButtonRsrc( cmDspSysH_t h, unsigned typeId, unsigned presetGroupSymId, const cmChar_t* label, const cmChar_t* rsrcPath )
@@ -1630,7 +1810,7 @@ cmDspInst_t* cmDspSysAllocCheck(     cmDspSysH_t h, const cmChar_t* label, cmRea
 { return  _cmDspSysAllocCheck(h,cmInvalidId,label,label,val); }
 
 cmDspInst_t* cmDspSysAllocCheckP(    cmDspSysH_t h, unsigned presetGroupSymId, const cmChar_t* prefixLabel, const cmChar_t* label, cmReal_t val )
-{ return _cmDspSysAllocCheck(h,presetGroupSymId,_cmDspSysFormLabel(h,prefixLabel,label),label,val); }
+{ return _cmDspSysAllocCheck(h,presetGroupSymId,_cmDspSysFormLabel(h,presetGroupSymId,prefixLabel,label),label,val); }
 
 cmDspInst_t* cmDspSysAllocCheckRsrc( cmDspSysH_t h, const cmChar_t* label, const cmChar_t* rsrcPath )
 { return _cmDspSysAllocButtonRsrc( h,kCheckDuiId, cmInvalidId, label,rsrcPath); }
@@ -1642,7 +1822,7 @@ cmDspInst_t* cmDspSysAllocMsgListP( cmDspSysH_t h, unsigned presetGroupSymId, co
 { 
   cmDspInst_t* inst;
   cmChar_t* lbl;
-  if((inst = cmDspSysAllocInstS( h, "MsgList", presetGroupSymId,  lbl = _cmDspSysFormLabel(h,preLabel,label), 3, rsrcLabel, fn, initSelIdx)) == NULL )
+  if((inst = cmDspSysAllocInstS( h, "MsgList", presetGroupSymId,  lbl = _cmDspSysFormLabel(h,presetGroupSymId,preLabel,label), 3, rsrcLabel, fn, initSelIdx)) == NULL )
   {
     cmDsp_t* p = _cmDspHandleToPtr(h);
     cmErrMsg(&p->err,kAllocInstFailDspRC,"Msg List UI control allocation failed for '%s'.", cmStringNullGuard(lbl));
