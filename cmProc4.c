@@ -3985,14 +3985,17 @@ cmRC_t _cmScModActivate(cmScModulator* p, cmScModEntry_t* ep )
   cmScModVar_t* vp = ep->varPtr;
 
   // optionally update the min/max/rate values in the target var
-  if((rc = _cmScModGetParam(p,&ep->min,&vp->min)) != cmOkRC )
-    goto errLabel;
+  if( ep->min.pid != kInvalidModPId )
+    if((rc = _cmScModGetParam(p,&ep->min,&vp->min)) != cmOkRC )
+      goto errLabel;
 
-  if((rc = _cmScModGetParam(p,&ep->max,&vp->max)) != cmOkRC )
-    goto errLabel;
+  if( ep->max.pid != kInvalidModPId )
+    if((rc = _cmScModGetParam(p,&ep->max,&vp->max)) != cmOkRC )
+      goto errLabel;
 
- if((rc = _cmScModGetParam(p,&ep->rate,&vp->rate)) != cmOkRC )
-    goto errLabel;
+  if( ep->rate.pid != kInvalidModPId )
+    if((rc = _cmScModGetParam(p,&ep->rate,&vp->rate)) != cmOkRC )
+      goto errLabel;
 
 
   switch( ep->typeId )
