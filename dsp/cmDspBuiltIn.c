@@ -533,6 +533,7 @@ enum
   kMaxCntId,
   kIncCntId,
   kWrapCntId,
+  kResetCntId,
   kOutCntId,
   kCycCntId,
   kNxtCntId,
@@ -567,6 +568,7 @@ cmDspInst_t*  _cmDspCounterAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsign
     { "max",    kMaxCntId,  0, 0, kInDsvFl  | kDoubleDsvFl | kReqArgDsvFl, "maximum" },
     { "inc",    kIncCntId,  0, 0, kInDsvFl  | kDoubleDsvFl | kReqArgDsvFl, "increment"},
     { "wrap",   kWrapCntId, 0, 0, kInDsvFl  | kBoolDsvFl   | kOptArgDsvFl, "wrap"},
+    { "reset",  kResetCntId,0, 0, kInDsvFl  | kTypeDsvMask,                "reset"},
     { "out",    kOutCntId,  0, 0, kOutDsvFl | kDoubleDsvFl,                "out"},
     { "cycles", kCycCntId,  0, 0, kOutDsvFl | kDoubleDsvFl,                "cycles"},
     { "next",   kNxtCntId,  0, 0, kInDsvFl  | kTypeDsvMask,                "next"},
@@ -667,10 +669,14 @@ cmDspRC_t _cmDspCounterRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
           
       }
       break;
-
+      
     case kNxtCntId:
       if( !p->disableFl )
         _cmDspCounterIncr(ctx,inst);
+      break;
+
+    case kResetCntId:  // any msg on the 'reset' port causes the min value to be sent on the following 'next'
+      p->val = cmDspDouble(inst,kMinCntId);
       break;
 
     default:
