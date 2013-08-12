@@ -281,7 +281,7 @@ struct cmDspClass_str* cmKrClassCons( cmDspCtx_t* ctx )
 enum
 {
   kTlFileTlId,
-  kAudPathTlId,
+  kPrefixPathTlId,
   kSelTlId,
   kCursTlId,
   kResetTlId,
@@ -307,7 +307,7 @@ cmDspInst_t*  _cmDspTimeLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspVarArg_t args[] =
   {
     { "tlfile",  kTlFileTlId,         0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl, "Time line file." },
-    { "path",    kAudPathTlId,        0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl, "Audio path"    },
+    { "path",    kPrefixPathTlId,     0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl, "Time line data file prefix path"    },
     { "sel",     kSelTlId,            0, 0, kInDsvFl   | kOutDsvFl  | kUIntDsvFl,   "Selected marker id."},
     { "curs",    kCursTlId,           0, 0, kInDsvFl   | kUIntDsvFl,  "Current audio file index."},
     { "reset",   kResetTlId,          0, 0, kInDsvFl   | kSymDsvFl,   "Resend all outputs." },
@@ -332,7 +332,7 @@ cmDspInst_t*  _cmDspTimeLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspSetDefaultInt(  ctx, &p->inst,  kEndMidiSmpIdxTlId, 0, cmInvalidIdx);
 
   // create the UI control
-  cmDspUiTimeLineCreate(ctx,&p->inst,kTlFileTlId,kAudPathTlId,kSelTlId,kCursTlId);
+  cmDspUiTimeLineCreate(ctx,&p->inst,kTlFileTlId,kPrefixPathTlId,kSelTlId,kCursTlId);
 
   p->tlH = cmTimeLineNullHandle;
 
@@ -359,9 +359,12 @@ cmDspRC_t _cmDspTimeLineReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
   cmDspApplyAllDefaults(ctx,inst);
 
   const cmChar_t* tlFn;
+
+  const cmChar_t* tlPrePath = cmDspStrcz(inst,kPrefixPathTlId);
+
   if((tlFn =  cmDspStrcz(inst, kTlFileTlId )) !=  NULL )
-    if( cmTimeLineInitializeFromFile(ctx->cmCtx, &p->tlH, NULL, NULL, tlFn ) != kOkTlRC )
-      rc = cmErrMsg(&inst->classPtr->err, kInstResetFailDspRC, "Time-line file open failed.");
+    if( cmTimeLineInitializeFromFile(ctx->cmCtx, &p->tlH, NULL, NULL, tlFn, tlPrePath ) != kOkTlRC )
+        rc = cmErrMsg(&inst->classPtr->err, kInstResetFailDspRC, "Time-line file open failed.");
 
   return rc;
 }
@@ -372,7 +375,7 @@ cmDspRC_t _cmDspTimeLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
   switch( evt->dstVarId )
   {
-    case kAudPathTlId:
+    case kPrefixPathTlId:
       cmDspSetEvent(ctx,inst,evt);
       break;
 
@@ -1634,6 +1637,7 @@ enum
   kValueAmId,
   kCstAmId,
   kCmdAmId,
+  kScLocAmId,
   kEvenAmId,
   kDynAmId,
   kTempoAmId,
@@ -1680,6 +1684,7 @@ cmDspInst_t*  _cmDspActiveMeasAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
     { "val",      kValueAmId,    0,0, kInDsvFl  | kDoubleDsvFl,  "Meas. Value."},
     { "cst",      kCstAmId,      0,0, kInDsvFl  | kDoubleDsvFl,  "Meas. Cost."},
     { "cmd",      kCmdAmId,      0,0, kInDsvFl  | kSymDsvFl,     "Commands:add | clear | dump | rewind"}, 
+    { "scloc",    kScLocAmId,    0,0, kOutDsvFl | kUIntDsvFl,    "Score location"},
     { "even",     kEvenAmId,     0,0, kOutDsvFl | kDoubleDsvFl,  "Even out"},
     { "dyn",      kDynAmId,      0,0, kOutDsvFl | kDoubleDsvFl,  "Dyn out"},
     { "tempo",    kTempoAmId,    0,0, kOutDsvFl | kDoubleDsvFl,  "Tempo out"},
@@ -1697,6 +1702,7 @@ cmDspInst_t*  _cmDspActiveMeasAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
   p->rewindSymId= cmSymTblRegisterStaticSymbol(ctx->stH,"rewind");
 
   cmDspSetDefaultUInt(  ctx,&p->inst,kCntAmId,  0,100);
+  cmDspSetDefaultUInt(  ctx,&p->inst,kScLocAmId,0,0);
   cmDspSetDefaultDouble(ctx,&p->inst,kEvenAmId, 0,0);
   cmDspSetDefaultDouble(ctx,&p->inst,kDynAmId,  0,0);
   cmDspSetDefaultDouble(ctx,&p->inst,kTempoAmId,0,0);
@@ -1760,7 +1766,6 @@ cmDspRC_t _cmDspActiveMeasRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
 {
   cmDspRC_t       rc = kOkDspRC;
   cmDspActiveMeas_t* p  = (cmDspActiveMeas_t*)inst;
-
   cmDspSetEvent(ctx,inst,evt);
 
   switch( evt->dstVarId )
@@ -1768,13 +1773,21 @@ cmDspRC_t _cmDspActiveMeasRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
     case kSflocAmId:
       if( p->nextFullIdx != cmInvalidIdx )
       {
+        // get the recv'd score location
         unsigned sflocIdx = cmDspUInt(inst,kSflocAmId);
+
+        unsigned prvLoc = cmInvalidIdx;
+
+        // for each remaining avail record
         for(; p->nextFullIdx < p->nextEmptyIdx; p->nextFullIdx++)
         {
           cmDspActiveMeasRecd_t* r = p->array + p->nextFullIdx;
+
+          // if this records score location is after the recv'd score loc then we're done
           if( r->loc > sflocIdx )
             break;
 
+          // deterimine the records type
           unsigned varId = cmInvalidId;
           switch( r->type )
           {
@@ -1785,8 +1798,15 @@ cmDspRC_t _cmDspActiveMeasRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
               { assert(0); }
           }
 
+          // if this score location has not yet been sent then send it now
+          if( prvLoc != r->loc )
+            cmDspSetUInt(ctx,inst,kScLocAmId,r->loc);
+
+          // transmit the records value and cost
           cmDspSetDouble(ctx,inst,varId,r->value);
           cmDspSetDouble(ctx,inst,kCostAmId,r->value);
+
+          prvLoc = r->loc;
         } 
         
 
