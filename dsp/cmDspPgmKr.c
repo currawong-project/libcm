@@ -1576,6 +1576,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspInst_t* ogain0 = cmDspSysAllocInst(h,"Scalar", "Out Gain-0",   5, kNumberDuiId, 0.0,   10.0,0.01,   3.0 );  
   cmDspInst_t* ogain1 = cmDspSysAllocInst(h,"Scalar", "Out Gain-1",   5, kNumberDuiId, 0.0,   10.0,0.01,   3.0 );  
+  cmDspInst_t* xfadMs = cmDspSysAllocInst(h,"Scalar", "Xfade Ms",     5, kNumberDuiId, 0.0,   1000.0,0.01, 50.0 );  
 
   //cmDspInst_t* reload = cmDspSysAllocInst(h,"Button", "Reload",     2, kButtonDuiId, 0.0 );
 
@@ -1746,13 +1747,18 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysInstallCb(h, ogain0, "val", ao0p, "gain", NULL );   // output gain control
   cmDspSysInstallCb(h, ogain1, "val", ao1p, "gain", NULL );
+  cmDspSysInstallCb(h, xfadMs, "val", fad0, "ms", NULL );
+  cmDspSysInstallCb(h, xfadMs, "val", fad1, "ms", NULL );
 
   // Printer connections
   cmDspSysInstallCb(h, tlp, "afn",  prp, "in",  NULL );
   cmDspSysInstallCb(h, tlp, "mfn",  prp, "in",  NULL );
   cmDspSysInstallCb(h, tlp, "sel",  prp, "in",  NULL );
 
+  cmDspSysInstallCb(h, modp, "mod0",  md00p, "val", NULL );
   cmDspSysInstallCb(h, modp, "thr0",  th00p, "val", NULL );
+  cmDspSysInstallCb(h, modp, "upr0",  us00p, "val", NULL );
+  cmDspSysInstallCb(h, modp, "lwr0",  ls00p, "val", NULL );
   cmDspSysInstallCb(h, modp, "mint0", min_thrh_0, "val", NULL );
   cmDspSysInstallCb(h, modp, "maxt0", max_thrh_0, "val", NULL );
   cmDspSysInstallCb(h, modp, "minu0", min_upr_0, "val", NULL );
@@ -1760,7 +1766,11 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, modp, "minl0", min_lwr_0, "val", NULL );
   cmDspSysInstallCb(h, modp, "maxl0", max_lwr_0, "val", NULL );
 
+
+  cmDspSysInstallCb(h, modp, "mod1",  md10p, "val", NULL );
   cmDspSysInstallCb(h, modp, "thr1",  th10p, "val", NULL );
+  cmDspSysInstallCb(h, modp, "upr1",  us10p, "val", NULL );
+  cmDspSysInstallCb(h, modp, "lwr1",  ls10p, "val", NULL );
   cmDspSysInstallCb(h, modp, "mint1", min_thrh_1, "val", NULL );
   cmDspSysInstallCb(h, modp, "maxt1", max_thrh_1, "val", NULL );
   cmDspSysInstallCb(h, modp, "minu1", min_upr_1, "val", NULL );
