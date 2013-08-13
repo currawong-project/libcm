@@ -310,7 +310,9 @@ extern "C" {
     cmObj       obj;
     unsigned    chCnt;
     cmXfaderCh* chArray;
-    unsigned    fadeSmpCnt;    
+    unsigned    fadeSmpCnt;  
+    unsigned    fadeInSmpCnt;
+    unsigned    fadeOutSmpCnt;
     cmReal_t    srate;
     bool        gateFl;  // true if any channels are on
     bool        onFl;    // true on cycle where gate transitions to 'on'.
@@ -324,6 +326,9 @@ extern "C" {
   cmRC_t    cmXfaderExec(  cmXfader* p, unsigned procSmpCnt, const bool* gateV, unsigned chCnt );
   cmRC_t    cmXfaderExecAudio( cmXfader* p, unsigned procSmpCnt, const bool* gateV, unsigned chCnt, const cmSample_t* x[], cmSample_t* y );
   void      cmXfaderSetXfadeTime( cmXfader* p, cmReal_t fadeTimeMs );
+  void      cmXfaderSetXfadeInTime( cmXfader* p, cmReal_t fadeTimeMs );
+  void      cmXfaderSetXfadeOutTime( cmXfader* p, cmReal_t fadeTimeMs );
+
   // Set all gates to false except chIdx.
   void      cmXfaderSelectOne( cmXfader* p, unsigned chIdx );
   void      cmXfaderAllOff( cmXfader* p );
