@@ -1417,6 +1417,8 @@ enum
   kChCntXfId,
   kFadeTimeMsXfId,
   kMstrGateXfId,
+  kFadeInTimeMsXfId,
+  kFadeOutTimeMsXfId,
   kOnXfId,
   kOffXfId,
   kGateBaseXfId,
@@ -1442,11 +1444,13 @@ cmDspInst_t*  _cmDspXfaderAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigne
 {
   cmDspVarArg_t args[] =
   {
-    { "chs",   kChCntXfId,      0, 0,               kUIntDsvFl   | kReqArgDsvFl, "Input and Output channel count"},
-    { "ms",    kFadeTimeMsXfId, 0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl, "Fade time in milliseonds."},
-    { "mgate", kMstrGateXfId,   0, 0,   kInDsvFl  | kBoolDsvFl   | kOptArgDsvFl, "Master gate - can be used to set all gates."},
-    { "on",    kOnXfId,         0, 0,   kOutDsvFl | kSymDsvFl,                   "Send 'on' when all ch's transition from off to on."},
-    { "off",   kOffXfId,        0, 0,   kOutDsvFl | kSymDsvFl,                   "Send 'off' when all ch's transition from on to off."},
+    { "chs",   kChCntXfId,         0, 0,               kUIntDsvFl   | kReqArgDsvFl, "Input and Output channel count"},
+    { "ms",    kFadeTimeMsXfId,    0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl, "Fade time in milliseonds."},
+    { "mgate", kMstrGateXfId,      0, 0,   kInDsvFl  | kBoolDsvFl   | kOptArgDsvFl, "Master gate - can be used to set all gates."},
+    { "ims",   kFadeInTimeMsXfId,  0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl, "Fade in time in milliseonds."},
+    { "oms",   kFadeOutTimeMsXfId, 0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl, "Fade out time in milliseonds."},
+    { "on",    kOnXfId,            0, 0,   kOutDsvFl | kSymDsvFl,                   "Send 'on' when all ch's transition from off to on."},
+    { "off",   kOffXfId,           0, 0,   kOutDsvFl | kSymDsvFl,                   "Send 'off' when all ch's transition from on to off."},
   };
 
   if( va_cnt < 1 )
@@ -1592,6 +1596,15 @@ cmDspRC_t _cmDspXfaderRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
           p->chGateV[i] = fl;
       }
       break;
+
+    case kFadeInTimeMsXfId:
+      cmXfaderSetXfadeInTime(p->xfdp,cmDspDouble(inst,kFadeInTimeMsXfId));
+      break;
+
+    case kFadeOutTimeMsXfId:
+      cmXfaderSetXfadeOutTime(p->xfdp,cmDspDouble(inst,kFadeOutTimeMsXfId));
+      break;
+
   }
   
   // record gate changes into p->chGateV[] for later use in _cmDspXfaderExec().

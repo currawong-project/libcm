@@ -2033,7 +2033,9 @@ cmRC_t    cmXfaderExec(  cmXfader* p, unsigned procSmpCnt, const bool* chGateV, 
   bool gateFl = false;
 
   // gain change associated with procSmpCnt
-  cmReal_t dgain = (cmReal_t)procSmpCnt / p->fadeSmpCnt; 
+  //cmReal_t dgain   = (cmReal_t)procSmpCnt / p->fadeSmpCnt; 
+  cmReal_t i_dgain = (cmReal_t)procSmpCnt / p->fadeInSmpCnt; 
+  cmReal_t o_dgain = (cmReal_t)procSmpCnt / p->fadeOutSmpCnt;
 
   unsigned i;
   // for each channel
@@ -2053,10 +2055,10 @@ cmRC_t    cmXfaderExec(  cmXfader* p, unsigned procSmpCnt, const bool* chGateV, 
     cmReal_t g = cp->gain;
 
     if( cp->gateFl )
-      cp->gain = cmMin(cp->gain + dgain,1.0); 
+      cp->gain = cmMin(cp->gain + i_dgain,1.0); 
     else
     {
-      cp->gain = cmMax(cp->gain - dgain,0.0); 
+      cp->gain = cmMax(cp->gain - o_dgain,0.0); 
       cp->offFl = g>0.0 && cp->gain==0.0; // notice fade-out transition end
     }
 
@@ -2100,6 +2102,17 @@ cmRC_t    cmXfaderExecAudio( cmXfader* p, unsigned procSmpCnt, const bool* gateV
 void      cmXfaderSetXfadeTime( cmXfader* p, cmReal_t fadeTimeMs )
 {
    p->fadeSmpCnt = floor(fadeTimeMs * p->srate /1000.0); 
+   p->fadeInSmpCnt = p->fadeSmpCnt;
+   p->fadeOutSmpCnt = p->fadeSmpCnt;
+}
+
+void      cmXfaderSetXfadeInTime( cmXfader* p, cmReal_t fadeTimeMs )
+{
+   p->fadeInSmpCnt = floor(fadeTimeMs * p->srate /1000.0); 
+}
+void      cmXfaderSetXfadeOutTime( cmXfader* p, cmReal_t fadeTimeMs )
+{
+   p->fadeOutSmpCnt = floor(fadeTimeMs * p->srate /1000.0); 
 }
 
 void      cmXfaderSelectOne( cmXfader* p, unsigned chIdx )
