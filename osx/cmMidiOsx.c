@@ -58,13 +58,18 @@ cmMpRoot* _cmMpRtPtr = NULL;
 
 cmMpRC_t _cmMpError( cmErr_t* errPtr, cmMpRC_t rc, OSStatus err, const char* fmt, ... )
 { 
-  va_list     vl;
-  unsigned    n0   = vsnprintf(NULL,0,fmt,vl);
+  va_list vl0;
+  va_list vl1;
+  
+  va_start(vl0,fmt);
+  va_copy(vl1,vl0);
+
+  unsigned    n0   = vsnprintf(NULL,0,fmt,vl0);
   unsigned    n1   = 0;
   unsigned    n2   = 0;
   const char* fmt2 = "OS Status:%i";
+  va_end(vl0);
 
-  va_start(vl,fmt);
 
   if( err != noErr )
     n1 = snprintf(NULL,0,fmt2,err);
@@ -72,17 +77,14 @@ cmMpRC_t _cmMpError( cmErr_t* errPtr, cmMpRC_t rc, OSStatus err, const char* fmt
   unsigned bufCharCnt = n0 + n1;
   char     buf[ bufCharCnt + 1];
 
-  va_end(vl);
-  va_start(vl,fmt);
-
-  vsnprintf(buf,n0,fmt,vl);
+  vsnprintf(buf,n0,fmt,vl1);
   n2 = strlen(buf);
   snprintf(buf+n2,bufCharCnt-n2,fmt2,err);
   buf[bufCharCnt]=0;
 
   cmErrMsg(errPtr,rc,buf);
   
-  va_end(vl);
+  va_end(vl1);
 
   return rc;
 }
@@ -223,8 +225,9 @@ cmMpRC_t _cmMpGetEntityUniqueIdArray( MIDIEntityRef mer, SInt32* idArray, unsign
     offline = 1;
     if((err = MIDIObjectGetIntegerProperty( epr, kMIDIPropertyOffline, &offline)) != noErr )
     {
-      rc= _cmMpError(errPtr,kSysErrMpRC,err,"Get online status on %s endpoint %i failed.",dirLabel,pi);
-      goto errLabel;
+       _cmMpError(errPtr,kSysErrMpRC,err,"Get online status on %s endpoint %i failed.",dirLabel,pi);
+      //goto errLabel;  kpl 09/05/13 - report error and fall through and report the device as 'offline'. 
+      // This should be a warning rather than a error.
     }
 
     if( offline )
