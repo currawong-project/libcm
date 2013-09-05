@@ -1293,14 +1293,16 @@ bool     cmThFloatCAS( float*    addr, float    old, float    new )
 bool     cmThPtrCAS(   void*    addr, void*    old, void*    neww )
 {
 #ifdef OS_OSX
+  
   // REMOVE THIS HACK AND USE OSAtomicCompareAndSwapPtrBarrier() WHEN
   // A 64 BIT BUILD IS POSSIBLE ON OS-X.
+ 
   typedef struct 
   {
     union 
     {
       void* addr;
-      int   val;
+      int64_t   val;
     } u;
   } s_t;
 
@@ -1309,7 +1311,8 @@ bool     cmThPtrCAS(   void*    addr, void*    old, void*    neww )
   ov.u.addr = old;
   nv.u.addr = neww;
 
-  int rv = OSAtomicCompareAndSwap32Barrier(ov.u.val,nv.u.val,(int*)addr);
+  int rv = OSAtomicCompareAndSwap64Barrier(ov.u.val,nv.u.val,(int64_t*)addr);
+  
   //int rv = OSAtomicCompareAndSwapPtrBarrier(old,neww,&addr);
   return rv;
 #endif
@@ -1616,6 +1619,8 @@ cmThRC_t   cmTsMp1cEnqueueSegMsg( cmTsMp1cH_t h, const void* msgPtrArray[], unsi
     
   }while(!cmThPtrCAS(&p->olp,old_hp,new_hp));
 
+  //printf("%p %p %i\n",p->ilp,p->olp,p->olp->mn);
+
   return rc;
 }
 
@@ -1662,7 +1667,6 @@ unsigned _cmTsMp1cNextMsgByteCnt( cmTsMp1c_t* p )
     // return the size of the new msg
     return p->olp->mn;
   }
-
   return 0;
 }
 
