@@ -17,6 +17,9 @@ void _cmErrVMsg(cmErr_t* err, bool warnFl, cmRC_t rc, const cmChar_t* fmt, va_li
 {
   if( err->rpt == NULL )
     return;
+ 
+  va_list vl0;
+  va_copy(vl0,vl);
 
   const cmChar_t* hdrFmt = warnFl ? "%s warning: " : "%s error: ";
   const cmChar_t* codeFmt = " (RC:%i)";
@@ -26,11 +29,13 @@ void _cmErrVMsg(cmErr_t* err, bool warnFl, cmRC_t rc, const cmChar_t* fmt, va_li
   int        n2 = snprintf( NULL,0,codeFmt,rc);
   int        n  = n0+n1+n2+1;
   cmChar_t s[n];
+
   n0 =  snprintf(s,n,hdrFmt,cmStringNullGuard(err->label));
-  n0 += vsnprintf(s+n0,n-n0,fmt,vl);
+  n0 += vsnprintf(s+n0,n-n0,fmt,vl0);
   n0 += snprintf(s+n0,n-n0,codeFmt,rc);
   assert(n0 <= n );
   cmRptErrorf(err->rpt,"%s\n",s);
+  va_end(vl0);
 }
 
 void _cmErrMsg( cmErr_t* err, bool warnFl, cmRC_t rc, const cmChar_t* fmt, ... )
