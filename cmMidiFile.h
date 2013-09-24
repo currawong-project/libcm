@@ -56,13 +56,14 @@ extern "C" {
     cmMidiByte_t ch;
     cmMidiByte_t d0;
     cmMidiByte_t d1;
-    unsigned     durTicks; // note duration calc'd by 
+    unsigned     durTicks; // note duration calc'd by cmMidiFileCalcNoteDurations();
   } cmMidiChMsg_t;
 
 
   typedef struct cmMidiTrackMsg_str
   {
     unsigned                   dtick;   // delta ticks
+    unsigned                   atick;   
     cmMidiByte_t               status;  // ch msg's have the channel value removed (it is stored in u.chMsgPtr->ch)
     cmMidiByte_t               metaId;  //
     unsigned short             trkIdx;  //  
@@ -86,26 +87,24 @@ extern "C" {
 
   enum
   {
-    kOkMfRC = cmOkRC,  // 0
-    kSysFopenFailMfRC,  // 1
-    kSysFreadFailMfRC,  // 2
-    kSysFseekFailMfRC,  // 3
-    kSysFtellFailMfRC,  // 4
-    kSysFcloseFailMfRC, // 5
-    kNotAMidiFileMfRC,  // 6
-    kMemAllocFailMfRC,  // 7
-    kFileCorruptMfRC,   // 8
-    kMissingEoxMfRC,    // 9 
-    kUnknownMetaIdMfRC, // 10
-    kInvalidHandleMfRC, // 11
-    kMissingNoteOffMfRC, // 12
-    kInvalidStatusMfRC  // 13
+    kOkMfRC = cmOkRC,    // 0
+    kFileFailMfRC,       // 1
+    kNotAMidiFileMfRC,   // 7
+    kMemAllocFailMfRC,   // 8
+    kFileCorruptMfRC,    // 9
+    kMissingEoxMfRC,     // 10 
+    kUnknownMetaIdMfRC,  // 11
+    kInvalidHandleMfRC,  // 12
+    kMissingNoteOffMfRC, // 13
+    kInvalidStatusMfRC   // 14
   };
 
   extern cmMidiFileH_t cmMidiFileNullHandle;
 
   cmMfRC_t              cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx );
   cmMfRC_t              cmMidiFileClose( cmMidiFileH_t* hp );
+
+  cmMfRC_t              cmMidiFileWrite( cmMidiFileH_t h, const char* fn );
 
   bool                  cmMidiFileIsValid( cmMidiFileH_t h );
 

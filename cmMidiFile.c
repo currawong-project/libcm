@@ -31,7 +31,7 @@ typedef struct
 {
   cmErr_t            err;                // this objects error object
   cmLHeapH_t         lhH;                // linked heap used for all dynamically alloc'd data space
-  cmFileH_t          fh;                 // cmFile handle (only used in fmMidiFileOpen())
+  cmFileH_t          fh;                 // cmFile handle (only used in fmMidiFileOpen() and cmMidiFileWrite())
   unsigned short     fmtId;              // midi file type id: 0,1,2
   unsigned short     ticksPerQN;         // ticks per quarter note or 0 if smpteFmtId is valid
   cmMidiByte_t       smpteFmtId;         // smpte format or 0 if ticksPerQN is valid
@@ -44,14 +44,9 @@ typedef struct
   
 } _cmMidiFile_t;
 
-#define _cmMidiFileError( err, rc ) _cmMidiFileOnError(err, rc, __LINE__,__FILE__,__FUNCTION__ )
 
 cmMidiFileH_t cmMidiFileNullHandle = cmSTATIC_NULL_HANDLE;
 
-cmMfRC_t _cmMidiFileOnError( cmErr_t* err, cmMfRC_t rc, int line, const char* fn, const char* func )
-{
-  return cmErrMsg(err,rc,"rc:%i line:%i %s %s\n",rc,line,func,fn);
-}
 
 _cmMidiFile_t* _cmMidiFileHandleToPtr( cmMidiFileH_t h )
 {
@@ -67,14 +62,14 @@ void* _cmMidiFileMalloc( _cmMidiFile_t* mfp, unsigned byteN )
 cmMfRC_t _cmMidiFileRead8( _cmMidiFile_t* mfp, cmMidiByte_t* p )
 {
   if( cmFileReadUChar(mfp->fh,p,1) != kOkFileRC )  
-    return _cmMidiFileError(&mfp->err,kSysFreadFailMfRC);
+    return cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI byte read failed.");
   return kOkMfRC;
 }
 
 cmMfRC_t _cmMidiFileRead16( _cmMidiFile_t* mfp, unsigned short* p )
 {
   if( cmFileReadUShort(mfp->fh,p,1) != kOkFileRC )
-    return _cmMidiFileError(&mfp->err,kSysFreadFailMfRC);
+    return cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI short read failed.");
 
   *p = mfSwap16(*p);
 
@@ -89,7 +84,7 @@ cmMfRC_t _cmMidiFileRead24( _cmMidiFile_t* mfp, unsigned* p )
   {
     unsigned char c;
     if( cmFileReadUChar(mfp->fh,&c,1) != kOkFileRC )  
-      return _cmMidiFileError(&mfp->err,kSysFreadFailMfRC);
+      return cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI 24 bit integer read failed.");
     *p = (*p << 8) + c;
   }
 
@@ -101,7 +96,7 @@ cmMfRC_t _cmMidiFileRead24( _cmMidiFile_t* mfp, unsigned* p )
 cmMfRC_t _cmMidiFileRead32( _cmMidiFile_t* mfp, unsigned* p )
 {
   if( cmFileReadUInt(mfp->fh,p,1) != kOkFileRC )  
-    return _cmMidiFileError(&mfp->err,kSysFreadFailMfRC);
+    return cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI integer read failed.");
 
   *p = mfSwap32(*p);
 
@@ -117,7 +112,7 @@ cmMfRC_t _cmMidiFileReadText( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp, unsigne
   t[byteN] = 0;
   
   if( cmFileReadChar(mfp->fh,t,byteN) != kOkFileRC )  
-    return _cmMidiFileError(&mfp->err,kSysFreadFailMfRC);
+    return cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI read text failed.");
 
   tmp->u.text  = t;
   tmp->byteCnt = byteN;
@@ -129,7 +124,7 @@ cmMfRC_t _cmMidiFileReadRecd( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp, unsigne
   char*  t = (char*)_cmMidiFileMalloc(mfp,byteN);
   
   if( cmFileReadChar(mfp->fh,t,byteN) != kOkFileRC )  
-    return _cmMidiFileError(&mfp->err,kSysFreadFailMfRC);
+    return cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI read record failed.");
 
   tmp->byteCnt = byteN;
   tmp->u.voidPtr = t;
@@ -142,7 +137,7 @@ cmMfRC_t _cmMidiFileReadVarLen( _cmMidiFile_t* mfp, unsigned* p )
   unsigned char c;
 
   if( cmFileReadUChar(mfp->fh,&c,1) != kOkFileRC )  
-    return _cmMidiFileError(&mfp->err,kSysFreadFailMfRC);
+    return cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI read variable length integer failed.");
   
   if( !(c & 0x80) )
     *p = c;
@@ -154,7 +149,7 @@ cmMfRC_t _cmMidiFileReadVarLen( _cmMidiFile_t* mfp, unsigned* p )
     {
 
       if( cmFileReadUChar(mfp->fh,&c,1) != kOkFileRC )  
-        return _cmMidiFileError(&mfp->err,kSysFreadFailMfRC);
+        return cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI read variable length integer failed.");
 
       *p = (*p << 7) + (c & 0x7f);
     
@@ -199,7 +194,7 @@ cmMfRC_t _cmMidiFileReadSysEx( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp, unsign
 
     long offs;
     if( cmFileTell(mfp->fh,&offs) != kOkFileRC )
-      return _cmMidiFileError(&mfp->err,kSysFtellFailMfRC);
+      return cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI File 'tell' failed.");
 
     byteN = 0;
 
@@ -214,11 +209,11 @@ cmMfRC_t _cmMidiFileReadSysEx( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp, unsign
 
     // verify that the EOX byte was found
     if( b != kSysComEoxMdId )
-      return _cmMidiFileError(&mfp->err,kMissingEoxMfRC);
+      return cmErrMsg(&mfp->err,kMissingEoxMfRC,"MIDI file missing 'end-of-sys-ex'.");
 
     // rewind to the beginning of the msg
     if( cmFileSeek(mfp->fh,kBeginFileFl,offs) != kOkFileRC )
-      return _cmMidiFileError(&mfp->err,kSysFseekFailMfRC);
+      return cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file seek failed on sys-ex read.");
 
   }
 
@@ -227,7 +222,7 @@ cmMfRC_t _cmMidiFileReadSysEx( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp, unsign
 
   // read the sys-ex msg from the file into msg memory
   if( cmFileReadUChar(mfp->fh,mp,byteN) != kOkFileRC )  
-    return _cmMidiFileError(&mfp->err,kSysFreadFailMfRC);
+    return cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI sys-ex read failed.");
   
   tmp->byteCnt     = byteN;
   tmp->u.sysExPtr = mp;
@@ -239,8 +234,8 @@ cmMfRC_t _cmMidiFileReadChannelMsg( _cmMidiFile_t* mfp, cmMidiByte_t* rsPtr, cmM
 {
   cmMfRC_t       rc       = kOkMfRC;
   cmMidiChMsg_t* p        = (cmMidiChMsg_t*)_cmMidiFileMalloc(mfp,sizeof(cmMidiChMsg_t));
-  unsigned     useRsFl  = status <= 0x7f;
-  cmMidiByte_t statusCh = useRsFl ? *rsPtr : status;
+  unsigned       useRsFl  = status <= 0x7f;
+  cmMidiByte_t   statusCh = useRsFl ? *rsPtr : status;
   
   if( useRsFl )
     p->d0  = status;    
@@ -309,8 +304,7 @@ cmMfRC_t _cmMidiFileReadMetaMsg( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp )
 
     default:
       cmFileSeek(mfp->fh,kCurFileFl,byteN);
-      cmErrMsg(&mfp->err,kUnknownMetaIdMfRC,"Unknown meta status:0x%x %i.",metaId,metaId);
-      rc = _cmMidiFileError(&mfp->err,kUnknownMetaIdMfRC);
+      rc = cmErrMsg(&mfp->err,kUnknownMetaIdMfRC,"Unknown meta status:0x%x %i.",metaId,metaId);
   }
 
   tmp->metaId = metaId;
@@ -386,7 +380,7 @@ cmMfRC_t _cmMidiFileReadHdr( _cmMidiFile_t* mfp )
   
   // verify the file id
   if( fileId != 'MThd' )
-    return _cmMidiFileError(&mfp->err,kNotAMidiFileMfRC);
+    return cmErrMsg(&mfp->err,kNotAMidiFileMfRC,"");
 
   // read the file chunk byte count
   if((rc = _cmMidiFileRead32(mfp,&chunkByteN)) != kOkMfRC )
@@ -423,10 +417,10 @@ int _cmMidiFileSortFunc( const void *p0, const void* p1 )
 {  
   //printf("%i %i\n",(*(cmMidiTrackMsg_t**)p0)->dticks,(*(cmMidiTrackMsg_t**)p1)->dticks);
 
-  if( (*(cmMidiTrackMsg_t**)p0)->dtick == (*(cmMidiTrackMsg_t**)p1)->dtick )
+  if( (*(cmMidiTrackMsg_t**)p0)->atick == (*(cmMidiTrackMsg_t**)p1)->atick )
     return 0;
 
-  return (*(cmMidiTrackMsg_t**)p0)->dtick < (*(cmMidiTrackMsg_t**)p1)->dtick ? -1 : 1;  
+  return (*(cmMidiTrackMsg_t**)p0)->atick < (*(cmMidiTrackMsg_t**)p1)->atick ? -1 : 1;  
 }
 
 cmMfRC_t _cmMidiFileClose( _cmMidiFile_t* mfp )
@@ -440,7 +434,7 @@ cmMfRC_t _cmMidiFileClose( _cmMidiFile_t* mfp )
 
   if( cmFileIsValid( mfp->fh ) )
     if( cmFileClose( &mfp->fh ) != kOkFileRC )
-      rc = _cmMidiFileError(&mfp->err,kSysFcloseFailMfRC);
+      rc = cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file close failed.");
     
   if( cmLHeapIsValid( mfp->lhH ) )
     cmLHeapDestroy(&mfp->lhH);
@@ -467,21 +461,21 @@ cmMfRC_t cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx )
 
   // allocate the midi file object 
   if(( mfp = cmMemAllocZ( _cmMidiFile_t, 1)) == NULL )
-    return rc = _cmMidiFileError(&err,kMemAllocFailMfRC);
+    return rc = cmErrMsg(&err,kMemAllocFailMfRC,"MIDI file memory allocation failed.");
 
   cmErrClone(&mfp->err,&err);
 
   // allocate the linked heap
   if( cmLHeapIsValid( mfp->lhH = cmLHeapCreate( 1024, ctx )) == false )
   {
-    rc = _cmMidiFileError(&err,kMemAllocFailMfRC);
+    rc = cmErrMsg(&err,kMemAllocFailMfRC,"MIDI heap allocation failed.");
     goto errLabel;
   }
 
   // open the file
   if(cmFileOpen(&mfp->fh,fn,kReadFileFl | kBinaryFileFl,mfp->err.rpt) != kOkFileRC )
   {
-    rc = _cmMidiFileError(&mfp->err,kSysFopenFailMfRC);
+    rc = cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file open failed.");
     goto errLabel;
   }
 
@@ -507,7 +501,7 @@ cmMfRC_t cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx )
       //if( fseek( mfp->fp, chkN, SEEK_CUR) != 0 )
       if( cmFileSeek(mfp->fh,kCurFileFl,chkN) != kOkFileRC )
       {
-        rc = _cmMidiFileError(&mfp->err,kSysFseekFailMfRC);
+        rc = cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file seek failed.");
         goto errLabel;
       }
     }  
@@ -541,7 +535,7 @@ cmMfRC_t cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx )
       assert( i < mfp->msgN);
 
       tick          += tmp->dtick; // convert delta-ticks to absolute ticks
-      tmp->dtick      = tick;
+      tmp->atick     = tick;
       mfp->msgV[i]   = tmp;
       tmp            = tmp->link;
       ++i;
@@ -561,6 +555,7 @@ cmMfRC_t cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx )
   //
   // calculate the total duration of the MIDI file and convert absolute ticks back to delta ticks
   //
+  /*
   unsigned mi;
   unsigned prvTick       = 0;
 
@@ -574,13 +569,14 @@ cmMfRC_t cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx )
     prvTick   = mp->dtick;
     mp->dtick = dtick;
   }
+  */
 
   hPtr->h = mfp;
 
  errLabel:
 
   if( cmFileClose(&mfp->fh) != kOkFileRC )
-    rc = _cmMidiFileError(&mfp->err,kCloseFailFileRC);
+    rc = cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file close failed.");
 
   if( rc != kOkMfRC )
     _cmMidiFileClose(mfp);
@@ -603,6 +599,348 @@ cmMfRC_t        cmMidiFileClose( cmMidiFileH_t* h )
   h->h = NULL;
   return rc;
 }
+
+cmMfRC_t _cmMidiFileWrite8( _cmMidiFile_t* mfp, unsigned char v )
+{
+  cmMfRC_t rc = kOkMfRC;
+
+  if( cmFileWriteUChar(mfp->fh,&v,1) != kOkFileRC )
+    rc = cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file byte write failed.");
+
+  return rc;  
+}
+
+cmMfRC_t _cmMidiFileWrite16( _cmMidiFile_t* mfp, unsigned short v )
+{
+  cmMfRC_t rc = kOkMfRC;
+
+  v = mfSwap16(v);
+
+  if( cmFileWriteUShort(mfp->fh,&v,1) != kOkFileRC )
+    rc = cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file short integer write failed.");
+
+  return rc;
+}
+
+cmMfRC_t _cmMidiFileWrite24( _cmMidiFile_t* mfp, unsigned v )
+{
+  cmMfRC_t rc   = kOkMfRC;
+  unsigned mask = 0xff0000;
+  int      i;
+
+  for(i=2; i>=0; --i)
+  {
+    unsigned char c = (v & mask) >> (i*8);
+    mask >>= 8;
+
+    if( cmFileWriteUChar(mfp->fh,&c,1) != kOkFileRC )
+    {
+      rc = cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file 24 bit integer write failed.");
+      goto errLabel;
+    }
+    
+  }
+
+ errLabel:
+  return rc;
+}
+
+cmMfRC_t _cmMidiFileWrite32( _cmMidiFile_t* mfp, unsigned v )
+{
+  cmMfRC_t rc = kOkMfRC;
+
+  v = mfSwap32(v);
+
+  if( cmFileWriteUInt(mfp->fh,&v,1) != kOkFileRC )
+    rc = cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file integer write failed.");
+
+  return rc;
+}
+
+cmMfRC_t _cmMidiFileWriteRecd( _cmMidiFile_t* mfp, const void* v, unsigned byteCnt )
+{
+  cmMfRC_t rc = kOkMfRC;
+
+  if( cmFileWriteChar(mfp->fh,v,byteCnt) != kOkFileRC )  
+    rc = cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file write record failed.");
+
+  return rc;
+}
+
+cmMfRC_t _cmMidiFileWriteVarLen( _cmMidiFile_t* mfp, unsigned v )
+{
+  cmMfRC_t rc = kOkMfRC;
+  unsigned buf = v & 0x7f;
+ 
+  while((v >>= 7) > 0 )
+  {
+    buf <<= 8;          
+    buf |= 0x80;
+    buf += (v & 0x7f);
+  }
+
+  while(1)
+  {
+    unsigned char c = (unsigned char)(buf & 0xff);
+    if( cmFileWriteUChar(mfp->fh,&c,1) != kOkFileRC )
+    {
+      rc = cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file variable length integer write failed.");
+      goto errLabel;
+    }
+
+    if( buf & 0x80 )
+      buf >>= 8;
+    else
+      break;
+  }
+
+ errLabel:
+  return rc;
+}
+
+cmMfRC_t _cmMidiFileWriteHdr( _cmMidiFile_t* mfp )
+{
+  cmMfRC_t rc;
+  unsigned fileId = 'MThd';
+  unsigned chunkByteN = 6;
+
+  // write the file id ('MThd')
+  if((rc = _cmMidiFileWrite32(mfp,fileId)) != kOkMfRC )
+    return rc;
+  
+  // write the file chunk byte count (always 6)
+  if((rc = _cmMidiFileWrite32(mfp,chunkByteN)) != kOkMfRC )
+    return  rc;
+
+  // write the MIDI file format id (0,1,2)
+  if((rc = _cmMidiFileWrite16(mfp,mfp->fmtId)) != kOkMfRC )
+    return rc;
+
+  // write the track count
+  if((rc = _cmMidiFileWrite16(mfp,mfp->trkN)) != kOkMfRC )
+    return rc;
+
+  unsigned short v = 0;
+
+  // if the ticks per quarter note field is valid ...
+  if( mfp->ticksPerQN )
+    v = mfp->ticksPerQN;
+  else
+  {
+    // ... otherwise the division field was given in smpte
+    v  = mfp->smpteFmtId << 8;
+    v += mfp->smpteTicksPerFrame;    
+  }
+
+  if((rc = _cmMidiFileWrite16(mfp,v)) != kOkMfRC )
+    return rc;
+
+  return rc;
+
+}
+
+
+cmMfRC_t _cmMidiFileWriteSysEx( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp )
+{
+  cmMfRC_t     rc = kOkMfRC;
+
+  if((rc = _cmMidiFileWrite8(mfp,kSysExMdId)) != kOkMfRC )
+    goto errLabel;
+
+  if( cmFileWriteUChar(mfp->fh,tmp->u.sysExPtr,tmp->byteCnt) != kOkFileRC )
+    rc = cmErrMsg(&mfp->err,kFileFailMfRC,"Sys-ex msg write failed.");
+
+ errLabel:
+  return rc;
+}
+
+cmMfRC_t _cmMidiFileWriteChannelMsg( _cmMidiFile_t* mfp, const cmMidiTrackMsg_t* tmp, cmMidiByte_t* runStatus )
+{
+  cmMfRC_t     rc     = kOkMfRC;
+  unsigned     byteN  = cmMidiStatusToByteCount(tmp->status);
+  cmMidiByte_t status = tmp->status + tmp->u.chMsgPtr->ch;
+
+  if( status != *runStatus )
+  {
+    *runStatus = status;
+    if((rc = _cmMidiFileWrite8(mfp,status)) != kOkMfRC )
+      goto errLabel;
+  }
+
+  if(byteN>=1)
+    if((rc = _cmMidiFileWrite8(mfp,tmp->u.chMsgPtr->d0)) != kOkMfRC )
+      goto errLabel;
+
+  if(byteN>=2)
+    if((rc = _cmMidiFileWrite8(mfp,tmp->u.chMsgPtr->d1)) != kOkMfRC )
+      goto errLabel;
+
+ errLabel:
+  return rc;
+}
+
+cmMfRC_t _cmMidiFileWriteMetaMsg( _cmMidiFile_t* mfp, const cmMidiTrackMsg_t* tmp )
+{
+  cmMfRC_t     rc;
+
+  if((rc = _cmMidiFileWrite8(mfp,kMetaStId)) != kOkMfRC )
+    return rc;
+
+  if((rc = _cmMidiFileWrite8(mfp,tmp->metaId)) != kOkMfRC )
+    return rc;
+
+
+  switch( tmp->metaId )
+  {
+    case kSeqNumbMdId:
+      if((rc = _cmMidiFileWrite8(mfp,sizeof(tmp->u.sVal))) == kOkMfRC )
+        rc = _cmMidiFileWrite16(mfp,tmp->u.sVal);
+      break;
+
+    case kTempoMdId:
+      if((rc = _cmMidiFileWrite8(mfp,3)) == kOkMfRC )
+        rc = _cmMidiFileWrite24(mfp,tmp->u.iVal); 
+      break;
+
+    case kSmpteMdId:
+        if((rc = _cmMidiFileWrite8(mfp,sizeof(cmMidiSmpte_t))) == kOkMfRC )
+          rc = _cmMidiFileWriteRecd(mfp,tmp->u.smptePtr,sizeof(cmMidiSmpte_t));
+        break;
+          
+    case kTimeSigMdId:
+        if((rc = _cmMidiFileWrite8(mfp,sizeof(cmMidiTimeSig_t))) == kOkMfRC )
+          rc = _cmMidiFileWriteRecd(mfp,tmp->u.timeSigPtr,sizeof(cmMidiTimeSig_t));
+        break;
+
+    case kKeySigMdId:
+        if((rc = _cmMidiFileWrite8(mfp,sizeof(cmMidiKeySig_t))) == kOkMfRC )
+          rc = _cmMidiFileWriteRecd(mfp,tmp->u.keySigPtr,sizeof(cmMidiKeySig_t));
+        break;
+
+    case kSeqSpecMdId:
+        if((rc = _cmMidiFileWriteVarLen(mfp,sizeof(tmp->byteCnt))) == kOkMfRC )
+          rc = _cmMidiFileWriteRecd(mfp,tmp->u.sysExPtr,tmp->byteCnt);
+        break;
+
+    case kMidiChMdId: 
+        if((rc = _cmMidiFileWrite8(mfp,sizeof(tmp->u.bVal))) == kOkMfRC )
+          rc = _cmMidiFileWrite8(mfp,tmp->u.bVal);
+        break;
+
+    case kEndOfTrkMdId:  
+      rc = _cmMidiFileWrite8(mfp,0);
+      break;
+
+    case kTextMdId:      
+    case kCopyMdId:      
+    case kTrkNameMdId:   
+    case kInstrNameMdId: 
+    case kLyricsMdId:    
+    case kMarkerMdId:    
+    case kCuePointMdId:  
+      {
+        unsigned n = tmp->u.text==NULL ? 0 : strlen(tmp->u.text);
+        if((rc = _cmMidiFileWriteVarLen(mfp,n)) == kOkMfRC && n>0 )
+          rc = _cmMidiFileWriteRecd(mfp,tmp->u.text,n);
+      }
+      break;
+
+    default:
+      {
+      // ignore unknown meta messages
+      }
+
+  }
+
+  return rc;
+}
+
+cmMfRC_t _cmMidiFileWriteTrack( _cmMidiFile_t* mfp, unsigned trkIdx )
+{
+  cmMfRC_t           rc        = kOkMfRC;
+  cmMidiTrackMsg_t*  tmp       = mfp->trkV[trkIdx].base;
+  cmMidiByte_t       runStatus = 0;
+
+  for(; tmp!=NULL; tmp=tmp->link)
+  {
+    // write the msg tick count
+    if((rc = _cmMidiFileWriteVarLen(mfp,tmp->dtick)) != kOkMfRC )
+      return rc;
+
+    // switch on status
+    switch( tmp->status )
+    {
+      // handle sys-ex msg
+      case kSysExMdId:
+        rc = _cmMidiFileWriteSysEx(mfp,tmp);
+        break;
+
+        // handle meta msg
+      case kMetaStId:
+        rc = _cmMidiFileWriteMetaMsg(mfp,tmp);
+        break;
+
+      default:
+        // handle channel msg
+        rc = _cmMidiFileWriteChannelMsg(mfp,tmp,&runStatus);
+
+    }
+
+  }
+
+  return rc;
+}
+
+cmMfRC_t   cmMidiFileWrite( cmMidiFileH_t h, const char* fn )
+{
+  cmMfRC_t       rc  = kOkMfRC;
+  _cmMidiFile_t* mfp = _cmMidiFileHandleToPtr(h);
+  unsigned       i;
+
+  // create the output file
+  if( cmFileOpen(&mfp->fh,fn,kWriteFileFl,mfp->err.rpt) != kOkFileRC )
+    return cmErrMsg(&mfp->err,kFileFailMfRC,"The MIDI file '%s' could not be created.",cmStringNullGuard(fn));
+
+  // write the file header
+  if((rc = _cmMidiFileWriteHdr(mfp)) != kOkMfRC )
+  {
+    rc = cmErrMsg(&mfp->err,rc,"The file header write failed on the MIDI file '%s'.",cmStringNullGuard(fn));
+    goto errLabel;
+  }
+
+  for(i=0; i < mfp->trkN; ++i )
+  {
+    unsigned chkId='MTrk';
+    long offs0,offs1;
+
+    // write the track chunk id ('MTrk')
+    if((rc = _cmMidiFileWrite32(mfp,chkId)) != kOkMfRC )
+      goto errLabel;
+
+    cmFileTell(mfp->fh,&offs0);
+
+    // write the track chunk size as zero
+    if((rc = _cmMidiFileWrite32(mfp,0)) != kOkMfRC )
+      goto errLabel;
+
+    if((rc = _cmMidiFileWriteTrack(mfp,i)) != kOkMfRC )
+      goto errLabel;
+
+    cmFileTell(mfp->fh,&offs1);
+
+    cmFileSeek(mfp->fh,kBeginFileFl,offs0);
+
+    _cmMidiFileWrite32(mfp,offs1-offs0-4);
+
+    cmFileSeek(mfp->fh,kBeginFileFl,offs1);
+    
+  }
+
+ errLabel:
+  cmFileClose(&mfp->fh);
+  return rc;
+}
+
 
 bool   cmMidiFileIsValid( cmMidiFileH_t h )
 { return !cmMidiFileIsNull(h); }
@@ -1070,7 +1408,7 @@ void cmMidiFileTestPrint( void* printDataPtr, const char* fmt, va_list vl )
 void cmMidiFileTest( const char* fn, cmCtx_t* ctx )
 {
   cmMfRC_t      rc;
-  cmMidiFileH_t h;
+  cmMidiFileH_t h = cmMidiFileNullHandle;
 
   if((rc = cmMidiFileOpen(fn,&h,ctx)) != kOkMfRC )
   {
@@ -1078,9 +1416,33 @@ void cmMidiFileTest( const char* fn, cmCtx_t* ctx )
     return;
   }
 
-  cmMidiFilePrint(h,cmMidiFileTrackCount(h)-1,&ctx->rpt);
-  
-  printf("Tracks:%i\n",cmMidiFileTrackCount(h));
+  if(1)
+  {
+    //cmMidiFilePrint(h,cmMidiFileTrackCount(h)-1,&ctx->rpt);
+    cmMidiFilePrint(h,cmInvalidIdx,&ctx->rpt);
+  }
+  if( 0 )
+  {
+    printf("Tracks:%i\n",cmMidiFileTrackCount(h));
+
+    unsigned i = 0;
+    for(i=0; i<cmMidiFileMsgCount(h); ++i)
+    {
+      cmMidiTrackMsg_t* tmp = (cmMidiTrackMsg_t*)cmMidiFileMsgArray(h)[i];
+      
+      if( tmp->status==kMetaStId && tmp->metaId == kTempoMdId )
+      {
+        double bpm = 60000000.0/tmp->u.iVal;
+        printf("Tempo:%i %f\n",tmp->u.iVal,bpm);
+
+        tmp->u.iVal = floor( 60000000.0/69.0 );
+
+        break;
+      }
+    }
+
+    cmMidiFileWrite(h,"/home/kevin/temp/test0.mid");
+  }
 
   cmMidiFileClose(&h);
 }
