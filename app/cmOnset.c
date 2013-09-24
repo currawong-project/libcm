@@ -36,6 +36,7 @@ typedef struct
   unsigned       frmCnt;   // spectral frame count
   cmReal_t*      sfV;      // sfV[frmCnt] spectral flux vector
   cmReal_t*      dfV;      // dfV[frmCnt] onset function vector
+  cmReal_t       maxSf;
 
   cmAudioFileInfo_t afInfo;
   unsigned          fftSmpCnt;
@@ -139,15 +140,12 @@ cmOnRC_t cmOnsetFinalize( cmOnH_t* hp )
 bool     cmOnsetIsValid( cmOnH_t h )
 { return h.h!=NULL; }
 
-cmOnRC_t _cmOnsetExec( _cmOn_t* p, unsigned chCnt )
+cmOnRC_t _cmOnsetExec( _cmOn_t* p )
 {
   cmOnRC_t    rc     = kOkOnRC;
   int         fi     = 0;
   unsigned    binCnt = p->binCnt; //p->pvocPtr->binCnt;
   cmReal_t    mag0V[ binCnt ];
-  cmSample_t  out0V[ p->hopSmpCnt ];
-  cmSample_t  out1V[ p->hopSmpCnt ];
-  cmSample_t* aoutV[chCnt];
   double      prog   = 0.1;
   cmReal_t    b0     = 1;
   cmReal_t    b[]    = {1  };
@@ -155,11 +153,6 @@ cmOnRC_t _cmOnsetExec( _cmOn_t* p, unsigned chCnt )
   cmReal_t    d[]    = {0};
   cmReal_t    maxVal = 0;
 
-  if( chCnt > 0 )
-    aoutV[0] = out0V;
-
-  if( chCnt > 1 )
-    aoutV[1] = out1V;
 
   cmVOR_Zero(mag0V,binCnt);
 
@@ -206,11 +199,11 @@ cmOnRC_t _cmOnsetExec( _cmOn_t* p, unsigned chCnt )
   cmReal_t stdDev = sqrt(cmVOR_Variance(p->sfV, p->frmCnt, &mean ));
   cmVOR_SubVS(p->sfV,p->frmCnt,mean);
   cmVOR_DivVS(p->sfV,p->frmCnt,stdDev);
-  cmReal_t maxSf = cmVOR_Max(p->sfV,p->frmCnt,1);
+  p->maxSf = cmVOR_Max(p->sfV,p->frmCnt,1);
   prog = 0.1;
 
   printf("max:%f ",maxVal);
-  printf("mean:%f max:%f sd:%f\n",mean,maxSf,stdDev);
+  printf("mean:%f max:%f sd:%f\n",mean,p->maxSf,stdDev);
 
   // Pick peaks from the onset detection function using a subset
   // of the rules from Dixon, 2006, Onset Detection Revisited.
@@ -222,9 +215,6 @@ cmOnRC_t _cmOnsetExec( _cmOn_t* p, unsigned chCnt )
     int nn = ei - bi;                                       // wnd frm cnt 
     int wi = fi < p->cfg.wndFrmCnt ? fi : p->cfg.wndFrmCnt; // cur wnd index
 
-    // initialize the out
-    cmVOS_Fill(out1V,p->hopSmpCnt,p->sfV[fi]/maxSf);
-    cmVOS_Zero(out0V,p->hopSmpCnt);
 
     p->dfV[fi] = 0;
 
@@ -239,25 +229,10 @@ cmOnRC_t _cmOnsetExec( _cmOn_t* p, unsigned chCnt )
       if( p->sfV[fi] > cmVOR_Mean(p->sfV + bi, nn ) + p->cfg.threshold )
       {
         p->dfV[fi]              = p->sfV[fi];
-        out0V[ p->hopSmpCnt/2 ] = p->sfV[fi]/maxSf;
 
-        unsigned smpIdx = fi * p->hopSmpCnt + p->hopSmpCnt/2;
-
-        // write the output text file
-        if( cmFilePrintf(p->txH, "[ %i, %f ]\n", smpIdx, p->sfV[fi] ) != kOkFileRC )
-        {
-          rc = cmErrMsg(&p->err,kDspTextFileFailOnRC,"Text output write to '%s' failed.", cmFileName(p->txH));
-          goto errLabel;
-        }
       }
     }
 
-    // write the output audio file
-    if( cmAudioFileWriteFloat(p->afH, p->hopSmpCnt, chCnt, aoutV ) != kOkAfRC )
-    {
-      rc = cmErrMsg(&p->err,kDspAudioFileFailOnRC,"Audio file write to '%s' failed.",cmAudioFileName(p->afH));
-      goto errLabel;
-    }
     
     if( fi >= prog*p->frmCnt )
     {
@@ -267,16 +242,13 @@ cmOnRC_t _cmOnsetExec( _cmOn_t* p, unsigned chCnt )
 
   }
     
- errLabel:
-  
   return rc;
 }
 
-cmOnRC_t cmOnsetExec( cmOnH_t h, const cmOnsetCfg_t* cfg, const cmChar_t* inAudioFn, const cmChar_t* outAudioFn, const cmChar_t* outTextFn )
+cmOnRC_t cmOnsetProc( cmOnH_t h, const cmOnsetCfg_t* cfg, const cmChar_t* inAudioFn )
 {
-  cmOnRC_t rc            = kOkOnRC;
-  _cmOn_t* p             = _cmOnsetHandleToPtr(h);
-  unsigned audioOutChCnt = 2;
+  cmOnRC_t rc = kOkOnRC;
+  _cmOn_t* p  = _cmOnsetHandleToPtr(h);
   p->cfg = *cfg;
 
   // get the audio file header information
@@ -307,9 +279,29 @@ cmOnRC_t cmOnsetExec( cmOnH_t h, const cmOnsetCfg_t* cfg, const cmChar_t* inAudi
     goto errLabel;
   }
 
+
+  rc = _cmOnsetExec(p);
+
+ errLabel:
+  return rc;
+}
+
+cmOnRC_t cmOnsetWrite( cmOnH_t h, const cmChar_t* outAudioFn, const cmChar_t* outTextFn)
+{
+  enum { kChCnt = 2 };
+  cmOnRC_t rc  = kOkOnRC;
+  _cmOn_t* p   = _cmOnsetHandleToPtr(h);
+
+  cmSample_t  out0V[ p->hopSmpCnt ];  
+  cmSample_t  out1V[ p->hopSmpCnt ];
+  cmSample_t* aoutV[kChCnt];
+
+  aoutV[0] = out0V;
+  aoutV[1] = out1V;
+
   // initalize the audio output file
   if( outAudioFn != NULL )
-    if( cmAudioFileIsValid( p->afH = cmAudioFileNewCreate( outAudioFn, p->afInfo.srate, p->afInfo.bits, audioOutChCnt, NULL, p->err.rpt)) == false )
+    if( cmAudioFileIsValid( p->afH = cmAudioFileNewCreate( outAudioFn, p->afInfo.srate, p->afInfo.bits, kChCnt, NULL, p->err.rpt)) == false )
     {
       rc = cmErrMsg(&p->err,kDspAudioFileFailOnRC, "The audio output file '%s' could not be opened.", outAudioFn);
       goto errLabel;
@@ -327,9 +319,47 @@ cmOnRC_t cmOnsetExec( cmOnH_t h, const cmOnsetCfg_t* cfg, const cmChar_t* inAudi
     cmFilePrint(p->txH,"{\n onsetArray : \n[\n");
   }
 
-  rc = _cmOnsetExec(p,audioOutChCnt);
+  // rewind the audio file
+  cmAudioFileRdSeek(p->afRdPtr,0);
 
- errLabel:
+  unsigned fi;
+  for(fi=0; fi<p->frmCnt; ++fi)
+  {
+    // audio channel 1 is filled with the spectral flux
+    // initialize the out
+    cmVOS_Fill(out1V,p->hopSmpCnt,p->sfV[fi]/p->maxSf);
+    cmVOS_Zero(out0V,p->hopSmpCnt);
+
+    if( p->dfV[fi] > 0 )
+    {
+      // audio channel 0 is set with the detection indicators
+      unsigned smpIdx = fi * p->hopSmpCnt + p->hopSmpCnt/2;
+      out0V[ p->hopSmpCnt/2 ] = p->sfV[fi]/p->maxSf;
+
+
+      // write the output text file
+      if( cmFileIsValid(p->txH) )
+        if( cmFilePrintf(p->txH, "[ %i, %f ]\n", smpIdx, p->sfV[fi] ) != kOkFileRC )
+        {
+          rc = cmErrMsg(&p->err,kDspTextFileFailOnRC,"Text output write to '%s' failed.", cmFileName(p->txH));
+          goto errLabel;
+        }
+    }
+
+    // write the output audio file
+    if( cmAudioFileIsValid(p->afH) && cmAudioFileRdRead(p->afRdPtr) == cmOkRC )
+    {
+      aoutV[0] = p->afRdPtr->outV;
+
+      if( cmAudioFileWriteFloat(p->afH, p->hopSmpCnt, kChCnt, aoutV ) != kOkAfRC )
+      {
+        rc = cmErrMsg(&p->err,kDspAudioFileFailOnRC,"Audio file write to '%s' failed.",cmAudioFileName(p->afH));
+        goto errLabel;
+      }
+    }
+
+  }
+  
   // close the output audio file
   if( cmAudioFileDelete(&p->afH) != kOkAfRC )
     rc = cmErrMsg(&p->err,kDspAudioFileFailOnRC,"The audio file close failed.");
@@ -342,9 +372,11 @@ cmOnRC_t cmOnsetExec( cmOnH_t h, const cmOnsetCfg_t* cfg, const cmChar_t* inAudi
     if( cmFileClose(&p->txH) != kOkFileRC )
       rc = cmErrMsg(&p->err,kDspTextFileFailOnRC,"The text file close failed.");
   }
-  return rc;  
-}
 
+ errLabel:
+  return rc;  
+
+}
 
 cmOnRC_t cmOnsetTest( cmCtx_t* c )
 {
@@ -367,7 +399,9 @@ cmOnRC_t cmOnsetTest( cmCtx_t* c )
   if((rc = cmOnsetInitialize(c,&h)) != kOkOnRC )
     goto errLabel;
   
-  rc = cmOnsetExec(h,&cfg,inAudioFn,outAudioFn,outTextFn);
+  if((rc = cmOnsetProc(h,&cfg,inAudioFn)) == kOkOnRC )
+    cmOnsetWrite(h,outAudioFn,outTextFn);
+  
   
  errLabel:
   cmOnsetFinalize(&h);

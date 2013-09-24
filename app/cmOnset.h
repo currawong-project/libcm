@@ -38,12 +38,15 @@ extern "C" {
 
   bool     cmOnsetIsValid( cmOnH_t h );
 
-  cmOnRC_t cmOnsetExec( 
+  cmOnRC_t cmOnsetProc( 
     cmOnH_t h, 
     const cmOnsetCfg_t* cfg, 
-    const cmChar_t* inAudioFn, 
+    const cmChar_t* inAudioFn );
+
+  cmOnRC_t cmOnsetWrite(
+    cmOnH_t h,
     const cmChar_t* outAudioFn, 
-    const cmChar_t* outTextFn );
+    const cmChar_t* outTextFn);
 
   cmOnRC_t cmOnsetTest( cmCtx_t* c );
 
