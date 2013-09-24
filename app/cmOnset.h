@@ -16,17 +16,24 @@ extern "C" {
   typedef cmRC_t     cmOnRC_t;
   typedef cmHandle_t cmOnH_t;
 
+  enum { kNoneFiltId, kSmoothFiltId, kMedianFiltId };
+
   typedef struct
   {
     double   wndMs;
     unsigned hopFact;
     unsigned audioChIdx;
 
-    unsigned wndFrmCnt;   // 
-    double   preWndMult;  //
-    double   threshold;   //
-    double   maxFrqHz;    //
-    double   filtCoeff;   //
+    unsigned wndFrmCnt;   // Detection window length
+    double   preWndMult;  // Detection window stretch factor prior to current location.
+    double   threshold;   // Spectal flux detection threshold
+    double   maxFrqHz;    // Ignore frequencies above maxFrqHz during processing.
+    double   filtCoeff;   // smoothing filter coeff (-.7)
+    double   medFiltWndMs;// median filter window in milliseconds
+    unsigned filterId;    // kSmoothFiltId || kMedianFiltId
+    double   preDelayMs;  // move each detection preDelayMs backwards in time 
+                          // on the audio output. (compensates for detection delay due to filtering)
+
     
   } cmOnsetCfg_t;
 

@@ -42,7 +42,8 @@ typedef struct
   unsigned          fftSmpCnt;
   unsigned          hopSmpCnt;
   unsigned          binCnt;
-
+  unsigned          medFiltFrmCnt;
+  unsigned          preDelaySmpCnt;
 } _cmOn_t;
 
 cmOnH_t cmOnsetNullHandle = cmSTATIC_NULL_HANDLE;
@@ -160,7 +161,7 @@ cmOnRC_t _cmOnsetExec( _cmOn_t* p )
   for(; fi<p->frmCnt && cmAudioFileRdRead(p->afRdPtr) != cmEofRC; ++fi )
   {
     // calc the spectrum 
-    while( cmPvAnlExec(p->pvocPtr, p->afRdPtr->outV, p->afRdPtr->outN ) )
+    if( cmPvAnlExec(p->pvocPtr, p->afRdPtr->outV, p->afRdPtr->outN ))
     {
       unsigned i;
 
@@ -182,7 +183,23 @@ cmOnRC_t _cmOnsetExec( _cmOn_t* p )
       p->sfV[fi] = sf;
 
       // filter the spectral flux 
-      cmVOR_Filter( p->sfV + fi, 1, &sf, 1, b0, b, a, d, 1 );
+      switch( p->cfg.filterId)
+      {
+        case kNoneFiltId:
+          break;
+        case kSmoothFiltId:
+          cmVOR_Filter( p->sfV + fi, 1, &sf, 1, b0, b, a, d, 1 );
+          break;
+        case kMedianFiltId:
+          {
+            cmReal_t* mfb = p->sfV + cmMax(0,fi-17);
+            if( mfb < p->sfV-3 )
+              p->sfV[fi] = cmVOR_Median(mfb,p->sfV-mfb);
+          }
+          break;
+        default:
+          { assert(0); }
+      }
 
       if( fi >= prog*p->frmCnt )
       {
@@ -228,8 +245,7 @@ cmOnRC_t _cmOnsetExec( _cmOn_t* p )
       // if the cur value is greater than the mean of the extended window plus a threshold
       if( p->sfV[fi] > cmVOR_Mean(p->sfV + bi, nn ) + p->cfg.threshold )
       {
-        p->dfV[fi]              = p->sfV[fi];
-
+        p->dfV[fi]  = p->sfV[fi];
       }
     }
 
@@ -258,12 +274,18 @@ cmOnRC_t cmOnsetProc( cmOnH_t h, const cmOnsetCfg_t* cfg, const cmChar_t* inAudi
     goto errLabel;
   }
 
-  p->fftSmpCnt = cmNearPowerOfTwo( (unsigned)floor( p->cfg.wndMs * p->afInfo.srate / 1000.0 ) );
-  p->hopSmpCnt = p->fftSmpCnt / p->cfg.hopFact;
-  p->binCnt    = cmMin(p->fftSmpCnt/2 + 1, floor(p->cfg.maxFrqHz / (p->afInfo.srate / p->fftSmpCnt)));
-  p->frmCnt    = (p->afInfo.frameCnt - p->fftSmpCnt) / p->hopSmpCnt;
-  p->sfV       = cmMemResizeZ(cmReal_t,p->sfV,p->frmCnt);
-  p->dfV       = cmMemResizeZ(cmReal_t,p->dfV,p->frmCnt);
+  p->fftSmpCnt     = cmNearPowerOfTwo( (unsigned)floor( p->cfg.wndMs * p->afInfo.srate / 1000.0 ) );
+  p->hopSmpCnt     = p->fftSmpCnt / p->cfg.hopFact;
+  p->binCnt        = cmMin(p->fftSmpCnt/2 + 1, floor(p->cfg.maxFrqHz / (p->afInfo.srate / p->fftSmpCnt)));
+  p->frmCnt        = (p->afInfo.frameCnt - p->fftSmpCnt) / p->hopSmpCnt;
+  p->sfV           = cmMemResizeZ(cmReal_t,p->sfV,p->frmCnt);
+  p->dfV           = cmMemResizeZ(cmReal_t,p->dfV,p->frmCnt);
+  p->medFiltFrmCnt = cmMax(3,floor(cfg->medFiltWndMs * p->afInfo.srate / (1000.0 * p->hopSmpCnt)));
+  p->preDelaySmpCnt= floor(cfg->preDelayMs * p->afInfo.srate / 1000.0);
+
+  cmRptPrintf(p->err.rpt,"Analysis Hop Duration: %8.2f ms %i smp\n",(double)p->hopSmpCnt*1000/p->afInfo.srate,p->hopSmpCnt);  
+  cmRptPrintf(p->err.rpt,"Median Filter Window:  %8.2f ms %i frames\n",cfg->medFiltWndMs,p->medFiltFrmCnt);
+  cmRptPrintf(p->err.rpt,"Detection Pre-delay:   %8.2f ms %i smp\n",cfg->preDelayMs, p->preDelaySmpCnt);
 
   // initialize the audio file reader
   if( cmAudioFileRdOpen( p->afRdPtr, p->hopSmpCnt, inAudioFn, p->cfg.audioChIdx, 0, cmInvalidIdx ) != cmOkRC )
@@ -295,6 +317,7 @@ cmOnRC_t cmOnsetWrite( cmOnH_t h, const cmChar_t* outAudioFn, const cmChar_t* ou
   cmSample_t  out0V[ p->hopSmpCnt ];  
   cmSample_t  out1V[ p->hopSmpCnt ];
   cmSample_t* aoutV[kChCnt];
+  unsigned    pdn = 0;
 
   aoutV[0] = out0V;
   aoutV[1] = out1V;
@@ -319,12 +342,12 @@ cmOnRC_t cmOnsetWrite( cmOnH_t h, const cmChar_t* outAudioFn, const cmChar_t* ou
     cmFilePrint(p->txH,"{\n onsetArray : \n[\n");
   }
 
-  // rewind the audio file
-  cmAudioFileRdSeek(p->afRdPtr,0);
-
   unsigned fi;
   for(fi=0; fi<p->frmCnt; ++fi)
   {
+    // count of samples to write to the audio output file
+    unsigned osn = p->hopSmpCnt;
+
     // audio channel 1 is filled with the spectral flux
     // initialize the out
     cmVOS_Fill(out1V,p->hopSmpCnt,p->sfV[fi]/p->maxSf);
@@ -337,6 +360,18 @@ cmOnRC_t cmOnsetWrite( cmOnH_t h, const cmChar_t* outAudioFn, const cmChar_t* ou
       out0V[ p->hopSmpCnt/2 ] = p->sfV[fi]/p->maxSf;
 
 
+      // if the pre-delay is still active
+      if( pdn < p->preDelaySmpCnt )
+      {
+        osn = 0;
+
+        pdn += p->hopSmpCnt;
+
+        if( pdn > p->preDelaySmpCnt )
+          osn = pdn - p->preDelaySmpCnt;
+      }
+
+
       // write the output text file
       if( cmFileIsValid(p->txH) )
         if( cmFilePrintf(p->txH, "[ %i, %f ]\n", smpIdx, p->sfV[fi] ) != kOkFileRC )
@@ -347,11 +382,9 @@ cmOnRC_t cmOnsetWrite( cmOnH_t h, const cmChar_t* outAudioFn, const cmChar_t* ou
     }
 
     // write the output audio file
-    if( cmAudioFileIsValid(p->afH) && cmAudioFileRdRead(p->afRdPtr) == cmOkRC )
+    if( osn > 0 && cmAudioFileIsValid(p->afH) )
     {
-      aoutV[0] = p->afRdPtr->outV;
-
-      if( cmAudioFileWriteFloat(p->afH, p->hopSmpCnt, kChCnt, aoutV ) != kOkAfRC )
+      if( cmAudioFileWriteFloat(p->afH, osn, kChCnt, aoutV ) != kOkAfRC )
       {
         rc = cmErrMsg(&p->err,kDspAudioFileFailOnRC,"Audio file write to '%s' failed.",cmAudioFileName(p->afH));
         goto errLabel;
@@ -383,9 +416,9 @@ cmOnRC_t cmOnsetTest( cmCtx_t* c )
   cmOnsetCfg_t    cfg;
   cmOnH_t         h          = cmOnsetNullHandle;
   cmOnRC_t        rc         = kOkOnRC;
-  const cmChar_t* inAudioFn  = "/home/kevin/temp/onset0.wav";
-  const cmChar_t* outAudioFn = "/home/kevin/temp/mas/mas0.aif";
-  const cmChar_t* outTextFn  = "/home/kevin/temp/mas/mas0.txt";
+  const cmChar_t* inAudioFn  = "/home/kevin/media/audio/20110723-Kriesberg/Audio Files/Piano 3_15.wav";
+  const cmChar_t* outAudioFn = "/home/kevin/temp/ons/ons0.aif";
+  const cmChar_t* outTextFn  = "/home/kevin/temp/ons/ons0.txt";
 
   cfg.wndMs      = 42;
   cfg.hopFact    = 4;
@@ -395,6 +428,9 @@ cmOnRC_t cmOnsetTest( cmCtx_t* c )
   cfg.threshold  = 0.6;
   cfg.maxFrqHz   = 24000;
   cfg.filtCoeff  = -0.7;
+  cfg.medFiltWndMs = 50;
+  cfg.filterId     = kMedianFiltId;
+  cfg.preDelayMs   = 20;
 
   if((rc = cmOnsetInitialize(c,&h)) != kOkOnRC )
     goto errLabel;
