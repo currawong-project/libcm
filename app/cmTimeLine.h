@@ -23,7 +23,9 @@ extern "C" {
     kTypeCvtFailTlRC,
     kUnknownRecdTypeTlRC,
     kFinalizeFailTlRC,
-    kInvalidSeqIdTlRC
+    kInvalidSeqIdTlRC,
+    kOnsetFailTlRC,
+    kAssertFailTlRC
   };
 
   typedef enum
@@ -40,6 +42,14 @@ extern "C" {
     kReservedTlFl = 0x01,
     kNoWriteTlFl  = 0x02  // do not write this object in cmTimeLineWrite()
   };
+
+  // marker types
+  enum
+  {
+    kAudioMarkTlId,
+    kAudioOnsetMarkTlId,
+    kMidiOnsetMarkTlId
+  }; 
 
   typedef void (*cmTlCb_t)( void* arg, const void* data, unsigned byteCnt );
 
@@ -67,11 +77,15 @@ extern "C" {
     cmChar_t*     fn;
   } cmTlMidiFile_t;
 
+  // MIDI events generated from MIDI files reference the previous
+  // MIDI event and the first event in the file references the 
+  // file object. The 'begSmpIdx' is therefore a delta value
+  // from the previous event.
   typedef struct
   {
-    cmTlObj_t               obj;
+    cmTlObj_t               obj; //
     unsigned                midiFileObjId;
-    const cmMidiTrackMsg_t* msg;       // w/ dticks converted to microsecs
+    const cmMidiTrackMsg_t* msg;       // w/ dticks converted to samples
   } cmTlMidiEvt_t;
 
 
@@ -95,6 +109,7 @@ extern "C" {
   typedef struct
   {
     cmTlObj_t        obj;
+    unsigned         typeId;         // marker type see kXXXMarkTlId above.
     const cmChar_t*  text;
     unsigned         bar;            // measure (bar) in which this marker starts
     const cmChar_t*  sectionStr;     // the section in which this marker starts
@@ -190,6 +205,10 @@ extern "C" {
 
   // Make notifications for all records belonging to the sequence.
   cmTlRC_t cmTimeLineSeqNotify( cmTlH_t h, unsigned seqId );
+
+  // Create and make notification for audio/MIDI onset marks.
+  cmTlRC_t cmTimeLineGenOnsetMarks( cmTlH_t h, unsigned seqId );
+  cmTlRC_t cmTimeLineDeleteOnsetMarks( cmTlH_t h, unsigned seqId );
 
   cmTlRC_t cmTimeLineWrite( cmTlH_t h, const cmChar_t* fn );
 

@@ -7,11 +7,13 @@
 #include "cmMallocDebug.h"
 #include "cmLinkedHeap.h"
 #include "cmJson.h"
+#include "cmText.h"
 #include "cmAudioFile.h"
 #include "cmMidi.h"
 #include "cmMidiFile.h"
 #include "cmFileSys.h"
 #include "cmTimeLine.h"
+#include "cmOnset.h"
 
 // id's used to track the type of a serialized object
 enum
@@ -62,6 +64,7 @@ typedef struct
   unsigned        seqCnt;
   _cmTlSeq_t*     seq;          // seq[seqCnt]
   const cmChar_t* filename;
+  cmOnsetCfg_t    onsetCfg;
 } _cmTl_t;
 
 typedef struct
@@ -646,10 +649,7 @@ cmTlRC_t _cmTlProcMidiFile( _cmTl_t* p,  _cmTlObj_t* op, cmMidiFileH_t mfH )
   unsigned                 mn           = cmMidiFileMsgCount(mfH);
   const cmMidiTrackMsg_t** mapp         = cmMidiFileMsgArray(mfH);
   unsigned                 mi           = 0;
-  //double                   accum = 0; 
   _cmTlObj_t*              refOp        = op;
-  //bool                     fl           = false;
-  unsigned                 dtick        = 0;
   mfp->noteOnCnt = 0;
   
   // for each midi message
@@ -658,18 +658,7 @@ cmTlRC_t _cmTlProcMidiFile( _cmTl_t* p,  _cmTlObj_t* op, cmMidiFileH_t mfH )
     _cmTlObj_t*             meop = NULL;
     const cmMidiTrackMsg_t* mp   = mapp[mi];
 
-    dtick = mp->dtick;
-
-    //if( fl )
-    //{
-    //  dtick = 0;
-    //  fl =  mp->dtick == 0;        
-    //}
-      
-    //accum += dtick * p->srate / 1000000;
-
-    //int      begSmpIdx         = floor(accum_micros * p->srate / 1000000);
-    int      begSmpIdx         = dtick; //floor( dtick * p->srate / 1000000.0 );
+    int      begSmpIdx         = mp->dtick;
     int      durSmpCnt         = 0;
     unsigned midiTrkMsgByteCnt = cmMidiFilePackTrackMsgBufByteCount( mp );
     unsigned recdByteCnt       = sizeof(cmTlMidiEvt_t) + midiTrkMsgByteCnt;
@@ -680,7 +669,6 @@ cmTlRC_t _cmTlProcMidiFile( _cmTl_t* p,  _cmTlObj_t* op, cmMidiFileH_t mfH )
     // count the note-on messages
     if( mp->status == kNoteOnMdId )
     {
-      //durSmpCnt = floor(mp->u.chMsgPtr->durTicks * p->srate  / 1000000.0 );
       durSmpCnt = mp->u.chMsgPtr->durTicks;
       ++mfp->noteOnCnt;
     }
@@ -712,9 +700,6 @@ cmTlRC_t _cmTlProcMidiFile( _cmTl_t* p,  _cmTlObj_t* op, cmMidiFileH_t mfH )
     // verify that the memory allocation was calculated correctly
     assert( cp + recdByteCnt == ((char*)mep->msg) + midiTrkMsgByteCnt);
 
-    // notify any listeners that a new midi event was created by sending a kObjTlId msg.
-    //_cmTlNotifyListener(p, kInsertMsgTlId, meop );
-    
     // this midi event is the ref. for the next midi evt
     refOp = meop;
   }
@@ -741,7 +726,7 @@ cmTlRC_t _cmTlAllocMidiFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
 
   unsigned durSmpCnt = floor(cmMidiFileDurSecs(mfH)*p->srate);
 
-  // convert the midi file from ticks to microseconds
+  // convert the midi file from delta ticks to delta samples
   cmMidiFileTickToSamples(mfH,p->srate,false);
 
   // assign note durations to all note-on msg's
@@ -768,9 +753,6 @@ cmTlRC_t _cmTlAllocMidiFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
 
   op->obj->text = mp->fn;
 
-  // notifiy any listeners that a midi file object was created
-  //_cmTlNotifyListener(p, kInsertMsgTlId, op );
-
   // insert the events in the midi file as individual time line objects
   if((rc = _cmTlProcMidiFile(p, op, mfH)) != kOkTlRC )
     goto errLabel;
@@ -790,7 +772,7 @@ cmTlRC_t _cmTlAllocMidiFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
   return rc;
 }
 
-cmTlRC_t _cmTlAllocMarkerRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar_t* refIdStr, int begSmpIdx, unsigned durSmpCnt, unsigned seqId, const cmChar_t* text, unsigned bar, const cmChar_t* sectionStr )
+cmTlRC_t _cmTlAllocMarkerRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar_t* refIdStr, int begSmpIdx, unsigned durSmpCnt, unsigned seqId, const cmChar_t* text, unsigned bar, const cmChar_t* sectionStr, unsigned markerTypeId, cmTlObj_t* refObjPtr )
 {
   cmTlRC_t        rc      = kOkTlRC;
   _cmTlObj_t*     op      = NULL;
@@ -800,8 +782,12 @@ cmTlRC_t _cmTlAllocMarkerRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar
   // add memory at the end of the the cmTlMarker_t record to hold the text string.
   unsigned recdByteCnt = sizeof(cmTlMarker_t) + strlen(textStr) + sizeof(bar) + strlen(sectStr) + 2;
 
+  if(refIdStr == NULL )
+    rc = _cmTlAllocRecd2(p,nameStr,(_cmTlObj_t*)refObjPtr->reserved,begSmpIdx,durSmpCnt,kMarkerTlId,seqId,recdByteCnt,&op);
+  else
+    rc = _cmTlAllocRecd(p,nameStr,refIdStr,begSmpIdx,durSmpCnt,kMarkerTlId,seqId,recdByteCnt,&op);
 
-  if((rc = _cmTlAllocRecd(p,nameStr,refIdStr,begSmpIdx,durSmpCnt,kMarkerTlId,seqId,recdByteCnt,&op)) != kOkTlRC )
+  if(rc != kOkTlRC )
     goto errLabel;
 
   assert(op != NULL);
@@ -819,14 +805,16 @@ cmTlRC_t _cmTlAllocMarkerRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar
   cmChar_t* sp = tp + strlen(tp) + 1;
   strcpy(sp,sectStr);
 
+  // onset markers are generated but not written
+  if( markerTypeId != kAudioMarkTlId )
+    mp->obj.flags = cmSetFlag(mp->obj.flags,kNoWriteTlFl);
+
+  mp->typeId     = markerTypeId;
   mp->text       = tp;
   mp->sectionStr = sp;
   mp->bar        = bar;
   op->obj->text  = tp;
 
-  // notify listeners
-  //_cmTlNotifyListener(p, kInsertMsgTlId, op );
-  
  errLabel:
   if( op != NULL && rc != kOkTlRC )
     _cmTlDeleteRecd(p,op);
@@ -858,9 +846,6 @@ cmTlRC_t _cmTlAllocAudioEvtRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
   mp->text = tp;
   op->obj->text = tp;
 
-  // notify listeners
-  //_cmTlNotifyListener(p, kInsertMsgTlId, op );
-
  errLabel:
   if( op != NULL && rc != kOkTlRC )
     _cmTlDeleteRecd(p,op);
@@ -877,7 +862,7 @@ cmTlRC_t _cmTlAllocRecdFromJson(_cmTl_t* p,const cmChar_t* nameStr, const cmChar
   {
     case kAudioFileTlId: rc = _cmTlAllocAudioFileRecd(p,nameStr,refIdStr,begSmpIdx,          seqId,textStr); break;
     case kMidiFileTlId:  rc = _cmTlAllocMidiFileRecd( p,nameStr,refIdStr,begSmpIdx,          seqId,textStr); break;
-    case kMarkerTlId:    rc = _cmTlAllocMarkerRecd(   p,nameStr,refIdStr,begSmpIdx,durSmpCnt,seqId,textStr,bar,sectionStr); break;
+    case kMarkerTlId:    rc = _cmTlAllocMarkerRecd(   p,nameStr,refIdStr,begSmpIdx,durSmpCnt,seqId,textStr,bar,sectionStr,kAudioMarkTlId,NULL); break;
     case kAudioEvtTlId:  rc = _cmTlAllocAudioEvtRecd( p,nameStr,refIdStr,begSmpIdx,durSmpCnt,seqId,textStr); break;
     default:
       rc = cmErrMsg(&p->err,kParseFailTlRC,"'%s' is not a valid 'objArray' record type.",cmStringNullGuard(typeIdStr));
@@ -901,8 +886,6 @@ cmTlRC_t _cmTimeLineFinalize( _cmTl_t* p )
   cmMemFree(p->seq);
 
   cmLHeapDestroy(&p->lH);
-
-  //_cmTlNotifyListener(p, kFinalMsgTlId, NULL );
 
   cmMemPtrFree(&p->tmpBuf);
 
@@ -1344,13 +1327,16 @@ cmTlRC_t _cmTlParseErr( cmErr_t* err, const cmChar_t* errLabelPtr, unsigned idx,
 
   return rc;
 }
+
     
 cmTlRC_t cmTimeLineReadJson(  cmTlH_t* hp, const cmChar_t* ifn )
 {
   cmTlRC_t        rc  = kOkTlRC;
+  cmJsRC_t        jsRC = kOkJsRC;
   cmJsonH_t       jsH = cmJsonNullHandle;
-  cmJsonNode_t*   jnp;
-  const cmChar_t* errLabelPtr;
+  cmJsonNode_t*   jnp = NULL;
+  cmJsonNode_t*   cnp = NULL;
+  const cmChar_t* errLabelPtr = NULL;
   int i;
 
   _cmTl_t* p = _cmTlHandleToPtr(*hp);
@@ -1367,10 +1353,36 @@ cmTlRC_t cmTimeLineReadJson(  cmTlH_t* hp, const cmChar_t* ifn )
 
   if( cmJsonMemberValues(jnp,&errLabelPtr,
       "srate",kRealTId,&p->srate,
+      "onset",kObjectTId,&cnp,
       "objArray",kArrayTId,&jnp,
       NULL) != kOkJsRC )
   {
-    rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' object header parse failed in '%s'.",cmStringNullGuard(ifn));
+    if(jsRC == kNodeNotFoundJsRC )
+      rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' header required field:'%s' was not found in '%s'.",errLabelPtr,cmStringNullGuard(ifn));
+    else
+      rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' object header parse failed in '%s'.",cmStringNullGuard(ifn));
+    goto errLabel;
+  }
+
+  if((jsRC = cmJsonMemberValues(cnp,&errLabelPtr,
+      "wndMs",        kRealTId, &p->onsetCfg.wndMs,
+      "hopFact",      kIntTId,  &p->onsetCfg.hopFact,
+      "audioChIdx",   kIntTId,  &p->onsetCfg.audioChIdx,
+      "wndFrmCnt",    kIntTId,  &p->onsetCfg.wndFrmCnt,
+      "preWndMult",   kRealTId, &p->onsetCfg.preWndMult,
+      "threshold",    kRealTId, &p->onsetCfg.threshold,
+      "maxFrqHz",     kRealTId, &p->onsetCfg.maxFrqHz,
+      "filtCoeff",    kRealTId, &p->onsetCfg.filtCoeff,
+      "medFiltWndMs", kRealTId, &p->onsetCfg.medFiltWndMs,
+      "filterId",     kIntTId,  &p->onsetCfg.filterId,
+      "preDelayMs",   kRealTId, &p->onsetCfg.preDelayMs,
+        NULL)) !=        kOkJsRC )
+  {
+    
+    if(jsRC == kNodeNotFoundJsRC )
+      rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' onset analysizer cfg. required field:'%s' was not found in '%s'.",errLabelPtr,cmStringNullGuard(ifn));
+    else
+      rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' onset analyzer cfg.  in '%s'.",cmStringNullGuard(ifn));
     goto errLabel;
   }
 
@@ -1443,6 +1455,144 @@ cmTlRC_t cmTimeLineSeqNotify( cmTlH_t h, unsigned seqId )
 
   return rc;
 }
+
+cmTlRC_t cmTimeLineGenOnsetMarks( cmTlH_t h, unsigned seqId )
+{
+  cmTlRC_t   rc         = kOkTlRC;
+  _cmTl_t*   p          = _cmTlHandleToPtr(h);
+  cmTlObj_t* op         = NULL;
+  cmOnH_t    onsH       = cmOnsetNullHandle;
+  cmChar_t*  textStr    = "";
+  cmChar_t*  sectionStr = "";
+  unsigned   bar        = cmInvalidIdx;
+  unsigned   i,j;
+  unsigned   smpIdx;
+
+  // initialize the audio onset analyzer
+  if( cmOnsetInitialize(&p->ctx, &onsH ) != kOkOnRC )
+  {
+    rc = cmErrMsg(&p->err,kOnsetFailTlRC,"Audio onset analyzer initialization failed.");
+    goto errLabel;
+  }
+
+  // for each audio file
+  
+  for(i=0; (op = cmTimeLineNextTypeObj(h, op, seqId, kAudioFileTlId )) != NULL; ++i)
+  {
+    cmTlAudioFile_t* aop = NULL;
+
+    // get a pointer to this audio file object
+    if((aop = cmTlAudioFileObjPtr(h, op )) == NULL )
+    {
+      rc = cmErrMsg(&p->err,kTypeCvtFailTlRC,"Unexpected audio file object type conversion failure.");
+      goto errLabel;
+    }
+
+    // analyze the onsets in this audio file
+    if( cmOnsetProc(onsH,&p->onsetCfg,aop->fn) != kOkOnRC)
+    {
+      rc = cmErrMsg(&p->err,kOnsetFailTlRC,"Audio onset analyzer failed during processing.");
+      goto errLabel;
+    }
+    
+    // for each detected onset
+    for(j=0; (smpIdx = cmOnsetSampleIndex(onsH,j))!=cmInvalidIdx; ++j)
+    {
+      cmChar_t* labelStr   = NULL;
+
+      labelStr = cmTsPrintfP(labelStr,"a-%i-%i",i,j);
+
+      // generate a marker record
+      rc = _cmTlAllocMarkerRecd(p, labelStr, aop->obj.name, smpIdx, cmOnsetHopSampleCount(onsH), seqId, textStr, bar, sectionStr, kAudioOnsetMarkTlId,NULL );
+
+      cmMemFree(labelStr);
+
+      if( rc != kOkTlRC )
+        goto errLabel;
+    }    
+  }
+
+  unsigned       intervalSmpCnt = 0;
+  cmTlMidiEvt_t* max_eop        = NULL;
+  cmTlObj_t*     fop            = NULL;
+  unsigned       midiFileObjId  = cmInvalidId;
+ 
+  op = NULL;
+  for(i=0; (op = cmTimeLineNextTypeObj(h, op, seqId, kMidiEvtTlId )) != NULL; ++i)
+  {
+    cmTlMidiEvt_t* eop = NULL;
+
+    // get a pointer to this event object
+    if((eop = cmTlMidiEvtObjPtr(h, op )) == NULL )
+    {
+      rc = cmErrMsg(&p->err,kTypeCvtFailTlRC,"Unexpected MIDI event object type conversion failure.");
+      goto errLabel;
+    }
+
+    // if this is the first event in a new MIDI file
+    if(eop->midiFileObjId != midiFileObjId)
+    {
+      // get the MIDI file object
+      if((fop = cmTimeLineIdToObj(h,seqId,eop->midiFileObjId)) == NULL )
+      {
+        rc = cmErrMsg(&p->err,kAssertFailTlRC,"The MIDi file associated with a MIDI event could not be found.");
+        goto errLabel;
+      }
+
+      midiFileObjId  = eop->midiFileObjId;
+      max_eop        = NULL;
+      intervalSmpCnt = 0;
+      j              = 0;
+    }
+
+    // if we have reviewed one second of MIDI events
+    if( intervalSmpCnt > p->srate )
+    {
+      // rewind the interval accumulator to less than one second
+      while(intervalSmpCnt >= p->srate )
+        intervalSmpCnt -= p->srate;
+
+      // if a max veloctiy event was selected ...
+      if( max_eop != NULL )
+      {
+        cmChar_t* labelStr = NULL;
+        labelStr = cmTsPrintfP(labelStr,"%i-%i",i,j);
+
+        // ... generate a marker record
+        rc = _cmTlAllocMarkerRecd(p, labelStr, NULL, 0, cmOnsetHopSampleCount(onsH), seqId, textStr, bar, sectionStr, kMidiOnsetMarkTlId, &max_eop->obj );
+    
+        cmMemFree(labelStr);
+
+        if( rc != kOkTlRC )
+          goto errLabel;
+
+        max_eop = NULL;
+
+        ++j;
+      }
+
+    }
+
+    // update the max velocity event
+    if( max_eop==NULL || (eop->msg->status == kNoteOnMdId && eop->msg->u.chMsgPtr->d1>0 && max_eop->msg->u.chMsgPtr->d1 < eop->msg->u.chMsgPtr->d1) )
+      max_eop = eop;
+
+    // increment the interval accumulator
+    intervalSmpCnt += eop->obj.begSmpIdx;
+    
+  }
+
+ errLabel:
+  if( cmOnsetFinalize(&onsH) != kOkOnRC )
+    rc = cmErrMsg(&p->err,kOnsetFailTlRC,"Audio onset analyzer finalization failed.");
+
+  return rc;
+}
+
+cmTlRC_t cmTimeLineDeleteOnsetMarks( cmTlH_t h, unsigned seqId )
+{
+}
+
 
 void _cmTimeLinePrintObj(_cmTl_t* p, _cmTlObj_t* op, cmRpt_t* rpt )
 {
@@ -1661,48 +1811,8 @@ cmTlRC_t  _cmTimeLineDecodeObj( const void* msg, unsigned msgByteCnt, cmTlUiMsg_
 
   r->msgId       = kInsertMsgTlId;
   r->objId       = tp->uid;
-  //r->parentObjId = *parentIdPtr;
   r->seqId       = tp->seqId;
-  //r->typeId      = tp->typeId;
-  //r->begSmpIdx   = tp->begSmpIdx;
-  //r->durSmpCnt   = tp->durSmpCnt;
-  //r->label       = strlen(text)==0 ? NULL : text;
   r->srate       = 0;
-  //r->midiTrkMsg  = NULL;
-  //r->textStr     = NULL;
-  /*
-  switch( tp->typeId )
-  {
-    case kMidiFileTlId:
-      r->textStr = _cmTimeLineMidiFileObjPtr(NULL,tp)->fn;
-      break;
-
-    case kMidiEvtTlId:
-      {
-        cmTlMidiEvt_t* mep; 
-        if((mep = _cmTimeLineMidiEvtObjPtr(NULL,tp)) != NULL )
-        {
-          r->midiFileObjId = mep->midiFileObjId;
-          r->midiTrkMsg    = mep->msg;
-        }
-      }
-      break;
-
-    case kAudioFileTlId:
-      r->textStr = _cmTimeLineAudioFileObjPtr(NULL,tp)->fn;
-      break;
-
-    case kAudioEvtTlId:
-      break;
-
-    case kMarkerTlId:
-      r->textStr = _cmTimeLineMarkerObjPtr(NULL,tp)->text;
-      break;
-
-    default:
-      { assert(0); }
-  }
-  */
   return rc;
 }
 
