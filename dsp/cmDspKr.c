@@ -2014,12 +2014,19 @@ cmDspRC_t _cmDspAmSyncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   switch(evt->dstVarId)
   {
     case kSelAmId:    
-      for(i=0; i<p->arrayCnt; ++i)
       {
-        const cmDspAmSyncEntry_t* r = p->array + i;
-        cmRptPrintf(ctx->rpt,"0x%x : %s %i %i - %s %i  %i : %i\n",
-          r->state,r->afn,r->asmp,r->afi,r->mfn,r->mid,r->mfi,r->afi-r->mfi);
-      }   
+        double srate = cmDspSysSampleRate(ctx->dspH);
+        int    fpc   = cmDspSamplesPerCycle(ctx);
+
+        for(i=0; i<p->arrayCnt; ++i)
+        {
+          const cmDspAmSyncEntry_t* r = p->array + i;
+
+          int dframes = r->mfi-r->afi; 
+          cmRptPrintf(ctx->rpt,"0x%x : %s %i %i - %s %i  %i : frm:%i smp:%i sec:%f\n",
+            r->state,r->afn,r->asmp,r->afi,r->mfn,r->mid,r->mfi,dframes,dframes*fpc,dframes*fpc/srate);
+        }   
+      }
       break;
 
     case kAFnAmId:
