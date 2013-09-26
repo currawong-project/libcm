@@ -1929,7 +1929,7 @@ cmDspInst_t*  _cmDspAmSyncAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigne
 {
   cmDspVarArg_t args[] =
   {
-    { "sel",    kSelAmId,    0, 0, kInDsvFl  | kTypeDsvMask,  "Any message to print" },
+    { "sel",    kSelAmId,    0, 0, kInDsvFl  | kTypeDsvMask,  "Print and reset" },
     { "afn",    kAFnAmId,    0, 0, kInDsvFl  | kStrzDsvFl, "Audio File name"},
     { "asmp",   kASmpAmId,   0, 0, kInDsvFl  | kIntDsvFl,  "Audio sample index"},
     { "mfn",    kMFnAmId,    0, 0, kInDsvFl  | kStrzDsvFl, "MIDI File name"},
@@ -2020,12 +2020,19 @@ cmDspRC_t _cmDspAmSyncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 
         for(i=0; i<p->arrayCnt; ++i)
         {
-          const cmDspAmSyncEntry_t* r = p->array + i;
+          cmDspAmSyncEntry_t* r = p->array + i;
 
           int dframes = r->mfi-r->afi; 
           cmRptPrintf(ctx->rpt,"0x%x : %s %i %i - %s %i  %i : frm:%i smp:%i sec:%f\n",
             r->state,r->afn,r->asmp,r->afi,r->mfn,r->mid,r->mfi,dframes,dframes*fpc,dframes*fpc/srate);
+
+          r->afi = cmInvalidIdx;
+          r->mfi = cmInvalidIdx;
+          r->state = 0;
+
         }   
+        p->acur = NULL;
+        p->mcur = NULL;
       }
       break;
 
@@ -2035,9 +2042,8 @@ cmDspRC_t _cmDspAmSyncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
         for(i=0; i<p->arrayCnt; ++i)
           if( strcmp(fn,p->array[i].afn) == 0 )
           {
-            p->acur = p->array + i;
             p->array[i].state = cmSetFlag(p->array[i].state,kAfnAmFl);
-            break;
+            p->acur = p->array + i;
           }
       }
       break;
@@ -2048,32 +2054,45 @@ cmDspRC_t _cmDspAmSyncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
         for(i=0; i<p->arrayCnt; ++i)
           if( strcmp(fn,p->array[i].mfn) == 0 )
           {
-            p->mcur = p->array + i;
             p->array[i].state = cmSetFlag(p->array[i].state,kMfnAmFl);
-            break;
+            p->mcur = p->array + i;
           }
       }
       break;
 
     case kASmpAmId:
       {
-        int v = cmDspInt(inst,kASmpAmId);
-        if( p->acur != NULL && p->acur->asmp <= v )
-        {
-          p->acur->afi = ctx->cycleCnt;
-          p->acur->state = cmSetFlag(p->acur->state,kAsmpAmFl);
-        }
+        int v = cmDspInt(inst,kASmpAmId); 
+
+        if( p->acur != NULL )
+          for(i=0; i<p->arrayCnt; ++i)
+          {
+            cmDspAmSyncEntry_t* r = p->array + i;
+            if( cmIsNotFlag(r->state,kAsmpAmFl)  && r->asmp <= v && strcmp(p->acur->afn,r->afn)==0  )
+            {
+              r->afi = ctx->cycleCnt;
+              r->state = cmSetFlag(r->state,kAsmpAmFl);
+              break;
+            }
+          }
       }
       break;
 
     case kMIdAmId:
       {
         int v = cmDspInt(inst,kMIdAmId);
-        if( p->mcur != NULL && p->mcur->mid == v )
-        {
-          p->mcur->mfi = ctx->cycleCnt;
-          p->mcur->state = cmSetFlag(p->mcur->state,kMidAmFl);
-        }
+        if( p->mcur != NULL )
+          for(i=0; i<p->arrayCnt; ++i)
+          {
+            cmDspAmSyncEntry_t* r = p->array + i;
+            if( cmIsNotFlag(r->state,kMidAmFl)  && r->mid == v && strcmp(p->mcur->mfn,r->mfn)==0  )
+            {
+              r->mfi = ctx->cycleCnt;
+              r->state = cmSetFlag(r->state,kMidAmFl);          
+              break;
+            }
+          }
+
       }
       break;
 
