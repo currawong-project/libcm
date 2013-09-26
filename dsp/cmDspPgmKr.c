@@ -1727,7 +1727,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, wtp, "fidx", asp, "asmp",NULL );
   cmDspSysInstallCb(h, mfp, "id",   asp, "mid", NULL );
   cmDspSysInstallCb(h, offb,"sym",  asp, "sel", NULL ); 
-
+  //cmDspSysInstallCb(h, tlp, "absi", prp, "in",  NULL );
 
   cmDspSysInstallCb(h, ws00p,     "out",   kr00, "wndn", NULL );   // wndSmpCnt->kr
   cmDspSysInstallCb(h, hf00p,     "out",   kr00, "hopf", NULL );   // hopFact->kr
