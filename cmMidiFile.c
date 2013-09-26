@@ -41,7 +41,7 @@ typedef struct
   char*              fn;                 // file name or NULL if this object did not originate from a file
   unsigned           msgN;               // count of msg's in msgV[]
   cmMidiTrackMsg_t** msgV;               // sorted msg list
-  
+  unsigned           nextUid;            // next available msg uid
 } _cmMidiFile_t;
 
 
@@ -524,6 +524,7 @@ cmMfRC_t cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx )
 
   // store a pointer to every trk msg in msgV[] 
   // and convert tick to absolute tick
+  mfp->nextUid = 0;
   unsigned i = 0;
   for(trkIdx=0; trkIdx<mfp->trkN; ++trkIdx)
   {
@@ -534,15 +535,16 @@ cmMfRC_t cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx )
     {
       assert( i < mfp->msgN);
 
-      tick          += tmp->dtick; // convert delta-ticks to absolute ticks
+      tick          += tmp->dtick;     // convert delta-ticks to absolute ticks
       tmp->atick     = tick;
+      tmp->uid       = mfp->nextUid++; // assign the msg uid
       mfp->msgV[i]   = tmp;
       tmp            = tmp->link;
       ++i;
     }  
   }
 
-  // sort msgV[] in ascending order on dtick
+  // sort msgV[] in ascending order on atick
   qsort( mfp->msgV, mfp->msgN, sizeof(cmMidiTrackMsg_t*), _cmMidiFileSortFunc );
 
   //for(i=0; i<25; ++i)
@@ -552,24 +554,6 @@ cmMfRC_t cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx )
   assert( mfp->fn != NULL );
   strcpy(mfp->fn,fn);
 
-  //
-  // calculate the total duration of the MIDI file and convert absolute ticks back to delta ticks
-  //
-  /*
-  unsigned mi;
-  unsigned prvTick       = 0;
-
-
-  for(mi=0; mi<mfp->msgN; ++mi)
-  {
-    cmMidiTrackMsg_t* mp = mfp->msgV[mi];
-
-    // convert absolute ticks back to delta ticks
-    unsigned dtick = mp->dtick - prvTick; 
-    prvTick   = mp->dtick;
-    mp->dtick = dtick;
-  }
-  */
 
   hPtr->h = mfp;
 
@@ -1062,9 +1046,9 @@ unsigned  cmMidiFileSeekUsecs( cmMidiFileH_t h, unsigned offsUSecs, unsigned* ms
     return cmInvalidIdx;
 
   unsigned mi;
-  unsigned microsPerQN   = 60000000/120;
-  unsigned microsPerTick = microsPerQN / p->ticksPerQN;
-  unsigned accUSecs      = 0;
+  double microsPerQN   = 60000000.0/120.0;
+  double microsPerTick = microsPerQN / p->ticksPerQN;
+  double accUSecs      = 0;
 
   for(mi=0; mi<p->msgN; ++mi)
   {
@@ -1084,10 +1068,10 @@ unsigned  cmMidiFileSeekUsecs( cmMidiFileH_t h, unsigned offsUSecs, unsigned* ms
     return cmInvalidIdx;
 
   if( msgUsecsPtr != NULL )
-    *msgUsecsPtr = accUSecs - offsUSecs;
+    *msgUsecsPtr = round(accUSecs - offsUSecs);
 
   if( microsPerTickPtr != NULL )
-    *microsPerTickPtr = microsPerTick;
+    *microsPerTickPtr = round(microsPerTick);
 
   return mi;
 }
@@ -1097,15 +1081,16 @@ double  cmMidiFileDurSecs( cmMidiFileH_t h )
   _cmMidiFile_t* mfp           = _cmMidiFileHandleToPtr(h);
   unsigned       mi;
   double         durSecs       = 0;
-  unsigned       microsPerQN   = 60000000/120;
-  unsigned       microsPerTick = microsPerQN / mfp->ticksPerQN;
+  double         r             = 1.0; //1000.0/(1000-.8);
+  double         microsPerQN   = r*60000000.0/120.0;
+  double         microsPerTick = microsPerQN / mfp->ticksPerQN;
 
   for(mi=0; mi<mfp->msgN; ++mi)
   {
     cmMidiTrackMsg_t* mp = mfp->msgV[mi];
 
     if( mp->status == kMetaStId && mp->metaId == kTempoMdId )
-      microsPerTick = mp->u.iVal / mfp->ticksPerQN;
+      microsPerTick = r*mp->u.iVal / mfp->ticksPerQN;
 
     // update the accumulated seconds
     durSecs += (mp->dtick * microsPerTick) / 1000000.0;
@@ -1126,17 +1111,18 @@ void cmMidiFileTickToMicros( cmMidiFileH_t h )
     return;
 
   unsigned mi;
-  unsigned microsPerQN   = 60000000/120; // default tempo
-  unsigned microsPerTick = microsPerQN / p->ticksPerQN;
+  double r             = 1.0; //1000.0/(1000-.8);
+  double microsPerQN   = r*60000000/120; // default tempo
+  double microsPerTick = microsPerQN / p->ticksPerQN;
 
   for(mi=0; mi<p->msgN; ++mi)
   {
     cmMidiTrackMsg_t* mp = p->msgV[mi];
 
     if( mp->status == kMetaStId && mp->metaId == kTempoMdId )
-      microsPerTick = mp->u.iVal / p->ticksPerQN;
+      microsPerTick = r*mp->u.iVal / p->ticksPerQN;
 
-    mp->dtick *= microsPerTick;
+    mp->dtick = round(microsPerTick*mp->dtick);
   }
   
 }
@@ -1144,27 +1130,36 @@ void cmMidiFileTickToMicros( cmMidiFileH_t h )
 void cmMidiFileTickToSamples( cmMidiFileH_t h, double srate, bool absFl )
 {
   _cmMidiFile_t* p;
-  unsigned mi;
-  //bool fl = true;
 
   if((p = _cmMidiFileHandleToPtr(h)) == NULL )
     return;
 
-  cmMidiFileTickToMicros(h);
+  if( p->msgN == 0 )
+    return;
 
-  unsigned absSmp = 0;
+  unsigned mi;
+  double r             = 1.0; //1000.0/(1000-.8);
+  double microsPerQN   = r*60000000/120; // default tempo
+  double microsPerTick = microsPerQN / p->ticksPerQN;
+  double absSmp = 0;
 
   for(mi=0; mi<p->msgN; ++mi)
   {
-    cmMidiTrackMsg_t* mp    = p->msgV[mi];
-    unsigned          delta = floor((mp->dtick*srate)/1000000.0);
+    cmMidiTrackMsg_t* mp = p->msgV[mi];
 
-    absSmp    += delta;    
+    if( mp->status == kMetaStId && mp->metaId == kTempoMdId )
+      microsPerTick = r*mp->u.iVal / p->ticksPerQN;
 
-    mp->dtick  = absFl ? absSmp : delta;
+    double delta = microsPerTick*mp->dtick*srate/1000000.0;
+
+    absSmp += delta;
+
+    mp->dtick  = round(absFl ? absSmp : delta);
 
   }
+  
 }
+
 
 typedef struct _cmMidiVoice_str
 {

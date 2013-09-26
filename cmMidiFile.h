@@ -62,6 +62,7 @@ extern "C" {
 
   typedef struct cmMidiTrackMsg_str
   {
+    unsigned                   uid;     // uid's are unique among all msg's in the file
     unsigned                   dtick;   // delta ticks
     unsigned                   atick;   
     cmMidiByte_t               status;  // ch msg's have the channel value removed (it is stored in u.chMsgPtr->ch)
