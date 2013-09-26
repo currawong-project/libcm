@@ -286,7 +286,9 @@ enum
   kCursTlId,
   kResetTlId,
   kAudFnTlId,
+  kAudLblTlId,
   kMidiFnTlId,
+  kMidiLblTlId,
   kBegAudSmpIdxTlId,
   kEndAudSmpIdxTlId,
   kBegMidiSmpIdxTlId,
@@ -312,7 +314,9 @@ cmDspInst_t*  _cmDspTimeLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
     { "curs",    kCursTlId,           0, 0, kInDsvFl   | kUIntDsvFl,  "Current audio file index."},
     { "reset",   kResetTlId,          0, 0, kInDsvFl   | kSymDsvFl,   "Resend all outputs." },
     { "afn",     kAudFnTlId,          0, 0, kOutDsvFl  | kStrzDsvFl,  "Selected Audio file." },
+    { "albl",    kAudLblTlId,         0, 0, kOutDsvFl  | kStrzDsvFl,  "Select Audio file time line label."},
     { "mfn",     kMidiFnTlId,         0, 0, kOutDsvFl  | kStrzDsvFl,  "Selected MIDI file." },
+    { "mlbl",    kMidiLblTlId,        0, 0, kOutDsvFl  | kStrzDsvFl,  "Select MIDI file time line label."},
     { "absi",    kBegAudSmpIdxTlId,   0, 0, kOutDsvFl  | kIntDsvFl,   "Begin audio sample index."},
     { "aesi",    kEndAudSmpIdxTlId,   0, 0, kOutDsvFl  | kIntDsvFl,   "End audio sample index."},
     { "mbsi",    kBegMidiSmpIdxTlId,  0, 0, kOutDsvFl  | kIntDsvFl,   "Begin MIDI sample index."},
@@ -325,7 +329,9 @@ cmDspInst_t*  _cmDspTimeLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspSetDefaultUInt( ctx, &p->inst,  kSelTlId,           0, cmInvalidId);
   cmDspSetDefaultUInt( ctx, &p->inst,  kCursTlId,          0, 0);
   cmDspSetDefaultStrcz(ctx, &p->inst,  kAudFnTlId,         NULL, "");
+  cmDspSetDefaultStrcz(ctx, &p->inst,  kAudLblTlId,        NULL, "");
   cmDspSetDefaultStrcz(ctx, &p->inst,  kMidiFnTlId,        NULL, "");
+  cmDspSetDefaultStrcz(ctx, &p->inst,  kMidiLblTlId,       NULL, "");
   cmDspSetDefaultInt(  ctx, &p->inst,  kBegAudSmpIdxTlId,  0, cmInvalidIdx);
   cmDspSetDefaultInt(  ctx, &p->inst,  kEndAudSmpIdxTlId,  0, cmInvalidIdx);
   cmDspSetDefaultInt(  ctx, &p->inst,  kBegMidiSmpIdxTlId, 0, cmInvalidIdx);
@@ -406,7 +412,10 @@ cmDspRC_t _cmDspTimeLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
             // locate the audio file assoc'd with the marker
             cmTlAudioFile_t* afp;
             if((afp = cmTimeLineAudioFileAtTime(p->tlH,op->seqId,op->seqSmpIdx)) != NULL)
+            {
               cmDspSetStrcz(ctx, inst, kAudFnTlId, afp->fn );
+              cmDspSetStrcz(ctx, inst, kAudLblTlId, afp->obj.name );              
+            }
 
             // locate the midi file assoc'd with the marker
             cmTlMidiFile_t* mfp;
@@ -416,6 +425,8 @@ cmDspRC_t _cmDspTimeLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
               cmDspSetInt(ctx, inst, kEndMidiSmpIdxTlId, op->seqSmpIdx + op->durSmpCnt - mfp->obj.seqSmpIdx );
 
               cmDspSetStrcz(ctx, inst, kMidiFnTlId, mfp->fn );
+              cmDspSetStrcz(ctx, inst, kMidiLblTlId,mfp->obj.name );              
+
             }
           }
           
@@ -637,7 +648,8 @@ enum
   kStatusMfId,
   kD0MfId,
   kD1MfId,
-  kSmpIdxMfId
+  kSmpIdxMfId,
+  kIdMfId
 };
 
 cmDspClass_t _cmMidiFilePlayDC;
@@ -676,7 +688,8 @@ cmDspInst_t*  _cmDspMidiFilePlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, u
     { "status", kStatusMfId, 0, 0, kOutDsvFl | kIntDsvFl,  "Status value output" },
     { "d0",     kD0MfId,     0, 0, kOutDsvFl | kUIntDsvFl, "Data byte 0" },
     { "d1",     kD1MfId,     0, 0, kOutDsvFl | kUIntDsvFl, "Data byte 1" },
-    { "smpidx", kSmpIdxMfId, 0, 0, kOutDsvFl | kUIntDsvFl, "Msg time tag as a sample index." }, 
+    { "smpidx", kSmpIdxMfId, 0, 0, kOutDsvFl | kUIntDsvFl, "Msg time tag as a sample index." },
+    { "id",     kIdMfId,     0, 0, kOutDsvFl | kUIntDsvFl, "MIDI file msg unique id."},
     { NULL, 0, 0, 0, 0 }
   };
 
@@ -798,6 +811,7 @@ cmDspRC_t _cmDspMidiFilePlayExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDsp
           cmDspSetUInt(ctx,inst, kD1MfId,     mp->u.chMsgPtr->d1);
           cmDspSetUInt(ctx,inst, kD0MfId,     mp->u.chMsgPtr->d0);
           cmDspSetUInt(ctx,inst, kStatusMfId, mp->status);
+          cmDspSetUInt(ctx,inst, kIdMfId,     mp->uid);
           break;
       }
     }
@@ -844,7 +858,7 @@ struct cmDspClass_str* cmMidiFilePlayClassCons( cmDspCtx_t* ctx )
     _cmDspMidiFilePlayExec,
     _cmDspMidiFilePlayRecv,
     NULL,NULL,
-    "Time tagged text file.");
+    "MIDI file player.");
 
   return &_cmMidiFilePlayDC;
 }
@@ -1867,5 +1881,211 @@ struct cmDspClass_str* cmActiveMeasClassCons( cmDspCtx_t* ctx )
     "Scale a value inside an input range to a value in the output range.");
 
   return &_cmActiveMeasDC;
+}
+
+//==========================================================================================================================================
+// Audio MIDI Sync
+
+enum
+{
+  kSelAmId,    
+  kAFnAmId,
+  kASmpAmId,
+  kMFnAmId,
+  kMIdAmId,
+};
+
+enum
+{
+  kAfnAmFl = 0x01,
+  kMfnAmFl = 0x02,
+  kAsmpAmFl = 0x04,
+  kMidAmFl  = 0x08,
+};
+
+cmDspClass_t _cmAmSyncDC;
+
+typedef struct cmDspAmSyncEntry_str
+{
+  const cmChar_t* afn;    
+  const cmChar_t* mfn;     
+  unsigned        asmp; // Audio sample index to sync to MIDI event
+  unsigned        mid;  // MIDI event unique id (cmMidiTrackMsg_t.uid)
+  int             afi;
+  int             mfi;
+  unsigned        state;
+} cmDspAmSyncEntry_t;
+
+typedef struct
+{
+  cmDspInst_t         inst;
+  cmDspAmSyncEntry_t* array;
+  unsigned            arrayCnt;
+  cmDspAmSyncEntry_t* acur;
+  cmDspAmSyncEntry_t* mcur;
+} cmDspAmSync_t;
+
+cmDspInst_t*  _cmDspAmSyncAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  cmDspVarArg_t args[] =
+  {
+    { "sel",    kSelAmId,    0, 0, kInDsvFl  | kTypeDsvMask,  "Any message to print" },
+    { "afn",    kAFnAmId,    0, 0, kInDsvFl  | kStrzDsvFl, "Audio File name"},
+    { "asmp",   kASmpAmId,   0, 0, kInDsvFl  | kIntDsvFl,  "Audio sample index"},
+    { "mfn",    kMFnAmId,    0, 0, kInDsvFl  | kStrzDsvFl, "MIDI File name"},
+    { "mid",    kMIdAmId,    0, 0, kInDsvFl  | kIntDsvFl,  "MIDI Event Unique Id"},
+    { NULL, 0, 0, 0, 0 }
+  };
+
+  cmDspAmSync_t* p = cmDspInstAlloc(cmDspAmSync_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspAmSyncFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspAmSync_t* p = (cmDspAmSync_t*)inst;
+  
+  cmMemFree(p->array);
+
+  return kOkDspRC;
+}
+
+
+cmDspRC_t _cmDspAmSyncReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t      rc = kOkDspRC;
+  cmDspAmSync_t* p  = (cmDspAmSync_t*)inst;
+ 
+  cmDspApplyAllDefaults(ctx,inst);
+
+  cmJsonH_t       jsH = cmDspSysPgmRsrcHandle(ctx->dspH);
+  cmJsonNode_t*   np;
+  const cmChar_t* errLabelPtr;
+  unsigned        i;
+  cmJsRC_t        jsRC;
+
+  if((np = cmJsonFindValue(jsH, "amSync", NULL, kArrayTId)) == NULL )
+  {
+    rc = cmDspInstErr(ctx,inst,kRsrcNotFoundDspRC,"The AUDIO MIDI Sync cfg. record was not found.");
+    goto errLabel; 
+  }
+  
+  p->arrayCnt = cmJsonChildCount(np);
+
+  p->array    = cmMemResizeZ(cmDspAmSyncEntry_t,p->array,p->arrayCnt);
+
+  for(i=0; i<p->arrayCnt; ++i)
+  {
+    cmJsonNode_t* anp = cmJsonArrayElement(np,i);
+
+    cmDspAmSyncEntry_t* r = p->array + i;
+    if( (jsRC = cmJsonMemberValues(anp,&errLabelPtr,
+        "af",  kStringTId,&r->afn,
+        "asmp",kIntTId,   &r->asmp,
+        "mf",  kStringTId,&r->mfn,
+        "mid", kIntTId,   &r->mid, 
+          NULL)) != kOkJsRC )
+    {
+      if( jsRC == kNodeNotFoundJsRC )
+        rc = cmDspInstErr(ctx,inst,kRsrcNotFoundDspRC,"The Audio-MIDI Sync cfg. field '%s' was missing in the cfg. record at index %i.",errLabelPtr,i);
+      else
+        rc = cmDspInstErr(ctx,inst,kInvalidArgDspRC,"The AUDIO MIDI Sync cfg. parse failed on the record at index %i.",i);
+      break;
+    }
+    r->afi = cmInvalidIdx;
+    r->mfi = cmInvalidIdx;
+    r->state = 0;
+  }
+  
+ errLabel:
+  return rc;
+}
+
+
+cmDspRC_t _cmDspAmSyncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{ 
+  cmDspAmSync_t* p = (cmDspAmSync_t*)inst;
+  unsigned i;
+
+  if( evt->dstVarId != kSelAmId )
+    cmDspSetEvent(ctx,inst,evt);
+
+  switch(evt->dstVarId)
+  {
+    case kSelAmId:    
+      for(i=0; i<p->arrayCnt; ++i)
+      {
+        const cmDspAmSyncEntry_t* r = p->array + i;
+        cmRptPrintf(ctx->rpt,"0x%x : %s %i %i - %s %i  %i : %i\n",
+          r->state,r->afn,r->asmp,r->afi,r->mfn,r->mid,r->mfi,r->afi-r->mfi);
+      }   
+      break;
+
+    case kAFnAmId:
+      {
+        const cmChar_t* fn = cmDspStrcz(inst, kAFnAmId );
+        for(i=0; i<p->arrayCnt; ++i)
+          if( strcmp(fn,p->array[i].afn) == 0 )
+          {
+            p->acur = p->array + i;
+            p->array[i].state = cmSetFlag(p->array[i].state,kAfnAmFl);
+            break;
+          }
+      }
+      break;
+
+    case kMFnAmId:
+      {
+        const cmChar_t* fn = cmDspStrcz(inst, kMFnAmId );
+        for(i=0; i<p->arrayCnt; ++i)
+          if( strcmp(fn,p->array[i].mfn) == 0 )
+          {
+            p->mcur = p->array + i;
+            p->array[i].state = cmSetFlag(p->array[i].state,kMfnAmFl);
+            break;
+          }
+      }
+      break;
+
+    case kASmpAmId:
+      {
+        int v = cmDspInt(inst,kASmpAmId);
+        if( p->acur != NULL && p->acur->asmp <= v )
+        {
+          p->acur->afi = ctx->cycleCnt;
+          p->acur->state = cmSetFlag(p->acur->state,kAsmpAmFl);
+        }
+      }
+      break;
+
+    case kMIdAmId:
+      {
+        int v = cmDspInt(inst,kMIdAmId);
+        if( p->mcur != NULL && p->mcur->mid == v )
+        {
+          p->mcur->mfi = ctx->cycleCnt;
+          p->mcur->state = cmSetFlag(p->mcur->state,kMidAmFl);
+        }
+      }
+      break;
+
+  }
+  return kOkDspRC;
+}
+
+struct cmDspClass_str* cmAmSyncClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmAmSyncDC,ctx,"AmSync",
+    NULL,
+    _cmDspAmSyncAlloc,
+    _cmDspAmSyncFree,
+    _cmDspAmSyncReset,
+    NULL,
+    _cmDspAmSyncRecv,
+    NULL,NULL,
+    "Audio - MIDI Sync Object.");
+
+  return &_cmAmSyncDC;
 }
 
