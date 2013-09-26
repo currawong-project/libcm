@@ -50,6 +50,14 @@ extern "C" {
     const cmOnsetCfg_t* cfg, 
     const cmChar_t* inAudioFn );
 
+  // Return count of detected onsets.
+  unsigned cmOnsetCount( cmOnH_t h );
+
+  // Return location of detected onsets as a sample offset into the file.
+  unsigned cmOnsetSampleIndex( cmOnH_t h, unsigned idx );
+
+  unsigned cmOnsetHopSampleCount( cmOnH_t h );
+
   cmOnRC_t cmOnsetWrite(
     cmOnH_t h,
     const cmChar_t* outAudioFn, 

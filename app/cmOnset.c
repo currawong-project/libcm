@@ -214,13 +214,13 @@ cmOnRC_t _cmOnsetExec( _cmOn_t* p )
   // normalize the spectral flux vector
   cmReal_t mean   = cmVOR_Mean(p->sfV,p->frmCnt);
   cmReal_t stdDev = sqrt(cmVOR_Variance(p->sfV, p->frmCnt, &mean ));
+  unsigned detectCnt = 0;
   cmVOR_SubVS(p->sfV,p->frmCnt,mean);
   cmVOR_DivVS(p->sfV,p->frmCnt,stdDev);
   p->maxSf = cmVOR_Max(p->sfV,p->frmCnt,1);
   prog = 0.1;
 
-  printf("max:%f ",maxVal);
-  printf("mean:%f max:%f sd:%f\n",mean,p->maxSf,stdDev);
+  cmRptPrintf(p->err.rpt,"magn. max:%f flux mean:%f max:%f sd:%f\n",maxVal,mean,p->maxSf,stdDev);
 
   // Pick peaks from the onset detection function using a subset
   // of the rules from Dixon, 2006, Onset Detection Revisited.
@@ -246,6 +246,7 @@ cmOnRC_t _cmOnsetExec( _cmOn_t* p )
       if( p->sfV[fi] > cmVOR_Mean(p->sfV + bi, nn ) + p->cfg.threshold )
       {
         p->dfV[fi]  = p->sfV[fi];
+        ++detectCnt;
       }
     }
 
@@ -258,6 +259,7 @@ cmOnRC_t _cmOnsetExec( _cmOn_t* p )
 
   }
     
+  cmRptPrintf(p->err.rpt,"Detect Count:%i\n",detectCnt);
   return rc;
 }
 
@@ -307,6 +309,47 @@ cmOnRC_t cmOnsetProc( cmOnH_t h, const cmOnsetCfg_t* cfg, const cmChar_t* inAudi
  errLabel:
   return rc;
 }
+
+unsigned cmOnsetCount( cmOnH_t h )
+{
+  _cmOn_t* p   = _cmOnsetHandleToPtr(h);
+  unsigned i;
+  unsigned n = 0;
+  for(i=0; i<p->frmCnt; ++i)
+    if( p->dfV[i] > 0 )
+      ++n;
+
+  return n;
+}
+
+unsigned cmOnsetSampleIndex( cmOnH_t h, unsigned idx )
+{
+  _cmOn_t* p   = _cmOnsetHandleToPtr(h);
+  unsigned i;
+  unsigned n = 0;
+  for(i=0; i<p->frmCnt; ++i)
+    if( p->dfV[i] > 0 )
+    {
+      if( n == idx )
+      {
+        unsigned r = i * p->hopSmpCnt;
+        if( r > p->preDelaySmpCnt )
+          return r-p->preDelaySmpCnt;
+        return 0;
+      }
+
+      ++n;
+    }
+
+  return cmInvalidIdx;
+}
+
+unsigned cmOnsetHopSampleCount( cmOnH_t h )
+{
+  _cmOn_t* p   = _cmOnsetHandleToPtr(h);
+  return p->hopSmpCnt;
+}
+
 
 cmOnRC_t cmOnsetWrite( cmOnH_t h, const cmChar_t* outAudioFn, const cmChar_t* outTextFn)
 {
