@@ -1437,6 +1437,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* sfp  = cmDspSysAllocInst(h,"ScFol",       NULL,  1, r.scFn );
   cmDspInst_t* amp  = cmDspSysAllocInst(h,"ActiveMeas",  NULL,  1, 100 );
   cmDspInst_t* modp = cmDspSysAllocInst(h,"ScMod",       NULL,  2, r.modFn, "m1" );
+  cmDspInst_t* asp  = cmDspSysAllocInst(h,"AmSync",      NULL,  0 );
 
   cmDspInst_t* achan0      = cmDspSysAllocInst(h, "AvailCh",     NULL, 1, xfadeChCnt );
   cmDspInst_t* achan1      = cmDspSysAllocInst(h, "AvailCh",     NULL, 1, xfadeChCnt );
@@ -1719,6 +1720,13 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysInstallCb(h, prtb, "sym", sfp, "cmd", NULL );
   cmDspSysInstallCb(h, qtb,  "sym", sfp, "cmd", NULL );
+
+  // audio-midi sync connections
+  cmDspSysInstallCb(h, tlp, "albl", asp, "afn", NULL );
+  cmDspSysInstallCb(h, tlp, "mlbl", asp, "mfn", NULL );
+  cmDspSysInstallCb(h, wtp, "fidx", asp, "asmp",NULL );
+  cmDspSysInstallCb(h, mfp, "id",   asp, "mid", NULL );
+  cmDspSysInstallCb(h, offb,"sym",  asp, "sel", NULL ); 
 
 
   cmDspSysInstallCb(h, ws00p,     "out",   kr00, "wndn", NULL );   // wndSmpCnt->kr
