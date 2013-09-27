@@ -800,6 +800,7 @@ cmScRC_t _cmScProcSets( cmSc_t* p )
         {
           if( cmSymTblIsValid(p->stH) )
           {
+            printf("PROCSET:%i %s\n",p->sets[i].varId,ep->label);
             p->sets[i].symArray[j]     = cmSymTblRegisterFmt(p->stH,"%c-%s", _cmScVarIdToChar(p->sets[i].varId),ep->label);
             p->sets[i].costSymArray[j] = cmSymTblRegisterFmt(p->stH,"c%c-%s",_cmScVarIdToChar(p->sets[i].varId),ep->label);
           }
