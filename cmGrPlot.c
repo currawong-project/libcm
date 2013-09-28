@@ -92,6 +92,7 @@ cmGrPlotObj_t* _cmGrPlObjHandleToPtr( cmGrPlObjH_t oh )
   return op;
 }
 
+// Destroy the embedded cmGrH_t object
 cmGrPlRC_t _cmGrPlotObjDelete( cmGrPlotObj_t* op )
 {
   if( op==NULL || cmGrObjIsValid( op->grH, op->grObjH)==false )
@@ -323,6 +324,13 @@ void _cmGrPlotObjDestroy(  cmGrObjFuncArgs_t* args )
 {
   cmGrPlotObj_t* op = args->cbArg;
   
+  // if the focused op is being destroyed
+  if( op->p->fop == op )
+  {
+    _cmGrPlotObjCb(op->p->fop, kStateChangeGrPlId, kFocusGrPlFl );
+    op->p->fop = NULL;
+  }
+
   // TODO: is it possible to prevent destruction by returning
   // 'false' from the used defined callback.  This feature is
   // slightly complicated by the fact
