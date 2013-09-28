@@ -178,7 +178,7 @@ cmGrPlRC_t  cmGrPlotAudioFileObjCreate(
   op->isInsideCbArg  = cmGrObjIsInsideCbArg(grObjH);
   cmGrObjSetIsInsideCb( grObjH, _cmGrPlObjAfIsInside, op );
 
-  cmGrPlotObjSetUserPtr(oH,op);
+  //cmGrPlotObjSetUserPtr(oH,op);
 
   return kOkGrPlRC;
 }
