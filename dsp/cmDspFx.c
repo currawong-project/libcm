@@ -5355,7 +5355,7 @@ cmDspRC_t _cmDspGateToSym_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
         break;
 
       case kOffGsId:
-        if( cmDspBool(inst,kOffGsId) )
+        if( !cmDspBool(inst,kOffGsId) )
           cmDspSetSymbol(ctx,inst,kOutGsId,offSymId);
         break;
 
