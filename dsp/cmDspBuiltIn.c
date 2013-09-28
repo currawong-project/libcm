@@ -1474,16 +1474,28 @@ typedef struct
   cmAudioFileH_t afH;
   unsigned       openSymId;
   unsigned       closeSymId;
+  const cmChar_t* afn;
 } cmDspAudioFileOut_t;
 
 cmDspRC_t _cmDspAudioFileOutCreateFile( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned chCnt )
 {
-  cmDspRC_t rc = kOkDspRC;
+  cmDspRC_t            rc = kOkDspRC;
   cmDspAudioFileOut_t* p  = (cmDspAudioFileOut_t*)inst;
   const cmChar_t*      fn = cmDspStrcz(inst,kFnAofId);
 
   if(cmAudioFileIsValid(p->afH) )
     cmAudioFileDelete(&p->afH);
+
+  // if the supplied audio file name is actually a directory name then generate a file name
+  if( cmFsIsDir(fn) )
+  {
+    cmMemPtrFree(&p->afn);
+
+    if( cmFsGenFn(fn,"recd","aiff",&p->afn) != kOkFsRC )
+      return cmDspInstErr(ctx,&p->inst,kFileSysFailDspRC,"An output audio file name could not be generated.");
+    
+    fn = p->afn;
+  }
 
   if( cmAudioFileIsValid(p->afH =  cmAudioFileNewCreate(fn, cmDspSampleRate(ctx), p->bits, chCnt, &rc, ctx->rpt )) == false )
     rc = cmDspClassErr(ctx,inst->classPtr,kVarArgParseFailDspRC,"The output audio file '%s' create failed.",fn);
@@ -1495,7 +1507,7 @@ cmDspInst_t*  _cmDspAudioFileOutAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, u
 {
   cmDspVarArg_t args[] =
   {
-    { "fn",    kFnAofId,    0,   0, kInDsvFl | kStrzDsvFl   | kReqArgDsvFl, "Audio file name"},
+    { "fn",    kFnAofId,    0,   0, kInDsvFl | kStrzDsvFl   | kReqArgDsvFl, "Audio file or directory name"},
     { "chs",   kChCntAofId, 0,   0, kInDsvFl | kUIntDsvFl   | kReqArgDsvFl, "Channel count"}, 
     { "gain0", kGain0AofId, 0,   0, kInDsvFl | kDoubleDsvFl | kOptArgDsvFl, "Output gain 0 multiplier"},  
     { "gain1", kGain1AofId, 0,   0, kInDsvFl | kDoubleDsvFl | kOptArgDsvFl, "Output gain 1 multiplier"},
@@ -1534,7 +1546,7 @@ cmDspRC_t _cmDspAudioFileOutReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDs
   p->smpCnt = cmDspSamplesPerCycle(ctx) * chCnt;
   p->smpBuf = cmLhResizeN(ctx->lhH, cmSample_t, p->smpBuf, p->smpCnt);
   
-  rc = _cmDspAudioFileOutCreateFile( ctx, inst, chCnt );
+  //rc = _cmDspAudioFileOutCreateFile( ctx, inst, chCnt );
 
   return rc;
 } 
@@ -1547,6 +1559,10 @@ cmDspRC_t _cmDspAudioFileOutExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDsp
   unsigned             smpCnt = 0;
   cmSample_t*          chArray[chCnt];
   unsigned             i,j;
+
+  if(!cmAudioFileIsValid(p->afH) )
+    return rc;
+
 
   for(i=0,j=0; i<chCnt; ++i)
   {
@@ -1561,7 +1577,7 @@ cmDspRC_t _cmDspAudioFileOutExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDsp
     {
       cmSample_t gain = cmDspSample(inst,i==0?kGain0AofId:kGain1AofId); // get ch gain
     
-      chArray[j] = cmDspAudioBuf(ctx,inst,chVarId,i);                   // get incoming audio buf ptr
+      chArray[j] = cmDspAudioBuf(ctx,inst,chVarId,0);                   // get incoming audio buf ptr
 
       if( gain != 1.0 )
         cmVOS_MultVVS(chArray[j], iSmpCnt, chArray[j], gain);           // apply gain
@@ -1624,6 +1640,8 @@ cmDspRC_t  _cmDspAudioFileOutFree( cmDspCtx_t* ctx, struct cmDspInst_str*  inst,
 
   if(cmAudioFileIsValid(p->afH) )
     cmAudioFileDelete(&p->afH);
+
+  cmMemPtrFree(&p->afn);
 
   return kOkDspRC;
 }
