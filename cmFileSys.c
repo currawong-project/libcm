@@ -7,6 +7,7 @@
 #include "cmMallocDebug.h"
 #include "cmLinkedHeap.h"
 #include "cmFileSys.h"
+#include "cmText.h"
 
 #include <sys/stat.h>
 #include <errno.h>
@@ -465,6 +466,45 @@ void cmFileSysFreeFn( cmFileSysH_t h, const cmChar_t* fn )
     return;
 
   cmLHeapFree(p->heapH, (void*)fn); 
+}
+
+cmFsRC_t cmFileSysGenFn( cmFileSysH_t h, const cmChar_t* dir, const cmChar_t* prefixStr, const cmChar_t* extStr, const cmChar_t** fnPtr )
+{
+  cmFsRC_t rc            = kOkFsRC;
+  cmFs_t*  p             = _cmFileSysHandleToPtr(h);
+  unsigned maxAttemptCnt = 0xffff;
+
+  *fnPtr = NULL;
+
+  assert(dir != NULL);
+
+  if( prefixStr == NULL )
+    prefixStr = "";
+
+  if( extStr == NULL )
+    extStr = "";
+
+  if( !cmFileSysIsDir(h,dir) )
+    return cmErrMsg(&p->err,kOpenDirFailFsRC,"File name generation failed because the directory '%s' does not exist.",cmStringNullGuard(dir));
+
+  unsigned i;
+  for(i=0; *fnPtr==NULL; ++i)
+  {
+    cmChar_t* fn = cmTsPrintfP(NULL,"%s%i",prefixStr,i);
+
+    const cmChar_t* path = cmFileSysMakeFn(h,dir,fn,extStr,NULL );
+    
+    if( !cmFileSysIsFile(h,path) )
+      *fnPtr = cmMemAllocStr(path);
+
+    cmFileSysFreeFn(h,path);
+    cmMemFree(fn);
+
+    if( i == maxAttemptCnt )
+      return cmErrMsg(&p->err,kGenFileFailFsRC,"File name generation failed because a suitable file name could not be found after %i attempts.",maxAttemptCnt);
+  };
+
+  return rc;
 }
 
 cmFsRC_t    cmFileSysMkDir( cmFileSysH_t h, const cmChar_t* dir )
@@ -1112,6 +1152,9 @@ const cmChar_t*      cmFsMakeFn(  const cmChar_t* dirPrefix, const cmChar_t* fn,
 
 void                 cmFsFreeFn(  const cmChar_t* fn )
 { cmFileSysFreeFn(_cmFsH, fn); }
+
+cmFsRC_t             cmFsGenFn( const cmChar_t* dir, const cmChar_t* prefixStr, const cmChar_t* extStr, const cmChar_t** fnPtr )
+{ return cmFileSysGenFn(_cmFsH,dir,prefixStr,extStr,fnPtr); }
 
 cmFsRC_t             cmFsMkDir( const cmChar_t* dir )
 { return cmFileSysMkDir(_cmFsH,dir); }
