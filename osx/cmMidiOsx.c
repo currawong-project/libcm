@@ -161,7 +161,7 @@ void _cmMpDevicePrint( cmMpDev* drp, unsigned devIdx, cmRpt_t* rpt )
     for(i=0; i<portCnt; ++i)
     {
       const cmMpPort* p = j==0 ? drp->iPortArray + i : drp->oPortArray + i ;
-      cmRptPrintf(rpt,"%i %s id:0x:%x %s\n", i, p->inputFl ? "in " : "out", p->uid, p->nameStr );
+      cmRptPrintf(rpt,"  port:%s %i id:0x:%x %s\n", p->inputFl ? "in " : "out",i, p->uid, p->nameStr );
     }
   }
 }
