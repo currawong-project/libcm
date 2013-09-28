@@ -1292,7 +1292,9 @@ cmAdRC_t cmAudDspReceiveClientMsg( cmAdH_t h, unsigned msgByteCnt, const void* m
   switch( m->selId )
   {
     case kDevReportDuiId:
+      cmRptPrintf(p->err.rpt,"\nAUDIO DEVICES\n");
       cmApReport(p->err.rpt);
+      cmRptPrintf(p->err.rpt,"\nMIDI DEVICES\n");
       cmMpReport(p->err.rpt);
       break;
         
