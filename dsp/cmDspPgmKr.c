@@ -40,6 +40,7 @@ typedef struct
   const cmChar_t* scFn;
   const cmChar_t* modFn;
   const cmChar_t* measFn;
+  const cmChar_t* recordDir;
 } krRsrc_t;
 
 cmDspRC_t krLoadRsrc(cmDspSysH_t h, cmErr_t* err, krRsrc_t* r)
@@ -53,6 +54,7 @@ cmDspRC_t krLoadRsrc(cmDspSysH_t h, cmErr_t* err, krRsrc_t* r)
   cmDspRsrcString(h,&r->scFn,   "scoreFn",         NULL);
   cmDspRsrcString(h,&r->modFn,  "modFn",           NULL);
   cmDspRsrcString(h,&r->measFn, "measFn",          NULL);
+  cmDspRsrcString(h,&r->recordDir,"recordDir",     NULL);
 
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
     cmErrMsg(err,rc,"A KR DSP resource load failed.");
@@ -1439,6 +1441,19 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* modp = cmDspSysAllocInst(h,"ScMod",       NULL,  2, r.modFn, "m1" );
   cmDspInst_t* asp  = cmDspSysAllocInst(h,"AmSync",      NULL,  0 );
 
+
+  /*
+  const cmChar_t* deviceName = "Fastlane";
+  const cmChar_t* portName   = "Fastlane MIDI A";
+
+#ifdef OS_OSX
+  deviceName = "RME - Fireface UFX (23148636)";
+  portName   = "Port 2";
+#endif
+
+  cmDspInst_t* mop  = cmDspSysAllocInst( h,"MidiOut", NULL,     2, deviceName, portName);
+  */
+
   cmDspInst_t* achan0      = cmDspSysAllocInst(h, "AvailCh",     NULL, 1, xfadeChCnt );
   cmDspInst_t* achan1      = cmDspSysAllocInst(h, "AvailCh",     NULL, 1, xfadeChCnt );
 
@@ -1496,7 +1511,6 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* cmp1 =  cmDspSysAllocInst(h,"Compressor", NULL,   8, cmpBypassFl, cmpThreshDb, cmpRatio_num, cmpAtkMs, cmpRlsMs, cmpMakeup, cmpWndMs, cmpWndMaxMs ); 
   cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 1 );
 
-  //cmDspInst_t* af0p = cmDspSysAllocInst(h,"AudioFileOut",NULL,  2, "/home/kevin/temp/debug0.wav",1);
 
   cmDspSysNewPage(h,"Controls");
   cmDspInst_t* onb  = cmDspSysAllocInst(h,"Button", "start",  2, kButtonDuiId, 1.0 );
@@ -1579,7 +1593,18 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ogain1 = cmDspSysAllocInst(h,"Scalar", "Out Gain-1",   5, kNumberDuiId, 0.0,   10.0,0.01,   3.0 );  
   cmDspInst_t* xfadMs = cmDspSysAllocInst(h,"Scalar", "Xfade Ms",     5, kNumberDuiId, 0.0,   1000.0,0.01, 50.0 );  
 
-  //cmDspInst_t* reload = cmDspSysAllocInst(h,"Button", "Reload",     2, kButtonDuiId, 0.0 );
+  // Audio file recording
+  cmDspInst_t* recdGain= cmDspSysAllocInst(h,"Scalar", "Recd Gain", 5, kNumberDuiId, 0.0,   100.0,0.01, 1.5 );  
+  cmDspInst_t* recdChk = cmDspSysAllocInst(h,"Button", "Record",     2, kCheckDuiId, 0.0 );
+  cmDspInst_t* recdPtS = cmDspSysAllocInst(h,"GateToSym", NULL,      2, cmSymTblRegisterStaticSymbol(cmDspSysSymbolTable(h),"open"),cmSymTblRegisterStaticSymbol(cmDspSysSymbolTable(h),"close"));
+  cmDspInst_t* afop    = cmDspSysAllocInst(h,"AudioFileOut",NULL,    2, r.recordDir,2);
+  
+  cmDspSysInstallCb(h, recdGain,"val", afop, "gain0", NULL );
+  cmDspSysInstallCb(h, recdGain,"val", afop, "gain1", NULL );
+  cmDspSysInstallCb(h, recdChk, "out", recdPtS, "on", NULL );
+  cmDspSysInstallCb(h, recdChk, "out", recdPtS, "off", NULL );
+  cmDspSysInstallCb(h, recdPtS, "out", afop,    "sel", NULL );
+
 
   cmDspSysNewPage(h,"Sc/Rgn");
 
@@ -1668,6 +1693,9 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysConnectAudio(h, mix1, "out",   cmp1, "in");
   cmDspSysConnectAudio(h, cmp1, "out",   ao1p, "in" );   // comp -> aout
 
+  cmDspSysConnectAudio(h, cmp0, "out", afop, "in0" );  // comp -> audio_file_out
+  cmDspSysConnectAudio(h, cmp1, "out", afop, "in1" );
+
   // wave-table to time-line cursor
   cmDspSysInstallCb(   h, wtp, "fidx",tlp,  "curs", NULL); 
 
@@ -1713,6 +1741,12 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, mfp, "d1",     sfp, "d1",     NULL );
   cmDspSysInstallCb(h, mfp, "d0",     sfp, "d0",     NULL );
   cmDspSysInstallCb(h, mfp, "status", sfp, "status", NULL );
+
+  /*
+  cmDspSysInstallCb(h, mfp, "d1",     mop, "d1",     NULL );
+  cmDspSysInstallCb(h, mfp, "d0",     mop, "d0",     NULL );
+  cmDspSysInstallCb(h, mfp, "status", mop, "status", NULL );
+  */
 
   // score follower to modulator and printers
   cmDspSysInstallCb(h, sfp, "out",  modp,    "index", NULL );
@@ -1774,7 +1808,6 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, modp, "minl0", min_lwr_0, "val", NULL );
   cmDspSysInstallCb(h, modp, "maxl0", max_lwr_0, "val", NULL );
 
-
   cmDspSysInstallCb(h, modp, "mod1",  md10p, "val", NULL );
   cmDspSysInstallCb(h, modp, "thr1",  th10p, "val", NULL );
   cmDspSysInstallCb(h, modp, "upr1",  us10p, "val", NULL );
@@ -1785,6 +1818,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, modp, "maxu1", max_upr_1, "val", NULL );
   cmDspSysInstallCb(h, modp, "minl1", min_lwr_1, "val", NULL );
   cmDspSysInstallCb(h, modp, "maxl1", max_lwr_1, "val", NULL );
+
+  cmDspSysInstallCb(h, modp, "xfad",  xfadMs, "val", NULL );
 
   // =========================================================================
   //  Cross fade connections for measurments
