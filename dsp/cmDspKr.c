@@ -805,6 +805,7 @@ cmDspRC_t _cmDspMidiFilePlayExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDsp
       const cmMidiTrackMsg_t* mp = mpp[p->curMsgIdx];
       switch( mp->status )
       {
+        case kNoteOffMdId:
         case kNoteOnMdId:
         case kCtlMdId:
           cmDspSetUInt(ctx,inst, kSmpIdxMfId, mp->dtick);
