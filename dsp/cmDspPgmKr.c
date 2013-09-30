@@ -1536,7 +1536,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* prePath    = cmDspSysAllocInst(   h, "Fname",  "prePath",   3, true,NULL,r.tlPrefixPath);
   
 
-  //--------------- Recorded evaluation and Active Measurement related controls
+  //--------------- Recorded performance evaluation and Active Measurement related controls
   cmDspInst_t* clrBtn  = cmDspSysAllocButton( h, "clear",  0);
   cmDspInst_t* prtBtn  = cmDspSysAllocButton( h, "dump",  0);
   cmDspInst_t* mlst    = cmDspSysAllocInst(   h, "MsgList",   NULL, 3, "meas", r.measFn, 2);
@@ -1594,16 +1594,16 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* xfadMs = cmDspSysAllocInst(h,"Scalar", "Xfade Ms",     5, kNumberDuiId, 0.0,   1000.0,0.01, 50.0 );  
 
   // Audio file recording
-  cmDspInst_t* recdGain= cmDspSysAllocInst(h,"Scalar", "Recd Gain", 5, kNumberDuiId, 0.0,   100.0,0.01, 1.5 );  
+  cmDspInst_t* recdGain= cmDspSysAllocInst(h,"Scalar", "Recd Gain",  5, kNumberDuiId, 0.0,   100.0,0.01, 1.5 );  
   cmDspInst_t* recdChk = cmDspSysAllocInst(h,"Button", "Record",     2, kCheckDuiId, 0.0 );
   cmDspInst_t* recdPtS = cmDspSysAllocInst(h,"GateToSym", NULL,      2, cmSymTblRegisterStaticSymbol(cmDspSysSymbolTable(h),"open"),cmSymTblRegisterStaticSymbol(cmDspSysSymbolTable(h),"close"));
   cmDspInst_t* afop    = cmDspSysAllocInst(h,"AudioFileOut",NULL,    2, r.recordDir,2);
   
-  cmDspSysInstallCb(h, recdGain,"val", afop, "gain0", NULL );
-  cmDspSysInstallCb(h, recdGain,"val", afop, "gain1", NULL );
-  cmDspSysInstallCb(h, recdChk, "out", recdPtS, "on", NULL );
-  cmDspSysInstallCb(h, recdChk, "out", recdPtS, "off", NULL );
-  cmDspSysInstallCb(h, recdPtS, "out", afop,    "sel", NULL );
+  cmDspSysInstallCb(h, recdGain,"val", afop,    "gain0", NULL );
+  cmDspSysInstallCb(h, recdGain,"val", afop,    "gain1", NULL );
+  cmDspSysInstallCb(h, recdChk, "out", recdPtS, "on",    NULL );
+  cmDspSysInstallCb(h, recdChk, "out", recdPtS, "off",   NULL );
+  cmDspSysInstallCb(h, recdPtS, "out", afop,    "sel",   NULL );
 
 
   cmDspSysNewPage(h,"Sc/Rgn");
@@ -1828,6 +1828,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   // active measure loc to xfad channel trigger
   cmDspSysInstallCb( h, amp,    "scloc",  achan0,   "trig", NULL );
   cmDspSysInstallCb( h, amp,    "scloc",  achan1,   "trig", NULL );
+  //cmDspSysInstallCb( h, modp,   "post",   achan0,   "trig", NULL );
+  //cmDspSysInstallCb( h, modp,   "post",   achan1,   "trig", NULL );
 
   // xfade router channel selection 
   cmDspSysInstallCb( h, achan0, "ch",  mod_rt_00, "sel", NULL );   
