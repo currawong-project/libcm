@@ -3420,6 +3420,7 @@ _cmScModTypeMap_t _cmScModTypeArray[] =
   { kSetModTId,     1, "set" },
   { kLineModTId,    2, "line" },
   { kSetLineModTId, 3, "sline" },
+  { kPostModTId,    4, "post" },
   { kInvalidModTId, 0, "<invalid>"}
 };
 
@@ -3535,121 +3536,6 @@ cmScModEntry_t* _cmScModulatorInsertEntry(cmScModulator* p, unsigned idx, unsign
   return rc;
 }
 
-/*
-cmRC_t _cmScModulatorParse2( cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, const cmChar_t* fn )
-{
-  cmRC_t        rc  = cmOkRC;
-  cmJsonNode_t* jnp = NULL;
-  cmJsonH_t     jsH = cmJsonNullHandle;
-  unsigned      i   = cmInvalidIdx;
-  unsigned      j   = cmInvalidIdx;
-
-  // read the JSON file
-  if( cmJsonInitializeFromFile(&jsH, fn, ctx ) != kOkJsRC )
-    return cmCtxRtCondition( &p->obj, cmInvalidArgRC, "JSON file parse failed on the modulator file: %s.",cmStringNullGuard(fn) );
-
-  jnp = cmJsonRoot(jsH);
-
-  // validate that the first child as an array
-  if( jnp==NULL || ((jnp = cmJsonNodeMemberValue(jnp,"array")) == NULL) || cmJsonIsArray(jnp)==false )
-  {
-    rc = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Modulator file header syntax error in file:%s",cmStringNullGuard(fn) );
-    goto errLabel;
-  }
-
-  // allocate the entry array
-  unsigned entryCnt = cmJsonChildCount(jnp);
-  p->earray         = cmMemResizeZ(cmScModEntry_t,p->earray,entryCnt);
-  p->en             = entryCnt;
-
-  for(i=0; i<entryCnt; ++i)
-  {
-    cmJsRC_t                 jsRC;
-    const char*              errLabelPtr = NULL;
-    unsigned                 scLocIdx    = cmInvalidIdx;
-    const cmChar_t*          modLabel    = NULL;
-    const cmChar_t*          varLabel    = NULL;
-    const cmChar_t*          typeLabel   = NULL;
-    cmJsonNode_t*            onp         = cmJsonArrayElement(jnp,i);
-    cmJsonNode_t*            dnp         = NULL;
-    const _cmScModTypeMap_t* map         = NULL;
-
-    if((jsRC = cmJsonMemberValues( onp, &errLabelPtr, 
-          "loc", kIntTId,    &scLocIdx,
-          "mod", kStringTId, &modLabel,
-          "var", kStringTId, &varLabel,
-          "type",kStringTId, &typeLabel,
-          NULL )) != kOkJsRC )
-    {
-      if( errLabelPtr == NULL )
-        rc = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Error:%s on record at index %i in file:%s",errLabelPtr,i,cmStringNullGuard(fn) );
-      else
-        rc = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Synax error in Modulator record at index %i in file:%s",i,cmStringNullGuard(fn) );
-      goto errLabel;
-    }
-
-    // validate the entry type label
-    if((map = _cmScModTypeLabelToMap(typeLabel)) == NULL )
-    {
-      rc = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Unknown entry type '%s' in Modulator record at index %i in file:%s",cmStringNullGuard(typeLabel),i,cmStringNullGuard(fn) );
-      goto errLabel;
-    }
-    
-    unsigned modSymId = cmSymTblRegisterSymbol(stH,modLabel);
-    unsigned varSymId = cmSymTblRegisterSymbol(stH,varLabel);
-
-    // the mod entry label must match the modulators label
-    if( p->modSymId != modSymId )
-    {
-      --p->en;
-        continue;
-    } 
-
-
-    // get the count of the elmenets in the data array
-    unsigned paramCnt = cmJsonChildCount(onp);
-
-    // fill the entry record and find or create the target var
-    cmScModEntry_t* ep = _cmScModulatorInsertEntry(p,i,scLocIdx,modSymId,varSymId,map->typeId,paramCnt);
-
-    typedef struct
-    {
-      const cmChar_t* label;
-      cmScModParam_t* param;
-    } map_t;
-
-    // parse the var and parameter records
-    map_t mapArray[] = 
-    {
-      { "min", &ep->min  },
-      { "max", &ep->max  },
-      { "rate",&ep->rate },
-      { "val", &ep->beg },
-      { "end", &ep->end },
-      { "dur", &ep->dur },
-      { NULL, NULL }
-    };
-
-    unsigned j=0;
-    for(j=0; mapArray[j].param!=NULL; ++j)
-      if((dnp = cmJsonFindValue(jsH,mapArray[j].label, onp, kInvalidTId )) != NULL )
-        if((rc = _cmScModulatorParseParam(p,stH,dnp,mapArray[j].param)) != cmOkRC )
-          goto errLabel;    
-  }
-
- errLabel:
-
-  if( rc != cmOkRC )
-    cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Error parsing in Modulator 'data' record at index %i value index %i in file:%s",i,j,cmStringNullGuard(fn) );    
-
-
-  // release the JSON tree
-  if( cmJsonIsValid(jsH) )
-    cmJsonFinalize(&jsH);
-
-  return rc;
-}
-*/
 
 cmRC_t _cmScModulatorParse( cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, const cmChar_t* fn )
 {
@@ -4016,6 +3902,10 @@ cmRC_t _cmScModActivate(cmScModulator* p, cmScModEntry_t* ep )
       vp->phase  = 0;                          // reset phase
       break;
 
+    case kPostModTId:
+      p->postFl = vp->value;
+      break;
+
     default:
       { assert(0); }
   }
@@ -4040,7 +3930,7 @@ cmRC_t  _cmScModExecSendValue( cmScModulator* p, cmScModVar_t* vp )
     sendFl = remainder(vp->phase*p->samplesPerCycle, p->srate*vp->rate/1000 ) < p->samplesPerCycle;
 
   if(sendFl)
-    p->cbFunc(p->cbArg,vp->varSymId,v);
+    p->cbFunc(p->cbArg,vp->varSymId,v,p->postFl);
 
   return rc;
 }
@@ -4048,8 +3938,9 @@ cmRC_t  _cmScModExecSendValue( cmScModulator* p, cmScModVar_t* vp )
 // Return true if vp should be deactivated otherwise return false.
 bool  _cmScModExec( cmScModulator* p, cmScModVar_t* vp )
 {
-  cmRC_t rc = cmOkRC;
-  bool   fl = false;
+  cmRC_t rc     = cmOkRC;
+  bool   fl     = false;
+  bool   sendFl = true;
 
   switch( vp->entry->typeId )
   {
@@ -4085,15 +3976,22 @@ bool  _cmScModExec( cmScModulator* p, cmScModVar_t* vp )
       }
       break;
 
+    case kPostModTId:
+      sendFl = false;
+      break;
+
     default:
       { assert(0); }
   }
 
   // notify the application that a new variable value has been generated
-  rc = _cmScModExecSendValue(p,vp);
+  if(sendFl)
+  {
+    rc = _cmScModExecSendValue(p,vp);
 
-  // increment the phase - after send because send notices when phase is zero
-  vp->phase += 1;
+    // increment the phase - after send because send notices when phase is zero
+    vp->phase += 1;
+  }
 
  errLabel:
   if( rc != cmOkRC )

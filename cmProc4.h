@@ -518,6 +518,7 @@ Types:
   set    = set <var> to <val> which may be a literal or another variable.
   line   = ramp from its current value to <val> over <dur> seconds
   sline  = set <var> to <val> and ramp to <end> over <dur> seconds
+  post   = send a 'post' msg after each transmission (can be used to change the cross-fader after each msg)
 
  */
 enum
@@ -526,6 +527,7 @@ enum
   kSetModTId,      // set variable to parray[0] at scLocIdx
   kLineModTId,     // linear ramp variable to parray[0] over parray[1] seconds
   kSetLineModTId,  // set variable to parray[0] and ramp to parray[1] over parray[2] seconds
+  kPostModTId,     // 
 };
 
 enum
@@ -583,7 +585,7 @@ typedef struct cmScModEntry_str
   cmScModVar_t*  varPtr;        // target variable 
 } cmScModEntry_t;
 
-typedef void (*cmScModCb_t)( void* cbArg, unsigned varSymId, double value );
+  typedef void (*cmScModCb_t)( void* cbArg, unsigned varSymId, double value, bool postFl );
 
 typedef struct
 {
@@ -602,6 +604,7 @@ typedef struct
   cmScModVar_t*   elist;        // last element on the active list
   unsigned        nei;          // next entry index
   unsigned        outVarCnt;    // count of unique vars that are targets of entry recds
+  bool            postFl;       // send a 'post' msg after each transmission
 } cmScModulator;
 
 
