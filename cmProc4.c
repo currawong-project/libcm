@@ -3535,6 +3535,7 @@ cmScModEntry_t* _cmScModulatorInsertEntry(cmScModulator* p, unsigned idx, unsign
   return rc;
 }
 
+/*
 cmRC_t _cmScModulatorParse2( cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, const cmChar_t* fn )
 {
   cmRC_t        rc  = cmOkRC;
@@ -3648,6 +3649,7 @@ cmRC_t _cmScModulatorParse2( cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, co
 
   return rc;
 }
+*/
 
 cmRC_t _cmScModulatorParse( cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, const cmChar_t* fn )
 {
@@ -4140,6 +4142,7 @@ cmRC_t cmScModulatorExec( cmScModulator* p, unsigned scLocIdx )
   }
     
   
+  // Update the active variables
   cmScModVar_t* pp = NULL;
   cmScModVar_t* vp = p->alist;
   for(; vp!=NULL; vp=vp->alink)

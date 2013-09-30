@@ -495,6 +495,31 @@ unsigned   cmScAlignScanToTimeLineEvent( cmScMatcher* p, cmTlH_t tlH, cmTlObj_t*
 void       cmScAlignScanMarkers(  cmRpt_t* rpt, cmTlH_t tlH, cmScH_t scH );
 
 //=======================================================================================================================
+/*
+Syntax: <loc> <mod> <var> <type>   <params>
+  <loc> - score location
+  <mod> - name of the modulator 
+  <var> - variable name 
+  <type> - type of operation
+
+  <params>
+
+    <min>  - set a variable min value
+    <max>  - set a variable max value
+    <rate> - limit how often a variable is transmitted while it is ramping
+    <val>  - type dependent value - see 'Types' below.  
+    <end>  - ending value for a ramping variable
+    <dur>  - determines the length of time to get to the ending value
+
+  The value of parameters may be literal numeric values or may refer to
+   variables by their name.
+
+Types:
+  set    = set <var> to <val> which may be a literal or another variable.
+  line   = ramp from its current value to <val> over <dur> seconds
+  sline  = set <var> to <val> and ramp to <end> over <dur> seconds
+
+ */
 enum
 {
   kInvalidModTId,
@@ -535,7 +560,7 @@ typedef struct cmScModVar_str
   unsigned                 phase;    // cycle phase since activation  
   double                   min;
   double                   max;
-  double                   rate;     // output rate in milliseconds
+  double                   rate;     // output rate in milliseconds (use
   struct cmScModEntry_str* entry;    // last entry assoc'd with this value
   struct cmScModVar_str*   vlink;    // p->vlist link
   struct cmScModVar_str*   alink;    // p->alist link
