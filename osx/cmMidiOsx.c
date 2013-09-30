@@ -152,7 +152,7 @@ void _cmMpDeviceFree( cmMpDev* drp )
 void _cmMpDevicePrint( cmMpDev* drp, unsigned devIdx, cmRpt_t* rpt )
 {
   unsigned i,j;
-  cmRptPrintf(rpt,"%i %s\n",devIdx,drp->nameStr);
+  cmRptPrintf(rpt,"%i '%s'\n",devIdx,drp->nameStr);
 
   for(j=0; j<2; ++j)
   {
@@ -161,7 +161,7 @@ void _cmMpDevicePrint( cmMpDev* drp, unsigned devIdx, cmRpt_t* rpt )
     for(i=0; i<portCnt; ++i)
     {
       const cmMpPort* p = j==0 ? drp->iPortArray + i : drp->oPortArray + i ;
-      cmRptPrintf(rpt,"  port:%s %i id:0x:%x %s\n", p->inputFl ? "in " : "out",i, p->uid, p->nameStr );
+      cmRptPrintf(rpt,"  port:%s %i id:0x:%x '%s'\n", p->inputFl ? "in " : "out",i, p->uid, p->nameStr );
     }
   }
 }
@@ -714,7 +714,7 @@ cmMpRC_t  cmMpDeviceSend( unsigned devIdx, unsigned portIdx, cmMidiByte_t status
 	mpl.packet[0].data[0]		= status;
 	mpl.packet[0].data[1]		= d0;
 	mpl.packet[0].data[2]		= d1;
-	
+
 	if(( err = MIDISend( _cmMpRoot.outPortRef, pp->epr, &mpl)) != noErr )
 		return _cmMpError(&_cmMpRoot.err,kSysErrMpRC,err,"Send on device:%i port:%i failed.",devIdx,portIdx);
 	
