@@ -29,11 +29,25 @@ cmDspRC_t _cmDspSysPgm_Test_Midi( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc = kOkDspRC;
 
+  const cmChar_t* deviceName = "Fastlane";
+  const cmChar_t* portName   = "Fastlane MIDI A";
+
+#ifdef OS_OSX
+
+  deviceName = "MOTU - FastLane USB";
+  portName   = "Port A";
+
+  deviceName = "RME - Fireface UFX (23148636)";
+  portName   = "Port 2";
+
+#endif
+
   cmDspInst_t* sendBtn = cmDspSysAllocInst( h,"Button", "Send",    2, kButtonDuiId, 0.0 );
   cmDspInst_t* status  = cmDspSysAllocInst( h,"Scalar", "Status",  5, kNumberDuiId, 0.0,  127.0, 1.0,  144.0);
   cmDspInst_t* d0      = cmDspSysAllocInst( h,"Scalar", "D0",      5, kNumberDuiId, 0.0,  127.0, 1.0,  64.0);
   cmDspInst_t* d1      = cmDspSysAllocInst( h,"Scalar", "D1",      5, kNumberDuiId, 0.0,  127.0, 1.0,  64.0);
-  cmDspInst_t* midiOut = cmDspSysAllocInst( h,"MidiOut", NULL,     2, "Fastlane", "Fastlane MIDI A");
+  cmDspInst_t* midiOut = cmDspSysAllocInst( h,"MidiOut", NULL,     2, deviceName, portName);
+  
   cmDspInst_t* midiIn  = cmDspSysAllocInst( h,"MidiIn",  NULL,     0 );
   cmDspInst_t* printer = cmDspSysAllocInst( h,"Printer", NULL,     1, ">" );
 
