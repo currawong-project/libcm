@@ -1158,7 +1158,8 @@ enum
 {
   kScLocIdxMdId,
   kResetIdxMdId,
-  kCmdMdId
+  kCmdMdId,
+  kPostMdId
 };
 
 cmDspClass_t _cmModulatorDC;
@@ -1172,9 +1173,10 @@ typedef struct
   cmChar_t*      modLabel;
   unsigned       onSymId;
   unsigned       offSymId;
+  unsigned       postSymId;
 } cmDspScMod_t;
 
-void _cmDspScModCb( void* arg, unsigned varSymId, double value )
+void _cmDspScModCb( void* arg, unsigned varSymId, double value, bool postFl )
 {
   cmDspScMod_t* p = (cmDspScMod_t*)arg;
 
@@ -1183,6 +1185,9 @@ void _cmDspScModCb( void* arg, unsigned varSymId, double value )
     return;
 
   cmDspSetDouble(p->tmp_ctx,&p->inst,varPtr->constId,value);
+
+  if( postFl )
+    cmDspSetSymbol(p->tmp_ctx,&p->inst,kPostMdId,p->postSymId);
   
 }
 
@@ -1196,6 +1201,7 @@ cmDspInst_t*  _cmDspScModAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     { "index",   kScLocIdxMdId, 0,0, kInDsvFl  | kUIntDsvFl,  "Score follower index input."},
     { "reset",   kResetIdxMdId, 0,0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "Reset the modulator and go to the score index."},
     { "cmd",     kCmdMdId,      0,0, kInDsvFl  | kSymDsvFl  | kOptArgDsvFl, "on | off."},
+    { "post",    kPostMdId,     0,0, kOutDsvFl | kSymDsvFl, "Sends 'post' symbol after a message transmission if the 'post' flag is set in scMod."},
     { NULL, 0, 0, 0, 0 }
   };
 
@@ -1253,6 +1259,7 @@ cmDspInst_t*  _cmDspScModAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   p->mp       = mp;
   p->onSymId  = cmSymTblId(ctx->stH,"on");
   p->offSymId = cmSymTblId(ctx->stH,"off");
+  p->postSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"post");
 
   mp->cbArg = p;  // set the modulator callback arg
 
@@ -1819,7 +1826,7 @@ cmDspRC_t _cmDspActiveMeasRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
 
           // transmit the records value and cost
           cmDspSetDouble(ctx,inst,varId,r->value);
-          cmDspSetDouble(ctx,inst,kCostAmId,r->value);
+          cmDspSetDouble(ctx,inst,kCostAmId,r->cost);
 
           prvLoc = r->loc;
         } 
