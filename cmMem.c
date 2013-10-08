@@ -52,11 +52,17 @@ typedef struct cmMmRecd_str
   void*                dataPtr;      // dataPtr may be NULL if the assoc'd alloc request was for 0 bytes.
   unsigned             dataByteCnt;  // data area bytes on original allocation
   unsigned             fileLine;
-  const char*          fileNameStr;
-  const char*          funcNameStr;
+  char*                fileNameStr;
+  char*                funcNameStr;
   unsigned             flags;
   struct cmMmRecd_str* linkPtr;
 } cmMmRecd_t;
+
+typedef struct cmMmStr_str
+{
+  struct cmMmStr_str* link;
+  char*               str;
+} cmMmStr_t;
 
 typedef struct
 {
@@ -73,6 +79,8 @@ typedef struct
   char            freeChar;
   char            guardChar; 
   unsigned        flags;
+  cmMmStr_t*      fnList;
+  cmMmStr_t*      funcList;
 } cmMm_t;
 
 cmMmH_t cmMmNullHandle = { NULL };
@@ -380,6 +388,18 @@ cmMmRC_t cmMmInitialize(
   return kOkMmRC;
 }
 
+void _cmMmFreeStrList( cmMmStr_t* cp )
+{
+  while( cp!=NULL )
+  {
+    cmMmStr_t* np = cp->link;
+    free(cp->str);
+    free(cp);
+    cp = np;
+  }
+
+}
+
 cmMmRC_t cmMmFinalize( cmMmH_t* hp )
 {
   cmMm_t* p;
@@ -403,6 +423,9 @@ cmMmRC_t cmMmFinalize( cmMmH_t* hp )
     free(rp);
     rp = tp;
   }
+
+  _cmMmFreeStrList(p->fnList);
+  _cmMmFreeStrList(p->funcList);
 
   free(p);
   hp->h = NULL;
@@ -430,6 +453,32 @@ unsigned cmMmInitializeFlags( cmMmH_t h )
 
 bool     cmMmIsValid( cmMmH_t h )
 { return h.h != NULL; }
+
+// Allocate and/or return a pointer to a stored string.
+char* _cmMmAllocStr( cmMmStr_t** listPtrPtr, const char* str )
+{
+  if( str == NULL )
+    str = "";
+
+  cmMmStr_t* lp = *listPtrPtr; // get ptr to first recd in list
+  cmMmStr_t* cp = lp;          // init current ptr
+
+  // find 'str' in the list
+  for(; cp!=NULL; cp=cp->link)
+    if( strcmp(cp->str,str) == 0 )
+      break;
+
+  // 'str' was not found - create a new string recd
+  if( cp == NULL )
+  {
+    cp          =  calloc(1,sizeof(cmMmStr_t));
+    cp->str     = strdup(str);
+    cp->link    = lp;
+    *listPtrPtr = cp;
+  }
+
+  return cp->str;
+}
 
 void* cmMmAllocate(     
   cmMmH_t               h, 
@@ -483,8 +532,8 @@ void* cmMmAllocate(
        rp->dataPtr      = ndp;
        rp->dataByteCnt  = newByteCnt;
        rp->fileLine     = fileLine;
-       rp->fileNameStr  = fileName;
-       rp->funcNameStr  = funcName;
+       rp->fileNameStr  = _cmMmAllocStr( &p->fnList, fileName ); 
+       rp->funcNameStr  = _cmMmAllocStr( &p->funcList, funcName);
        rp->flags        = 0;
        rp->uniqueId     = p->nextId;
 
@@ -587,7 +636,7 @@ cmMmRC_t _cmMmRecdPrint( cmMm_t* p, cmMmRecd_t* rp, cmMmRC_t rc )
       lbl = "Unknown Status  ";
   }
 
-  cmRptPrintf(p->err.rpt,"%s id:%5i data:%p : data:%5i prefix:%5i total:%5i base:%p : %5i %s %s\n",
+  cmRptPrintf(p->err.rpt,"%s id:%5i data:%p : data:%5i prefix:%5i total:%5i base:%p : line=%5i %s %s\n",
     lbl,rp->uniqueId,rp->dataPtr,
     _cmMmDataToByteCnt(dp,gbc),
     _cmMmDataToPrefixCnt(dp,gbc), 
