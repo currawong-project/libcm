@@ -16,9 +16,10 @@ typedef struct
   unsigned      cnt;
 } cmDataSerialHdr_t;
 
-void _cmDataSetError( unsigned err )
+cmDtRC_t  _cmDataSetError( unsigned err )
 {
   _cmDataErrNo = err;
+  return err;
 }
 
 void _cmDataFreeArray( cmData_t* p )
@@ -133,306 +134,338 @@ unsigned long*  cmDataULongPtr(  const cmData_t* p ) { assert(p->tid==kULongPtrD
 float*          cmDataFloatPtr(  const cmData_t* p ) { assert(p->tid==kFloatPtrDtId);  return p->u.fp; } 
 double*         cmDataDoublePtr( const cmData_t* p ) { assert(p->tid==kDoublePtrDtId); return p->u.dp; } 
 
-unsigned char   cmDataGetUChar(     const cmData_t* p )
+cmDtRC_t  cmDataGetUChar( const cmData_t* p, unsigned char* vp )
 {
-  unsigned char v = kInvalidDtUChar;
-
   switch( p->tid )
   {
-    case kUCharDtId:  v =                p->u.uc; break;
-    case kCharDtId:   v = (unsigned char)p->u.c;  break;
-    case kUShortDtId: v = (unsigned char)p->u.us; break;
-    case kShortDtId:  v = (unsigned char)p->u.s;  break;
-    case kUIntDtId:   v = (unsigned char)p->u.ui; break;
-    case kIntDtId:    v = (unsigned char)p->u.i;  break;
-    case kULongDtId:  v = (unsigned char)p->u.ul; break;
-    case kLongDtId:   v = (unsigned char)p->u.l;  break;
-    case kFloatDtId:  v = (unsigned char)p->u.f;  break;
-    case kDoubleDtId: v = (unsigned char)p->u.d;  break;
+    case kUCharDtId:  *vp =                p->u.uc; break;
+    case kCharDtId:   *vp = (unsigned char)p->u.c;  break;
+    case kUShortDtId: *vp = (unsigned char)p->u.us; break;
+    case kShortDtId:  *vp = (unsigned char)p->u.s;  break;
+    case kUIntDtId:   *vp = (unsigned char)p->u.ui; break;
+    case kIntDtId:    *vp = (unsigned char)p->u.i;  break;
+    case kULongDtId:  *vp = (unsigned char)p->u.ul; break;
+    case kLongDtId:   *vp = (unsigned char)p->u.l;  break;
+    case kFloatDtId:  *vp = (unsigned char)p->u.f;  break;
+    case kDoubleDtId: *vp = (unsigned char)p->u.d;  break;
     default:
-      _cmDataSetError(kCvtErrDtRC);
+      return _cmDataSetError(kCvtErrDtRC);
   }
-  return v;
+  return kOkDtRC;
 }
 
-char  cmDataGetChar( const cmData_t* p )
+cmDtRC_t  cmDataGetChar( const cmData_t* p, char* vp )
 {
-  char v = kInvalidDtChar;
-
   switch( p->tid )
   {
-    case kUCharDtId:  v = (char)p->u.uc; break;
-    case kCharDtId:   v =       p->u.c;  break;
-    case kUShortDtId: v = (char)p->u.us; break;
-    case kShortDtId:  v = (char)p->u.s;  break;
-    case kUIntDtId:   v = (char)p->u.ui; break;
-    case kIntDtId:    v = (char)p->u.i;  break;
-    case kULongDtId:  v = (char)p->u.ul; break;
-    case kLongDtId:   v = (char)p->u.l;  break;
-    case kFloatDtId:  v = (char)p->u.f;  break;
-    case kDoubleDtId: v = (char)p->u.d;  break;
+    case kUCharDtId:  *vp = (char)p->u.uc; break;
+    case kCharDtId:   *vp =       p->u.c;  break;
+    case kUShortDtId: *vp = (char)p->u.us; break;
+    case kShortDtId:  *vp = (char)p->u.s;  break;
+    case kUIntDtId:   *vp = (char)p->u.ui; break;
+    case kIntDtId:    *vp = (char)p->u.i;  break;
+    case kULongDtId:  *vp = (char)p->u.ul; break;
+    case kLongDtId:   *vp = (char)p->u.l;  break;
+    case kFloatDtId:  *vp = (char)p->u.f;  break;
+    case kDoubleDtId: *vp = (char)p->u.d;  break;
     default:
-      _cmDataSetError(kCvtErrDtRC);
+      return _cmDataSetError(kCvtErrDtRC);
   }
-  return v;
+  return kOkDtRC;
 }
 
-short           cmDataGetShort(     const cmData_t* p )
+cmDtRC_t cmDataGetShort(     const cmData_t* p, short* vp )
 {
-  short v = kInvalidDtShort;
-
   switch( p->tid )
   {
-    case kUCharDtId:  v = (short)p->u.uc; break;
-    case kCharDtId:   v = (short)p->u.c;  break;
-    case kUShortDtId: v = (short)p->u.us; break;
-    case kShortDtId:  v =        p->u.s;  break;
-    case kUIntDtId:   v = (short)p->u.ui; break;
-    case kIntDtId:    v = (short)p->u.i;  break;
-    case kULongDtId:  v = (short)p->u.ul; break;
-    case kLongDtId:   v = (short)p->u.l;  break;
-    case kFloatDtId:  v = (short)p->u.f;  break;
-    case kDoubleDtId: v = (short)p->u.d;  break;
+    case kUCharDtId:  *vp = (short)p->u.uc; break;
+    case kCharDtId:   *vp = (short)p->u.c;  break;
+    case kUShortDtId: *vp = (short)p->u.us; break;
+    case kShortDtId:  *vp =        p->u.s;  break;
+    case kUIntDtId:   *vp = (short)p->u.ui; break;
+    case kIntDtId:    *vp = (short)p->u.i;  break;
+    case kULongDtId:  *vp = (short)p->u.ul; break;
+    case kLongDtId:   *vp = (short)p->u.l;  break;
+    case kFloatDtId:  *vp = (short)p->u.f;  break;
+    case kDoubleDtId: *vp = (short)p->u.d;  break;
     default:
-      _cmDataSetError(kCvtErrDtRC);
+      return _cmDataSetError(kCvtErrDtRC);
   }
-
-  return v;
+  return kOkDtRC;
 }
 
 
-unsigned short  cmDataGetUShort(    const cmData_t* p )
+cmDtRC_t  cmDataGetUShort(    const cmData_t* p, unsigned short* vp )
 {
-  unsigned short v = kInvalidDtUShort;
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp = (unsigned short)p->u.uc; break;
+    case kCharDtId:   *vp = (unsigned short)p->u.c;  break;
+    case kUShortDtId: *vp =                 p->u.us; break;
+    case kShortDtId:  *vp = (unsigned short)p->u.s;  break;
+    case kUIntDtId:   *vp = (unsigned short)p->u.ui; break;
+    case kIntDtId:    *vp = (unsigned short)p->u.i;  break;
+    case kULongDtId:  *vp = (unsigned short)p->u.ul; break;
+    case kLongDtId:   *vp = (unsigned short)p->u.l;  break;
+    case kFloatDtId:  *vp = (unsigned short)p->u.f;  break;
+    case kDoubleDtId: *vp = (unsigned short)p->u.d;  break;
+    default:
+      return _cmDataSetError(kCvtErrDtRC);
+  }
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataGetInt(       const cmData_t* p, int* vp )
+{
 
   switch( p->tid )
   {
-    case kUCharDtId:  v = (unsigned short)p->u.uc; break;
-    case kCharDtId:   v = (unsigned short)p->u.c;  break;
-    case kUShortDtId: v =                 p->u.us; break;
-    case kShortDtId:  v = (unsigned short)p->u.s;  break;
-    case kUIntDtId:   v = (unsigned short)p->u.ui; break;
-    case kIntDtId:    v = (unsigned short)p->u.i;  break;
-    case kULongDtId:  v = (unsigned short)p->u.ul; break;
-    case kLongDtId:   v = (unsigned short)p->u.l;  break;
-    case kFloatDtId:  v = (unsigned short)p->u.f;  break;
-    case kDoubleDtId: v = (unsigned short)p->u.d;  break;
+    case kUCharDtId:  *vp = (int)p->u.uc; break;
+    case kCharDtId:   *vp = (int)p->u.c;  break;
+    case kUShortDtId: *vp = (int)p->u.us; break;
+    case kShortDtId:  *vp = (int)p->u.s;  break;
+    case kUIntDtId:   *vp = (int)p->u.ui; break;
+    case kIntDtId:    *vp =      p->u.i;  break;
+    case kULongDtId:  *vp = (int)p->u.ul; break;
+    case kLongDtId:   *vp = (int)p->u.l;  break;
+    case kFloatDtId:  *vp = (int)p->u.f;  break;
+    case kDoubleDtId: *vp = (int)p->u.d;  break;
     default:
-      _cmDataSetError(kCvtErrDtRC);
+      return _cmDataSetError(kCvtErrDtRC);
   }
-
-  return v;
+  return kOkDtRC;
 }
 
-int             cmDataGetInt(       const cmData_t* p )
+cmDtRC_t    cmDataGetUInt(      const cmData_t* p, unsigned int* vp )
 {
-  int v = kInvalidDtInt;
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp = (unsigned int)p->u.uc; break;
+    case kCharDtId:   *vp = (unsigned int)p->u.c;  break;
+    case kUShortDtId: *vp = (unsigned int)p->u.us; break;
+    case kShortDtId:  *vp = (unsigned int)p->u.s;  break;
+    case kUIntDtId:   *vp =               p->u.ui; break;
+    case kIntDtId:    *vp = (unsigned int)p->u.i;  break;
+    case kULongDtId:  *vp = (unsigned int)p->u.ul; break;
+    case kLongDtId:   *vp = (unsigned int)p->u.l;  break;
+    case kFloatDtId:  *vp = (unsigned int)p->u.f;  break;
+    case kDoubleDtId: *vp = (unsigned int)p->u.d;  break;
+    default:
+      return _cmDataSetError(kCvtErrDtRC);
+  }
+  return kOkDtRC;
+}
+
+cmDtRC_t  cmDataGetLong( const cmData_t* p, long* vp )
+{
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp = (long)p->u.uc; break;
+    case kCharDtId:   *vp = (long)p->u.c;  break;
+    case kUShortDtId: *vp = (long)p->u.us; break;
+    case kShortDtId:  *vp = (long)p->u.s;  break;
+    case kUIntDtId:   *vp = (long)p->u.ui; break;
+    case kIntDtId:    *vp = (long)p->u.i;  break;
+    case kULongDtId:  *vp = (long)p->u.ul; break;
+    case kLongDtId:   *vp =       p->u.l;  break;
+    case kFloatDtId:  *vp = (long)p->u.f;  break;
+    case kDoubleDtId: *vp = (long)p->u.d;  break;
+    default:
+      return _cmDataSetError(kCvtErrDtRC);
+  }
+  return kOkDtRC;
+}
+
+cmDtRC_t   cmDataGetULong(     const cmData_t* p, unsigned long* vp )
+{
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp = (unsigned long)p->u.uc; break;
+    case kCharDtId:   *vp = (unsigned long)p->u.c;  break;
+    case kUShortDtId: *vp = (unsigned long)p->u.us; break;
+    case kShortDtId:  *vp = (unsigned long)p->u.s;  break;
+    case kUIntDtId:   *vp = (unsigned long)p->u.ui; break;
+    case kIntDtId:    *vp = (unsigned long)p->u.i;  break;
+    case kULongDtId:  *vp =                p->u.ul; break;
+    case kLongDtId:   *vp = (unsigned long)p->u.l;  break;
+    case kFloatDtId:  *vp = (unsigned long)p->u.f;  break;
+    case kDoubleDtId: *vp = (unsigned long)p->u.d;  break;
+    default:
+      return _cmDataSetError(kCvtErrDtRC);
+  }
+  return kOkDtRC;
+}
+
+cmDtRC_t   cmDataGetFloat(     const cmData_t* p, float* vp )
+{
 
   switch( p->tid )
   {
-    case kUCharDtId:  v = (int)p->u.uc; break;
-    case kCharDtId:   v = (int)p->u.c;  break;
-    case kUShortDtId: v = (int)p->u.us; break;
-    case kShortDtId:  v = (int)p->u.s;  break;
-    case kUIntDtId:   v = (int)p->u.ui; break;
-    case kIntDtId:    v =      p->u.i;  break;
-    case kULongDtId:  v = (int)p->u.ul; break;
-    case kLongDtId:   v = (int)p->u.l;  break;
-    case kFloatDtId:  v = (int)p->u.f;  break;
-    case kDoubleDtId: v = (int)p->u.d;  break;
+    case kUCharDtId:  *vp = (float)p->u.uc; break;
+    case kCharDtId:   *vp = (float)p->u.c;  break;
+    case kUShortDtId: *vp = (float)p->u.us; break;
+    case kShortDtId:  *vp = (float)p->u.s;  break;
+    case kUIntDtId:   *vp = (float)p->u.ui; break;
+    case kIntDtId:    *vp = (float)p->u.i;  break;
+    case kULongDtId:  *vp = (float)p->u.ul; break;
+    case kLongDtId:   *vp = (float)p->u.l;  break;
+    case kFloatDtId:  *vp =        p->u.f;  break;
+    case kDoubleDtId: *vp = (float)p->u.d;  break;
     default:
-      _cmDataSetError(kCvtErrDtRC);
+      return _cmDataSetError(kCvtErrDtRC);
   }
-
-  return v;
+  return kOkDtRC;
 }
 
-unsigned int    cmDataGetUInt(      const cmData_t* p )
+cmDtRC_t  cmDataGetDouble(    const cmData_t* p, double* vp )
 {
-  unsigned int v = kInvalidDtUInt;
-
   switch( p->tid )
   {
-    case kUCharDtId:  v = (unsigned int)p->u.uc; break;
-    case kCharDtId:   v = (unsigned int)p->u.c;  break;
-    case kUShortDtId: v = (unsigned int)p->u.us; break;
-    case kShortDtId:  v = (unsigned int)p->u.s;  break;
-    case kUIntDtId:   v =               p->u.ui; break;
-    case kIntDtId:    v = (unsigned int)p->u.i;  break;
-    case kULongDtId:  v = (unsigned int)p->u.ul; break;
-    case kLongDtId:   v = (unsigned int)p->u.l;  break;
-    case kFloatDtId:  v = (unsigned int)p->u.f;  break;
-    case kDoubleDtId: v = (unsigned int)p->u.d;  break;
+    case kUCharDtId:  *vp = (double)p->u.uc; break;
+    case kCharDtId:   *vp = (double)p->u.c;  break;
+    case kUShortDtId: *vp = (double)p->u.us; break;
+    case kShortDtId:  *vp = (double)p->u.s;  break;
+    case kUIntDtId:   *vp = (double)p->u.ui; break;
+    case kIntDtId:    *vp = (double)p->u.i;  break;
+    case kULongDtId:  *vp = (double)p->u.ul; break;
+    case kLongDtId:   *vp = (double)p->u.l;  break;
+    case kFloatDtId:  *vp = (double)p->u.f;  break;
+    case kDoubleDtId: *vp =         p->u.d;  break;
     default:
-      _cmDataSetError(kCvtErrDtRC);
+      return _cmDataSetError(kCvtErrDtRC);
   }
-
-  return v;
+  return kOkDtRC;
 }
 
-long            cmDataGetLong(      const cmData_t* p )
-{
-  long v = kInvalidDtLong;
-
-  switch( p->tid )
-  {
-    case kUCharDtId:  v = (long)p->u.uc; break;
-    case kCharDtId:   v = (long)p->u.c;  break;
-    case kUShortDtId: v = (long)p->u.us; break;
-    case kShortDtId:  v = (long)p->u.s;  break;
-    case kUIntDtId:   v = (long)p->u.ui; break;
-    case kIntDtId:    v = (long)p->u.i;  break;
-    case kULongDtId:  v = (long)p->u.ul; break;
-    case kLongDtId:   v =       p->u.l;  break;
-    case kFloatDtId:  v = (long)p->u.f;  break;
-    case kDoubleDtId: v = (long)p->u.d;  break;
-    default:
-      _cmDataSetError(kCvtErrDtRC);
-  }
-
-  return v;
-}
-
-unsigned long   cmDataGetULong(     const cmData_t* p )
-{
-  unsigned long v = kInvalidDtULong;
-
-  switch( p->tid )
-  {
-    case kUCharDtId:  v = (unsigned long)p->u.uc; break;
-    case kCharDtId:   v = (unsigned long)p->u.c;  break;
-    case kUShortDtId: v = (unsigned long)p->u.us; break;
-    case kShortDtId:  v = (unsigned long)p->u.s;  break;
-    case kUIntDtId:   v = (unsigned long)p->u.ui; break;
-    case kIntDtId:    v = (unsigned long)p->u.i;  break;
-    case kULongDtId:  v =                p->u.ul; break;
-    case kLongDtId:   v = (unsigned long)p->u.l;  break;
-    case kFloatDtId:  v = (unsigned long)p->u.f;  break;
-    case kDoubleDtId: v = (unsigned long)p->u.d;  break;
-    default:
-      _cmDataSetError(kCvtErrDtRC);
-  }
-
-  return v;
-}
-
-float           cmDataGetFloat(     const cmData_t* p )
-{
-  float v = FLT_MAX;
-
-  switch( p->tid )
-  {
-    case kUCharDtId:  v = (float)p->u.uc; break;
-    case kCharDtId:   v = (float)p->u.c;  break;
-    case kUShortDtId: v = (float)p->u.us; break;
-    case kShortDtId:  v = (float)p->u.s;  break;
-    case kUIntDtId:   v = (float)p->u.ui; break;
-    case kIntDtId:    v = (float)p->u.i;  break;
-    case kULongDtId:  v = (float)p->u.ul; break;
-    case kLongDtId:   v = (float)p->u.l;  break;
-    case kFloatDtId:  v =        p->u.f;  break;
-    case kDoubleDtId: v = (float)p->u.d;  break;
-    default:
-      _cmDataSetError(kCvtErrDtRC);
-  }
-
-  return v;
-}
-
-double          cmDataGetDouble(    const cmData_t* p )
-{
-  double v = DBL_MAX;
-
-  switch( p->tid )
-  {
-    case kUCharDtId:  v = (double)p->u.uc; break;
-    case kCharDtId:   v = (double)p->u.c;  break;
-    case kUShortDtId: v = (double)p->u.us; break;
-    case kShortDtId:  v = (double)p->u.s;  break;
-    case kUIntDtId:   v = (double)p->u.ui; break;
-    case kIntDtId:    v = (double)p->u.i;  break;
-    case kULongDtId:  v = (double)p->u.ul; break;
-    case kLongDtId:   v = (double)p->u.l;  break;
-    case kFloatDtId:  v = (double)p->u.f;  break;
-    case kDoubleDtId: v =         p->u.d;  break;
-    default:
-      _cmDataSetError(kCvtErrDtRC);
-  }
-
-  return v;
-}
-
-cmChar_t*       cmDataGetStr(       const cmData_t* p )
+cmDtRC_t       cmDataGetStr(       const cmData_t* p, cmChar_t** vp )
 { 
-  assert( p->tid == kStrDtId || p->tid == kConstStrDtId); 
-  return (p->tid == kStrDtId || p->tid == kConstStrDtId) ? p->u.z : NULL; 
+  if( p->tid == kStrDtId || p->tid == kConstStrDtId)
+  {
+    *vp = (p->tid == kStrDtId || p->tid == kConstStrDtId) ? p->u.z : NULL; 
+    return kOkDtRC;
+  }
+  return _cmDataSetError(kCvtErrDtRC);    
 }
 
-const cmChar_t* cmDataGetConstStr(  const cmData_t* p )
+cmDtRC_t cmDataGetConstStr(  const cmData_t* p, const cmChar_t** vp )
 { 
-  assert( p->tid == kStrDtId || p->tid == kConstStrDtId); 
-  return (p->tid == kStrDtId || p->tid == kConstStrDtId) ? p->u.cz : NULL; 
+  if( p->tid == kStrDtId || p->tid == kConstStrDtId)
+  {
+    *vp = (p->tid == kStrDtId || p->tid == kConstStrDtId) ? p->u.cz : NULL; 
+    return kOkDtRC;
+  }
+  return _cmDataSetError(kCvtErrDtRC);
 }
 
-void*           cmDataGetVoidPtr(   const cmData_t* p )
+cmDtRC_t cmDataGetVoidPtr(   const cmData_t* p, void** vp )
 {
-  assert( kMinPtrDtId <= p->tid && p->tid <= kMaxPtrDtId );
-  return ( kMinPtrDtId <= p->tid && p->tid <= kMaxPtrDtId ) ? p->u.vp : NULL;  
+  if( kMinPtrDtId <= p->tid && p->tid <= kMaxPtrDtId )
+  {
+    *vp = ( kMinPtrDtId <= p->tid && p->tid <= kMaxPtrDtId ) ? p->u.vp : NULL;  
+    return kOkDtRC;
+  }
+  return _cmDataSetError(kCvtErrDtRC);
 }
 
-char*           cmDataGetCharPtr(   const cmData_t* p )
+cmDtRC_t cmDataGetCharPtr(   const cmData_t* p, char** vp )
 { 
-  assert( p->tid == kCharPtrDtId || p->tid == kUCharPtrDtId );
-  return (p->tid == kCharPtrDtId || p->tid == kUCharPtrDtId) ? p->u.cp : NULL; 
+  if( p->tid == kCharPtrDtId || p->tid == kUCharPtrDtId )
+  {
+   *vp = (p->tid == kCharPtrDtId || p->tid == kUCharPtrDtId) ? p->u.cp : NULL; 
+   return kOkDtRC;
+  }
+  return _cmDataSetError(kCvtErrDtRC);
 }
 
-unsigned char*  cmDataGetUCharPtr(  const cmData_t* p )
+cmDtRC_t  cmDataGetUCharPtr(  const cmData_t* p, unsigned char** vp )
 { 
-  assert( p->tid == kCharPtrDtId || p->tid == kUCharPtrDtId );
-  return (p->tid == kCharPtrDtId || p->tid == kUCharPtrDtId) ? p->u.ucp : NULL; 
+  if( p->tid == kCharPtrDtId || p->tid == kUCharPtrDtId )
+  {
+    *vp = (p->tid == kCharPtrDtId || p->tid == kUCharPtrDtId) ? p->u.ucp : NULL; 
+    return kOkDtRC;
+  }
+  return _cmDataSetError(kCvtErrDtRC);
 }
 
-short*          cmDataGetShortPtr(  const cmData_t* p )
+cmDtRC_t cmDataGetShortPtr(  const cmData_t* p, short** vp )
 { 
-  assert( p->tid == kShortPtrDtId || p->tid == kUShortPtrDtId );
-  return (p->tid == kShortPtrDtId || p->tid == kUShortPtrDtId ) ? p->u.sp : NULL; 
+  if( p->tid == kShortPtrDtId || p->tid == kUShortPtrDtId )
+  {
+    *vp = (p->tid == kShortPtrDtId || p->tid == kUShortPtrDtId ) ? p->u.sp : NULL; 
+    return kOkDtRC;
+  }
+  return _cmDataSetError(kCvtErrDtRC);
 }
 
-unsigned short* cmDataGetUShortPtr( const cmData_t* p )
+cmDtRC_t cmDataGetUShortPtr( const cmData_t* p, unsigned short** vp )
 {
-  assert( p->tid == kShortPtrDtId || p->tid == kUShortPtrDtId );
-  return (p->tid == kShortPtrDtId || p->tid == kUShortPtrDtId ) ? p->u.usp : NULL; 
+  if( p->tid == kShortPtrDtId || p->tid == kUShortPtrDtId )
+  {
+    *vp = (p->tid == kShortPtrDtId || p->tid == kUShortPtrDtId ) ? p->u.usp : NULL; 
+    return kOkDtRC;
+  }
+  return _cmDataSetError(kCvtErrDtRC);
 }
 
-int*            cmDataGetIntPtr(    const cmData_t* p )
+cmDtRC_t cmDataGetIntPtr(    const cmData_t* p, int** vp )
 {
-  assert( p->tid == kIntPtrDtId || p->tid == kUIntPtrDtId );
-  return (p->tid == kIntPtrDtId || p->tid == kUIntPtrDtId ) ? p->u.ip : NULL; 
+  if( p->tid == kIntPtrDtId || p->tid == kUIntPtrDtId )
+  {    
+    *vp = (p->tid == kIntPtrDtId || p->tid == kUIntPtrDtId ) ? p->u.ip : NULL; 
+    return kOkDtRC;
+  }
+  return _cmDataSetError(kCvtErrDtRC);
 }
 
-unsigned int*   cmDataGetUIntPtr(   const cmData_t* p )
+cmDtRC_t  cmDataGetUIntPtr(   const cmData_t* p, unsigned int** vp )
 {
-  assert( p->tid == kIntPtrDtId || p->tid == kUIntPtrDtId );
-  return (p->tid == kIntPtrDtId || p->tid == kUIntPtrDtId ) ? p->u.uip : NULL; 
+  if( p->tid == kIntPtrDtId || p->tid == kUIntPtrDtId )
+  {
+    *vp = (p->tid == kIntPtrDtId || p->tid == kUIntPtrDtId ) ? p->u.uip : NULL; 
+    return kOkDtRC;
+  }
+  return _cmDataSetError(kCvtErrDtRC);
 }
 
-long*           cmDataGetLongPtr(   const cmData_t* p )
+cmDtRC_t    cmDataGetLongPtr(   const cmData_t* p, long** vp )
 {
-  assert( p->tid == kLongPtrDtId || p->tid == kULongPtrDtId );
-  return (p->tid == kLongPtrDtId || p->tid == kULongPtrDtId ) ? p->u.lp : NULL; 
+  if( p->tid == kLongPtrDtId || p->tid == kULongPtrDtId )
+  {
+    *vp = (p->tid == kLongPtrDtId || p->tid == kULongPtrDtId ) ? p->u.lp : NULL; 
+    return kOkDtRC;
+  }
+  return _cmDataSetError(kCvtErrDtRC);
 }
 
-unsigned long*  cmDataGetULongPtr(  const cmData_t* p )
+cmDtRC_t  cmDataGetULongPtr(  const cmData_t* p, unsigned long** vp )
 {
-  assert( p->tid == kLongPtrDtId || p->tid == kULongPtrDtId );
-  return (p->tid == kLongPtrDtId || p->tid == kULongPtrDtId ) ? p->u.ulp : NULL; 
+  if( p->tid == kLongPtrDtId || p->tid == kULongPtrDtId )
+  {
+    *vp = (p->tid == kLongPtrDtId || p->tid == kULongPtrDtId ) ? p->u.ulp : NULL; 
+    return kOkDtRC;
+  }
+  return _cmDataSetError(kCvtErrDtRC);
 }
 
-float*          cmDataGetFloatPtr(  const cmData_t* p )
-{ return p->tid == kFloatPtrDtId ? p->u.fp : NULL; }
+cmDtRC_t cmDataGetFloatPtr(  const cmData_t* p, float** vp )
+{ 
+  if( p->tid == kFloatPtrDtId )
+  {
+    *vp = p->u.fp; 
+    return kOkDtRC;
+  }
+  return _cmDataSetError(kCvtErrDtRC);
+}
 
-double*         cmDataGetDoublePtr( const cmData_t* p )
-{ return p->tid == kDoublePtrDtId ? p->u.dp : NULL; }
+cmDtRC_t cmDataGetDoublePtr(  const cmData_t* p, double** vp )
+{ 
+  if( p->tid == kDoublePtrDtId )
+  {
+    *vp = p->u.dp; 
+    return kOkDtRC;
+  }
+  return _cmDataSetError(kCvtErrDtRC);
+}
 
 // Set the value of an existing data object.
 cmData_t* cmDataSetNull( cmData_t* p )
@@ -1331,13 +1364,17 @@ cmData_t* cmDataPairKey(          cmData_t* p )
 unsigned  cmDataPairKeyId(    cmData_t* p )
 {
   assert( _cmDataPairIsValid(p) );
-  return cmDataGetUInt(p->u.child);
+  unsigned id = cmInvalidId;
+  cmDataGetUInt(p->u.child,&id);
+  return id;
 }
 
 const cmChar_t* cmDataPairKeyLabel( cmData_t* p )
 {
   assert( _cmDataPairIsValid(p) );
-  return cmDataGetConstStr(p->u.child);
+  const cmChar_t* label = NULL;
+  cmDataGetConstStr(p->u.child,&label);
+  return label;
 }
 
 
@@ -1700,13 +1737,17 @@ cmData_t*       cmDataRecdKey(      cmData_t* p, unsigned index )
 unsigned        cmDataRecdKeyId(    cmData_t* p, unsigned index )
 {
   cmData_t* kp = cmDataRecdKey(p,index);
-  return cmDataGetUInt(kp);
+  unsigned id = cmInvalidId;
+  cmDataGetUInt(kp,&id);
+  return id;
 }
 
 const cmChar_t* cmDataRecdKeyLabel( cmData_t* p, unsigned index )
 {
   cmData_t* kp = cmDataRecdKey(p,index);
-  return cmDataGetConstStr(kp);
+  const cmChar_t* label = NULL;
+  cmDataGetConstStr(kp,&label);
+  return label;
 }
   
 cmData_t*       cmRecdMake( cmData_t* parent, cmData_t* p )
@@ -1750,7 +1791,7 @@ cmDtRC_t  _cmDataRecdParseInputV(cmData_t* parent, unsigned idFl, va_list vl )
       label = va_arg(vl,const char*);  // text field label identifier
     
     // validate the field identifier
-    if( id==kInvalidDtId && label==NULL )
+    if( (idFl && id==kInvalidDtId) || (!idFl && label==NULL) )
       break;
 
     // parse the field data
@@ -1829,7 +1870,7 @@ cmDtRC_t _cmDataRecdParseV(cmData_t* p, bool idFl, cmErr_t* err, va_list vl )
       label = va_arg(vl,const char*);  // text field label identifier
    
     // validate the field identifier
-    if( id==kInvalidDtId && label==NULL )
+    if( (idFl && id==kInvalidDtId) || (!idFl && label==NULL) )
       break;
 
     cmDataFmtId_t typeId = va_arg(vl,unsigned);
@@ -1847,95 +1888,95 @@ cmDtRC_t _cmDataRecdParseV(cmData_t* p, bool idFl, cmErr_t* err, va_list vl )
         break;
 
       case kUCharDtId: 
-        *((unsigned char*)v) = cmDataGetUChar(np);
+        rc = cmDataGetUChar(np,(unsigned char*)v);
         break;
 
       case kCharDtId:
-        *((char*)v) = cmDataGetChar(np);
+        rc = cmDataGetChar(np,(char*)v);
         break;
 
       case kUShortDtId:
-        *((unsigned short*)v) = cmDataGetUShort(np);
+        rc = cmDataGetUShort(np,(unsigned short*)v);
         break;
 
       case kShortDtId:
-        *((short*)v) = cmDataGetShort(np);
+        rc = cmDataGetShort(np,(short*)v);
         break;
 
       case kUIntDtId:
-        *((unsigned int*)v) = cmDataGetUInt(np);        
+        rc = cmDataGetUInt(np,(unsigned int*)v);        
         break;
 
       case kIntDtId:
-        *((int*)v) = cmDataGetInt(np);
+        rc = cmDataGetInt(np,(int*)v);
         break;
 
       case kULongDtId:
-        *((unsigned long*)v) = cmDataGetULong(np);
+        rc = cmDataGetULong(np,(unsigned long*)v);
         break;
 
       case kLongDtId:
-        *((long*)v) = cmDataGetLong(np);
+        rc = cmDataGetLong(np,(long*)v);
         break;
 
       case kFloatDtId:
-        *((float*)v) = cmDataGetFloat(np);
+        rc = cmDataGetFloat(np,(float*)v);
         break;
 
       case kDoubleDtId:
-        *((double*)v) = cmDataGetDouble(np);
+        rc = cmDataGetDouble(np,(double*)v);
         break;
 
       case kStrDtId:
-        *((char**)v) = cmDataGetStr(np);
+        rc = cmDataGetStr(np,(char**)v);
         break;
 
       case kConstStrDtId:
-        *((const char**)v) = cmDataGetConstStr(np);        
+        rc = cmDataGetConstStr(np,(const char**)v);        
         break;
 
       case kUCharPtrDtId: 
-        *((unsigned char**)v) = cmDataGetUCharPtr(np);
+        rc = cmDataGetUCharPtr(np,(unsigned char**)v);
         break;
 
       case kCharPtrDtId:
-        *((char**)v) = cmDataGetCharPtr(np);
+        rc = cmDataGetCharPtr(np,(char**)v);
         break;
 
       case kUShortPtrDtId:
-        *((unsigned short**)v) = cmDataGetUShortPtr(np);
+        rc = cmDataGetUShortPtr(np,(unsigned short**)v);
         break;
 
       case kShortPtrDtId:
-        *((short**)v) = cmDataGetShortPtr(np);
+        rc = cmDataGetShortPtr(np,(short**)v);
         break;
 
       case kUIntPtrDtId:
-        *((unsigned int**)v) = cmDataGetUIntPtr(np);        
+        rc = cmDataGetUIntPtr(np,(unsigned int**)v);        
         break;
 
       case kIntPtrDtId:
-        *((int**)v) = cmDataGetIntPtr(np);
+        rc = cmDataGetIntPtr(np,(int**)v);
         break;
 
       case kULongPtrDtId:
-        *((unsigned long**)v) = cmDataGetULongPtr(np);
+        rc = cmDataGetULongPtr(np,(unsigned long**)v);
         break;
 
       case kLongPtrDtId:
-        *((long**)v) = cmDataGetLongPtr(np);
+        rc = cmDataGetLongPtr(np,(long**)v);
         break;
 
       case kFloatPtrDtId:
-        *((float**)v) = cmDataGetFloatPtr(np);
+        rc = cmDataGetFloatPtr(np,(float**)v);
         break;
 
       case kDoublePtrDtId:
-        *((double**)v) = cmDataGetDoublePtr(np);
+        rc = cmDataGetDoublePtr(np,(double**)v);
         break;
 
       case kVoidPtrDtId:
-        *((void**)v) = cmDataGetDoublePtr(np);
+        rc = cmDataGetVoidPtr(np,(void**)v);
         break;
 
       case kListDtId:
@@ -2031,30 +2072,30 @@ void     _cmDataPrint( const cmData_t* p, cmRpt_t* rpt, unsigned indent )
   switch(p->tid)
   {
     case kNullDtId:       cmRptPrintf(rpt,"<null>"); break;
-    case kUCharDtId:      cmRptPrintf(rpt,"%c ",cmDataGetUChar(p));  break;
-    case kCharDtId:       cmRptPrintf(rpt,"%c ",cmDataGetChar(p));   break;
-    case kUShortDtId:     cmRptPrintf(rpt,"%i ",cmDataGetUShort(p)); break;
-    case kShortDtId:      cmRptPrintf(rpt,"%i ",cmDataGetShort(p));  break;
-    case kUIntDtId:       cmRptPrintf(rpt,"%i ",cmDataGetUInt(p));   break;
-    case kIntDtId:        cmRptPrintf(rpt,"%i ",cmDataGetInt(p));    break;
-    case kULongDtId:      cmRptPrintf(rpt,"%i ",cmDataGetULong(p));  break;
-    case kLongDtId:       cmRptPrintf(rpt,"%i ",cmDataGetLong(p));   break;
-    case kFloatDtId:      cmRptPrintf(rpt,"%f ",cmDataGetFloat(p));  break;
-    case kDoubleDtId:     cmRptPrintf(rpt,"%f ",cmDataGetDouble(p)); break;
+    case kUCharDtId:      cmRptPrintf(rpt,"%c ",cmDataUChar(p));  break;
+    case kCharDtId:       cmRptPrintf(rpt,"%c ",cmDataChar(p));   break;
+    case kUShortDtId:     cmRptPrintf(rpt,"%i ",cmDataUShort(p)); break;
+    case kShortDtId:      cmRptPrintf(rpt,"%i ",cmDataShort(p));  break;
+    case kUIntDtId:       cmRptPrintf(rpt,"%i ",cmDataUInt(p));   break;
+    case kIntDtId:        cmRptPrintf(rpt,"%i ",cmDataInt(p));    break;
+    case kULongDtId:      cmRptPrintf(rpt,"%i ",cmDataULong(p));  break;
+    case kLongDtId:       cmRptPrintf(rpt,"%i ",cmDataLong(p));   break;
+    case kFloatDtId:      cmRptPrintf(rpt,"%f ",cmDataFloat(p));  break;
+    case kDoubleDtId:     cmRptPrintf(rpt,"%f ",cmDataDouble(p)); break;
 
-    case kStrDtId:        cmRptPrintf(rpt,"%s ",cmDataGetStr(p));      break;
-    case kConstStrDtId:   cmRptPrintf(rpt,"%s ",cmDataGetConstStr(p)); break;
+    case kStrDtId:        cmRptPrintf(rpt,"%s ",cmDataStr(p));      break;
+    case kConstStrDtId:   cmRptPrintf(rpt,"%s ",cmDataConstStr(p)); break;
 
-    case kUCharPtrDtId:   parr(rpt,"%c ",cmDataGetUCharPtr(p), p->cnt); break;
-    case kCharPtrDtId:    parr(rpt,"%c ",cmDataGetCharPtr(p),  p->cnt); break;
-    case kUShortPtrDtId:  parr(rpt,"%i ",cmDataGetUShortPtr(p),p->cnt); break;
-    case kShortPtrDtId:   parr(rpt,"%i ",cmDataGetShortPtr(p), p->cnt); break;
-    case kUIntPtrDtId:    parr(rpt,"%i ",cmDataGetUIntPtr(p),  p->cnt); break;
-    case kIntPtrDtId:     parr(rpt,"%i ",cmDataGetIntPtr(p),   p->cnt); break;
-    case kULongPtrDtId:   parr(rpt,"%i ",cmDataGetULongPtr(p), p->cnt); break;
-    case kLongPtrDtId:    parr(rpt,"%i ",cmDataGetLongPtr(p),  p->cnt); break;
-    case kFloatPtrDtId:   parr(rpt,"%f ",cmDataGetFloatPtr(p), p->cnt); break;
-    case kDoublePtrDtId:  parr(rpt,"%f ",cmDataGetDoublePtr(p),p->cnt); break;
+    case kUCharPtrDtId:   parr(rpt,"%c ",cmDataUCharPtr(p), p->cnt); break;
+    case kCharPtrDtId:    parr(rpt,"%c ",cmDataCharPtr(p),  p->cnt); break;
+    case kUShortPtrDtId:  parr(rpt,"%i ",cmDataUShortPtr(p),p->cnt); break;
+    case kShortPtrDtId:   parr(rpt,"%i ",cmDataShortPtr(p), p->cnt); break;
+    case kUIntPtrDtId:    parr(rpt,"%i ",cmDataUIntPtr(p),  p->cnt); break;
+    case kIntPtrDtId:     parr(rpt,"%i ",cmDataIntPtr(p),   p->cnt); break;
+    case kULongPtrDtId:   parr(rpt,"%i ",cmDataULongPtr(p), p->cnt); break;
+    case kLongPtrDtId:    parr(rpt,"%i ",cmDataLongPtr(p),  p->cnt); break;
+    case kFloatPtrDtId:   parr(rpt,"%f ",cmDataFloatPtr(p), p->cnt); break;
+    case kDoublePtrDtId:  parr(rpt,"%f ",cmDataDoublePtr(p),p->cnt); break;
 
     case kVoidPtrDtId:    cmRptPrintf(rpt,"<void:%i>",p->cnt); break;
 

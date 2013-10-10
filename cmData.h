@@ -205,55 +205,31 @@ extern "C" {
 
 
   // Get the value of an object with conversion.
-  cmDtRC_t cmDataGetCharE(      const cmData_t* p, char* v );
-  cmDtRC_t cmDataGetUCharE(     const cmData_t* p, unsigned char* v );
-  cmDtRC_t cmDataGetShortE(     const cmData_t* p, short* v );
-  cmDtRC_t cmDataGetUShortE(    const cmData_t* p, unsigned short* v );
-  cmDtRC_t cmDataGetIntE(       const cmData_t* p, int* v );
-  cmDtRC_t cmDataGetUIntE(      const cmData_t* p, unsigned int* v );
-  cmDtRC_t cmDataGetLongE(      const cmData_t* p, long* v );
-  cmDtRC_t cmDataGetULongE(     const cmData_t* p, unsigned long* v );
-  cmDtRC_t cmDataGetFloatE(     const cmData_t* p, float* v );
-  cmDtRC_t cmDataGetDoubleE(    const cmData_t* p, double* v );
-  cmDtRC_t cmDataGetStrE(       const cmData_t* p, char** v );
-  cmDtRC_t cmDataGetConstStrE(  const cmData_t* p, const char** v );
-  cmDtRC_t cmDataGetVoidPtrE(   const cmData_t* p, void** v );
-  cmDtRC_t cmDataGetCharPtrE(   const cmData_t* p, char** v );
-  cmDtRC_t cmDataGetUCharPtrE(  const cmData_t* p, unsigned char** v );
-  cmDtRC_t cmDataGetShortPtrE(  const cmData_t* p, short** v );
-  cmDtRC_t cmDataGetUShortPtrE( const cmData_t* p, unsigned short** v );
-  cmDtRC_t cmDataGetIntPtrE(    const cmData_t* p, int** v );
-  cmDtRC_t cmDataGetUIntPtrE(   const cmData_t* p, unsigned int** v );
-  cmDtRC_t cmDataGetLongPtrE(   const cmData_t* p, long** v );
-  cmDtRC_t cmDataGetULongPtrE(  const cmData_t* p, unsigned long** v );
-  cmDtRC_t cmDataGetFloatPtrE(  const cmData_t* p, float** v );
-  cmDtRC_t cmDataGetDoublePtrE( const cmData_t* p, double** v );
+  cmDtRC_t cmDataGetChar(      const cmData_t* p, char* v );
+  cmDtRC_t cmDataGetUChar(     const cmData_t* p, unsigned char* v );
+  cmDtRC_t cmDataGetShort(     const cmData_t* p, short* v );
+  cmDtRC_t cmDataGetUShort(    const cmData_t* p, unsigned short* v );
+  cmDtRC_t cmDataGetInt(       const cmData_t* p, int* v );
+  cmDtRC_t cmDataGetUInt(      const cmData_t* p, unsigned int* v );
+  cmDtRC_t cmDataGetLong(      const cmData_t* p, long* v );
+  cmDtRC_t cmDataGetULong(     const cmData_t* p, unsigned long* v );
+  cmDtRC_t cmDataGetFloat(     const cmData_t* p, float* v );
+  cmDtRC_t cmDataGetDouble(    const cmData_t* p, double* v );
 
-  // Get the value of an object with conversion.
-  char            cmDataGetChar(      const cmData_t* p );
-  unsigned char   cmDataGetUChar(     const cmData_t* p );
-  short           cmDataGetShort(     const cmData_t* p );
-  unsigned short  cmDataGetUShort(    const cmData_t* p );
-  int             cmDataGetInt(       const cmData_t* p );
-  unsigned int    cmDataGetUInt(      const cmData_t* p );
-  long            cmDataGetLong(      const cmData_t* p );
-  unsigned long   cmDataGetULong(     const cmData_t* p );
-  float           cmDataGetFloat(     const cmData_t* p );
-  double          cmDataGetDouble(    const cmData_t* p );
-  cmChar_t*       cmDataGetStr(       const cmData_t* p );
-  const cmChar_t* cmDataGetConstStr(  const cmData_t* p );
-  void*           cmDataGetVoidPtr(   const cmData_t* p );
-  char*           cmDataGetCharPtr(   const cmData_t* p );
-  unsigned char*  cmDataGetUCharPtr(  const cmData_t* p );
-  short*          cmDataGetShortPtr(  const cmData_t* p );
-  unsigned short* cmDataGetUShortPtr( const cmData_t* p );
-  int*            cmDataGetIntPtr(    const cmData_t* p );
-  unsigned int*   cmDataGetUIntPtr(   const cmData_t* p );
-  long*           cmDataGetLongPtr(   const cmData_t* p );
-  unsigned long*  cmDataGetULongPtr(  const cmData_t* p );
-  float*          cmDataGetFloatPtr(  const cmData_t* p );
-  double*         cmDataGetDoublePtr( const cmData_t* p );
-
+  // Returns the pointer - does not copy the data.
+  cmDtRC_t cmDataGetStr(       const cmData_t* p, char** v );
+  cmDtRC_t cmDataGetConstStr(  const cmData_t* p, const char** v );
+  cmDtRC_t cmDataGetVoidPtr(   const cmData_t* p, void** v );
+  cmDtRC_t cmDataGetCharPtr(   const cmData_t* p, char** v );
+  cmDtRC_t cmDataGetUCharPtr(  const cmData_t* p, unsigned char** v );
+  cmDtRC_t cmDataGetShortPtr(  const cmData_t* p, short** v );
+  cmDtRC_t cmDataGetUShortPtr( const cmData_t* p, unsigned short** v );
+  cmDtRC_t cmDataGetIntPtr(    const cmData_t* p, int** v );
+  cmDtRC_t cmDataGetUIntPtr(   const cmData_t* p, unsigned int** v );
+  cmDtRC_t cmDataGetLongPtr(   const cmData_t* p, long** v );
+  cmDtRC_t cmDataGetULongPtr(  const cmData_t* p, unsigned long** v );
+  cmDtRC_t cmDataGetFloatPtr(  const cmData_t* p, float** v );
+  cmDtRC_t cmDataGetDoublePtr( const cmData_t* p, double** v );
 
 
   // Set the value of an existing scalar data object.
