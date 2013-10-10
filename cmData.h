@@ -205,6 +205,31 @@ extern "C" {
 
 
   // Get the value of an object with conversion.
+  cmDtRC_t cmDataGetCharE(      const cmData_t* p, char* v );
+  cmDtRC_t cmDataGetUCharE(     const cmData_t* p, unsigned char* v );
+  cmDtRC_t cmDataGetShortE(     const cmData_t* p, short* v );
+  cmDtRC_t cmDataGetUShortE(    const cmData_t* p, unsigned short* v );
+  cmDtRC_t cmDataGetIntE(       const cmData_t* p, int* v );
+  cmDtRC_t cmDataGetUIntE(      const cmData_t* p, unsigned int* v );
+  cmDtRC_t cmDataGetLongE(      const cmData_t* p, long* v );
+  cmDtRC_t cmDataGetULongE(     const cmData_t* p, unsigned long* v );
+  cmDtRC_t cmDataGetFloatE(     const cmData_t* p, float* v );
+  cmDtRC_t cmDataGetDoubleE(    const cmData_t* p, double* v );
+  cmDtRC_t cmDataGetStrE(       const cmData_t* p, char** v );
+  cmDtRC_t cmDataGetConstStrE(  const cmData_t* p, const char** v );
+  cmDtRC_t cmDataGetVoidPtrE(   const cmData_t* p, void** v );
+  cmDtRC_t cmDataGetCharPtrE(   const cmData_t* p, char** v );
+  cmDtRC_t cmDataGetUCharPtrE(  const cmData_t* p, unsigned char** v );
+  cmDtRC_t cmDataGetShortPtrE(  const cmData_t* p, short** v );
+  cmDtRC_t cmDataGetUShortPtrE( const cmData_t* p, unsigned short** v );
+  cmDtRC_t cmDataGetIntPtrE(    const cmData_t* p, int** v );
+  cmDtRC_t cmDataGetUIntPtrE(   const cmData_t* p, unsigned int** v );
+  cmDtRC_t cmDataGetLongPtrE(   const cmData_t* p, long** v );
+  cmDtRC_t cmDataGetULongPtrE(  const cmData_t* p, unsigned long** v );
+  cmDtRC_t cmDataGetFloatPtrE(  const cmData_t* p, float** v );
+  cmDtRC_t cmDataGetDoublePtrE( const cmData_t* p, double** v );
+
+  // Get the value of an object with conversion.
   char            cmDataGetChar(      const cmData_t* p );
   unsigned char   cmDataGetUChar(     const cmData_t* p );
   short           cmDataGetShort(     const cmData_t* p );
@@ -228,6 +253,7 @@ extern "C" {
   unsigned long*  cmDataGetULongPtr(  const cmData_t* p );
   float*          cmDataGetFloatPtr(  const cmData_t* p );
   double*         cmDataGetDoublePtr( const cmData_t* p );
+
 
 
   // Set the value of an existing scalar data object.
@@ -479,9 +505,9 @@ extern "C" {
 
   // Var-args fmt:
   // <label|id> <typeId>  <value> {<cnt>}
-  // scalar types: <value> is literal,<cnt>   is not included
-  //     null has no <value> or <cnt>
-  // ptr    types: <value> is pointer,<cnt>   is element count
+  // scalar types: <value> is literal,<cnt> is not included
+  // null   type  has no <value> or <cnt>
+  // ptr    types: <value> is pointer,  <cnt> is element count
   // struct types: <value> is cmData_t, <cnt> is not included
   // Indicate the end of argument list by setting  <typeId> to kInvalidDtId. 
   // The memory for array based data types is dynamically allocated.
@@ -491,8 +517,12 @@ extern "C" {
   cmData_t*       cmDataRecdAllocIdV( cmData_t* parent, va_list vl );
   cmData_t*       cmDataRecdAllocIdA( cmData_t* parent, ... );
   
-
-
+  // Extract the data in a record to C variables.
+  // <label|id> <typeId> <pointer>
+  cmDtRC_t cmDataRecdParseLabelV(cmData_t* p, cmErr_t* err, va_list vl );
+  cmDtRC_t cmDataRecdParseLabel( cmData_t* p, cmErr_t* err, ... );
+  cmDtRC_t cmDataRecdParseIdV(   cmData_t* p, cmErr_t* err, va_list vl );
+  cmDtRC_t cmDataRecdParseId(    cmData_t* p, cmErr_t* err, ... );
   
   unsigned cmDataSerializeByteCount( const cmData_t* p );
   cmDtRC_t cmDataSerialize( const cmData_t* p, void* buf, unsigned bufByteCnt );

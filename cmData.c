@@ -1730,7 +1730,7 @@ cmData_t* cmRecdAppendPair( cmData_t* p, cmData_t* pair )
 }
 
 
-cmDtRC_t  _cmDataRecdParseV(cmData_t* parent, unsigned idFl, va_list vl )
+cmDtRC_t  _cmDataRecdParseInputV(cmData_t* parent, unsigned idFl, va_list vl )
 {
   assert( parent != NULL && parent->tid == kRecordDtId );
   bool      contFl = true;
@@ -1750,7 +1750,7 @@ cmDtRC_t  _cmDataRecdParseV(cmData_t* parent, unsigned idFl, va_list vl )
       label = va_arg(vl,const char*);  // text field label identifier
     
     // validate the field identifier
-    if( id==kInvalidDtId || label==NULL )
+    if( id==kInvalidDtId && label==NULL )
       break;
 
     // parse the field data
@@ -1773,7 +1773,7 @@ cmDtRC_t  _cmDataRecdParseV(cmData_t* parent, unsigned idFl, va_list vl )
 cmData_t*       cmDataRecdAllocLabelV( cmData_t* parent, va_list vl )
 {
   cmData_t* p = cmRecdAlloc(parent);
-  cmDtRC_t rc = _cmDataRecdParseV(p, false, vl );
+  cmDtRC_t rc = _cmDataRecdParseInputV(p, false, vl );
   if( rc != kOkDtRC )
   {
     cmDataFree(p);
@@ -1794,7 +1794,7 @@ cmData_t*       cmDataRecdAllocLabelA( cmData_t* parent, ... )
 cmData_t*       cmDataRecdAllocIdV( cmData_t* parent, va_list vl )
 {
   cmData_t* p = cmRecdAlloc(parent);
-  cmDtRC_t rc = _cmDataRecdParseV(p, true, vl );
+  cmDtRC_t rc = _cmDataRecdParseInputV(p, true, vl );
   if( rc != kOkDtRC )
   {
     cmDataFree(p);
@@ -1811,6 +1811,177 @@ cmData_t*       cmDataRecdAllocIdA( cmData_t* parent, ... )
   va_end(vl);
   return p;
 }
+
+cmDtRC_t _cmDataRecdParseV(cmData_t* p, bool idFl, cmErr_t* err, va_list vl )
+{
+  bool      contFl = true;
+  cmDtRC_t  rc     = kOkDtRC;
+  
+  while( contFl )
+  {
+    unsigned    id;
+    const char* label;
+
+    // parse the field idenfier
+    if( idFl )
+      id    = va_arg(vl,unsigned);     // numeric field identifier
+    else
+      label = va_arg(vl,const char*);  // text field label identifier
+   
+    // validate the field identifier
+    if( id==kInvalidDtId && label==NULL )
+      break;
+
+    cmDataFmtId_t typeId = va_arg(vl,unsigned);
+    void*         v      = va_arg(vl,void*);
+    cmData_t*     np     = NULL;
+
+    if( idFl )
+      np = cmDataRecdValueFromLabel( p, label );
+    else
+      np = cmDataRecdValueFromId( p, id );
+
+    switch(typeId)
+    {
+      case kNullDtId:
+        break;
+
+      case kUCharDtId: 
+        *((unsigned char*)v) = cmDataGetUChar(np);
+        break;
+
+      case kCharDtId:
+        *((char*)v) = cmDataGetChar(np);
+        break;
+
+      case kUShortDtId:
+        *((unsigned short*)v) = cmDataGetUShort(np);
+        break;
+
+      case kShortDtId:
+        *((short*)v) = cmDataGetShort(np);
+        break;
+
+      case kUIntDtId:
+        *((unsigned int*)v) = cmDataGetUInt(np);        
+        break;
+
+      case kIntDtId:
+        *((int*)v) = cmDataGetInt(np);
+        break;
+
+      case kULongDtId:
+        *((unsigned long*)v) = cmDataGetULong(np);
+        break;
+
+      case kLongDtId:
+        *((long*)v) = cmDataGetLong(np);
+        break;
+
+      case kFloatDtId:
+        *((float*)v) = cmDataGetFloat(np);
+        break;
+
+      case kDoubleDtId:
+        *((double*)v) = cmDataGetDouble(np);
+        break;
+
+      case kStrDtId:
+        *((char**)v) = cmDataGetStr(np);
+        break;
+
+      case kConstStrDtId:
+        *((const char**)v) = cmDataGetConstStr(np);        
+        break;
+
+      case kUCharPtrDtId: 
+        *((unsigned char**)v) = cmDataGetUCharPtr(np);
+        break;
+
+      case kCharPtrDtId:
+        *((char**)v) = cmDataGetCharPtr(np);
+        break;
+
+      case kUShortPtrDtId:
+        *((unsigned short**)v) = cmDataGetUShortPtr(np);
+        break;
+
+      case kShortPtrDtId:
+        *((short**)v) = cmDataGetShortPtr(np);
+        break;
+
+      case kUIntPtrDtId:
+        *((unsigned int**)v) = cmDataGetUIntPtr(np);        
+        break;
+
+      case kIntPtrDtId:
+        *((int**)v) = cmDataGetIntPtr(np);
+        break;
+
+      case kULongPtrDtId:
+        *((unsigned long**)v) = cmDataGetULongPtr(np);
+        break;
+
+      case kLongPtrDtId:
+        *((long**)v) = cmDataGetLongPtr(np);
+        break;
+
+      case kFloatPtrDtId:
+        *((float**)v) = cmDataGetFloatPtr(np);
+        break;
+
+      case kDoublePtrDtId:
+        *((double**)v) = cmDataGetDoublePtr(np);
+        break;
+
+      case kVoidPtrDtId:
+        *((void**)v) = cmDataGetDoublePtr(np);
+        break;
+
+      case kListDtId:
+      case kPairDtId:
+      case kRecordDtId:
+        if( np->tid != typeId )
+         _cmDataSetError(kCvtErrDtRC);
+        else
+          *(cmData_t**)v = np;
+        break;
+
+      default:
+        _cmDataSetError(kVarArgErrDtRC);
+        assert(0);
+    }
+    
+  }
+
+  return rc;
+}
+
+cmDtRC_t cmDataRecdParseLabelV(cmData_t* p, cmErr_t* err, va_list vl )
+{ return _cmDataRecdParseV(p,false,err,vl); }
+
+cmDtRC_t cmDataRecdParseLabel(cmData_t* p, cmErr_t* err, ... )
+{
+  va_list vl;
+  va_start(vl,err);
+  cmDtRC_t rc = cmDataRecdParseLabelV(p,err,vl);
+  va_end(vl);
+  return rc;
+}
+
+cmDtRC_t cmDataRecdParseIdV(cmData_t* p, cmErr_t* err, va_list vl )
+{ return _cmDataRecdParseV(p,true,err,vl); }
+
+cmDtRC_t cmDataRecdParseId(cmData_t* p, cmErr_t* err, ... )
+{
+  va_list vl;
+  va_start(vl,err);
+  cmDtRC_t rc = cmDataRecdParseIdV(p,err,vl);
+  va_end(vl);
+  return rc;
+}
+
+
 
 //----------------------------------------------------------------------------  
 unsigned cmDataSerializeByteCount( const cmData_t* p )
