@@ -125,7 +125,7 @@ extern "C" {
 
   bool cmDataIsValue(  const cmData_t* p );
   bool cmDataIsPtr(    const cmData_t* p );
-  bool cmDataIsStruct( const cmData_t* p );
+  bool cmDataIsStruct( const cmData_t* p ); // is a pair,list or record
 
   /*
     TODO:
@@ -367,17 +367,20 @@ extern "C" {
 
   // Prepend 'p' to 'parents' child list.
   // The source node 'p' is not duplicated  it is simply linked in.
+  // 'p' is automatically unlinked prior to being prepended.
   // Returns 'p'. 
   cmData_t* cmDataPrependChild(cmData_t* parent, cmData_t* p );
 
   // Append 'p' to the end of 'parent' child list.
   // The source node 'p' is not duplicated it is simply linked in.
-  // Returns 'p'.
+  // 'p' is automatically unlinked prior to being appended.
+  // Returns 'p'. 
   cmData_t* cmDataAppendChild( cmData_t* parent, cmData_t* p );
 
   // Insert 'p' at index.  Index must be in the range: 
   // 0 to cmDataChildCount(parent).
   // The source node 'p' is not duplicated it is simply linked in.
+  // 'p' is automatically unlinked prior to being inserted.
   // Returns 'p'.
   cmData_t* cmDataInsertChild( cmData_t* parent, unsigned index, cmData_t* p );
 
@@ -408,12 +411,18 @@ extern "C" {
   // The data space for the 'label' string is dynamically allocated.
   cmData_t* cmDataPairSetKeyLabel(  cmData_t* p, const cmChar_t* label );
 
+  // Create a pair value by assigning a key and value to 'p'.
+  // 'p' is unlinked and freed prior to the key value assignment.
+  // 'key' and 'value' are simply linked in they are not duplicated or reallocated.
   cmData_t* cmDataMakePair(       cmData_t* parent, cmData_t* p, cmData_t* key, cmData_t* value );
 
-  // Dynamically allocate a pair node 
+  // Dynamically allocate a pair node. Both the key and value nodes are reallocated.
   cmData_t* cmDataAllocPair(      cmData_t* parent, const cmData_t* key,  const cmData_t* value );
+
+  // Dynamically allocate the id but link (w/o realloc) the value.
   cmData_t* cmDataAllocPairId(    cmData_t* parent, unsigned  keyId,       cmData_t* value );
-  // The data space for the 'label' string is dynamically allocated.
+
+  // Dynamically allocate the label but link (w/o realloc) the value.
   cmData_t* cmDataAllocPairLabel( cmData_t* parent, const cmChar_t* label, cmData_t* value );
 
   //----------------------------------------------------------------------------
@@ -476,6 +485,9 @@ extern "C" {
   cmData_t*       cmRecdMake( cmData_t* parent, cmData_t* p );
   cmData_t*       cmRecdAlloc( cmData_t* parent );
   
+  // Append a pair node by linking the pair node 'pair' to the record node 'p'.
+  // 'pair' is simply linked to 'p' via cmDataAppendChild() no 
+  // reallocation or duplicattion takes place.
   cmData_t*       cmRecdAppendPair( cmData_t* p, cmData_t* pair );
 
 

@@ -1284,8 +1284,12 @@ cmData_t* cmDataPrependChild(cmData_t* parent, cmData_t* p )
 {
   assert( cmDataIsStruct(p) );
   
+
+  cmDataUnlink(p);
+
   p->u.child    = parent->u.child;
   parent->u.child = p;
+  p->parent = parent;
   return p;
 }
 
@@ -1293,6 +1297,8 @@ cmData_t* cmDataAppendChild( cmData_t* parent, cmData_t* p )
 {
   assert( cmDataIsStruct(parent) );
   assert( parent->tid != kRecordDtId || (parent->tid == kRecordDtId && p->tid==kPairDtId));
+
+  cmDataUnlink(p);
 
   cmData_t* cp = parent->u.child;
   if( cp == NULL )
@@ -1307,6 +1313,7 @@ cmData_t* cmDataAppendChild( cmData_t* parent, cmData_t* p )
       }
   }
 
+  p->parent  = parent;
   p->sibling = NULL;
   return p;
 }
@@ -1315,6 +1322,8 @@ cmData_t* cmDataInsertChild( cmData_t* parent, unsigned index, cmData_t* p )
 {
   if( !cmDataIsStruct(parent) )
     return NULL;
+
+  cmDataUnlink(p);
 
   unsigned  n  = 0;
   cmData_t* cp = parent->u.child;
@@ -1338,6 +1347,8 @@ cmData_t* cmDataInsertChild( cmData_t* parent, unsigned index, cmData_t* p )
     }
     ++n;
   }
+
+  p->parent = parent;
 
   return p;
   
@@ -1422,6 +1433,8 @@ cmData_t* cmDataMakePair( cmData_t* parent, cmData_t* p, cmData_t* key, cmData_t
   p->parent = parent;
   p->flags   = 0;
   p->u.child = NULL;
+  cmDataAppendChild(p,key);
+  cmDataAppendChild(p,value);
   return p;
 }
 
