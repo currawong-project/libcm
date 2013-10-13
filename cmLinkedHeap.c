@@ -100,16 +100,34 @@ void* _cmLHeapAllocCb(void* funcArgPtr, unsigned byteCnt)
   return _cmLHeapAlloc(p,byteCnt);
 }
 
-bool     _cmLHeapFree(    cmLHeap_t* lhp, void* dataPtr )
-{ 
+cmLhBlock_t* _cmLHeapPtrToBlock( cmLHeap_t* lhp, const void* dataPtr )
+{
   if( dataPtr == NULL )
-    return true;
+    return NULL;
 
   cmLhBlock_t* lbp = lhp->first;
 
   // locate the block containing the area to free
   while( (lbp != NULL ) && (((char*)dataPtr < lbp->basePtr) || ((char*)dataPtr >= lbp->endPtr)))
     lbp = lbp->nextBlkPtr;
+
+  return lbp;
+}
+
+bool     _cmLHeapFree(    cmLHeap_t* lhp, void* dataPtr )
+{ 
+  if( dataPtr == NULL )
+    return true;
+
+  /*
+  cmLhBlock_t* lbp = lhp->first;
+
+  // locate the block containing the area to free
+  while( (lbp != NULL ) && (((char*)dataPtr < lbp->basePtr) || ((char*)dataPtr >= lbp->endPtr)))
+    lbp = lbp->nextBlkPtr;
+  */
+
+  cmLhBlock_t* lbp = _cmLHeapPtrToBlock(lhp,dataPtr);
 
   // the pointer must be in one of the blocks
   if( lbp == NULL )
@@ -294,6 +312,12 @@ void       cmLHeapClear(   cmLHeapH_t h, bool releaseFl )
     p->first = NULL;
     p->last  = NULL;
   }
+}
+
+bool cmLHeapIsPtrInHeap( cmLHeapH_t h, const void* ptr )
+{
+  cmLHeap_t*   lhp = _cmLHeapHandleToPtr(h); 
+  return _cmLHeapPtrToBlock(lhp,ptr) != NULL;
 }
 
 cmMmRC_t cmLHeapReportErrors( cmLHeapH_t h, unsigned mmFlags )

@@ -37,6 +37,9 @@ extern "C" {
   // release the associated memory, otherwise releases all memory blocks.
   void       cmLHeapClear(   cmLHeapH_t h, bool releaseFl );
 
+  // Return true if 'ptr' points into a linked heap block.
+  bool       cmLHeapIsPtrInHeap( cmLHeapH_t h, const void* ptr );
+
   // mmFlags take the same values as the flags parameter to cmMmReport().
   cmMmRC_t   cmLHeapReportErrors( cmLHeapH_t h, unsigned mmFlags );
   void       cmLHeapReport(  cmLHeapH_t h );
