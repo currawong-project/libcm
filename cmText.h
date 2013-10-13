@@ -52,6 +52,8 @@ extern "C" {
   cmChar_t*     cmTextSysVPrintf( cmTextSysH_t h, const cmChar_t* fmt, va_list vl );
   cmChar_t*     cmTextSysPrintf(  cmTextSysH_t h, const cmChar_t* fmt, ... );
   void          cmTextSysFreeStr( cmTextSysH_t h, const cmChar_t* s );
+  // Return true if 's' is stored in the text systems internal heap,
+  bool          cmTextSysIsStored(cmTextSysH_t h, const cmChar_t* s );
 
   //
   // Global interface:
@@ -71,6 +73,7 @@ extern "C" {
   cmChar_t*     cmTsVPrintf( const cmChar_t* fmt, va_list vl );
   cmChar_t*     cmTsPrintf(  const cmChar_t* fmt, ... );
   void          cmTsFreeStr( const cmChar_t* s );
+  bool          cmTsIsStored(const cmChar_t* s );
 
   // Print a formatted string into s[].  s[] is reallocated as necessary to
   // hold the string.  s must be freed by the caller via cmMemFree().
@@ -195,6 +198,10 @@ extern "C" {
   // Returns true if the string is NULL or all spaces.
   bool cmTextIsEmpty( const cmChar_t* s );
   bool cmTextIsNotEmpty( const cmChar_t* s );
+
+  // Same as strcmp() but handles NULL.  Note that if both s0 and s1 are NULL
+  // then return is 0.
+  int cmTextCmp( const cmChar_t* s0, const cmChar_t* s1 );
 
   // Returns NULL if string contains fewer than lineIdx lines.
   // Note: first line == 1.

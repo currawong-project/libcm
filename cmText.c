@@ -148,6 +148,12 @@ void                cmTextSysFreeStr( cmTextSysH_t h, const cmChar_t* s )
   cmLhFree(p->lhH,(cmChar_t*)s);
 }
 
+bool  cmTextSysIsStored(cmTextSysH_t h, const cmChar_t* s )
+{ 
+  cmTextSys_t* p = _cmTextSysHandleToPtr(h);  
+  return cmLHeapIsPtrInHeap(p->lhH,s);
+}
+
 
   //
   // Global interface
@@ -203,6 +209,8 @@ cmChar_t*     cmTsPrintf(  const cmChar_t* fmt, ... )
 void                cmTsFreeStr( const cmChar_t* s )
 { cmTextSysFreeStr(_cmTextSysGlobalH,s); }
 
+bool           cmTsIsStored( const cmChar_t* s )
+{ return cmTextSysIsStored(_cmTextSysGlobalH,s); }
 
 cmChar_t* cmTsVPrintfP( cmChar_t* s, const cmChar_t* fmt, va_list vl )
 {
@@ -615,6 +623,20 @@ bool cmTextIsEmpty( const cmChar_t* s )
 bool cmTextIsNotEmpty( const cmChar_t* s )
 { return !cmTextIsEmpty(s); }
 
+int cmTextCmp( const cmChar_t* s0, const cmChar_t* s1 )
+{
+  if( s0 == NULL && s1 == NULL )
+    return 0;
+
+  if( s0 == NULL || s1 == NULL )
+  {
+    if( s0 == NULL )
+      return -1;
+    return 1;
+  }
+
+  return strcmp(s0,s1);
+}
 
 cmChar_t* cmTextLine( cmChar_t* s, unsigned line )
 {
