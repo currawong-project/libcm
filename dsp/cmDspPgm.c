@@ -2444,6 +2444,7 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
 _cmDspSysPgm_t _cmDspSysPgmArray[] = 
 {
   { "time_line",     _cmDspSysPgm_TimeLine,     NULL, NULL },
+  { "kr_live",       _cmDspSysPgm_KrLive,       NULL, NULL },
   { "main",          _cmDspSysPgm_Main,         NULL, NULL },
   { "array",         _cmDspSysPgm_Array,        NULL, NULL },
   { "line",          _cmDspSysPgm_Line,         NULL, NULL },
