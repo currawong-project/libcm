@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
   cmDspRC_t _cmDspSysPgm_TimeLine( cmDspSysH_t h, void** userPtrPtr );
-  cmDspRC_t _cmDspSysPgm_Switcher( cmDspSysH_t h, void** userPtrPtr );
+  cmDspRC_t _cmDspSysPgm_KrLive( cmDspSysH_t h, void** userPtrPtr );
 
 #ifdef __cplusplus
   }
