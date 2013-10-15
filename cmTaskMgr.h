@@ -36,7 +36,7 @@ extern "C" {
   {
     kStatusTmId,       // Task status updates. These are automatically sent by the system when the task instance changes state.
     kProgTmId,         // Task progress update. The user function should increment the 'prog' toward 'progCnt'.
-    kErrorTmId         // 
+    kErrorTmId         // Error message
   } cmSelTmId_t;
 
   typedef enum 
@@ -81,7 +81,7 @@ extern "C" {
     cmTaskMgrH_t*        hp, 
     cmTaskMgrStatusCb_t  statusCb, 
     void*                statusCbArg, 
-    unsigned             threadCnt,
+    unsigned             maxActiveThreadCnt,
     unsigned             queueByteCnt,
     unsigned             pauseSleepMs );
 
@@ -137,9 +137,9 @@ extern "C" {
 
   // -----------------------------------------------------------------------------------
   // Worker thread helper functions.
-  cmTaskMgrCtlId_t cmTaskMgrHandleCommand( cmTaskMgrFuncArg_t* a );
-  cmTaskMgrCtlId_t cmTaskMgrSendStatus( cmTaskMgrFuncArg_t* a, cmStatusTmId_t statusId );
-  cmTaskMgrCtlId_t cmTaskMgrSendProgress( cmTaskMgrFuncArg_t* a, unsigned prog );
+  cmTaskMgrCtlId_t cmTaskMgrWorkerHandleCommand( cmTaskMgrFuncArg_t* a );
+  cmTaskMgrCtlId_t cmTaskMgrWorkerSendStatus( cmTaskMgrFuncArg_t* a, cmStatusTmId_t statusId );
+  cmTaskMgrCtlId_t cmTaskMgrWorkerSendProgress( cmTaskMgrFuncArg_t* a, unsigned prog );
 
   cmTmRC_t cmTaskMgrTest(cmCtx_t* ctx);
 
