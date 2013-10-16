@@ -1302,7 +1302,11 @@ bool     cmThPtrCAS(   void*    addr, void*    old, void*    neww )
     union 
     {
       void* addr;
+#ifdef OS_64
       int64_t   val;
+#else
+      int val;
+#endif
     } u;
   } s_t;
 
@@ -1310,10 +1314,11 @@ bool     cmThPtrCAS(   void*    addr, void*    old, void*    neww )
   
   ov.u.addr = old;
   nv.u.addr = neww;
-
+#ifdef OS_64
   int rv = OSAtomicCompareAndSwap64Barrier(ov.u.val,nv.u.val,(int64_t*)addr);
-  
-  //int rv = OSAtomicCompareAndSwapPtrBarrier(old,neww,&addr);
+#else
+  int rv = OSAtomicCompareAndSwap32Barrier(ov.u.val,nv.u.val,(int*)addr);
+#endif
   return rv;
 #endif
 
