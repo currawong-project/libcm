@@ -980,46 +980,46 @@ void _cmScFolMatcherCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
     unsigned i;
     for(i=ap->sfp->smp->vsi; i<ap->sfp->smp->nsi; ++i)
       if(ap->sfp->smp->set[i].value != DBL_MAX )
-    {
-
-      switch( ap->sfp->smp->set[i].sp->varId )
       {
-        case kEvenVarScId:
-          cmDspSetDouble(ap->ctx,inst,kEvenSfId,ap->sfp->smp->set[i].value);
-          break;
 
-        case kDynVarScId:
-          cmDspSetDouble(ap->ctx,inst,kDynSfId,ap->sfp->smp->set[i].value);
-          break;
+        switch( ap->sfp->smp->set[i].sp->varId )
+        {
+          case kEvenVarScId:
+            cmDspSetDouble(ap->ctx,inst,kEvenSfId,ap->sfp->smp->set[i].value);
+            break;
 
-        case kTempoVarScId:
-          cmDspSetDouble(ap->ctx,inst,kTempoSfId,ap->sfp->smp->set[i].value);
-          break;
+          case kDynVarScId:
+            cmDspSetDouble(ap->ctx,inst,kDynSfId,ap->sfp->smp->set[i].value);
+            break;
 
-        default:
-          { assert(0); }
-      }           
+          case kTempoVarScId:
+            cmDspSetDouble(ap->ctx,inst,kTempoSfId,ap->sfp->smp->set[i].value);
+            break;
 
-      cmDspSetDouble(ap->ctx,inst,kCostSfId,ap->sfp->smp->set[i].match_cost);
+          default:
+            { assert(0); }
+        }           
+
+        cmDspSetDouble(ap->ctx,inst,kCostSfId,ap->sfp->smp->set[i].match_cost);
 
 
-      // Set the values in the global variable storage
-      cmDspValue_t vv,cv;
-      unsigned     j;
-      cmDsvSetDouble(&vv,ap->sfp->smp->set[i].value);
-      cmDsvSetDouble(&cv,ap->sfp->smp->set[i].match_cost);
+        // Set the values in the global variable storage
+        cmDspValue_t vv,cv;
+        unsigned     j;
+        cmDsvSetDouble(&vv,ap->sfp->smp->set[i].value);
+        cmDsvSetDouble(&cv,ap->sfp->smp->set[i].match_cost);
 
-      for(j=0; j<ap->sfp->smp->set[i].sp->sectCnt; ++j)
-      {
-        cmDspStoreSetValueViaSym(ap->ctx->dsH, ap->sfp->smp->set[i].sp->symArray[j], &vv );
-        cmDspStoreSetValueViaSym(ap->ctx->dsH, ap->sfp->smp->set[i].sp->costSymArray[j], &cv );
+        for(j=0; j<ap->sfp->smp->set[i].sp->sectCnt; ++j)
+        {
+          cmDspStoreSetValueViaSym(ap->ctx->dsH, ap->sfp->smp->set[i].sp->symArray[j], &vv );
+          cmDspStoreSetValueViaSym(ap->ctx->dsH, ap->sfp->smp->set[i].sp->costSymArray[j], &cv );
 
-        cmDspSetSymbol(ap->ctx,inst,kSymSfId,ap->sfp->smp->set[i].sp->symArray[j]);
-        cmDspSetSymbol(ap->ctx,inst,kSymSfId,ap->sfp->smp->set[i].sp->costSymArray[j]);
+          cmDspSetSymbol(ap->ctx,inst,kSymSfId,ap->sfp->smp->set[i].sp->symArray[j]);
+          cmDspSetSymbol(ap->ctx,inst,kSymSfId,ap->sfp->smp->set[i].sp->costSymArray[j]);
+        }
+
+
       }
-
-
-    }
 
     /*
     // trigger 'section' starts 
