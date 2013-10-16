@@ -481,11 +481,12 @@ void _cmMpMidiSystemNotifyProc( const MIDINotification* notifyMsgPtr, void *refC
 
 void _cmMpMIDISystemReadProc( const MIDIPacketList *pktListPtr, void* readProcRefCon, void* srcConnRefCon )
 {
-  cmMpRoot*  rp = (cmMpRoot*)readProcRefCon;
+  //cmMpRoot*  rp = (cmMpRoot*)readProcRefCon;
   cmMpPort*  pp = (cmMpPort*)srcConnRefCon;
   unsigned i;
 
-  if( pktListPtr == NULL || rp == NULL || pp == NULL || rp->cbFunc == NULL )
+
+  if( pktListPtr == NULL /*|| rp == NULL*/ || pp == NULL /*|| rp->cbFunc == NULL*/ )
     return;
 
 	const MIDIPacket* packetPtr = &pktListPtr->packet[0];
