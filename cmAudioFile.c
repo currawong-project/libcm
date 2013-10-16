@@ -708,7 +708,7 @@ cmRC_t     cmAudioFileCreate(  cmAudioFileH_t h, const cmChar_t* fn, double srat
       ext[i] = toupper(ext[i]);
 
     if( strcmp(ext,"AIF") && strcmp(ext,"AIFF") )
-      cmRptPrintf(p->err.rpt,"The AIF audio file '%s' is being written with a file extension other than 'AIF' or 'AIFF'.");
+      cmRptPrintf(p->err.rpt,"The AIF audio file '%s' is being written with a file extension other than 'AIF' or 'AIFF'.",cmStringNullGuard(fn));
       
     cmFsFreePathParts(pp);
   }
