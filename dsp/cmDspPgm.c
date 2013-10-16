@@ -103,10 +103,19 @@ cmDspRC_t _cmDspSysPgm_Stereo_Through( cmDspSysH_t h, void** userPtrPtr )
   cmDspSysConnectAudio(h, ai0p, "out", im0p, "in");         //ain0 -> imtr0
   cmDspSysConnectAudio(h, ai1p, "out", im1p, "in");         //ain1 -> imtr1
   
-  cmDspSysInstallCb(   h, hzp, "val", php, "mult", NULL);   // hz  -> phs
-  cmDspSysConnectAudio(h, php, "out", wtp, "phs" );         // phs -> wt
-  cmDspSysConnectAudio(h, wtp, "out", ao0p, "in"  );        // wt  -> aout0
-  cmDspSysConnectAudio(h, wtp, "out", om0p, "in" );         // wt  -> omtr0
+  if(0)
+  {
+    cmDspSysInstallCb(   h, hzp, "val", php, "mult", NULL);   // hz  -> phs
+    cmDspSysConnectAudio(h, php, "out", wtp, "phs" );         // phs -> wt
+    cmDspSysConnectAudio(h, wtp, "out", ao0p, "in"  );        // wt  -> aout0
+    cmDspSysConnectAudio(h, wtp, "out", om0p, "in" );         // wt  -> omtr0
+  }
+  else
+  {
+    cmDspSysInstallCb(   h, ignp,"val", ai0p, "gain", NULL);  // igain -> ain0
+    cmDspSysConnectAudio(h, ai0p,"out", ao0p, "in" );         // ain0  -> aout0 
+    cmDspSysConnectAudio(h, ai0p,"out", om0p, "in" );         // ain0  -> omtr0 
+  }
 
   cmDspSysInstallCb(   h, ignp,"val", ai1p, "gain", NULL);  // igain -> ain1
   cmDspSysConnectAudio(h, ai1p,"out", ao1p, "in" );         // ain1  -> aout1 
