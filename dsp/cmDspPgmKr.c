@@ -42,7 +42,6 @@ typedef struct
   const cmChar_t* measFn;
   const cmChar_t* recordDir;
   const cmChar_t* midiDevice;
-  const cmChar_t* midiInPort;
   const cmChar_t* midiOutPort;
 } krRsrc_t;
 
@@ -58,9 +57,8 @@ cmDspRC_t krLoadRsrc(cmDspSysH_t h, cmErr_t* err, krRsrc_t* r)
   cmDspRsrcString(h,&r->modFn,       "modFn",        NULL);
   cmDspRsrcString(h,&r->measFn,      "measFn",       NULL);
   cmDspRsrcString(h,&r->recordDir,   "recordDir",    NULL);
-  cmDspRsrcString(h,&r->midiDevice,  "midiDevice",    NULL);
-  cmDspRsrcString(h,&r->midiInPort,  "midiOutPort",    NULL);
-  cmDspRsrcString(h,&r->midiOutPort, "midiInPort",    NULL);
+  cmDspRsrcString(h,&r->midiDevice,  "midiDevice",   NULL);
+  cmDspRsrcString(h,&r->midiOutPort, "midiOutPort",  NULL);
 
   
 
@@ -797,7 +795,7 @@ cmDspRC_t _cmDspSysPgm_KrLive(cmDspSysH_t h, void** userPtrPtr )
   //unsigned   compPreGrpSymId = cmDspSysPresetRegisterGroup(h,"tl_cmp"); 
 
 
-  cmDspInst_t* mip  = cmDspSysAllocInst(h, "MidiIn",    NULL,   2, r.midiDevice, r.midiInPort);
+  cmDspInst_t* mip  = cmDspSysAllocInst(h, "MidiIn",    NULL,   0);
   cmDspInst_t* mop  = cmDspSysAllocInst(h, "MidiOut",   NULL,   2, r.midiDevice, r.midiOutPort);
   cmDspInst_t* ai0p = cmDspSysAllocInst(h,"AudioIn",    NULL,   1, 0 );
   cmDspInst_t* ai1p = cmDspSysAllocInst(h,"AudioIn",    NULL,   1, 0 );
