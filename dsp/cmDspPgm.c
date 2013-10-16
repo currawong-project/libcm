@@ -37,8 +37,8 @@ cmDspRC_t _cmDspSysPgm_Test_Midi( cmDspSysH_t h, void** userPtrPtr )
   deviceName = "MOTU - FastLane USB";
   portName   = "Port A";
 
-  deviceName = "RME - Fireface UFX (23148636)";
-  portName   = "Port 2";
+  //deviceName = "RME - Fireface UFX (23148636)";
+  //portName   = "Port 2";
 
 #endif
 
@@ -103,7 +103,7 @@ cmDspRC_t _cmDspSysPgm_Stereo_Through( cmDspSysH_t h, void** userPtrPtr )
   cmDspSysConnectAudio(h, ai0p, "out", im0p, "in");         //ain0 -> imtr0
   cmDspSysConnectAudio(h, ai1p, "out", im1p, "in");         //ain1 -> imtr1
   
-  cmDspSysInstallCb(   h, hzp, "out", php, "mult", NULL);   // hz  -> phs
+  cmDspSysInstallCb(   h, hzp, "val", php, "mult", NULL);   // hz  -> phs
   cmDspSysConnectAudio(h, php, "out", wtp, "phs" );         // phs -> wt
   cmDspSysConnectAudio(h, wtp, "out", ao0p, "in"  );        // wt  -> aout0
   cmDspSysConnectAudio(h, wtp, "out", om0p, "in" );         // wt  -> omtr0
