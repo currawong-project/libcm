@@ -463,7 +463,7 @@ typedef struct
 // 1) midiBuf[] stores all MIDI notes for the duration of the performance
 // it is initialized to 2*score_event_count.
 //
-// 2) dynRef][ is the gives the MIDI velocity range for each dynamics
+// 2) dynRef[] is the gives the MIDI velocity range for each dynamics
 // category: pppp-fff
 // 
 // 3) See a cmDspKr.c _cmScFolMatcherCb() for an example of how 
