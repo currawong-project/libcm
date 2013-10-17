@@ -250,7 +250,7 @@ void* cmDspInstAllocate(
   return p;
 }
 
-void  _cmDspParseArgV( cmDspVarArg_t* a, va_list vl )
+va_list  _cmDspParseArgV( cmDspVarArg_t* a, va_list vl )
 {
   a->label   = va_arg(vl,const char*);
   a->constId = va_arg(vl,unsigned);
@@ -258,6 +258,7 @@ void  _cmDspParseArgV( cmDspVarArg_t* a, va_list vl )
   a->cn      = va_arg(vl,unsigned);
   a->flags   = va_arg(vl,unsigned);
   a->doc     = va_arg(vl,const char*);  
+  return vl;
 }
 
 void* cmDspInstAllocateV(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned instByteCnt, unsigned instSymId, unsigned instId, unsigned storeSymId, unsigned va_cnt, va_list vl0, ... )
@@ -278,8 +279,10 @@ void* cmDspInstAllocateV(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned instB
     
     argCnt += repeatCnt;
 
-    _cmDspParseArgV(&a,vl1);
+    vl1 = _cmDspParseArgV(&a,vl1);
   }
+
+  va_end(vl1);
   
   cmDspVarArg_t aa[ argCnt+1 ];
   unsigned j=0;
@@ -287,7 +290,7 @@ void* cmDspInstAllocateV(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned instB
   {
     cmDspVarArg_t a;
     
-    _cmDspParseArgV(&a,vl2);
+    vl2 = _cmDspParseArgV(&a,vl2);
     
     cmDspArgSetupN(ctx,aa,argCnt,j,repeatCnt,a.label,a.constId,a.rn, a.cn, a.flags, a.doc ); 
     j += repeatCnt;
@@ -295,7 +298,7 @@ void* cmDspInstAllocateV(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned instB
   }
   cmDspArgSetupNull(aa + argCnt);
 
-  va_end(vl1);
+  va_end(vl2);
 
   return cmDspInstAllocate(ctx,classPtr,aa,instByteCnt,instSymId,instId,storeSymId,va_cnt,vl0);
 }
@@ -368,6 +371,7 @@ cmDspRC_t _cmDspClassErrV( cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned ins
   else
     cmErrMsg( &classPtr->err, rc, "%s DSP Class:%s Inst:%i",buf, classPtr->labelStr,instId);
 
+  va_end(vl2);
   return rc;
 }
 
