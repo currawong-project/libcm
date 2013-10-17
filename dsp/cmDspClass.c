@@ -250,7 +250,7 @@ void* cmDspInstAllocate(
   return p;
 }
 
-va_list  _cmDspParseArgV( cmDspVarArg_t* a, va_list vl )
+void  _cmDspParseArgV( cmDspVarArg_t* a, va_list vl )
 {
   a->label   = va_arg(vl,const char*);
   a->constId = va_arg(vl,unsigned);
@@ -258,7 +258,7 @@ va_list  _cmDspParseArgV( cmDspVarArg_t* a, va_list vl )
   a->cn      = va_arg(vl,unsigned);
   a->flags   = va_arg(vl,unsigned);
   a->doc     = va_arg(vl,const char*);  
-  return vl;
+  
 }
 
 void* cmDspInstAllocateV(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned instByteCnt, unsigned instSymId, unsigned instId, unsigned storeSymId, unsigned va_cnt, va_list vl0, ... )
@@ -279,7 +279,7 @@ void* cmDspInstAllocateV(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned instB
     
     argCnt += repeatCnt;
 
-    vl1 = _cmDspParseArgV(&a,vl1);
+    _cmDspParseArgV(&a,vl1);
   }
 
   va_end(vl1);
@@ -290,7 +290,7 @@ void* cmDspInstAllocateV(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned instB
   {
     cmDspVarArg_t a;
     
-    vl2 = _cmDspParseArgV(&a,vl2);
+    _cmDspParseArgV(&a,vl2);
     
     cmDspArgSetupN(ctx,aa,argCnt,j,repeatCnt,a.label,a.constId,a.rn, a.cn, a.flags, a.doc ); 
     j += repeatCnt;
