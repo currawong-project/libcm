@@ -205,6 +205,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* au0Sw = cmDspSysAllocInst(h,"1ofN",   NULL, 2, 2, 0);
   cmDspInst_t* au1Sw = cmDspSysAllocInst(h,"1ofN",   NULL, 2, 2, 0);
 
+  cmDspInst_t* siRt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);  
   cmDspInst_t* d0Rt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);
   cmDspInst_t* d1Rt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);
   cmDspInst_t* stRt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);
@@ -364,14 +365,14 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysConnectAudio(h, wtp,  "out",   au0Sw, "a-in-0" ); // wt  -> sw
   cmDspSysConnectAudio(h, ai0p, "out",   au0Sw, "a-in-1" ); // ain -> sw
   cmDspSysConnectAudio(h, au0Sw,"a-out", kr00, "in"  );     // sw  -> kr
-  cmDspSysConnectAudio(h, kr00, "out",   fad0, "in-0");  
-  cmDspSysConnectAudio(h, fad0, "out-0", mix0, "in-0");
+  cmDspSysConnectAudio(h, kr00, "out",   fad0, "in-0");     // kr  -> fad
+  cmDspSysConnectAudio(h, fad0, "out-0", mix0, "in-0");     // fad -> mix
 
-  cmDspSysConnectAudio(h, au0Sw,"a-out", kr01, "in"  );  
-  cmDspSysConnectAudio(h, kr01, "out",   fad0, "in-1");  
-  cmDspSysConnectAudio(h, fad0, "out-1", mix0, "in-1");
-  cmDspSysConnectAudio(h, mix0, "out",   cmp0, "in");
-  cmDspSysConnectAudio(h, cmp0, "out",   ao0p, "in" );   // comp -> aout
+  cmDspSysConnectAudio(h, au0Sw,"a-out", kr01, "in"  );     // sw  -> kr
+  cmDspSysConnectAudio(h, kr01, "out",   fad0, "in-1");     // kr  -> fad
+  cmDspSysConnectAudio(h, fad0, "out-1", mix0, "in-1");     // fad -> mix
+  cmDspSysConnectAudio(h, mix0, "out",   cmp0, "in");       // mix -> cmp
+  cmDspSysConnectAudio(h, cmp0, "out",   ao0p, "in" );      // cmp -> aout
 
 
   cmDspSysConnectAudio(h, wtp,  "out",   au1Sw, "a-in-0" );  // wt -> kr
@@ -400,10 +401,15 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, liveb, "out",  amRt, "sel", NULL );
   cmDspSysInstallCb(h, liveb, "out",  au0Sw, "chidx", NULL );
   cmDspSysInstallCb(h, liveb, "out",  au1Sw, "chidx", NULL );
+
+  // 'simulate' button -> simulate router selector switch
   cmDspSysInstallCb(h, simb,  "out",  au0Sw, "chidx", NULL );
   cmDspSysInstallCb(h, simb,  "out",  au1Sw, "chidx", NULL );
+  cmDspSysInstallCb(h, simb,  "out",  siRt,  "sel", NULL );
+  cmDspSysInstallCb(h, simb,  "out",  d1Rt,  "sel", NULL );
+  cmDspSysInstallCb(h, simb,  "out",  d0Rt,  "sel", NULL );
+  cmDspSysInstallCb(h, simb,  "out",  stRt,  "sel", NULL );
   
-
   
   // start connections
   cmDspSysInstallCb(h, onb,  "sym",    tlRt, "s-in",  NULL );
@@ -446,7 +452,10 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
 
   // MIDI file player to score follower
-  cmDspSysInstallCb(h, mfp,  "smpidx",  sfp,  "smpidx",NULL );
+  cmDspSysInstallCb(h, mfp,  "smpidx",  siRt, "f-in",NULL );
+  cmDspSysInstallCb(h, siRt, "f-out-0", sfp,  "smpidx",NULL ); 
+  // leave siRt.f-out-1 unconnected because it should be ignored in 'simulate mode'
+
   cmDspSysInstallCb(h, mfp,  "d1",      d1Rt, "f-in",  NULL );
   cmDspSysInstallCb(h, d1Rt, "f-out-0", sfp,  "d1",    NULL );
   cmDspSysInstallCb(h, d1Rt, "f-out-1", mop,  "d1",    NULL );
