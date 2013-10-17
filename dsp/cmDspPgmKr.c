@@ -241,6 +241,11 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb( h, mlst,   "typeId", amCmd, "add", NULL );
   cmDspSysInstallCb( h, sfp,    "out",    amRt, "f-in", NULL );
   cmDspSysInstallCb( h, amRt,   "f-out-0",amp, "sfloc", NULL );
+
+  // ***** delete this to prevent the score follower from driving the active-measure unit in 'live' mode
+  cmDspSysInstallCb( h, amRt,   "f-out-1",amp, "sfloc", NULL );
+  // *****
+
   cmDspSysInstallCb( h, amp,    "even",   pre, "in", NULL );
   cmDspSysInstallCb( h, amp,    "dyn",    prd, "in", NULL );
   cmDspSysInstallCb( h, amp,    "tempo",  prt, "in", NULL );
@@ -278,6 +283,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysNewColumn(h,0);
 
+  cmDspInst_t* igain0 = cmDspSysAllocInst(h,"Scalar", "In Gain-0",    5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
+  cmDspInst_t* igain1 = cmDspSysAllocInst(h,"Scalar", "In Gain-1",    5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
   cmDspInst_t* ogain0 = cmDspSysAllocInst(h,"Scalar", "Out Gain-0",   5, kNumberDuiId, 0.0,   10.0,0.01,   3.0 );  
   cmDspInst_t* ogain1 = cmDspSysAllocInst(h,"Scalar", "Out Gain-1",   5, kNumberDuiId, 0.0,   10.0,0.01,   3.0 );  
   cmDspInst_t* xfadMs = cmDspSysAllocInst(h,"Scalar", "Xfade Ms",     5, kNumberDuiId, 0.0,   1000.0,0.01, 50.0 );  
@@ -433,6 +440,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, offb, "sym", pts, "off", NULL );
   cmDspSysInstallCb(h, pts,  "off", wtp, "cmd", NULL );
   cmDspSysInstallCb(h, pts,  "off", modp,"cmd", NULL );
+  cmDspSysInstallCb(h, offb, "sym", mop, "reset", NULL );
 
   // time-line to wave-table selection 
   cmDspSysInstallCb(h, tlp, "absi", wtp, "beg", NULL );  
@@ -513,6 +521,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, iv10p,     "val",   kr11, "invt", NULL );   // invert->kr
   cmDspSysInstallCb(h, wet10p,    "val",   kr11, "wet", NULL );    //  wet->kr
 
+  cmDspSysInstallCb(h, igain0, "val", ai0p, "gain", NULL );   // output gain control
+  cmDspSysInstallCb(h, igain1, "val", ai1p, "gain", NULL );
   cmDspSysInstallCb(h, ogain0, "val", ao0p, "gain", NULL );   // output gain control
   cmDspSysInstallCb(h, ogain1, "val", ao1p, "gain", NULL );
   cmDspSysInstallCb(h, xfadMs, "val", fad0, "ms", NULL );
