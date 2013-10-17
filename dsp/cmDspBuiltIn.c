@@ -1092,7 +1092,8 @@ enum
   kPortMoId,
   kStatusMoId,
   kD0MoId,
-  kD1MoId
+  kD1MoId,
+  kResetMoId
 };
 
 cmDspClass_t _cmMidiOutDC;
@@ -1142,6 +1143,7 @@ cmDspInst_t*  _cmDspMidiOutAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsign
     { "status", kStatusMoId, 0,  0,  kInDsvFl | kUIntDsvFl, "MIDI status" },
     { "d0",     kD0MoId,     0,  0,  kInDsvFl | kUIntDsvFl, "MIDI channel message d0" },
     { "d1",     kD1MoId,     0,  0,  kInDsvFl | kUIntDsvFl, "MIDI channel message d1" },
+    { "reset",  kResetMoId,  0,  0,  kInDsvFl | kTypeDsvMask,"All notes off" },
     { NULL, 0, 0, 0, 0 }
   };
 
@@ -1192,6 +1194,19 @@ cmDspRC_t _cmDspMidiOutRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
         unsigned d1     = cmDspUInt(inst,kD1MoId);
         if( cmMpDeviceSend( p->devIdx, p->portIdx, status, d0, d1 ) != kOkMpRC )
           cmDspInstErr(ctx,inst,kInvalidArgDspRC,"MIDI send failed.");
+      }
+      break;
+
+    case kResetMoId:
+      {
+        unsigned i;
+        
+        for(i=0; i<kMidiChCnt; ++i)
+        {          
+          cmMpDeviceSend(p->devIdx,p->portIdx,kCtlMdId,121,0); // reset all controllers
+          cmMpDeviceSend(p->devIdx,p->portIdx,kCtlMdId,123,0); // turn all notes off
+          cmSleepMs(15);
+        }
       }
       break;
 
