@@ -199,7 +199,6 @@ typedef struct
 cmDspInst_t*  _cmDspMtDelayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
   va_list vl1;
-  va_copy(vl1,vl);
 
   cmDspVarArg_t args[] =
   {
@@ -216,6 +215,8 @@ cmDspInst_t*  _cmDspMtDelayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsign
     cmDspClassErr(ctx,classPtr,kInvalidArgDspRC,"The 'multi-tap delay requires at least 5 arguments. Three fixed arguments and groups of two tap specification arguments.");
     return NULL;
   }    
+
+  va_copy(vl1,vl);
 
   unsigned      reqArgCnt    = 3;
   unsigned      fixArgCnt    = sizeof(args)/sizeof(args[0]);
@@ -261,7 +262,7 @@ cmDspInst_t*  _cmDspMtDelayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsign
     cmDspSetDefaultDouble(ctx,&p->inst,baseGainMtId+i,  0.0, gainV[i]);
   }
   
-
+  va_end(vl1);
   return &p->inst;
 }
 
@@ -985,8 +986,6 @@ cmDspInst_t*  _cmDspAutoGainAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   va_list             vl1;
   unsigned            i;
 
-  // copy the va_list so that it can be used again in cmDspInstAlloc()
-  va_copy(vl1,vl);
 
   // verify that at least one var arg exists
   if( va_cnt < 1 )
@@ -994,6 +993,8 @@ cmDspInst_t*  _cmDspAutoGainAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
     cmDspClassErr(ctx,classPtr,kInvalidArgDspRC,"The AutoGain constructor must be given the audio channel count as its first argument.");
     return NULL;
   }    
+  // copy the va_list so that it can be used again in cmDspInstAlloc()
+  va_copy(vl1,vl);
 
   // get the first var arg which should be a filename
   unsigned chCnt = va_arg(vl,unsigned);
@@ -1001,6 +1002,7 @@ cmDspInst_t*  _cmDspAutoGainAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   if( chCnt == 0 )
   {
     cmDspClassErr(ctx,classPtr,kInvalidArgDspRC,"The AutoGain constructor requires at least 1 audio channel.");
+    va_end(vl1);
     return NULL;
   }
 
@@ -1038,6 +1040,8 @@ cmDspInst_t*  _cmDspAutoGainAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspSetDefaultSymbol( ctx, &p->inst, kSelAgId, p->cancelSymId );
   cmDspSetDefaultInt(    ctx, &p->inst, kIdAgId,  0, cmInvalidId );
 
+   va_end(vl1);
+ 
   return &p->inst;
 }
 
@@ -1504,6 +1508,8 @@ cmDspInst_t*  _cmDspXfaderAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigne
   for(i=0; i<chCnt; ++i)
     cmDspSetDefaultBool( ctx, &p->inst, stateBaseXfId+i, false, false );
 
+  va_end(vl1);
+
   return &p->inst;
 }
 
@@ -1900,6 +1906,7 @@ cmDspInst_t*  _cmDspChordDetectAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, un
 
   if( cmDspRsrcUIntArray( ctx->dspH, &chCnt, &enaV, rsrc, NULL ) != kOkDspRC )
   {
+    va_end(vl1);
     cmDspClassErr(ctx,classPtr,kInvalidArgDspRC,"The chord detector channel index resource '%s' could not be read.",cmStringNullGuard(rsrc));
     return NULL;
   }
@@ -1942,6 +1949,7 @@ cmDspInst_t*  _cmDspChordDetectAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, un
   p->chRmsV        = cmMemAllocZ(cmReal_t, chCnt);
   p->chEnaV        = enaV;
 
+  va_end(vl1);
 
   return &p->inst;
 }
@@ -2202,7 +2210,6 @@ cmDspInst_t*  _cmDspNoteSelectAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
   }
 
   va_list vl1;
-  va_copy(vl1,vl);
 
   unsigned        CD0chanN = 0;
   unsigned        CD1chanN = 0;
@@ -2223,6 +2230,7 @@ cmDspInst_t*  _cmDspNoteSelectAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
     return NULL;
   }
 
+  va_copy(vl1,vl);
 
   unsigned chCnt         = va_arg(vl,unsigned);
   unsigned fixArgCnt     = sizeof(args)/sizeof(args[0]);
@@ -2296,6 +2304,8 @@ cmDspInst_t*  _cmDspNoteSelectAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
     // the non-chord channel selections should always be on
     cmDspSetDefaultBool(  ctx, &p->inst, gate4BaseNsId+i, false, p->chGroupV[i] == kGroupNonNsId );   
   }
+
+  va_end(vl1);
 
   return &p->inst;
 }
@@ -2903,7 +2913,7 @@ cmDspInst_t*  _cmDspScalarOpAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   if( inPortCnt == 0 )
   {
     cmDspClassErr(ctx,classPtr,kVarNotValidDspRC,"The 'ScalarOp' constructor input port argument must be non-zero.");
-    return NULL;
+    goto errLabel;
   }
 
   // locate the operation function
@@ -2917,7 +2927,7 @@ cmDspInst_t*  _cmDspScalarOpAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   if( fp == NULL )
   {
     cmDspClassErr(ctx,classPtr,kVarNotValidDspRC,"The 'ScalarOp' constructor operation string id '%s' did not match a known operation.",cmStringNullGuard(opIdStr));
-    return NULL;
+    goto errLabel;
   }
 
   // setup the fixed args
@@ -2937,7 +2947,7 @@ cmDspInst_t*  _cmDspScalarOpAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspArgSetupNull( a+argCnt); // set terminating arg. flag
 
   if((p = cmDspInstAlloc(cmDspScalarOp_t,ctx,classPtr,a,instSymId,id,storeSymId,2,vl1)) == NULL )
-    return NULL;
+    goto errLabel;
 
   for(i=0; i<inPortCnt; ++i)
     cmDspSetDefaultDouble(ctx,&p->inst,kBaseOpdSoId+i,0.0,dfltVal[i]);
@@ -2945,8 +2955,14 @@ cmDspInst_t*  _cmDspScalarOpAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   p->inPortCnt = inPortCnt;
   p->func      = fp;
   
+  va_end(vl1);
 
   return &p->inst;
+
+ errLabel:
+  va_end(vl1);
+
+  return NULL;
 }
 
 
@@ -3053,8 +3069,11 @@ cmDspInst_t*  _cmDspGroupSelAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspArgSetupNull( a+argCnt); // set terminating arg. flag
 
   if((p = cmDspInstAlloc(cmDspGroupSel_t,ctx,classPtr,a,instSymId,id,storeSymId,va_cnt,vl1)) == NULL )
+  {
+    va_end(vl1);
     return NULL;
-    
+  }
+ 
   p->chCnt       = chCnt;
   p->groupCnt    = groupCnt;
   p->gsp         = cmGroupSelAlloc(ctx->cmProcCtx, NULL, 0, 0, 0 );
@@ -3068,6 +3087,8 @@ cmDspInst_t*  _cmDspGroupSelAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   }
   for(i=0; i<outCnt; ++i)
     cmDspSetDefaultBool( ctx, &p->inst, baseOutGsId, false, false );
+
+  va_end(vl1);
 
   return &p->inst;
 }
@@ -3216,6 +3237,8 @@ cmDspInst_t*  _cmDspAudioNofM_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
   for(i=0; i<outChCnt; ++i)
     cmDspSetDefaultDouble( ctx, &p->inst, baseGainNmId + i, 0.0, 0.0 );
 
+  va_end(vl1);
+
   return &p->inst;
 }
 
@@ -3361,6 +3384,8 @@ cmDspInst_t*  _cmDspRingModAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsign
   cmDspSetDefaultDouble( ctx, &p->inst, kGainRmId, 0.0, 1.0 );
 
   p->inChCnt = inChCnt;
+
+  va_end(vl1);
 
   return &p->inst;
 }
@@ -4656,6 +4681,7 @@ cmDspInst_t*  _cmDspNofM_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
 
   if( oChCnt > iChCnt )
   {
+    va_end(vl1);
     cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'NofM' output count must be less than or equal to the input count.");
     return NULL;
   }
@@ -4720,6 +4746,8 @@ cmDspInst_t*  _cmDspNofM_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   }
 
   cmDspSetDefaultDouble( ctx, &p->inst, kXfadeMsNoId, 0.0, 15.0 );
+
+  va_end(vl1);
 
   return &p->inst;
 }
@@ -5071,6 +5099,8 @@ cmDspInst_t*  _cmDsp1ofN_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   cmDspSetDefaultBool(   ctx, &p->inst, kOutBool1oId, false, false );
   cmDspSetDefaultSymbol( ctx, &p->inst, kOutSym1oId, cmInvalidId );
 
+  va_end(vl1);
+
   return &p->inst;
 }
 
@@ -5220,6 +5250,8 @@ cmDspInst_t*  _cmDsp1Up_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned 
 
   for(i=0; i<chCnt; ++i)
     cmDspSetDefaultBool(   ctx, &p->inst, kBaseOut1uId + i, false, false );
+
+  va_end(vl1);
 
   return &p->inst;
 }
@@ -5407,6 +5439,7 @@ cmDspInst_t*  _cmDspPortToSym_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
 
   if( va_cnt < 1 )
   {
+    va_end(vl1);
     cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'PortToSym' constructor argument list must contain at least one symbol label.");
     return NULL;
   }
@@ -5448,6 +5481,7 @@ cmDspInst_t*  _cmDspPortToSym_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
 
   cmDspSetDefaultSymbol(ctx,&p->inst,kOutPtsId,cmInvalidId);
 
+  va_end(vl1);
 
   return &p->inst;
 }
@@ -5579,6 +5613,8 @@ cmDspInst_t*  _cmDspRouter_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsign
     cmDspSetDefaultBool(   ctx, &p->inst, baseOutBoolRtId+i, false, false );
     cmDspSetDefaultSymbol( ctx, &p->inst, baseOutSymRtId+i, cmInvalidId );
   }
+
+  va_end(vl1);
 
   return &p->inst;
 }
@@ -5741,6 +5777,7 @@ cmDspInst_t*  _cmDspAvailCh_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
 
   if( chCnt <= 0 )
   {
+    va_end(vl1);
     cmDspClassErr(ctx,classPtr,kInvalidArgDspRC,"The 'AvailCh' constructor must be given a positive channel count.");
     return NULL;
   }
@@ -5771,7 +5808,7 @@ cmDspInst_t*  _cmDspAvailCh_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspSetDefaultUInt( ctx, &p->inst, kModeAvId,  0, kExclusiveModeAvId );
   cmDspSetDefaultUInt( ctx, &p->inst, kChIdxAvId, 0, cmInvalidIdx );
   
-  
+  va_end(vl1);
 
   return &p->inst;
 }
