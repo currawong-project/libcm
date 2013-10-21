@@ -1591,6 +1591,7 @@ cmTlRC_t cmTimeLineGenOnsetMarks( cmTlH_t h, unsigned seqId )
 
 cmTlRC_t cmTimeLineDeleteOnsetMarks( cmTlH_t h, unsigned seqId )
 {
+  return kOkTlRC;
 }
 
 
