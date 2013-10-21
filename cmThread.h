@@ -200,7 +200,10 @@ extern "C" {
   extern cmTs1p1cH_t cmTs1p1cNullHandle;
 
   cmThRC_t   cmTs1p1cCreate(     cmTs1p1cH_t* hPtr, unsigned bufByteCnt, cmTsQueueCb_t cbFunc, void* cbArg, cmRpt_t* rpt );
+
   cmThRC_t   cmTs1p1cDestroy(    cmTs1p1cH_t* hPtr );
+
+  cmThRC_t   cmTs1p1cSetCallback( cmTs1p1cH_t h, cmTsQueueCb_t cbFunc, void* cbArg );
 
   cmThRC_t   cmTs1p1cEnqueueSegMsg( cmTs1p1cH_t h, const void* msgPtrArray[], unsigned msgByteCntArray[], unsigned arrayCnt );
 
