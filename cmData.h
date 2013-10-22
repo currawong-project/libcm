@@ -10,6 +10,7 @@ extern "C" {
     kOkDtRC = cmOkRC,
     kCvtErrDtRC,
     kVarArgErrDtRC,
+    kMissingFieldDtRC,
     kEolDtRC
   };
 
@@ -32,7 +33,6 @@ extern "C" {
     kMinValDtId,
 
     kNullDtId = kMinValDtId,
-
     kUCharDtId,
     kCharDtId,
     kUShortDtId,
@@ -66,8 +66,9 @@ extern "C" {
     kListDtId = kMinStructDtId, // children nodes are array elements, cnt=child count
     kPairDtId,                  // key/value pairs, cnt=2, first child is key, second is value
     kRecordDtId,                // children nodes are pairs, cnt=pair count
-    kMaxStructDtId
+    kMaxStructDtId,
 
+    kOptArgDtFl = 0x80000000
   } cmDataFmtId_t;
 
   enum
@@ -232,8 +233,10 @@ extern "C" {
   cmDtRC_t cmDataGetDoublePtr( const cmData_t* p, double** v );
 
 
-  // Set the value of an existing scalar data object.
-  cmData_t* cmDataSetNull(       cmData_t* p );
+  // Set the value and type of an existing scalar object. 
+  // These functions begin by releasing any resources held by *p
+  // prior to resetting the type and value of the object.
+  cmData_t* cmDataSetNull(      cmData_t* p );
   cmData_t* cmDataSetChar(      cmData_t* p, char v );
   cmData_t* cmDataSetUChar(     cmData_t* p, unsigned char v );
   cmData_t* cmDataSetShort(     cmData_t* p, short v );
@@ -247,8 +250,10 @@ extern "C" {
   cmData_t* cmDataSetStr(       cmData_t* p, cmChar_t* s );
   cmData_t* cmDataSetConstStr(  cmData_t* p, const cmChar_t* s );
 
-  // Set the value of an existing data object to an external array.
-  // 'vp' is assigned as the data space for the object and therefore must remain
+  // Set the type and value of an existing data object to an external array.
+  // These functions begin by releasing any resources help by *p.
+  // The array pointed to by 'vp' is not copied or duplicated.
+  // 'vp' is simply assigned as the data space for the object and therefore must remain
   // valid for the life of the object.
   cmData_t* cmDataSetVoidPtr(   cmData_t* p, void* vp,           unsigned cnt );
   cmData_t* cmDataSetCharPtr(   cmData_t* p, char* vp,           unsigned cnt );
@@ -263,7 +268,9 @@ extern "C" {
   cmData_t* cmDataSetDoublePtr( cmData_t* p, double* vp,         unsigned cnt );
 
   // Set the value of an existing array based data object. 
-  // Dynamically allocate the internal array and copy the array data into it.
+  // These functions begin by releasing any resources help by *p
+  // and then dynamically allocate the internal array and copy 
+  // the array data into it.
   cmData_t* cmDataSetStrAlloc(       cmData_t* p, const cmChar_t* s );
   cmData_t* cmDataSetConstStrAlloc(  cmData_t* p, const cmChar_t* s );
   cmData_t* cmDataSetVoidAllocPtr(   cmData_t* p, const void* vp,           unsigned cnt );
@@ -393,7 +400,6 @@ extern "C" {
   cmData_t*       cmDataPairKey(      cmData_t* p );
   unsigned        cmDataPairKeyId(    cmData_t* p );
   const cmChar_t* cmDataPairKeyLabel( cmData_t* p );
-
   cmData_t*       cmDataPairValue(    cmData_t* p );
   
   // Set the value of an existing pair node. 
@@ -404,8 +410,7 @@ extern "C" {
   cmData_t* cmDataPairSetValue(     cmData_t* p, cmData_t* value );
 
   // Set the key of an existing pair node.
-  // 
-  // Returns 'p'.
+  // The previous key is unlinked and freed.
   cmData_t* cmDataPairSetKey(       cmData_t* p, cmData_t* key );
   cmData_t* cmDataPairSetKeyId(     cmData_t* p, unsigned id );
   // The data space for the 'label' string is dynamically allocated.
@@ -491,10 +496,10 @@ extern "C" {
   cmData_t*       cmRecdAppendPair( cmData_t* p, cmData_t* pair );
 
 
-  // Var-args fmt:
+  // Var-args format:
   // <label|id> <typeId>  <value> {<cnt>}
   // scalar types: <value> is literal,<cnt> is not included
-  // null   type  has no <value> or <cnt>
+  // null   type: has no <value> or <cnt>
   // ptr    types: <value> is pointer,  <cnt> is element count
   // struct types: <value> is cmData_t, <cnt> is not included
   // Indicate the end of argument list by setting  <typeId> to kInvalidDtId. 
@@ -506,14 +511,23 @@ extern "C" {
   cmData_t*       cmDataRecdAllocIdA( cmData_t* parent, ... );
   
   // Extract the data in a record to C variables.
-  // <label|id> <typeId> <pointer>
-  cmDtRC_t cmDataRecdParseLabelV(cmData_t* p, cmErr_t* err, va_list vl );
-  cmDtRC_t cmDataRecdParseLabel( cmData_t* p, cmErr_t* err, ... );
-  cmDtRC_t cmDataRecdParseIdV(   cmData_t* p, cmErr_t* err, va_list vl );
-  cmDtRC_t cmDataRecdParseId(    cmData_t* p, cmErr_t* err, ... );
+  // The var-args list must be NULL terminated.
+  // The <'id' | 'label'> identify a pair.  
+  // The <typeId> indicates the C type of 'pointer'.
+  // The actual field type must be convertable into this pointer type or the
+  // function will fail.
+  // 'err' is an application supplied error object to be used if a required
+  // field is missing.  'errRC' is the client result code to be passed with 
+  // the error report. See cmErrMsg().  Both 'err' and 'errRC' are optional.
+  // Set kOptArgDtFl on 'typeId' to indicate that a field is optional.
+  // <label|id> (<typeId> | kOptArgDtFl)  <pointer>
+  cmDtRC_t cmDataRecdParseLabelV(cmData_t* p, cmErr_t* err, unsigned errRC, va_list vl );
+  cmDtRC_t cmDataRecdParseLabel( cmData_t* p, cmErr_t* err, unsigned errRC, ... );
+  cmDtRC_t cmDataRecdParseIdV(   cmData_t* p, cmErr_t* err, unsigned errRC, va_list vl );
+  cmDtRC_t cmDataRecdParseId(    cmData_t* p, cmErr_t* err, unsigned errRC, ... );
   
   unsigned cmDataSerializeByteCount( const cmData_t* p );
-  cmDtRC_t cmDataSerialize( const cmData_t* p, void* buf, unsigned bufByteCnt );
+  cmDtRC_t cmDataSerialize(   const cmData_t* p, void* buf, unsigned bufByteCnt );
   cmDtRC_t cmDataDeserialize( const void* buf, unsigned bufByteCnt, cmData_t** pp );
   
   void     cmDataPrint( const cmData_t* p, cmRpt_t* rpt );
