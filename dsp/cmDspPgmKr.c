@@ -117,6 +117,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* pts  = cmDspSysAllocInst(h,"PortToSym",   NULL,  2, "on", "off" );
   cmDspInst_t* mip  = cmDspSysAllocInst(h,"MidiIn",      NULL,  0 );
   cmDspInst_t* mfp  = cmDspSysAllocInst(h,"MidiFilePlay",NULL,  0 );
+  cmDspInst_t* nmp  = cmDspSysAllocInst(h,"NanoMap",     NULL,  0 );
   cmDspInst_t* mop  = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, r.midiDevice,r.midiOutPort);
   cmDspInst_t* sfp  = cmDspSysAllocInst(h,"ScFol",       NULL,  1, r.scFn );
   cmDspInst_t* amp  = cmDspSysAllocInst(h,"ActiveMeas",  NULL,  1, 100 );
@@ -466,15 +467,18 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysInstallCb(h, mfp,  "d1",      d1Rt, "f-in",  NULL );
   cmDspSysInstallCb(h, d1Rt, "f-out-0", sfp,  "d1",    NULL );
-  cmDspSysInstallCb(h, d1Rt, "f-out-1", mop,  "d1",    NULL );
+  cmDspSysInstallCb(h, d1Rt, "f-out-1", nmp,  "d1",    NULL );
+  cmDspSysInstallCb(h, nmp,   "d1",     mop,  "d1",    NULL );
 
   cmDspSysInstallCb(h, mfp,  "d0",      d0Rt,  "f-in", NULL );
   cmDspSysInstallCb(h, d0Rt, "f-out-0", sfp,   "d0",   NULL );
-  cmDspSysInstallCb(h, d0Rt, "f-out-1", mop,   "d0",   NULL );
+  cmDspSysInstallCb(h, d0Rt, "f-out-1", nmp,  "d0",   NULL );
+  cmDspSysInstallCb(h, nmp,  "d0",      mop,  "d0",   NULL );
 
   cmDspSysInstallCb(h, mfp, "status",   stRt, "f-in",  NULL );
   cmDspSysInstallCb(h, stRt, "f-out-0", sfp,  "status",NULL );
-  cmDspSysInstallCb(h, stRt, "f-out-1", mop,  "status",NULL );
+  cmDspSysInstallCb(h, stRt, "f-out-1", nmp,  "status",NULL );
+  cmDspSysInstallCb(h, nmp,  "status",  mop,  "status",NULL );
 
   // MIDI input port
   cmDspSysInstallCb(h, mip, "smpidx", sfp, "smpidx", NULL );

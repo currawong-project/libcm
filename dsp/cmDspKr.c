@@ -2123,3 +2123,122 @@ struct cmDspClass_str* cmAmSyncClassCons( cmDspCtx_t* ctx )
   return &_cmAmSyncDC;
 }
 
+//==========================================================================================================================================
+enum
+{
+  kPgmNmId,
+  kStatusNmId,
+  kD0NmId,
+  kD1NmId,
+  kThruNmId
+};
+
+cmDspClass_t _cmNanoMapDC;
+
+typedef struct
+{
+  cmDspInst_t inst;
+} cmDspNanoMap_t;
+
+cmDspRC_t _cmDspNanoMapSend( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned st, unsigned d0, unsigned d1 )
+{
+  cmDspSetUInt(ctx,inst,kD1NmId,d1);
+  cmDspSetUInt(ctx,inst,kD0NmId,d0);
+  cmDspSetUInt(ctx,inst,kStatusNmId,st);
+  return kOkDspRC;
+}
+
+void _cmDspNanoMapPgm( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned pgm )
+{
+  unsigned i;
+        
+  for(i=0; i<kMidiChCnt; ++i)
+  {
+    _cmDspNanoMapSend(ctx,inst,kCtlMdId+i,121,0); // reset all controllers
+    _cmDspNanoMapSend(ctx,inst,kCtlMdId+i,123,0); // turn all notes off
+    _cmDspNanoMapSend(ctx,inst,kCtlMdId+i,0,0);   // switch to bank 0
+    _cmDspNanoMapSend(ctx,inst,kPgmMdId+i,pgm,0); // send pgm change
+    cmSleepMs(15);
+  }
+  
+}
+
+cmDspInst_t*  _cmDspNanoMapAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  cmDspVarArg_t args[] =
+  {
+    { "pgm",    kPgmNmId,    0,  0,              kInDsvFl | kUIntDsvFl | kOptArgDsvFl, "Reprogram all channels to this pgm." },
+    { "status", kStatusNmId, 0,  0,  kOutDsvFl | kInDsvFl | kUIntDsvFl | kOptArgDsvFl, "MIDI status" },
+    { "d0",     kD0NmId,     0,  0,  kOutDsvFl | kInDsvFl | kUIntDsvFl | kOptArgDsvFl, "MIDI channel message d0" },
+    { "d1",     kD1NmId,     0,  0,  kOutDsvFl | kInDsvFl | kUIntDsvFl | kOptArgDsvFl, "MIDI channel message d1" },
+    { "thru",   kThruNmId,   0,  0,              kInDsvFl | kBoolDsvFl | kOptArgDsvFl, "Enable pass through."},
+    { NULL, 0, 0, 0, 0 }
+  };
+
+  cmDspNanoMap_t* p = cmDspInstAlloc(cmDspNanoMap_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+  
+  cmDspSetDefaultUInt(ctx,&p->inst, kPgmNmId, 0, 0 );
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspNanoMapReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t      rc = kOkDspRC;
+
+  cmDspApplyAllDefaults(ctx,inst);
+
+  _cmDspNanoMapPgm(ctx,inst,cmDspUInt(inst,kPgmNmId));
+
+  return rc;
+} 
+
+cmDspRC_t _cmDspNanoMapRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  //cmDspNanoMap_t* p = (cmDspNanoMap_t*)inst;
+
+  switch( evt->dstVarId )
+  {
+    case kPgmNmId:
+      cmDspSetEvent(ctx,inst,evt);
+      _cmDspNanoMapPgm(ctx,inst,cmDspUInt(inst,kPgmNmId));
+      break;
+
+    case kStatusNmId:
+      {
+        unsigned status = cmDsvGetUInt(evt->valuePtr);
+        if( (status & 0xf0) == kNoteOnMdId )
+        {
+          unsigned d0 = cmDspUInt(inst,kD0NmId);
+          unsigned ch = d0 % 8;
+          status = (status & 0xf0) + ch;
+          cmDspSetUInt(ctx,inst,kStatusNmId,status);
+        }
+      }
+      break;
+
+
+    default:
+      cmDspSetEvent(ctx,inst,evt);
+      break;
+  }
+
+
+  return kOkDspRC;
+}
+
+struct cmDspClass_str* cmNanoMapClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmNanoMapDC,ctx,"NanoMap",
+    NULL,
+    _cmDspNanoMapAlloc,
+    NULL,
+    _cmDspNanoMapReset,
+    NULL,
+    _cmDspNanoMapRecv,
+    NULL,
+    NULL,
+    "Nanosynth Mapper");
+
+  return &_cmNanoMapDC;
+}

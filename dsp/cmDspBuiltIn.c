@@ -1203,8 +1203,8 @@ cmDspRC_t _cmDspMidiOutRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
         
         for(i=0; i<kMidiChCnt; ++i)
         {          
-          cmMpDeviceSend(p->devIdx,p->portIdx,kCtlMdId,121,0); // reset all controllers
-          cmMpDeviceSend(p->devIdx,p->portIdx,kCtlMdId,123,0); // turn all notes off
+          cmMpDeviceSend(p->devIdx,p->portIdx,kCtlMdId+i,121,0); // reset all controllers
+          cmMpDeviceSend(p->devIdx,p->portIdx,kCtlMdId+i,123,0); // turn all notes off
           cmSleepMs(15);
         }
       }
@@ -5411,6 +5411,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmScaleRangeClassCons,
   cmActiveMeasClassCons,
   cmAmSyncClassCons,
+  cmNanoMapClassCons,
   NULL,
 };
 
