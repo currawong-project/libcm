@@ -250,7 +250,11 @@ void* cmDspInstAllocate(
   return p;
 }
 
-void  _cmDspParseArgV( cmDspVarArg_t* a, va_list vl )
+#ifdef OSX_VER_10_5
+va_list _cmDspParseArgV( cmDspVarArg_t* a, va_list vl )
+#else
+void _cmDspParseArgV( cmDspVarArg_t* a, va_list vl )
+#endif
 {
   a->label   = va_arg(vl,const char*);
   a->constId = va_arg(vl,unsigned);
@@ -258,6 +262,9 @@ void  _cmDspParseArgV( cmDspVarArg_t* a, va_list vl )
   a->cn      = va_arg(vl,unsigned);
   a->flags   = va_arg(vl,unsigned);
   a->doc     = va_arg(vl,const char*);  
+#ifdef OSX_VER_10_5
+  return vl;
+#endif
   
 }
 
@@ -279,6 +286,9 @@ void* cmDspInstAllocateV(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned instB
     
     argCnt += repeatCnt;
 
+#ifdef OSX_VER_10_5
+    vl1 =
+#endif
     _cmDspParseArgV(&a,vl1);
   }
 
@@ -289,7 +299,10 @@ void* cmDspInstAllocateV(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned instB
   while( (repeatCnt = va_arg(vl2,int)) != 0 )
   {
     cmDspVarArg_t a;
-    
+
+#ifdef OSX_VER_10_5
+    vl2 =
+#endif    
     _cmDspParseArgV(&a,vl2);
     
     cmDspArgSetupN(ctx,aa,argCnt,j,repeatCnt,a.label,a.constId,a.rn, a.cn, a.flags, a.doc ); 
