@@ -1072,7 +1072,6 @@ bool     cmThFloatCAS( float*    addr, float    old, float    new )
 #endif
 }
 
-#define OS_VER_10_6
 
 bool     cmThPtrCAS(   void*    addr, void*    old, void*    neww )
 {
@@ -1086,10 +1085,10 @@ bool     cmThPtrCAS(   void*    addr, void*    old, void*    neww )
     union 
     {
       void* addr;
-#ifdef OS_VER_10_6
-      int64_t   val;
-#else
+#ifdef OSX_VER_10_5
       int val;
+#else
+      int64_t   val;
 #endif
     } u;
   } s_t;
@@ -1098,19 +1097,19 @@ bool     cmThPtrCAS(   void*    addr, void*    old, void*    neww )
   
   ov.u.addr = old;
   nv.u.addr = neww;
-#ifdef OS_VER_10_6
-  int rv = OSAtomicCompareAndSwap64Barrier(ov.u.val,nv.u.val,(int64_t*)addr);
-#else
+#ifdef OSX_VER_10_5
   int rv = OSAtomicCompareAndSwap32Barrier(ov.u.val,nv.u.val,(int*)addr);
+#else
+  int rv = OSAtomicCompareAndSwap64Barrier(ov.u.val,nv.u.val,(int64_t*)addr);
 #endif
   return rv;
 #endif
 
 #ifdef OS_LINUX
-#ifdef OS_VER_10_6
-  return  __sync_bool_compare_and_swap((long long*)addr, (long long)old, (long long)neww); 
-#else
+#ifdef OSX_VER_10_5
   return  __sync_bool_compare_and_swap((int*)addr,(int)old,(int)neww); 
+#else
+  return  __sync_bool_compare_and_swap((long long*)addr, (long long)old, (long long)neww); 
 #endif
 #endif
 }
