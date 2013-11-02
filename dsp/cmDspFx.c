@@ -1550,7 +1550,7 @@ cmDspRC_t _cmDspXfaderExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
     unsigned          n  = cmDspAudioBufSmpCount(ctx,inst,p->outBaseXfId+i,0);
     cmSample_t*       op = cmDspAudioBuf(ctx,inst,p->outBaseXfId+i,0);
     const cmSample_t* ip = cmDspAudioBuf(ctx,inst,p->inBaseXfId+i,0);
-    cmSample_t        gain = (cmSample_t)p->xfdp->chArray[i].gain;
+    cmSample_t        gain = (cmSample_t)p->xfdp->chArray[i].ep_gain;
     
     if( op != NULL )
     {
