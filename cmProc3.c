@@ -2055,10 +2055,14 @@ cmRC_t    cmXfaderExec(  cmXfader* p, unsigned procSmpCnt, const bool* chGateV, 
     cmReal_t g = cp->gain;
 
     if( cp->gateFl )
+    {
       cp->gain = cmMin(cp->gain + i_dgain,1.0); 
+      cp->ep_gain = sqrt(0.5 + 0.5 * cos(3.14159*cp->gain));
+    }
     else
     {
       cp->gain = cmMax(cp->gain - o_dgain,0.0); 
+      cp->ep_gain = sqrt(0.5 - 0.5 * cos(3.14159*cp->gain));
       cp->offFl = g>0.0 && cp->gain==0.0; // notice fade-out transition end
     }
 
@@ -2094,7 +2098,7 @@ cmRC_t    cmXfaderExecAudio( cmXfader* p, unsigned procSmpCnt, const bool* gateV
   unsigned i;
   for(i=0; i<chCnt; ++i)
     if( x[i] != NULL )
-      cmVOS_MultVaVS(y,procSmpCnt,x[i],p->chArray[i].gain);
+      cmVOS_MultVaVS(y,procSmpCnt,x[i],p->chArray[i].ep_gain);
 
   return rc;  
 }

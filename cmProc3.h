@@ -299,6 +299,7 @@ extern "C" {
   // to the audio signal - unless you use cmXfaderExecAudio()
   typedef struct
   {
+    cmReal_t ep_gain;
     cmReal_t gain;
     bool     gateFl; // true if channel is on
     bool     onFl;   // true if gateFl transitioned to true on this cycle  
