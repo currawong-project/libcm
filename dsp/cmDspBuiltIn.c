@@ -1103,6 +1103,7 @@ typedef struct
   cmDspInst_t inst;
   unsigned    devIdx;
   unsigned    portIdx;
+  bool        enableFl;
 } cmDspMidiOut_t;
 
 cmDspRC_t _cmDspMidiOutSetDevice( cmDspCtx_t* ctx, cmDspMidiOut_t* p, const cmChar_t* deviceStr )
@@ -1112,7 +1113,6 @@ cmDspRC_t _cmDspMidiOutSetDevice( cmDspCtx_t* ctx, cmDspMidiOut_t* p, const cmCh
   if( deviceStr != NULL )
     if((p->devIdx = cmMpDeviceNameToIndex(deviceStr)) == cmInvalidIdx )
       rc = cmDspInstErr(ctx,&p->inst,kInvalidArgDspRC,"The MIDI device '%s' could not be found.",cmStringNullGuard(deviceStr));
-
   return rc;
 }
 
@@ -1166,8 +1166,10 @@ cmDspRC_t _cmDspMidiOutReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
   cmDspApplyAllDefaults(ctx,inst);
 
-  _cmDspMidiOutSetDevice(ctx,p,cmDspStrcz(inst,kDeviceMoId));
-  _cmDspMidiOutSetPort(  ctx,p,cmDspStrcz(inst,kPortMoId));
+  p->enableFl = false;
+
+  if(_cmDspMidiOutSetDevice(ctx,p,cmDspStrcz(inst,kDeviceMoId)) == kOkDspRC )
+    p->enableFl = _cmDspMidiOutSetPort(  ctx,p,cmDspStrcz(inst,kPortMoId)) == kOkDspRC;
 
   return rc;
 } 
@@ -1179,11 +1181,13 @@ cmDspRC_t _cmDspMidiOutRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   switch( evt->dstVarId )
   {
     case kDeviceMoId:      
-      _cmDspMidiOutSetDevice(ctx, p, cmDsvStrcz(evt->valuePtr) );
+      if(_cmDspMidiOutSetDevice(ctx, p, cmDsvStrcz(evt->valuePtr) ) != kOkDspRC )
+        p->enableFl = false;
       break;
 
     case kPortMoId:
-      _cmDspMidiOutSetPort(ctx, p, cmDsvStrcz(evt->valuePtr) );
+      if( _cmDspMidiOutSetPort(ctx, p, cmDsvStrcz(evt->valuePtr) ) != kOkDspRC )
+        p->enableFl = false;
       break;
 
     case kStatusMoId:
@@ -1192,8 +1196,9 @@ cmDspRC_t _cmDspMidiOutRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
         unsigned status = cmDsvGetUInt(evt->valuePtr);
         unsigned d0     = cmDspUInt(inst,kD0MoId);
         unsigned d1     = cmDspUInt(inst,kD1MoId);
-        if( cmMpDeviceSend( p->devIdx, p->portIdx, status, d0, d1 ) != kOkMpRC )
-          cmDspInstErr(ctx,inst,kInvalidArgDspRC,"MIDI send failed.");
+        if( p->enableFl )
+          if( cmMpDeviceSend( p->devIdx, p->portIdx, status, d0, d1 ) != kOkMpRC )
+            cmDspInstErr(ctx,inst,kInvalidArgDspRC,"MIDI send failed.");
       }
       break;
 
@@ -1201,12 +1206,13 @@ cmDspRC_t _cmDspMidiOutRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
       {
         unsigned i;
         
-        for(i=0; i<kMidiChCnt; ++i)
-        {          
-          cmMpDeviceSend(p->devIdx,p->portIdx,kCtlMdId+i,121,0); // reset all controllers
-          cmMpDeviceSend(p->devIdx,p->portIdx,kCtlMdId+i,123,0); // turn all notes off
-          cmSleepMs(15);
-        }
+        if( p->enableFl )
+          for(i=0; i<kMidiChCnt; ++i)
+          {          
+            cmMpDeviceSend(p->devIdx,p->portIdx,kCtlMdId+i,121,0); // reset all controllers
+            cmMpDeviceSend(p->devIdx,p->portIdx,kCtlMdId+i,123,0); // turn all notes off
+            cmSleepMs(15);
+          }
       }
       break;
 
