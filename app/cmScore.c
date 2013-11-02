@@ -802,7 +802,7 @@ cmScRC_t _cmScProcSets( cmSc_t* p )
           {
 
             // THIS PRINTF PREVENTS CRASH ON OSX ???????
-            printf("PROCSET:%i %s\n",p->sets[i].varId,ep->label);
+            //printf("PROCSET:%i %c %s\n",p->sets[i].varId,_cmScVarIdToChar(p->sets[i].varId),ep->label);
 
 
             p->sets[i].symArray[j]     = cmSymTblRegisterFmt(p->stH,"%c-%s", _cmScVarIdToChar(p->sets[i].varId),ep->label);
