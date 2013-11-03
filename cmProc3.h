@@ -299,8 +299,8 @@ extern "C" {
   // to the audio signal - unless you use cmXfaderExecAudio()
   typedef struct
   {
-    cmReal_t ep_gain;
-    cmReal_t gain;
+    cmReal_t ep_gain; // equal power xfade gain
+    cmReal_t gain;    // linear gain
     bool     gateFl; // true if channel is on
     bool     onFl;   // true if gateFl transitioned to true on this cycle  
     bool     offFl;  // true if gateFl transitioned to false on this cycle
@@ -333,6 +333,7 @@ extern "C" {
   // Set all gates to false except chIdx.
   void      cmXfaderSelectOne( cmXfader* p, unsigned chIdx );
   void      cmXfaderAllOff( cmXfader* p );
+  void      cmXfaderJumpToDestinationGain( cmXfader* p ); // jump to dest. gain based on gate state
 
   //=======================================================================================================================
   // This fader object accepts a gate signal. When the gate is high it increments

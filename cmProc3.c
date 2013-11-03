@@ -2057,7 +2057,7 @@ cmRC_t    cmXfaderExec(  cmXfader* p, unsigned procSmpCnt, const bool* chGateV, 
     if( cp->gateFl )
     {
       cp->gain = cmMin(cp->gain + i_dgain,1.0); 
-      cp->ep_gain = sqrt(0.5 + 0.5 * cos(3.14159*cp->gain));
+      cp->ep_gain = sqrt(0.5 - 0.5 * cos(3.14159*cp->gain));
     }
     else
     {
@@ -2131,6 +2131,22 @@ void      cmXfaderAllOff( cmXfader* p )
   unsigned i = 0;
   for(i=0; i<p->chCnt; ++i)
     p->chArray[i].gateFl = false;
+}
+
+void      cmXfaderJumpToDestinationGain( cmXfader* p )
+{
+  unsigned i = 0;
+  for(i=0; i<p->chCnt; ++i)
+  {
+    if( p->chArray[i].gateFl )
+      p->chArray[i].gain = 1.0;
+    else
+      p->chArray[i].gain = 0.0;
+
+    p->chArray[i].onFl = false;
+    p->chArray[i].offFl = false;
+    p->chArray[i].ep_gain = p->chArray[i].gain;
+  }
 }
 
 //==========================================================================================================================================
