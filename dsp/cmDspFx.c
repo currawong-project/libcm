@@ -1423,6 +1423,7 @@ enum
   kMstrGateXfId,
   kFadeInTimeMsXfId,
   kFadeOutTimeMsXfId,
+  kResetXfId,
   kOnXfId,
   kOffXfId,
   kGateBaseXfId,
@@ -1453,6 +1454,7 @@ cmDspInst_t*  _cmDspXfaderAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigne
     { "mgate", kMstrGateXfId,      0, 0,   kInDsvFl  | kBoolDsvFl   | kOptArgDsvFl, "Master gate - can be used to set all gates."},
     { "ims",   kFadeInTimeMsXfId,  0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl, "Fade in time in milliseonds."},
     { "oms",   kFadeOutTimeMsXfId, 0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl, "Fade out time in milliseonds."},
+    { "reset", kResetXfId,         0, 0,   kInDsvFl  | kBoolDsvFl,                  "Jump to gate states rather than fade."},
     { "on",    kOnXfId,            0, 0,   kOutDsvFl | kSymDsvFl,                   "Send 'on' when all ch's transition from off to on."},
     { "off",   kOffXfId,           0, 0,   kOutDsvFl | kSymDsvFl,                   "Send 'off' when all ch's transition from on to off."},
   };
@@ -1551,7 +1553,7 @@ cmDspRC_t _cmDspXfaderExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
     cmSample_t*       op = cmDspAudioBuf(ctx,inst,p->outBaseXfId+i,0);
     const cmSample_t* ip = cmDspAudioBuf(ctx,inst,p->inBaseXfId+i,0);
     cmSample_t        gain = (cmSample_t)p->xfdp->chArray[i].ep_gain;
-    
+
     if( op != NULL )
     {
       if( ip == NULL )
@@ -1568,6 +1570,19 @@ cmDspRC_t _cmDspXfaderExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 
     // send the gain output
     cmDspSetDouble(ctx,inst,p->gainBaseXfId+i,gain);
+
+    /*
+    if( gain > 0 )
+      printf("(%i %f %i %i %i %f)",
+        i,
+        gain,
+        p->chGateV[i],
+        cmDspBool(inst,p->stateBaseXfId+i),
+        p->xfdp->chArray[i].gateFl,
+        p->xfdp->chArray[i].gain);
+    */
+
+
   }
 
   if( p->xfdp->onFl )
@@ -1609,6 +1624,22 @@ cmDspRC_t _cmDspXfaderRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 
     case kFadeOutTimeMsXfId:
       cmXfaderSetXfadeOutTime(p->xfdp,cmDspDouble(inst,kFadeOutTimeMsXfId));
+      break;
+
+    case kResetXfId:
+      {
+        cmXfaderExec( p->xfdp, cmDspSamplesPerCycle(ctx), p->chGateV, p->chCnt );
+        cmXfaderJumpToDestinationGain(p->xfdp);
+        // force the chGateV[] to match the xfaders state
+        int i;
+        for(i=0; i<p->chCnt; ++i)
+        {
+          bool gateFl = p->xfdp->chArray[i].gateFl;
+          p->chGateV[i] = gateFl;
+          cmDspSetBool(  ctx,inst,p->stateBaseXfId + i, gateFl);
+          cmDspSetDouble(ctx,inst,p->gainBaseXfId  + i, gateFl ? 1.0 : 0.0 );          
+        }
+      }
       break;
 
   }
@@ -5744,6 +5775,7 @@ enum
   kChCntAvId,
   kModeAvId,
   kTrigAvId,
+  kResetAvId,
   kChIdxAvId,  
   kBaseDisInAvId,
 
@@ -5789,6 +5821,7 @@ cmDspInst_t*  _cmDspAvailCh_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
     1,         "chs",    kChCntAvId,        0, 0, kUIntDsvFl     | kReqArgDsvFl, "Channel count.",
     1,         "mode",   kModeAvId,         0, 0, kUIntDsvFl     | kInDsvFl,     "Mode: 0=exclusive (dflt) 1=multi",
     1,         "trig",   kTrigAvId,         0, 0, kTypeDsvMask   | kInDsvFl,     "Trigger the unit to select the next available channel.", 
+    1,         "reset",  kResetAvId,        0, 0, kBoolDsvFl     | kInDsvFl | kOutDsvFl,     "Reset to default state",
     1,         "ch",     kChIdxAvId,        0, 0, kUIntDsvFl     | kOutDsvFl,    "Currently selected channel.",
     chCnt,     "dis",    baseDisInAvId,     0, 0, kBoolDsvFl     | kInDsvFl,     "Disable channel gate",
     chCnt,     "gate",   baseGateOutAvId,   0, 0, kBoolDsvFl     | kOutDsvFl,    "Active channel gate",
@@ -5831,14 +5864,32 @@ cmDspRC_t _cmDspAvailCh_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
   bool exclModeFl  = cmDspUInt(inst, kModeAvId ) == kExclusiveModeAvId;
 
+  if( evt->dstVarId == kResetAvId )
+  {
+    unsigned i;      
+
+    cmDspSetUInt(ctx,inst,kChIdxAvId,0);
+
+    for(i=0; i<p->chCnt; ++i)
+    {
+      bool fl = i==0;
+      cmDspSetBool(ctx, inst, p->baseDisInAvId   + i, !fl);
+      cmDspSetBool(ctx, inst, p->baseGateOutAvId + i, fl);
+    }
+
+    cmDspSetBool(ctx,inst, kResetAvId, false );
+
+    return rc;
+  }
+
   // if this is a trigger
   if( evt->dstVarId == kTrigAvId )
   {
-    unsigned i;
+    unsigned i,j=-1;
     bool     fl = true;
     for(i=0; i<p->chCnt; ++i)
     {
-      // the actual channel's active state is held in the 'dis' variable.
+      // the channel's active state is held in the 'dis' variable.
       bool activeFl = cmDspBool(inst,p->baseDisInAvId+i);
 
       // if ch[i] is the first avail inactive channel
@@ -5847,6 +5898,7 @@ cmDspRC_t _cmDspAvailCh_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
         cmDspSetUInt(ctx,inst,kChIdxAvId,i);
         cmDspSetBool(ctx, inst, p->baseDisInAvId   + i, true);
         cmDspSetBool(ctx, inst, p->baseGateOutAvId + i, true);
+        j = i;
         fl = false;
       }
 
@@ -5855,8 +5907,11 @@ cmDspRC_t _cmDspAvailCh_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
         cmDspSetBool(ctx, inst, p->baseGateOutAvId + i, false);
 
     }
+
     return rc;
   }
+
+  
 
   // if this is an incoming disable message.
   if( p->baseDisInAvId <= evt->dstVarId && evt->dstVarId < p->baseDisInAvId+p->chCnt && cmDsvGetBool(evt->valuePtr) == false)
