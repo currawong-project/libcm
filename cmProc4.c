@@ -323,7 +323,7 @@ unsigned   cmScFolExec(  cmScFol* p, unsigned smpIdx, unsigned status, cmMidiByt
     return ret_idx;
   }
 
-  if( status != kNoteOnMdId )
+  if( (status&0xf0) != kNoteOnMdId )
     return ret_idx;
 
   ++p->eventIdx;
@@ -721,7 +721,7 @@ unsigned cmScTrkExec(  cmScTrk* p, unsigned smpIdx, unsigned status, cmMidiByte_
 
   //cmScFolExec(p->sfp, smpIdx, status, d0, d1);
 
-  if( status != kNoteOnMdId )
+  if( (status&0xf0) != kNoteOnMdId )
     return cmInvalidIdx;
 
   if( p->curLocIdx == cmInvalidIdx )
@@ -2018,12 +2018,15 @@ cmRC_t cmScMatcherReset( cmScMatcher* p, unsigned scLocIdx )
 
 bool cmScMatcherInputMidi(  cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
 {
-  if( status != kNoteOnMdId )
+  if( (status&0xf0) != kNoteOnMdId)
+    return false;
+
+  if( d1 == 0 )
     return false;
 
   unsigned mi = p->mn-1;
 
-  //printf("%3i %5.2f %4s\n",p->mni,(double)smpIdx/p->srate,cmMidiToSciPitch(d0,NULL,0));
+  //printf("%3i %4s\n",p->mni,cmMidiToSciPitch(d0,NULL,0));
 
   // shift the new MIDI event onto the end of the MIDI buffer
   memmove(p->midiBuf, p->midiBuf+1, sizeof(cmScMatchMidi_t)*mi);
@@ -3209,7 +3212,7 @@ cmRC_t cmScAlignScanToTimeLineEvent( cmScMatcher* p, cmTlH_t tlH, cmTlObj_t* top
       break;
 
     // if the time line MIDI msg a note-on
-    if( mep->msg->status == kNoteOnMdId )
+    if( (mep->msg->status&0xf0) == kNoteOnMdId )
     {
       rc = cmScMatcherExec(p, mep->obj.seqSmpIdx, mep->msg->status, mep->msg->u.chMsgPtr->d0, mep->msg->u.chMsgPtr->d1, NULL );
 
