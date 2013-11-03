@@ -804,9 +804,19 @@ cmScRC_t _cmScProcSets( cmSc_t* p )
             // THIS PRINTF PREVENTS CRASH ON OSX ???????
             //printf("PROCSET:%i %c %s\n",p->sets[i].varId,_cmScVarIdToChar(p->sets[i].varId),ep->label);
 
+            char cc = _cmScVarIdToChar(p->sets[i].varId);
+            int nn = snprintf(NULL,0,"%c-%s",cc,ep->label);
+            char b[nn+2];
+            snprintf(b,nn,"%c-%s",cc,ep->label);
+            p->sets[i].symArray[j]     = cmSymTblRegisterSymbol(p->stH,b);
+            snprintf(b,nn+1,"c%c-%s",cc,ep->label);
+            p->sets[i].costSymArray[j] = cmSymTblRegisterSymbol(p->stH,b);
 
-            p->sets[i].symArray[j]     = cmSymTblRegisterFmt(p->stH,"%c-%s", _cmScVarIdToChar(p->sets[i].varId),ep->label);
-            p->sets[i].costSymArray[j] = cmSymTblRegisterFmt(p->stH,"c%c-%s",_cmScVarIdToChar(p->sets[i].varId),ep->label);
+            
+            //p->sets[i].symArray[j]     = cmSymTblRegisterFmt(p->stH,"%c-%s", cc,ep->label);
+            //p->sets[i].costSymArray[j] = cmSymTblRegisterFmt(p->stH,"c%c-%s",cc,ep->label);
+
+
           }
           else
           {
