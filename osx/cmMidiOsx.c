@@ -711,10 +711,12 @@ cmMpRC_t  cmMpDeviceSend( unsigned devIdx, unsigned portIdx, cmMidiByte_t status
 	mpl.numPackets	= 1;
 	
 	mpl.packet[0].timeStamp 	= 0;
-	mpl.packet[0].length		= byteCnt;
+	mpl.packet[0].length		= byteCnt+1;
 	mpl.packet[0].data[0]		= status;
 	mpl.packet[0].data[1]		= d0;
 	mpl.packet[0].data[2]		= d1;
+
+  //printf("%i %i %i %i\n",status,d0,d1,byteCnt);
 
 	if(( err = MIDISend( _cmMpRoot.outPortRef, pp->epr, &mpl)) != noErr )
 		return _cmMpError(&_cmMpRoot.err,kSysErrMpRC,err,"Send on device:%i port:%i failed.",devIdx,portIdx);
