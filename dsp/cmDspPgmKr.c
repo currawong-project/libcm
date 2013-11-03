@@ -110,6 +110,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspInst_t* ai0p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 0);
   cmDspInst_t* ai1p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 1);
+
   cmDspInst_t* tlp  = cmDspSysAllocInst(h,"TimeLine",    "tl",  2, r.tlFn, r.tlPrefixPath );
   cmDspInst_t* scp  = cmDspSysAllocInst(h,"Score",       "sc",  1, r.scFn );
   cmDspInst_t* php  = cmDspSysAllocInst(h,"Phasor",      NULL,  1, cmDspSysSampleRate(h) );
@@ -295,6 +296,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* recdChk = cmDspSysAllocInst(h,"Button", "Record",     2, kCheckDuiId, 0.0 );
   cmDspInst_t* recdPtS = cmDspSysAllocInst(h,"GateToSym", NULL,      2, cmSymTblRegisterStaticSymbol(cmDspSysSymbolTable(h),"open"),cmSymTblRegisterStaticSymbol(cmDspSysSymbolTable(h),"close"));
   cmDspInst_t* afop    = cmDspSysAllocInst(h,"AudioFileOut",NULL,    2, r.recordDir,2);
+  cmDspInst_t* mi0p    = cmDspSysAllocInst(h,"AMeter","In 0",  0);
+  cmDspInst_t* mi1p    = cmDspSysAllocInst(h,"AMeter","In 1",  0);
   
   cmDspSysInstallCb(h, recdGain,"val", afop,    "gain0", NULL );
   cmDspSysInstallCb(h, recdGain,"val", afop,    "gain1", NULL );
@@ -370,12 +373,13 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
     return rc;
 
   cmDspSysConnectAudio(h, php,  "out",   wtp,  "phs" );     // phs -> wt
+
   cmDspSysConnectAudio(h, wtp,  "out",   au0Sw, "a-in-0" ); // wt  -> sw
   cmDspSysConnectAudio(h, ai0p, "out",   au0Sw, "a-in-1" ); // ain -> sw
+  cmDspSysConnectAudio(h, ai0p, "out",   mi0p,  "in" );
   cmDspSysConnectAudio(h, au0Sw,"a-out", kr00, "in"  );     // sw  -> kr
   cmDspSysConnectAudio(h, kr00, "out",   fad0, "in-0");     // kr  -> fad
   cmDspSysConnectAudio(h, fad0, "out-0", mix0, "in-0");     // fad -> mix
-
   cmDspSysConnectAudio(h, au0Sw,"a-out", kr01, "in"  );     // sw  -> kr
   cmDspSysConnectAudio(h, kr01, "out",   fad0, "in-1");     // kr  -> fad
   cmDspSysConnectAudio(h, fad0, "out-1", mix0, "in-1");     // fad -> mix
@@ -385,6 +389,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysConnectAudio(h, wtp,  "out",   au1Sw, "a-in-0" );  // wt -> kr
   cmDspSysConnectAudio(h, ai1p, "out",   au1Sw, "a-in-1" );
+  cmDspSysConnectAudio(h, ai1p, "out",   mi1p,  "in" );
   cmDspSysConnectAudio(h, au1Sw,"a-out", kr10, "in"  );  
   cmDspSysConnectAudio(h, kr10, "out",   fad1, "in-0");
   cmDspSysConnectAudio(h, fad1, "out-0", mix1, "in-0");
@@ -431,8 +436,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, wtRt,"s-out-0", wtp,   "cmd",   NULL );
   cmDspSysInstallCb(h, pts, "on",      modp,  "cmd",   NULL );
   cmDspSysInstallCb(h, onb, "sym",     amCmd, "rewind",NULL );
-  cmDspSysInstallCb(h, onb, "sym",     achan0,"trig",  NULL );
-  cmDspSysInstallCb(h, onb, "sym",     achan1,"trig",  NULL );
+  cmDspSysInstallCb(h, onb, "out",     achan0,"reset",  NULL );
+  cmDspSysInstallCb(h, onb, "out",     achan1,"reset",  NULL );
 
   // stop connections
   cmDspSysInstallCb(h, wtp,  "done",offb,"in",  NULL ); // 'done' from WT simulates pressing Stop btn.
@@ -487,8 +492,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, mip, "status", sfp, "status", NULL );
 
   // score follower to modulator and printers
-  cmDspSysInstallCb(h, sfp, "out",  modp,    "index", NULL );
-  cmDspSysInstallCb(h, sfp, "out",  prp,     "in",  NULL );
+  cmDspSysInstallCb(h, sfp, "out",     modp,    "index", NULL );
+  cmDspSysInstallCb(h, sfp, "recent",  prp,     "in",  NULL );  // report 'recent' but only act on 'max' loc index
 
   cmDspSysInstallCb(h, prtb, "sym", sfp, "cmd", NULL );
   cmDspSysInstallCb(h, qtb,  "sym", sfp, "cmd", NULL );
@@ -595,11 +600,13 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, amp,  "cost",  cost_sr_10, "val_in", NULL );
 
   // active-channel to cross-fade connections
+  cmDspSysInstallCb(h, achan0, "reset",   fad0, "reset", NULL);
   cmDspSysInstallCb(h, achan0, "gate-0",  fad0, "gate-0", NULL );
   cmDspSysInstallCb(h, achan0, "gate-1",  fad0, "gate-1", NULL );
   cmDspSysInstallCb(h, fad0,   "state-0", achan0, "dis-0",  NULL );
   cmDspSysInstallCb(h, fad0,   "state-1", achan0, "dis-1",  NULL );
 
+  cmDspSysInstallCb(h, achan1, "reset",   fad1, "reset", NULL);
   cmDspSysInstallCb(h, achan1, "gate-0",  fad1, "gate-0", NULL );
   cmDspSysInstallCb(h, achan1, "gate-1",  fad1, "gate-1", NULL );
   cmDspSysInstallCb(h, fad1,   "state-0", achan1, "dis-0",  NULL );
