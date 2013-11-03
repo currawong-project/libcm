@@ -879,6 +879,7 @@ enum
   kSmpIdxSfId,
   kCmdSfId,
   kOutSfId,
+  kRecentSfId,
   kDynSfId,
   kEvenSfId,
   kTempoSfId,
@@ -904,6 +905,7 @@ typedef struct cmDspScFol_str
   cmDspScFolCbArg_t arg;
   unsigned          printSymId;
   unsigned          quietSymId;
+  unsigned          maxScLocIdx;
 } cmDspScFol_t;
 
 cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
@@ -921,7 +923,8 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     { "d1",    kD1SfId,       0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI data byte 1"},
     { "smpidx",kSmpIdxSfId,   0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI time tag as a sample index"},
     { "cmd",   kCmdSfId,      0, 0, kInDsvFl | kSymDsvFl,                     "Command input: print | quiet"},
-    { "out",   kOutSfId,      0, 0, kOutDsvFl| kUIntDsvFl,                    "Current score location index."},
+    { "out",   kOutSfId,      0, 0, kOutDsvFl| kUIntDsvFl,                    "Maximum score location index."},
+    { "recent",kRecentSfId,   0, 0, kOutDsvFl| kUIntDsvFl,                    "Most recent score location index."},
     { "dyn",   kDynSfId,      0, 0, kOutDsvFl| kDoubleDsvFl,                  "Dynamic value."},
     { "even",  kEvenSfId,     0, 0, kOutDsvFl| kDoubleDsvFl,                  "Evenness value."},
     { "tempo", kTempoSfId,    0, 0, kOutDsvFl| kDoubleDsvFl,                  "Tempo value."},
@@ -939,6 +942,7 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   p->smp        = cmScMeasAlloc(   ctx->cmProcCtx, NULL, cmScNullHandle, 0, NULL, 0 );
   p->printSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"print");
   p->quietSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"quiet");
+  p->maxScLocIdx= cmInvalidIdx;
 
   cmDspSetDefaultUInt(   ctx, &p->inst,  kBufCntSfId,     0,     7);
   cmDspSetDefaultUInt(   ctx, &p->inst,  kMaxWndCntSfId,  0,    10);
@@ -946,6 +950,7 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   cmDspSetDefaultUInt(   ctx, &p->inst,  kMinVelSfId,     0,     5);
   cmDspSetDefaultUInt(   ctx, &p->inst,  kIndexSfId,      0,     0);  
   cmDspSetDefaultUInt(   ctx, &p->inst,  kOutSfId,        0,     0);
+  cmDspSetDefaultUInt(   ctx, &p->inst,  kRecentSfId,     0,     0);
   cmDspSetDefaultDouble( ctx, &p->inst,  kDynSfId,        0,     0);
   cmDspSetDefaultDouble( ctx, &p->inst,  kEvenSfId,       0,     0);
   cmDspSetDefaultDouble( ctx, &p->inst,  kTempoSfId,      0,     0);
@@ -1094,6 +1099,8 @@ cmDspRC_t _cmDspScFolRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
       case kIndexSfId:
         if( cmScoreIsValid(p->scH) )
         {
+          p->maxScLocIdx = cmInvalidIdx;
+
           if( cmScMeasReset( p->smp ) != cmOkRC )
             cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Score measure unit reset to score index '%i' failed.");
 
@@ -1115,7 +1122,22 @@ cmDspRC_t _cmDspScFolRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
           // this call may result in a callback to _cmScFolMatcherCb()
           if( cmScMatcherExec(p->sfp, cmDspUInt(inst,kSmpIdxSfId), cmDspUInt(inst,kStatusSfId), cmDspUInt(inst,kD0SfId), cmDspUInt(inst,kD1SfId), &scLocIdx) == cmOkRC )
             if( scLocIdx != cmInvalidIdx )
-              cmDspSetUInt(ctx,inst,kOutSfId,scLocIdx);
+            {
+              // It is possible that the internal score follower may go backwards.  
+              // In this case it will report a given score location multiple times or out of time order.
+              // The 'out' port will only be updated under the circumstances that no later
+              // score location has been seen - so the last output from 'out' always reports
+              // the furthest possible progress in the score.  THe 'recent' output simply reports
+              // the most recent output from the internal score follower which may include 
+              // previously reported or out of order score locations.
+              cmDspSetUInt(ctx,inst,kRecentSfId,scLocIdx);
+
+              if( p->maxScLocIdx==cmInvalidIdx || p->maxScLocIdx < scLocIdx )
+              {
+                p->maxScLocIdx = scLocIdx;
+                cmDspSetUInt(ctx,inst,kOutSfId,scLocIdx);
+              }
+            }
         }
         break;
 
