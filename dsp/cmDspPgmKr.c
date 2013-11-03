@@ -186,12 +186,13 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
 
   cmDspSysNewPage(h,"Controls");
-  cmDspInst_t* liveb= cmDspSysAllocInst(h,"Button", "live",   2, kCheckDuiId,  0.0 );
-  cmDspInst_t* simb = cmDspSysAllocInst(h,"Button", "simulate",2,kCheckDuiId,  0.0 );
-  cmDspInst_t* onb  = cmDspSysAllocInst(h,"Button", "start",  2, kButtonDuiId, 1.0 );
-  cmDspInst_t* offb = cmDspSysAllocInst(h,"Button", "stop",   2, kButtonDuiId, 1.0 );
-  cmDspInst_t* prtb = cmDspSysAllocInst(h,"Button", "print",  2, kButtonDuiId, 1.0 );
-  cmDspInst_t* qtb  = cmDspSysAllocInst(h,"Button", "quiet",  2, kButtonDuiId, 1.0 );
+  cmDspInst_t* liveb= cmDspSysAllocInst(h,"Button", "live",    2, kCheckDuiId,  0.0 );
+  cmDspInst_t* simb = cmDspSysAllocInst(h,"Button", "simulate",2, kCheckDuiId,  0.0 );
+  cmDspInst_t* ainb = cmDspSysAllocInst(h,"Button", "audio in",2, kCheckDuiId,  0.0 );
+  cmDspInst_t* onb  = cmDspSysAllocInst(h,"Button", "start",   2, kButtonDuiId, 1.0 );
+  cmDspInst_t* offb = cmDspSysAllocInst(h,"Button", "stop",    2, kButtonDuiId, 1.0 );
+  cmDspInst_t* prtb = cmDspSysAllocInst(h,"Button", "print",   2, kButtonDuiId, 1.0 );
+  cmDspInst_t* qtb  = cmDspSysAllocInst(h,"Button", "quiet",   2, kButtonDuiId, 1.0 );
   cmDspInst_t* prp  = cmDspSysAllocInst(h,"Printer", NULL,   1, ">" );
   cmDspInst_t* prd  = cmDspSysAllocInst(h,"Printer", NULL,   1, "DYN:" );
   cmDspInst_t* pre  = cmDspSysAllocInst(h,"Printer", NULL,   1, "EVEN:" );
@@ -416,8 +417,9 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, liveb, "out",  au1Sw, "chidx", NULL );
 
   // 'simulate' button -> simulate router selector switch
-  cmDspSysInstallCb(h, simb,  "out",  au0Sw, "chidx", NULL );
-  cmDspSysInstallCb(h, simb,  "out",  au1Sw, "chidx", NULL );
+  cmDspSysInstallCb(h, simb,  "out",  ainb,  "in", NULL );
+  cmDspSysInstallCb(h, ainb,  "out",  au0Sw, "chidx", NULL );
+  cmDspSysInstallCb(h, ainb,  "out",  au1Sw, "chidx", NULL );
   cmDspSysInstallCb(h, simb,  "out",  siRt,  "sel", NULL );
   cmDspSysInstallCb(h, simb,  "out",  d1Rt,  "sel", NULL );
   cmDspSysInstallCb(h, simb,  "out",  d0Rt,  "sel", NULL );
