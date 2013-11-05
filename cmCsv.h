@@ -109,13 +109,16 @@ extern "C" {
   unsigned   cmCsvInsertSymText(   cmCsvH_t h, const char* text );
   unsigned   cmCsvInsertSymInt(    cmCsvH_t h, int v );
   unsigned   cmCsvInsertSymUInt(   cmCsvH_t h, unsigned v );
+  unsigned   cmCsvInsertSymHex(    cmCsvH_t h, unsigned v );
   unsigned   cmCsvInsertSymFloat(  cmCsvH_t h, float v );
   unsigned   cmCsvInsertSymDouble( cmCsvH_t h, double v );  
+
 
   // Set the value associated with a cell.
   cmCsvRC_t  cmCsvSetCellText(   cmCsvH_t h, unsigned row, unsigned col, const char* text );
   cmCsvRC_t  cmCsvSetCellInt(    cmCsvH_t h, unsigned row, unsigned col, int v );
   cmCsvRC_t  cmCsvSetCellUInt(   cmCsvH_t h, unsigned row, unsigned col, unsigned v );
+  cmCsvRC_t  cmCsvSetCellHex(    cmCsvH_t h, unsigned row, unsigned col, unsigned v );
   cmCsvRC_t  cmCsvSetCellFloat(  cmCsvH_t h, unsigned row, unsigned col, float v );
   cmCsvRC_t  cmCsvSetCellDouble( cmCsvH_t h, unsigned row, unsigned col, double v );
 
@@ -134,6 +137,7 @@ extern "C" {
   cmCsvRC_t  cmCsvInsertTextColAfter(   cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, const char* val, unsigned lexTId );
   cmCsvRC_t  cmCsvInsertIntColAfter(    cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, int val,         unsigned lexTId );
   cmCsvRC_t  cmCsvInsertUIntColAfter(   cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, unsigned val,    unsigned lexTId );
+  cmCsvRC_t  cmCsvInsertHexColAfter(    cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, unsigned val,    unsigned lexTId );
   cmCsvRC_t  cmCsvInsertFloatColAfter(  cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, float val,       unsigned lexTId );
   cmCsvRC_t  cmCsvInsertDoubleColAfter( cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, double val,      unsigned lexTId );
 
