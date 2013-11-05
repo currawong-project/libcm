@@ -1961,6 +1961,7 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
   cmMidiFileH_t mfH = cmMidiFileNullHandle;
   cmCsvH_t      csvH = cmCsvNullHandle;
   cmErr_t       err;
+  cmChar_t*     titles[] = {"id","trk","evt","opcode","dticks","micros","status","meta","ch","d0","d1","arg0","arg1","bar","skip","even","grace","tempo","t frac","dyn","section","remark", NULL };
   
   cmErrSetup(&err,&ctx->rpt,"MIDI to Score");
 
@@ -1976,25 +1977,56 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
   // Convert the track message 'dtick' field to delta-microseconds.
   cmMidiFileTickToMicros(mfH);
 
+
   unsigned                 msgCnt = cmMidiFileMsgCount(mfH);
   unsigned                 i;
   const cmMidiTrackMsg_t** tmpp   = cmMidiFileMsgArray(mfH);
   double                   acc_secs = 0;
+  unsigned                lexTId = 0;
+  cmCsvCell_t*            cp     = NULL;
+    
+
+  if( cmCsvAppendRow(csvH, &cp, cmCsvInsertSymText(csvH,titles[0]), kStrCsvTFl, lexTId ) != kOkCsvRC )
+  {
+    cmErrMsg(&err,kCsvFailScRC,"Error inserting 'id' column in '%s'.",cmStringNullGuard(scoreFn));
+    goto errLabel;
+  }
+
+  for(i=1; titles[i]!=NULL; ++i)
+  {
+    if( cmCsvInsertTextColAfter(csvH, cp, &cp, titles[i], lexTId ) != kOkCsvRC )
+    {
+      cmErrMsg(&err,kCsvFailScRC,"Error inserting column index '%i' label in '%s'.",i,cmStringNullGuard(scoreFn));
+      goto errLabel;
+    }
+
+  }    
+
+
+
   for(i=0; i<msgCnt; ++i)
   {
     const cmMidiTrackMsg_t* tmp    = tmpp[i];
-    cmCsvCell_t*            cp     = NULL;
-    unsigned                lexTId = 0;
     const cmChar_t*         opStr  = NULL;
-    unsigned                midiCh  = 0;
+    unsigned                midiCh = 0;
     unsigned                d0     = 0;
     unsigned                d1     = 0;
-    double dsecs = (double)tmp->dtick / 1000000.0;
-    
+    unsigned metaId = 0;
+    double   dsecs  = (double)tmp->dtick / 1000000.0;
+
     acc_secs += dsecs;
 
-    if( tmp->status == 0xff )
-      opStr = cmMidiMetaStatusToLabel(tmp->metaId);
+    if( tmp->status == kMetaStId )
+    {
+      opStr  = cmMidiMetaStatusToLabel(tmp->metaId);
+      metaId = tmp->metaId;
+
+      switch( tmp->metaId )
+      {
+        case kTempoMdId:
+          d0 = tmp->u.iVal;
+      }
+    }
     else
     {
       opStr = cmMidiStatusToLabel(tmp->status);
@@ -2005,6 +2037,12 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
         d1     = tmp->u.chMsgPtr->d1;
       }
     }
+
+    cp = NULL;
+
+    // skip note-off messages
+    if( tmp->status == kNoteOffMdId )
+      continue;
 
     if( cmCsvAppendRow(csvH, &cp, cmCsvInsertSymUInt(csvH,i), kIntCsvTFl, lexTId ) != kOkCsvRC )
     {
@@ -2042,13 +2080,13 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
       goto errLabel;
     }
     
-    if( cmCsvInsertUIntColAfter(csvH, cp, &cp, tmp->status, lexTId ) != kOkCsvRC )
+    if( cmCsvInsertHexColAfter(csvH, cp, &cp, tmp->status, lexTId ) != kOkCsvRC )
     {
       cmErrMsg(&err,kCsvFailScRC,"Error inserting 'status' column in '%s'.",cmStringNullGuard(scoreFn));
       goto errLabel;
     }
 
-    if( cmCsvInsertUIntColAfter(csvH, cp, &cp, tmp->metaId, lexTId ) != kOkCsvRC )
+    if( cmCsvInsertUIntColAfter(csvH, cp, &cp, metaId, lexTId ) != kOkCsvRC )
     {
       cmErrMsg(&err,kCsvFailScRC,"Error inserting 'meta' column in '%s'.",cmStringNullGuard(scoreFn));
       goto errLabel;
@@ -2072,9 +2110,52 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
       goto errLabel;
     }
 
+      switch( tmp->status )
+      {
+        case kNoteOnMdId:
+          if( cmCsvInsertTextColAfter(csvH, cp, &cp, cmMidiToSciPitch(tmp->u.chMsgPtr->d0,NULL,0), lexTId ) != kOkCsvRC )
+          {
+            cmErrMsg(&err,kCsvFailScRC,"Error inserting 'opcode' column in '%s'.",cmStringNullGuard(scoreFn));
+            goto errLabel;
+          }
+
+        case kMetaStId:
+          switch( tmp->metaId )
+          {
+            case kTimeSigMdId:
+              if( cmCsvInsertUIntColAfter(csvH, cp, &cp, tmp->u.timeSigPtr->num, lexTId ) != kOkCsvRC )
+              {
+                cmErrMsg(&err,kCsvFailScRC,"Error inserting time sign. numerator column in '%s'.",cmStringNullGuard(scoreFn));
+                goto errLabel;
+              }
+
+              if( cmCsvInsertUIntColAfter(csvH, cp, &cp, tmp->u.timeSigPtr->den, lexTId ) != kOkCsvRC )
+              {
+                cmErrMsg(&err,kCsvFailScRC,"Error inserting time sign. denominator column in '%s'.",cmStringNullGuard(scoreFn));
+                goto errLabel;
+              }
+              break;
+
+            case kTempoMdId:
+              if( cmCsvInsertUIntColAfter(csvH, cp, &cp, 60000000/tmp->u.iVal, lexTId ) != kOkCsvRC )
+              {
+                cmErrMsg(&err,kCsvFailScRC,"Error inserting 'tempo' in '%s'.",cmStringNullGuard(scoreFn));
+                goto errLabel;
+              }
+              break;
+          }
+
+      }
+
 
   }
   
+  if(  cmCsvWrite(csvH,scoreFn) != kOkCsvRC )
+  {
+    cmErrMsg(&err,kCsvFailScRC,"The score output file '%s' could not be written.",cmStringNullGuard(scoreFn));
+    goto errLabel;
+  }
+
  errLabel:
    cmMidiFileClose(&mfH);
    cmCsvFinalize(&csvH);
