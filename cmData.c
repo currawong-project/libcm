@@ -2161,10 +2161,28 @@ char* _cmDataSerializeWrite( cmData_t* np, char* dp, const char* ep )
   return dp;
 }
 
+char* _cmDataSerialize( const cmData_t* p, char* buf, const char* ep )
+{
+
+  buf = _cmDataSerializeWrite(p,buf,ep);
+
+  // if this data type has a child then write the child
+  if( kMinStructDtId <= p->tid && p->tid <= kMaxStructDtId && p->u.child != NULL )
+    buf = _cmDataSerialize(p->u.child,buf,ep);
+  
+  // if this data type has siblings then write sibings
+  cmData_t* dp = p->u.child;
+  for(; dp != NULL; dp=dp->sibling )
+    buf = cmDataSerialize(dp->sibling,buf,ep);
+
+  return buf;
+}
+
 cmDtRC_t cmDataSerialize( const cmData_t* p, void* buf, unsigned bufByteCnt )
 {
-  
-
+  const char* ep = (char*)p + bufByteCnt;
+  buf = _cmDataSerialize(p,buf,bufByteCnt);
+  assert( buf <= ep );
   return kOkDtRC;
 }
 
