@@ -12,8 +12,8 @@ extern "C" {
     kSyntaxErrScRC,
     kInvalidIdxScRC,
     kTimeLineFailScRC,
-    kInvalidDynRefCntScRC
-  
+    kInvalidDynRefCntScRC,
+    kMidiFileFailScRC
   };
 
   enum
@@ -234,6 +234,9 @@ extern "C" {
   cmScRC_t      cmScoreDecode( const void* msg, unsigned msgByteCnt, cmScMsg_t* );
 
   void          cmScorePrint( cmScH_t h, cmRpt_t* rpt );
+
+  // Generate a new score file from a MIDI file.
+  cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* scoreFn );
 
   void          cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn );
 

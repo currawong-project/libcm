@@ -1955,6 +1955,133 @@ void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
   }
 }
 
+cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* scoreFn )
+{
+  cmScRC_t      rc  = kOkScRC;
+  cmMidiFileH_t mfH = cmMidiFileNullHandle;
+  cmCsvH_t      csvH = cmCsvNullHandle;
+  cmErr_t       err;
+  
+  cmErrSetup(&err,&ctx->rpt,"MIDI to Score");
+
+  if( cmMidiFileOpen(midiFn, &mfH, ctx ) != kOkMfRC )
+    return cmErrMsg(&err,kMidiFileFailScRC,"Unable to open the MIDI file '%s'.",midiFn);
+
+  if( cmCsvInitialize(&csvH,ctx) != kOkCsvRC )
+  {
+    cmErrMsg(&err,kCsvFailScRC,"Unable to initialize the CSV file: '%s'.",scoreFn);
+    goto errLabel;
+  }
+
+  // Convert the track message 'dtick' field to delta-microseconds.
+  cmMidiFileTickToMicros(mfH);
+
+  unsigned                 msgCnt = cmMidiFileMsgCount(mfH);
+  unsigned                 i;
+  const cmMidiTrackMsg_t** tmpp   = cmMidiFileMsgArray(mfH);
+  double                   acc_secs = 0;
+  for(i=0; i<msgCnt; ++i)
+  {
+    const cmMidiTrackMsg_t* tmp    = tmpp[i];
+    cmCsvCell_t*            cp     = NULL;
+    unsigned                lexTId = 0;
+    const cmChar_t*         opStr  = NULL;
+    unsigned                midiCh  = 0;
+    unsigned                d0     = 0;
+    unsigned                d1     = 0;
+    double dsecs = (double)tmp->dtick / 1000000.0;
+    
+    acc_secs += dsecs;
+
+    if( tmp->status == 0xff )
+      opStr = cmMidiMetaStatusToLabel(tmp->metaId);
+    else
+    {
+      opStr = cmMidiStatusToLabel(tmp->status);
+      if( cmMidiIsChStatus( tmp->status ) )
+      {
+        midiCh = tmp->u.chMsgPtr->ch;
+        d0     = tmp->u.chMsgPtr->d0;
+        d1     = tmp->u.chMsgPtr->d1;
+      }
+    }
+
+    if( cmCsvAppendRow(csvH, &cp, cmCsvInsertSymUInt(csvH,i), kIntCsvTFl, lexTId ) != kOkCsvRC )
+    {
+      cmErrMsg(&err,kCsvFailScRC,"Error inserting 'id' column in '%s'.",cmStringNullGuard(scoreFn));
+      goto errLabel;
+    }
+
+    if( cmCsvInsertUIntColAfter(csvH, cp, &cp, tmp->trkIdx, lexTId ) != kOkCsvRC )
+    {
+      cmErrMsg(&err,kCsvFailScRC,"Error inserting 'trk' column in '%s'.",cmStringNullGuard(scoreFn));
+      goto errLabel;
+    }
+
+    if( cmCsvInsertUIntColAfter(csvH, cp, &cp, 0, lexTId ) != kOkCsvRC )
+    {
+      cmErrMsg(&err,kCsvFailScRC,"Error inserting 'evt' column in '%s'.",cmStringNullGuard(scoreFn));
+      goto errLabel;
+    }
+
+    if( cmCsvInsertTextColAfter(csvH, cp, &cp, opStr, lexTId ) != kOkCsvRC )
+    {
+      cmErrMsg(&err,kCsvFailScRC,"Error inserting 'opcode' column in '%s'.",cmStringNullGuard(scoreFn));
+      goto errLabel;
+    }
+
+    if( cmCsvInsertDoubleColAfter(csvH, cp, &cp, dsecs, lexTId ) != kOkCsvRC )
+    {
+      cmErrMsg(&err,kCsvFailScRC,"Error inserting 'dticks' column in '%s'.",cmStringNullGuard(scoreFn));
+      goto errLabel;
+    }
+
+    if( cmCsvInsertDoubleColAfter(csvH, cp, &cp, acc_secs, lexTId ) != kOkCsvRC )
+    {
+      cmErrMsg(&err,kCsvFailScRC,"Error inserting 'micros' column in '%s'.",cmStringNullGuard(scoreFn));
+      goto errLabel;
+    }
+    
+    if( cmCsvInsertUIntColAfter(csvH, cp, &cp, tmp->status, lexTId ) != kOkCsvRC )
+    {
+      cmErrMsg(&err,kCsvFailScRC,"Error inserting 'status' column in '%s'.",cmStringNullGuard(scoreFn));
+      goto errLabel;
+    }
+
+    if( cmCsvInsertUIntColAfter(csvH, cp, &cp, tmp->metaId, lexTId ) != kOkCsvRC )
+    {
+      cmErrMsg(&err,kCsvFailScRC,"Error inserting 'meta' column in '%s'.",cmStringNullGuard(scoreFn));
+      goto errLabel;
+    }
+
+    if( cmCsvInsertUIntColAfter(csvH, cp, &cp, midiCh, lexTId ) != kOkCsvRC )
+    {
+      cmErrMsg(&err,kCsvFailScRC,"Error inserting 'ch' column in '%s'.",cmStringNullGuard(scoreFn));
+      goto errLabel;
+    }
+
+    if( cmCsvInsertUIntColAfter(csvH, cp, &cp, d0, lexTId ) != kOkCsvRC )
+    {
+      cmErrMsg(&err,kCsvFailScRC,"Error inserting 'd0' column in '%s'.",cmStringNullGuard(scoreFn));
+      goto errLabel;
+    }
+
+    if( cmCsvInsertUIntColAfter(csvH, cp, &cp, d1, lexTId ) != kOkCsvRC )
+    {
+      cmErrMsg(&err,kCsvFailScRC,"Error inserting 'd1' column in '%s'.",cmStringNullGuard(scoreFn));
+      goto errLabel;
+    }
+
+
+  }
+  
+ errLabel:
+   cmMidiFileClose(&mfH);
+   cmCsvFinalize(&csvH);
+
+   return rc;
+}
+
 void cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
 {
   cmScH_t h = cmScNullHandle;
