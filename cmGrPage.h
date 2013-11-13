@@ -60,7 +60,11 @@ extern "C" {
   // Draw the page.
   void      cmGrPageDraw( cmGrPgH_t h, cmGrDcH_t dcH );
 
+  // Label callback functions are used to translate numeric axis values to
+  // text strings.  Multiple label callback functions can be registered with
+  // a page and then assigned to a given view axis via cmGrViewSetLabelFunc().
   typedef void (*cmGrLabelFunc_t)( void* arg, cmChar_t* label, unsigned labelCharCnt, cmGrV_t value );
+
   // Returns id of the new page label function.
   unsigned         cmGrPageLabelFuncRegister( cmGrPgH_t h, cmGrLabelFunc_t func, void* arg, const cmChar_t* label );      
   unsigned         cmGrPageLabelFuncCount(    cmGrPgH_t h );
