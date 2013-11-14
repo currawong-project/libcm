@@ -42,12 +42,15 @@ extern "C" {
   const void* cmStackTop(     cmStackH_t h );
 
   // Set the value of 'dataEleCnt' elements on the stack.
+  // The top element is at index cmStackCount() - 1.
   cmStRC_t    cmStackSet(     cmStackH_t h, unsigned index, const void* data, unsigned dataEleCnt );
 
   // Copy 'dataEleCnt' elements into the buffer pointed to by 'data'.
+  // The top element is at index cmStackCount() - 1.
   cmStRC_t    cmStackGetN(    cmStackH_t h, unsigned index, void* data, unsigned dataEleCnt );
 
   // Return a pointer to a single element on the stack.
+  // The top element is at index cmStackCount() - 1.
   const void* cmStackGet(     cmStackH_t h, unsigned index );
 
   // Convert the internal representation of the stack to a linear array and return

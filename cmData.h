@@ -11,6 +11,9 @@ extern "C" {
     kCvtErrDtRC,
     kVarArgErrDtRC,
     kMissingFieldDtRC,
+    kLexFailDtRC,
+    kParseStackFailDtRC,
+    kSyntaxErrDtRC,
     kEolDtRC
   };
 
@@ -64,8 +67,8 @@ extern "C" {
 
     kMinStructDtId,
     kListDtId = kMinStructDtId, // children nodes are array elements, cnt=child count
-    kPairDtId,                  // key/value pairs, cnt=2, first child is key, second is value
-    kRecordDtId,                // children nodes are pairs, cnt=pair count
+    kPairDtId,                   // key/value pairs, cnt=2, first child is key, second is value
+    kRecordDtId,                 // children nodes are pairs, cnt=pair count
     kMaxStructDtId,
 
     kOptArgDtFl = 0x80000000
@@ -271,7 +274,9 @@ extern "C" {
   // These functions begin by releasing any resources help by *p
   // and then dynamically allocate the internal array and copy 
   // the array data into it.
+  cmData_t* cmDataSetStrAllocN(      cmData_t* p, const cmChar_t* s, unsigned charCnt );
   cmData_t* cmDataSetStrAlloc(       cmData_t* p, const cmChar_t* s );
+  cmData_t* cmDataSetConstStrAllocN( cmData_t* p, const cmChar_t* s, unsigned charCnt );
   cmData_t* cmDataSetConstStrAlloc(  cmData_t* p, const cmChar_t* s );
   cmData_t* cmDataSetVoidAllocPtr(   cmData_t* p, const void* vp,           unsigned cnt );
   cmData_t* cmDataSetCharAllocPtr(   cmData_t* p, const char* vp,           unsigned cnt );
@@ -324,6 +329,7 @@ extern "C" {
   // and copy v[cnt] into it.
   cmData_t* cmDataStrAlloc(       cmData_t* parent, cmChar_t* str );
   cmData_t* cmDataConstStrAlloc(  cmData_t* parent, const cmChar_t* str );
+  cmData_t* cmDataConstStrAllocN( cmData_t* parent, const cmChar_t* str, unsigned charCnt );
   cmData_t* cmDataCharAllocPtr(   cmData_t* parent, const char* v,           unsigned cnt );
   cmData_t* cmDataUCharAllocPtr(  cmData_t* parent, const unsigned char* v,  unsigned cnt );
   cmData_t* cmDataShortAllocPtr(  cmData_t* parent, const short* v,          unsigned cnt );
@@ -428,6 +434,7 @@ extern "C" {
   cmData_t* cmDataAllocPairId(    cmData_t* parent, unsigned  keyId,       cmData_t* value );
 
   // Dynamically allocate the label but link (w/o realloc) the value.
+  cmData_t* cmDataAllocPairLabelN(cmData_t* parent, const cmChar_t* label, unsigned charCnt, cmData_t* value);
   cmData_t* cmDataAllocPairLabel( cmData_t* parent, const cmChar_t* label, cmData_t* value );
 
   //----------------------------------------------------------------------------
@@ -487,13 +494,13 @@ extern "C" {
   unsigned        cmDataRecdKeyId(    cmData_t* p, unsigned index );
   const cmChar_t* cmDataRecdKeyLabel( cmData_t* p, unsigned index );
   
-  cmData_t*       cmRecdMake( cmData_t* parent, cmData_t* p );
-  cmData_t*       cmRecdAlloc( cmData_t* parent );
+  cmData_t*       cmDataRecdMake( cmData_t* parent, cmData_t* p );
+  cmData_t*       cmDataRecdAlloc( cmData_t* parent );
   
   // Append a pair node by linking the pair node 'pair' to the record node 'p'.
   // 'pair' is simply linked to 'p' via cmDataAppendChild() no 
   // reallocation or duplicattion takes place.
-  cmData_t*       cmRecdAppendPair( cmData_t* p, cmData_t* pair );
+  cmData_t*       cmDataRecdAppendPair( cmData_t* p, cmData_t* pair );
 
 
   // Var-args format:
@@ -529,6 +536,16 @@ extern "C" {
   unsigned cmDataSerializeByteCount( const cmData_t* p );
   cmDtRC_t cmDataSerialize(   const cmData_t* p, void* buf, unsigned bufByteCnt );
   cmDtRC_t cmDataDeserialize( const void* buf, unsigned bufByteCnt, cmData_t** pp );
+
+  //-----------------------------------------------------------------------------
+  typedef cmHandle_t cmDataParserH_t;
+  //static cmDataParserH_t cmDataParserNullHandle;
+
+  cmDtRC_t cmDataParserCreate( cmCtx_t* ctx, cmDataParserH_t* hp );
+  cmDtRC_t cmDataParserDestroy( cmDataParserH_t* hp );
+  bool     cmDataParserIsValid( cmDataParserH_t h );
+  cmDtRC_t cmDataParserExec(   cmDataParserH_t  h, const cmChar_t* text, cmData_t** pp );
+  //-----------------------------------------------------------------------------
   
   void     cmDataPrint( const cmData_t* p, cmRpt_t* rpt );
   
