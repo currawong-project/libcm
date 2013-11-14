@@ -4,8 +4,10 @@
 #include "cmCtx.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
+#include "cmLinkedHeap.h"
 #include "cmData.h"
 #include "cmLex.h"
+#include "cmText.h"
 #include "cmStack.h"
 
 cmDtRC_t _cmDataErrNo = kOkDtRC;
@@ -668,19 +670,25 @@ cmData_t* cmDataSetDoublePtr( cmData_t* p, double* vp,         unsigned cnt )
 
 // Set the value of an existing array based data object. 
 // Allocate the internal array and copy the array into it.
-cmData_t* cmDataSetStrAlloc( cmData_t* p, const cmChar_t* s )
+cmData_t* cmDataSetStrAllocN( cmData_t* p, const cmChar_t* s, unsigned charCnt )
 {
   if( cmIsFlag(p->flags,kDynPtrDtFl) )
-    cmMemResizeStr(p->u.z,s);
+    cmMemResizeStrN(p->u.z,s,charCnt);
   else
   {
     _cmDataFreeArray(p);
-    p->u.z = cmMemAllocStr(s);
+    p->u.z = cmMemAllocStrN(s,charCnt);
   }
   p->tid    = kStrDtId;
   p->flags  = cmSetFlag(p->flags,kDynPtrDtFl);
   return p;
 }
+
+cmData_t* cmDataSetStrAlloc( cmData_t* p, const cmChar_t* s )
+{ return cmDataSetStrAllocN(p,s,strlen(s)); }
+
+cmData_t* cmDataSetConstStrAllocN(  cmData_t* p, const cmChar_t* s, unsigned charCnt )
+{ return cmDataSetStrAllocN(p,s,charCnt); }
 
 cmData_t* cmDataSetConstStrAlloc(  cmData_t* p, const cmChar_t* s )
 { return cmDataSetStrAlloc(p,s); }
@@ -697,6 +705,7 @@ cmData_t* cmDataSetCharAllocPtr(  cmData_t* p, const char* vp,  unsigned cnt )
     _cmDataFreeArray(p);
     p->u.cp = cmMemAlloc(char, cnt );
   }
+
   memcpy(p->u.cp,vp,sizeof(char)*cnt);
   p->tid   = kCharPtrDtId;
   p->flags = cmSetFlag(p->flags,kDynPtrDtFl);
@@ -1033,6 +1042,14 @@ cmData_t* cmDataStrAlloc( cmData_t* parent, cmChar_t* str )
   cmDataSetStrAlloc(p,str);
   return p;
 }
+
+cmData_t* cmDataConstStrAllocN( cmData_t* parent, const cmChar_t* str, unsigned charCnt )
+{
+  cmData_t* p = _cmDataAllocNode(parent,kConstStrDtId);
+  cmDataSetConstStrAllocN(p,str,charCnt);
+  return p;
+}
+
 
 cmData_t* cmDataConstStrAlloc( cmData_t* parent, const cmChar_t* str )
 {
@@ -1460,6 +1477,15 @@ cmData_t* cmDataAllocPairLabel( cmData_t* parent, const cmChar_t *label, cmData_
   cmDataAppendChild(p,value);
   return p;
 }
+
+cmData_t* cmDataAllocPairLabelN(cmData_t* parent, const cmChar_t* label, unsigned charCnt, cmData_t* value)
+{
+  cmData_t* p  = _cmDataAllocNode(parent,kPairDtId);
+  cmDataConstStrAllocN(p,label,charCnt);
+  cmDataAppendChild(p,value);
+  return p;
+}
+
   
 //----------------------------------------------------------------------------
 
@@ -1759,7 +1785,7 @@ const cmChar_t* cmDataRecdKeyLabel( cmData_t* p, unsigned index )
   return label;
 }
   
-cmData_t*       cmRecdMake( cmData_t* parent, cmData_t* p )
+cmData_t*       cmDataRecdMake( cmData_t* parent, cmData_t* p )
 {
   _cmDataFree(p);
   p->parent  = parent;
@@ -1769,10 +1795,10 @@ cmData_t*       cmRecdMake( cmData_t* parent, cmData_t* p )
   return p;
 }
 
-cmData_t*       cmRecdAlloc(cmData_t* parent)
+cmData_t*       cmDataRecdAlloc(cmData_t* parent)
 { return _cmDataAllocNode(parent,kRecordDtId); }
 
-cmData_t* cmRecdAppendPair( cmData_t* p, cmData_t* pair )
+cmData_t* cmDataRecdAppendPair( cmData_t* p, cmData_t* pair )
 {
   assert( p!=NULL && p->tid==kRecordDtId);
   cmDataAppendChild(p,pair);
@@ -1822,7 +1848,7 @@ cmDtRC_t  _cmDataRecdParseInputV(cmData_t* parent, unsigned idFl, va_list vl )
 
 cmData_t*       cmDataRecdAllocLabelV( cmData_t* parent, va_list vl )
 {
-  cmData_t* p = cmRecdAlloc(parent);
+  cmData_t* p = cmDataRecdAlloc(parent);
   cmDtRC_t rc = _cmDataRecdParseInputV(p, false, vl );
   if( rc != kOkDtRC )
   {
@@ -1843,7 +1869,7 @@ cmData_t*       cmDataRecdAllocLabelA( cmData_t* parent, ... )
 
 cmData_t*       cmDataRecdAllocIdV( cmData_t* parent, va_list vl )
 {
-  cmData_t* p = cmRecdAlloc(parent);
+  cmData_t* p = cmDataRecdAlloc(parent);
   cmDtRC_t rc = _cmDataRecdParseInputV(p, true, vl );
   if( rc != kOkDtRC )
   {
@@ -2181,7 +2207,6 @@ cmDtRC_t cmDataDeserialize( const void* buf, unsigned bufByteCnt, cmData_t** pp 
 //============================================================================
 //============================================================================
 //============================================================================
-#ifdef NOT_DEF
 enum
 {
   kLCurlyLexTId = kUserLexTId + 1,
@@ -2196,7 +2221,7 @@ enum
 
 typedef struct
 {
-  unsigned id;
+  unsigned        id;
   const cmChar_t* label;
 } cmDtToken_t;
 
@@ -2222,10 +2247,6 @@ typedef struct
 
 } cmDataParser_t;
 
-typedef struct
-{
-  unsigned tokId;
-} cmDataStEle_t;
 
 cmDataParserH_t cmDataParserNullHandle = cmSTATIC_NULL_HANDLE;
 
@@ -2239,10 +2260,10 @@ cmDataParser_t* _cmDataParserHandleToPtr( cmDataParserH_t h )
 cmDtRC_t _cmDataParserDestroy( cmDataParser_t* p )
 {
   if( cmLexFinal(&p->lexH) != kOkLexRC )
-    cmErrMsg(&p->err,kLexFailedDtRC,"Lexer release failed.");
+    cmErrMsg(&p->err,kLexFailDtRC,"Lexer release failed.");
 
   if( cmStackFree(&p->stH) != kOkStRC )
-    cmErrMsg(&p->err,kParserStackFailDtRC,"The data object parser stack release failed.");
+    cmErrMsg(&p->err,kParseStackFailDtRC,"The data object parser stack release failed.");
 
   return kOkDtRC;
 }
@@ -2257,22 +2278,22 @@ cmDtRC_t cmDataParserCreate( cmCtx_t* ctx, cmDataParserH_t* hp )
 
   cmDataParser_t* p = cmMemAllocZ(cmDataParser_t,1);
 
-  cmErrSetup(&p->err,&ctx->err,"Data Parser");
+  cmErrSetup(&p->err,&ctx->rpt,"Data Parser");
 
-  if(cmLexIsValid(p->lexH = cmLexInit(NULL,0,0,err->rpt))==false)
+  if(cmLexIsValid(p->lexH = cmLexInit(NULL,0,0,&ctx->rpt))==false)
   {
-    rc = cmErrMsg(err, kLexFailDtRC, "The data object parser lexer create failed.");
+    rc = cmErrMsg(&p->err, kLexFailDtRC, "The data object parser lexer create failed.");
     goto errLabel;
   }
 
-  for(i=0; cmDtTokeyArray[i].id!=kErrorLexTId; ++i)
-    if( cmLexRegisterToken(p->lexH, cmDtTokenArray[i].id, cmDtTokenArray[i].label) != kOkLexRC )
+  for(i=0; _cmDtTokenArray[i].id != kErrorLexTId; ++i)
+    if( cmLexRegisterToken(p->lexH, _cmDtTokenArray[i].id, _cmDtTokenArray[i].label) != kOkLexRC )
     {
-      rc = cmErrMsg(&p->err,kLexFailDtRC,"The data object parser lexer could not register the '%s' token.",cmDtTokenArray[i].label);
+      rc = cmErrMsg(&p->err,kLexFailDtRC,"The data object parser lexer could not register the '%s' token.",_cmDtTokenArray[i].label);
       goto errLabel;
     }
 
-  if( cmStackAlloc(ctx, &p->stH, 1024, 1024, sizeof(cmDataStEle_t)) != kOkStRC )
+  if( cmStackAlloc(ctx, &p->stH, 1024, 1024, sizeof(cmData_t*)) != kOkStRC )
   {
     rc = cmErrMsg(&p->err,kParseStackFailDtRC,"The data object parser stack create failed.");
     goto errLabel;
@@ -2287,7 +2308,7 @@ cmDtRC_t cmDataParserCreate( cmCtx_t* ctx, cmDataParserH_t* hp )
   return kOkDtRC;
 }
 
-cmDtRC_t cmDataParserDestroy( cmErr_t* err, cmDataParserH_t* hp )
+cmDtRC_t cmDataParserDestroy( cmDataParserH_t* hp )
 {
   cmDtRC_t rc=kOkDtRC;
 
@@ -2309,19 +2330,6 @@ bool     cmDataParserIsValid( cmDataParserH_t h )
 { return h.h != NULL; }
 
 
-cmDtRC_t _cmDataLexErrorV( cmErr_t* err, cmLexH_t lexH, const cmChar_t* fmt, va_list vl )
-{
-  
-}
-
-cmDtRC_t _cmDataLexError( cmErr_t* err, cmLexH_t lexH, const cmChar_t* fmt, ... )
-{
-  va_list vl;
-  va_start(vl,fmt);
-  cmDtRC_t rc, _cmDataLexErrorV(err,lexH,fmt,vl);
-  va_end(vl);
-  return rc;
-}
 
 // {
 //  id0 : scalar_value
@@ -2330,70 +2338,452 @@ cmDtRC_t _cmDataLexError( cmErr_t* err, cmLexH_t lexH, const cmChar_t* fmt, ... 
 //  id3 : 
 // }
 
+
+// flags describing the expected next token
 enum
 {
-  kRecdStateId,
-  kFieldValueStateId,
-  kArrayValueStateId
+  kValueExpFl = 0x01,
+  kIdExpFl    = 0x02,
+  kColonExpFl = 0x04,
+  kCommaExpFl = 0x08
 };
+
+typedef struct
+{
+  cmData_t* dp;
+} cmDataStEle_t;
+
+typedef struct
+{
+  cmDataParser_t*  p;
+  cmData_t*        cnp;
+  unsigned         flags;
+  cmChar_t*        tmpStr;
+
+  unsigned         arrayCnt;
+  void*            arrayMem;
+  
+} cmDataParserCtx_t;
+
+cmDtRC_t _cmDpSyntaxErrV( cmDataParserCtx_t* c, const cmChar_t* fmt, va_list vl )
+{
+  cmChar_t* s0 = NULL;
+  s0 = cmTsVPrintfP(s0,fmt,vl);
+  cmDtRC_t rc = cmErrMsg(&c->p->err,kSyntaxErrDtRC,"Syntax error on line %i. %s",cmLexCurrentLineNumber(c->p->lexH),cmStringNullGuard(s0));
+  cmMemFree(s0);
+  return rc;
+}
+
+cmDtRC_t _cmDpSyntaxErr( cmDataParserCtx_t* c, const cmChar_t* fmt, ... )
+{
+  va_list vl;
+  va_start(vl,fmt);
+  cmDtRC_t rc = _cmDpSyntaxErrV(c,fmt,vl);
+  va_end(vl);
+  return rc;
+}
+
+cmDtRC_t _cmDpPopStack(  cmDataParserCtx_t* c, cmData_t** pp )
+{
+  const void* vp;
+  if((vp = cmStackTop(c->p->stH)) == NULL )
+    return _cmDpSyntaxErr(c,"Stack underflow.");
+  
+  *pp = *(cmData_t**)vp;
+
+  return kOkDtRC;
+}
+
+cmDtRC_t _cmDpStoreArrayEle( cmDataParserCtx_t* c, void* dp, unsigned byteCnt )
+{
+  char* vp = cmMemResize(char, c->cnp->u.vp, c->cnp->cnt+byteCnt);
+  
+  memcpy(vp + c->cnp->cnt,dp,byteCnt);
+  c->cnp->u.vp = vp;
+  c->cnp->cnt += byteCnt;
+  
+  c->flags = kValueExpFl | kCommaExpFl;
+
+  return kOkDtRC;
+}
+
+cmDtRC_t _cmDataParserOpenPair( cmDataParserCtx_t* c )
+{
+  assert( c->cnp->tid == kRecordDtId );
+
+  cmData_t* nnp = cmDataAllocNull(NULL);
+  cmData_t* pnp = cmDataAllocPairLabelN( c->cnp, cmLexTokenText(c->p->lexH), cmLexTokenCharCount(c->p->lexH), nnp );
+
+  // store the current node
+  if( cmStackPush(c->p->stH, &c->cnp, 1 ) != kOkStRC )
+    return _cmDpSyntaxErr(c,"Parser stack push failed.");
+
+  // make the new pair the current node
+  c->cnp = pnp;
+
+  // pair openings must be followed by a colon.
+  c->flags  = kColonExpFl;
+ 
+  return kOkDtRC;
+}
+
+cmDtRC_t _cmDataParserClosePair( cmDataParserCtx_t* c )
+{
+  cmDtRC_t rc;
+
+  // make the pair's parent record the current node
+  if((rc = _cmDpPopStack(c, &c->cnp )) != kOkDtRC )
+    return rc;
+
+  // pairs only occur in records
+  if( c->cnp->tid != kRecordDtId )
+    return _cmDpSyntaxErr(c,"A 'pair' end was found outside of a 'record'.");
+
+  // pairs must be followed by id's or comma's
+  c->flags = kIdExpFl | kCommaExpFl; 
+
+  return rc;
+}
+
+cmDtRC_t _cmDpStoreValue( cmDataParserCtx_t* c, cmData_t* np, const cmChar_t* typeLabel )
+{
+  assert( np != NULL );
+
+  cmDtRC_t rc = kOkDtRC;
+
+  switch( c->cnp->tid )
+  {
+    case kPairDtId:
+
+      // assign the new node as the value of the pair
+      cmDataPairSetValue(c->cnp,np);
+
+      // close the values parent pair
+      rc = _cmDataParserClosePair(c);
+      break;
+
+    case kListDtId:      
+      cmDataAppendChild(c->cnp,np);
+      c->flags = kValueExpFl;
+      break;
+
+    default:
+      rc = _cmDpSyntaxErr(c,"A '%s' value was found outside of a valid container.",typeLabel);
+  }
+
+  c->flags |= kCommaExpFl;
+
+  return rc;
+}
+
+cmDtRC_t _cmDataParserReal( cmDataParserCtx_t* c )
+{
+  cmDtRC_t rc  = kOkDtRC;
+  double   val = cmLexTokenDouble(c->p->lexH);
+
+  if( c->cnp->tid == kVoidPtrDtId )
+    rc = _cmDpStoreArrayEle(c,&val,sizeof(val));
+  else
+    rc = _cmDpStoreValue(c,cmDataAllocDouble(NULL,val),"real");
+
+  return rc;
+}
+
+cmDtRC_t _cmDataParserInt( cmDataParserCtx_t* c )
+{
+  cmDtRC_t rc  = kOkDtRC;
+  int      val = cmLexTokenInt(c->p->lexH);
+
+  if( c->cnp->tid == kVoidPtrDtId )
+    rc = _cmDpStoreArrayEle(c,&val,sizeof(val));
+  else
+    rc = _cmDpStoreValue(c,cmDataAllocInt(NULL,val),"int");
+
+  return rc;
+}
+
+cmDtRC_t _cmDataParserString( cmDataParserCtx_t* c )
+{
+  // if we are expecting a pair label
+  if( cmIsFlag(c->flags,kIdExpFl) )
+    return _cmDataParserOpenPair(c);
+    
+  // otherwise a 'value' must be expected
+  if( cmIsNotFlag(c->flags,kValueExpFl) )
+    return _cmDpSyntaxErr(c,"Unexpected string.");
+
+  cmData_t* np = cmDataConstStrAllocN(NULL,cmLexTokenText(c->p->lexH), cmLexTokenCharCount(c->p->lexH));
+
+  return _cmDpStoreValue(c,np,"string");
+}
+
+cmDtRC_t _cmDataParserOpenRecd( cmDataParserCtx_t* c )
+{
+  // records are values - so we must be expecting a value
+  if( cmIsFlag(c->flags,kValueExpFl) == false )
+    return _cmDpSyntaxErr(c,"Unexpected '{'.");
+
+  // store the current node
+  if( cmStackPush(c->p->stH, &c->cnp, 1 ) != kOkStRC )
+    return _cmDpSyntaxErr(c,"Parser stack push failed.");
+
+  // alloc a new record and make it the current node
+  if( (c->cnp = cmDataRecdAlloc(c->cnp)) == NULL )
+    return _cmDpSyntaxErr(c,"'recd' allocate failed.");
+
+  // new records must be followed by an id token.
+  c->flags = kIdExpFl;
+
+  return kOkDtRC;
+}
+
+cmDtRC_t _cmDataParserCloseRecd( cmDataParserCtx_t* c )
+{
+  cmDtRC_t rc;
+
+  // make the parent node the new curren node
+  if((rc = _cmDpPopStack(c,&c->cnp)) != kOkDtRC )
+    return rc;
+
+  switch( c->cnp->tid )
+  {
+    case kPairDtId:
+      // if the parent node is a pair then close it
+      rc = _cmDataParserClosePair(c);
+      break;
+
+    case kListDtId:
+      // parent node is a list - so expect another value
+      c->flags = kValueExpFl;
+      break;
+
+    default:
+      return _cmDpSyntaxErr(c,"'records' may only be contained in other records or heterogenous arrays.");
+      
+  }
+
+  c->flags |= kCommaExpFl;
+    
+  return rc;
+}
+
+cmDtRC_t _cmDataParserOpenList( cmDataParserCtx_t* c )
+{
+  // lists are values - so we must be expecting a value
+  if( cmIsFlag(c->flags,kValueExpFl) == false )
+    return _cmDpSyntaxErr(c,"Unexpected '('.");
+
+  // store the current node
+  if( cmStackPush(c->p->stH, &c->cnp, 1 ) != kOkStRC )
+    return _cmDpSyntaxErr(c,"Parser stack push failed.");
+
+  // create a new list
+  if( (c->cnp = cmDataListAlloc(c->cnp)) == NULL )
+    return _cmDpSyntaxErr(c,"'list' allocate failed.");
+
+  // new lists must be followed by a value
+  c->flags = kValueExpFl;
+
+  return kOkDtRC;
+}
+
+cmDtRC_t _cmDataParserCloseList( cmDataParserCtx_t* c )
+{
+  cmDtRC_t rc;
+
+  // make the list's parent the current node
+  if((rc = _cmDpPopStack(c,&c->cnp)) != kOkDtRC )
+    return rc;
+
+  switch( c->cnp->tid )
+  {
+    case kPairDtId:
+      // if the list's parent is a pair then close it
+      rc = _cmDataParserClosePair(c);
+      break;
+
+    case kListDtId:
+      // the list's parent is another list so expect a value
+      c->flags = kValueExpFl;
+      break;
+
+    default:
+      return _cmDpSyntaxErr(c,"'lists' may only be contained in other records or lists.");
+      
+  }
+
+  c->flags |= kCommaExpFl;
+    
+  return rc;
+}
+
+cmDtRC_t _cmDataParserOpenArray( cmDataParserCtx_t* c )
+{
+
+  // arrays are values - so we must be expecting a value
+  if( cmIsFlag(c->flags,kValueExpFl) == false )
+    return _cmDpSyntaxErr(c,"Unexpected '('.");
+
+  // store the current node
+  if( cmStackPush(c->p->stH, &c->cnp, 1 ) != kOkStRC )
+    return _cmDpSyntaxErr(c,"Parser stack push failed.");
+
+  // create a new array
+  if( (c->cnp = cmDataSetVoidAllocPtr(c->cnp, NULL, 0 )) == NULL )
+    return _cmDpSyntaxErr(c,"'array' allocate failed.");
+
+  // new arrays must be followed by a value
+  c->flags = kValueExpFl;
+
+  return kOkDtRC;
+
+}
+
+cmDtRC_t _cmDataParserCloseArray( cmDataParserCtx_t* c )
+{
+  cmDtRC_t rc;
+  
+  // make the arrays parent the current node
+  if((rc = _cmDpPopStack(c,&c->cnp)) != kOkDtRC )
+    return rc;
+
+  switch( c->cnp->tid )
+  {
+    
+    case kPairDtId:
+      // the arrays parent is a pair - so close it
+      rc = _cmDataParserClosePair(c);
+      break;
+      
+    case kListDtId:
+      // the arrays parent is a list - so expect a value
+      c->flags = kValueExpFl;
+      break;
+
+    default:
+      return _cmDpSyntaxErr(c,"'arrays' may only be contained in other records or lists.");
+      
+  }
+
+  c->flags |= kCommaExpFl;
+    
+  return rc;
+}
+
+cmDtRC_t _cmDataParserOnColon( cmDataParserCtx_t* c )
+{
+  // colons only follow field identifiers and are always followed by values.
+  if( cmIsFlag(c->flags,kColonExpFl) == false )
+    return _cmDpSyntaxErr(c,"Unexpected colon.");
+
+  c->flags = kValueExpFl;
+
+  return kOkDtRC;
+}
+
+cmDtRC_t _cmDataParserOnComma( cmDataParserCtx_t* c )
+{
+  // comma's may be found in three places:
+  // 1) following field values
+  // 2) between list values
+  // 3) between  array values
+  // comma's are always followed by values
+  if( cmIsFlag(c->flags,kCommaExpFl) == false )
+    return  _cmDpSyntaxErr(c, "Unexpected comma.");
+
+  c->flags = kValueExpFl;
+
+  return kOkDtRC;      
+}
+
 
 cmDtRC_t cmDataParserExec( cmDataParserH_t h, const cmChar_t* text, cmData_t** pp )
 {
   cmDtRC_t rc = kOkDtRC;
   unsigned tokenId;
 
-  cmDataParser_t* p = _cmDataParserHandleToPtr(h);
-  cmData_t*       d = cmRecdAlloc(NULL);
-  
+  cmDataParserCtx_t ctx;
+  cmDataParser_t* p   = _cmDataParserHandleToPtr(h);
+
+  ctx.cnp   = NULL;  // current node ptr
+  ctx.p     = p;
+  ctx.flags = kValueExpFl;
 
   if( cmLexSetTextBuffer(p->lexH,text,strlen(text)) != kOkLexRC )
     return cmErrMsg(&p->err,kLexFailDtRC,"The data object lexer failed during reset.");
 
+  cmStackClear(p->stH,false);
+
   while((tokenId = cmLexGetNextToken(p->lexH)) != kEofLexTId )
   {
-    case kRealLexTId:     // real number (contains a decimal point or is in scientific notation) 
+    switch(tokenId)
+    {
+      case kRealLexTId:     // real number (contains a decimal point or is in scientific notation) 
+        rc = _cmDataParserReal(&ctx);
+        break;
+
+      case kIntLexTId:      // decimal integer
+        rc = _cmDataParserInt(&ctx);
+        break;
+
+      case kHexLexTId:      // hexidecimal integer
+        rc = _cmDataParserInt(&ctx);
+        break;
+
+      case kIdentLexTId:    // identifiers are treated as strings
+      case kQStrLexTId:     // quoted string
+        rc = _cmDataParserString(&ctx);
+        break;
+
+      case kLCurlyLexTId:    // a new record is starting
+        rc = _cmDataParserOpenRecd(&ctx);
       break;
 
-    case kIntLexTId:      // decimal integer
-      break;
+      case kRCurlyLexTId:   // the current record is finished
+        rc = _cmDataParserCloseRecd(&ctx);
+        break;
 
-    case kHexLexTId:      // hexidecimal integer
-      break;
+      case kLParenLexTId:   // a list is starting
+        rc = _cmDataParserOpenList(&ctx);
+        break;
 
-    case kIdentLexTId:    // identifier
-      break;
+      case kRParenLexTId:   // a list is finished
+        rc = _cmDataParserCloseList(&ctx);
+        break;
 
-    case kQStrLexTId:     // quoted string
-      break;
+      case kLBrackLexTId:   // an  array is starting
+        rc = _cmDataParserOpenArray(&ctx);
+        break;
 
-    case kLCurlyLexTId
-    case kRCurlyLexTId:
-    case kLParenLexTId:
-    case kRParenLexTId:
-    case kLBrackLexTId:
-    case kRBrackLexTId:
-    case kColonLexTId:
-    case kCommaLexTId:
+      case kRBrackLexTId:   // an array is ending
+        rc = _cmDataParserCloseArray(&ctx);
+        break;
 
+      case kColonLexTId:    // the previous id was a field id 
+        rc = _cmDataParserOnColon(&ctx);
+        break;
 
-    case kBlockCmtLexTId: // block comment
-    case kLineCmtLexTId:  // line comment
-    case kErrorLexTId:    // the lexer was unable to identify the current token
-    case kUnknownLexTId:  // the token is of an unknown type (only used when kReturnUnknownLexFl is set)
-    case kEofLexTId:      // the lexer reached the end of input
-    case kSpaceLexTId:    // white space
-      {
-        rc = cmErrMsg(err,kLexFailDtRC,"The data object lexer failed with an unexpected token '%s' on line '%i'.",cmLexIdToLabel(lexH,tokenId),cmLexCurrentLineNumber(lexH));
-        goto errLabel;
-      }
+      case kCommaLexTId:    // comma sep. for array or fields
+        rc = _cmDataParserOnComma(&ctx);
+        break;
 
+      case kBlockCmtLexTId: // block comment
+      case kLineCmtLexTId:  // line comment
+      case kErrorLexTId:    // the lexer was unable to identify the current token
+      case kUnknownLexTId:  // the token is of an unknown type (only used when kReturnUnknownLexFl is set)
+      case kEofLexTId:      // the lexer reached the end of input
+      case kSpaceLexTId:    // white space
+        {
+          rc = cmErrMsg(&p->err,kLexFailDtRC,"The data object lexer failed with an unexpected token '%s' on line '%i'.",cmLexIdToLabel(p->lexH,tokenId),cmLexCurrentLineNumber(p->lexH));
+          goto errLabel;
+        }
+    }
   }
 
  errLabel:
   return rc;
 }
 
-#endif
 //============================================================================
 //============================================================================
 //============================================================================
@@ -2487,9 +2877,53 @@ void     _cmDataPrint( const cmData_t* p, cmRpt_t* rpt, unsigned indent )
 void cmDataPrint( const cmData_t* p, cmRpt_t* rpt )
 { _cmDataPrint(p,rpt,0); }
 
+
+cmDtRC_t cmDataParserTest( cmCtx_t* ctx )
+{
+  cmDtRC_t        rc = kOkDtRC;
+  cmDataParserH_t h  = cmDataParserNullHandle;
+  cmErr_t         err;
+  cmData_t*       dp = NULL;
+
+  const cmChar_t text[] =
+  {
+    "{ f0:1.23 f1:\"hey\" "
+  };
+
+  cmErrSetup(&err,&ctx->rpt,"Data Parser Tester");
+
+  if((rc = cmDataParserCreate(ctx, &h )) != kOkDtRC )
+  {
+    rc = cmErrMsg(&err,rc,"Data parser create failed.");
+    goto errLabel;
+  }
+
+  if( cmDataParserExec(h,text,&dp) != kOkDtRC )
+    rc = cmErrMsg(&err,rc,"Data parser exec failed.");
+  else
+  {
+    cmDataPrint(dp,&ctx->rpt);
+  }
+
+ errLabel:
+  if( cmDataParserDestroy( &h ) != kOkDtRC )
+  {
+    rc = cmErrMsg(&err,rc,"Data parser destroy failed.");
+    goto errLabel;
+  }
+
+  cmDataFree(dp);
+
+  return rc;
+}
+
+
 void     cmDataTest( cmCtx_t* ctx )
 {
   float farr[] = { 1.23, 45.6, 7.89 };
+
+  cmDataParserTest(ctx);
+  return;
 
   cmData_t* d0 = cmDataRecdAllocLabelA(NULL,
     "name",kConstStrDtId,"This is a string.",
