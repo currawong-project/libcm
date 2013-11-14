@@ -5,6 +5,8 @@
 #include "cmMem.h"
 #include "cmMallocDebug.h"
 #include "cmData.h"
+#include "cmLex.h"
+#include "cmStack.h"
 
 cmDtRC_t _cmDataErrNo = kOkDtRC;
 
@@ -2061,7 +2063,10 @@ cmDtRC_t cmDataRecdParseId(cmData_t* p, cmErr_t* err, unsigned errRC, ... )
 
 
 
-//----------------------------------------------------------------------------  
+//============================================================================
+//============================================================================
+//============================================================================
+  
 unsigned _cmDataSerializeNodeByteCount( const cmData_t* p )
 {
   unsigned n = 0;
@@ -2172,6 +2177,226 @@ cmDtRC_t cmDataDeserialize( const void* buf, unsigned bufByteCnt, cmData_t** pp 
 {
   return kOkDtRC;
 }
+
+//============================================================================
+//============================================================================
+//============================================================================
+#ifdef NOT_DEF
+enum
+{
+  kLCurlyLexTId = kUserLexTId + 1,
+  kRCurlyLexTId,
+  kLParenLexTId,
+  kRParenLexTId,
+  kLBrackLexTId,
+  kRBrackLexTId,
+  kColonLexTId,
+  kCommaLexTId,
+};
+
+typedef struct
+{
+  unsigned id;
+  const cmChar_t* label;
+} cmDtToken_t;
+
+cmDtToken_t _cmDtTokenArray[] = 
+{
+  { kLCurlyLexTId, "{" },
+  { kRCurlyLexTId, "}" },
+  { kLBrackLexTId,  "[" },
+  { kRBrackLexTId,  "]" },
+  { kLParenLexTId,  "(" },
+  { kRParenLexTId,  ")" },
+  { kColonLexTId,  ":" },
+  { kCommaLexTId,  "," },
+  { kErrorLexTId,""}
+  
+};
+
+typedef struct
+{
+  cmErr_t    err;
+  cmLexH    lexH;
+  cmStackH_t stH;
+
+} cmDataParser_t;
+
+typedef struct
+{
+  unsigned tokId;
+} cmDataStEle_t;
+
+cmDataParserH_t cmDataParserNullHandle = cmSTATIC_NULL_HANDLE;
+
+cmDataParser_t* _cmDataParserHandleToPtr( cmDataParserH_t h )
+{
+  cmDataParser_t* p = (cmDataParser_t*)h.h;
+  assert( p!= NULL );
+  return p;
+}
+
+cmDtRC_t _cmDataParserDestroy( cmDataParser_t* p )
+{
+  if( cmLexFinal(&p->lexH) != kOkLexRC )
+    cmErrMsg(&p->err,kLexFailedDtRC,"Lexer release failed.");
+
+  if( cmStackFree(&p->stH) != kOkStRC )
+    cmErrMsg(&p->err,kParserStackFailDtRC,"The data object parser stack release failed.");
+
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataParserCreate( cmCtx_t* ctx, cmDataParserH_t* hp )
+{
+  cmDtRC_t rc;
+  unsigned i;
+
+  if((rc = cmDataParserDestroy(hp)) != kOkDtRC )
+    return rc;
+
+  cmDataParser_t* p = cmMemAllocZ(cmDataParser_t,1);
+
+  cmErrSetup(&p->err,&ctx->err,"Data Parser");
+
+  if(cmLexIsValid(p->lexH = cmLexInit(NULL,0,0,err->rpt))==false)
+  {
+    rc = cmErrMsg(err, kLexFailDtRC, "The data object parser lexer create failed.");
+    goto errLabel;
+  }
+
+  for(i=0; cmDtTokeyArray[i].id!=kErrorLexTId; ++i)
+    if( cmLexRegisterToken(p->lexH, cmDtTokenArray[i].id, cmDtTokenArray[i].label) != kOkLexRC )
+    {
+      rc = cmErrMsg(&p->err,kLexFailDtRC,"The data object parser lexer could not register the '%s' token.",cmDtTokenArray[i].label);
+      goto errLabel;
+    }
+
+  if( cmStackAlloc(ctx, &p->stH, 1024, 1024, sizeof(cmDataStEle_t)) != kOkStRC )
+  {
+    rc = cmErrMsg(&p->err,kParseStackFailDtRC,"The data object parser stack create failed.");
+    goto errLabel;
+  }
+
+  hp->h = p;
+
+ errLabel:
+  if( rc != kOkDtRC )
+    _cmDataParserDestroy(p);
+
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataParserDestroy( cmErr_t* err, cmDataParserH_t* hp )
+{
+  cmDtRC_t rc=kOkDtRC;
+
+  if( hp==NULL || cmDataParserIsValid(*hp)==false )
+    return rc;
+
+  cmDataParser_t* p = _cmDataParserHandleToPtr(*hp);
+
+  if((rc = _cmDataParserDestroy(p)) != kOkDtRC )
+    return rc;
+
+  hp->h = NULL;
+
+  return kOkDtRC;
+}
+
+
+bool     cmDataParserIsValid( cmDataParserH_t h )
+{ return h.h != NULL; }
+
+
+cmDtRC_t _cmDataLexErrorV( cmErr_t* err, cmLexH_t lexH, const cmChar_t* fmt, va_list vl )
+{
+  
+}
+
+cmDtRC_t _cmDataLexError( cmErr_t* err, cmLexH_t lexH, const cmChar_t* fmt, ... )
+{
+  va_list vl;
+  va_start(vl,fmt);
+  cmDtRC_t rc, _cmDataLexErrorV(err,lexH,fmt,vl);
+  va_end(vl);
+  return rc;
+}
+
+// {
+//  id0 : scalar_value
+//  id1 : ( heterogenous, array, value )
+//  id2 : [ homogeneous array values ]
+//  id3 : 
+// }
+
+enum
+{
+  kRecdStateId,
+  kFieldValueStateId,
+  kArrayValueStateId
+};
+
+cmDtRC_t cmDataParserExec( cmDataParserH_t h, const cmChar_t* text, cmData_t** pp )
+{
+  cmDtRC_t rc = kOkDtRC;
+  unsigned tokenId;
+
+  cmDataParser_t* p = _cmDataParserHandleToPtr(h);
+  cmData_t*       d = cmRecdAlloc(NULL);
+  
+
+  if( cmLexSetTextBuffer(p->lexH,text,strlen(text)) != kOkLexRC )
+    return cmErrMsg(&p->err,kLexFailDtRC,"The data object lexer failed during reset.");
+
+  while((tokenId = cmLexGetNextToken(p->lexH)) != kEofLexTId )
+  {
+    case kRealLexTId:     // real number (contains a decimal point or is in scientific notation) 
+      break;
+
+    case kIntLexTId:      // decimal integer
+      break;
+
+    case kHexLexTId:      // hexidecimal integer
+      break;
+
+    case kIdentLexTId:    // identifier
+      break;
+
+    case kQStrLexTId:     // quoted string
+      break;
+
+    case kLCurlyLexTId
+    case kRCurlyLexTId:
+    case kLParenLexTId:
+    case kRParenLexTId:
+    case kLBrackLexTId:
+    case kRBrackLexTId:
+    case kColonLexTId:
+    case kCommaLexTId:
+
+
+    case kBlockCmtLexTId: // block comment
+    case kLineCmtLexTId:  // line comment
+    case kErrorLexTId:    // the lexer was unable to identify the current token
+    case kUnknownLexTId:  // the token is of an unknown type (only used when kReturnUnknownLexFl is set)
+    case kEofLexTId:      // the lexer reached the end of input
+    case kSpaceLexTId:    // white space
+      {
+        rc = cmErrMsg(err,kLexFailDtRC,"The data object lexer failed with an unexpected token '%s' on line '%i'.",cmLexIdToLabel(lexH,tokenId),cmLexCurrentLineNumber(lexH));
+        goto errLabel;
+      }
+
+  }
+
+ errLabel:
+  return rc;
+}
+
+#endif
+//============================================================================
+//============================================================================
+//============================================================================
 
 #define parr(rpt,fmt,arr,n) do{int i=0; cmRptPrintf(rpt,"[ "); for(;i<n;++i) cmRptPrintf(rpt,fmt,arr[i]); cmRptPrintf(rpt," ]"); }while(0) 
 

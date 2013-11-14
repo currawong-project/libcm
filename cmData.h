@@ -11,6 +11,8 @@ extern "C" {
     kCvtErrDtRC,
     kVarArgErrDtRC,
     kMissingFieldDtRC,
+    kLexFailDtRC,
+    kParseStackFailDtRC,
     kEolDtRC
   };
 
@@ -529,6 +531,16 @@ extern "C" {
   unsigned cmDataSerializeByteCount( const cmData_t* p );
   cmDtRC_t cmDataSerialize(   const cmData_t* p, void* buf, unsigned bufByteCnt );
   cmDtRC_t cmDataDeserialize( const void* buf, unsigned bufByteCnt, cmData_t** pp );
+
+  //-----------------------------------------------------------------------------
+  typedef cmHandle_t cmDataParserH_t;
+  //static cmDataParserH_t cmDataParserNullHandle;
+
+  cmDtRC_t cmDataParserCreate( cmCtx_t* ctx, cmDataParserH_t* hp );
+  cmDtRC_t cmDataParserDestroy( cmDataParserH_t* hp );
+  bool     cmDataParserIsValid( cmDataParserH_t h );
+  cmDtRC_t cmDataParserExec(   cmDataParserH_t  h, cmChar_t* text, cmData_t** pp );
+  //-----------------------------------------------------------------------------
   
   void     cmDataPrint( const cmData_t* p, cmRpt_t* rpt );
   
