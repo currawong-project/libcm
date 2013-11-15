@@ -1373,8 +1373,7 @@ bool _cmDataPairIsValid( const cmData_t* p )
 {
   assert( p->tid == kPairDtId );
 
-  const cmData_t* cp = p->u.child;
-  bool fl = cp->u.child == NULL || cp->u.child->sibling == NULL || cp->u.child->sibling->sibling!=NULL;
+  bool fl = p->u.child == NULL || p->u.child->sibling == NULL || p->u.child->sibling->sibling!=NULL;
   return !fl;
 }
 
@@ -2194,7 +2193,7 @@ char* _cmDataSerializeWrite( cmData_t* np, char* dp, const char* ep )
 
 char* _cmDataSerialize( const cmData_t* p, char* buf, const char* ep )
 {
-
+  /*
   buf = _cmDataSerializeWrite(p,buf,ep);
 
   // if this data type has a child then write the child
@@ -2207,13 +2206,17 @@ char* _cmDataSerialize( const cmData_t* p, char* buf, const char* ep )
     buf = cmDataSerialize(dp->sibling,buf,ep);
 
   return buf;
+  */
+  return NULL;
 }
 
 cmDtRC_t cmDataSerialize( const cmData_t* p, void* buf, unsigned bufByteCnt )
 {
+  /*
   const char* ep = (char*)p + bufByteCnt;
   buf = _cmDataSerialize(p,buf,bufByteCnt);
   assert( buf <= ep );
+  */
   return kOkDtRC;
 }
 
@@ -2282,6 +2285,8 @@ cmDtRC_t _cmDataParserDestroy( cmDataParser_t* p )
 
   if( cmStackFree(&p->stH) != kOkStRC )
     cmErrMsg(&p->err,kParseStackFailDtRC,"The data object parser stack release failed.");
+
+  cmMemFree(p);
 
   return kOkDtRC;
 }
@@ -2717,11 +2722,10 @@ cmDtRC_t _cmDataParserOnComma( cmDataParserCtx_t* c )
 
 cmDtRC_t cmDataParserExec( cmDataParserH_t h, const cmChar_t* text, cmData_t** pp )
 {
-  cmDtRC_t rc = kOkDtRC;
-  unsigned tokenId;
-
+  cmDtRC_t          rc = kOkDtRC;
+  cmDataParser_t*   p  = _cmDataParserHandleToPtr(h);
+  unsigned          tokenId;
   cmDataParserCtx_t ctx;
-  cmDataParser_t* p   = _cmDataParserHandleToPtr(h);
 
   ctx.cnp   = NULL;  // current node ptr
   ctx.p     = p;
@@ -2799,6 +2803,10 @@ cmDtRC_t cmDataParserExec( cmDataParserH_t h, const cmChar_t* text, cmData_t** p
   }
 
  errLabel:
+
+  if( rc == kOkDtRC )
+    *pp = ctx.cnp;
+
   return rc;
 }
 
@@ -2919,9 +2927,9 @@ cmDtRC_t cmDataParserTest( cmCtx_t* ctx )
   if( cmDataParserExec(h,text,&dp) != kOkDtRC )
     rc = cmErrMsg(&err,rc,"Data parser exec failed.");
   else
-  {
-    cmDataPrint(dp,&ctx->rpt);
-  }
+    if( dp != NULL )
+      cmDataPrint(dp,&ctx->rpt);
+
 
  errLabel:
   if( cmDataParserDestroy( &h ) != kOkDtRC )
