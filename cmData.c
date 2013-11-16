@@ -34,6 +34,9 @@ void _cmDataFreeArray( cmData_t* p )
 
 void _cmDataFree( cmData_t* p )
 {
+  if( p == NULL )
+    return;
+
   if( cmDataIsStruct(p) )
   {
     cmData_t* cp = p->u.child;
@@ -2391,9 +2394,12 @@ typedef struct
 cmDtRC_t _cmDpSyntaxErrV( cmDataParserCtx_t* c, const cmChar_t* fmt, va_list vl )
 {
   cmChar_t* s0 = NULL;
+  cmChar_t* s1 = NULL;
   s0 = cmTsVPrintfP(s0,fmt,vl);
-  cmDtRC_t rc = cmErrMsg(&c->p->err,kSyntaxErrDtRC,"Syntax error on line %i. %s",cmLexCurrentLineNumber(c->p->lexH),cmStringNullGuard(s0));
+  s1 = cmMemAllocStrN(cmLexTokenText(c->p->lexH),cmLexTokenCharCount(c->p->lexH));
+  cmDtRC_t rc = cmErrMsg(&c->p->err,kSyntaxErrDtRC,"Syntax error on line %i column:%i token:'%s'. %s",cmLexCurrentLineNumber(c->p->lexH),cmLexCurrentColumnNumber(c->p->lexH),s1,cmStringNullGuard(s0));
   cmMemFree(s0);
+  cmMemFree(s1);
   return rc;
 }
 
@@ -2412,18 +2418,41 @@ cmDtRC_t _cmDpPopStack(  cmDataParserCtx_t* c, cmData_t** pp )
   if((vp = cmStackTop(c->p->stH)) == NULL )
     return _cmDpSyntaxErr(c,"Stack underflow.");
   
+  if( cmStackPop(c->p->stH,1) != kOkStRC )
+    return _cmDpSyntaxErr(c,"Stack pop failed.");
+
   *pp = *(cmData_t**)vp;
+
+  //printf("pop: %p\n",*pp);
 
   return kOkDtRC;
 }
 
-cmDtRC_t _cmDpStoreArrayEle( cmDataParserCtx_t* c, void* dp, unsigned byteCnt )
+cmDtRC_t _cmDpPushStack( cmDataParserCtx_t* c, cmData_t* np )
 {
-  char* vp = cmMemResize(char, c->cnp->u.vp, c->cnp->cnt+byteCnt);
+  //printf("push:%p\n",np);
+
+  // store the current node
+  if( cmStackPush(c->p->stH, &np, 1 ) != kOkStRC )
+     return _cmDpSyntaxErr(c,"Parser stack push failed.");
+ 
+  return kOkDtRC;
+}
+
+cmDtRC_t _cmDpStoreArrayEle( cmDataParserCtx_t* c, void* dp, unsigned eleByteCnt, unsigned tid )
+{
+  if( c->cnp->tid == kVoidPtrDtId )
+    c->cnp->tid = tid;
+  else
+    if( c->cnp->tid != tid )
+      return _cmDpSyntaxErr(c,"Mixed types were detected in an array list.");
+
+  unsigned newByteCnt = (c->cnp->cnt+1)*eleByteCnt;
+  char* vp = cmMemResizeP(char, c->cnp->u.vp, newByteCnt);
   
-  memcpy(vp + c->cnp->cnt,dp,byteCnt);
+  memcpy(vp + c->cnp->cnt*eleByteCnt,dp,eleByteCnt);
   c->cnp->u.vp = vp;
-  c->cnp->cnt += byteCnt;
+  c->cnp->cnt += 1;
   
   c->flags = kValueExpFl | kCommaExpFl;
 
@@ -2432,14 +2461,17 @@ cmDtRC_t _cmDpStoreArrayEle( cmDataParserCtx_t* c, void* dp, unsigned byteCnt )
 
 cmDtRC_t _cmDataParserOpenPair( cmDataParserCtx_t* c )
 {
+  cmDtRC_t rc = kOkDtRC;
+
   assert( c->cnp->tid == kRecordDtId );
 
+  // create a pair with a 'null' value which will be replaced when the pair's value is parsed
   cmData_t* nnp = cmDataAllocNull(NULL);
   cmData_t* pnp = cmDataAllocPairLabelN( c->cnp, cmLexTokenText(c->p->lexH), cmLexTokenCharCount(c->p->lexH), nnp );
 
   // store the current node
-  if( cmStackPush(c->p->stH, &c->cnp, 1 ) != kOkStRC )
-    return _cmDpSyntaxErr(c,"Parser stack push failed.");
+  if((rc = _cmDpPushStack(c,c->cnp)) != kOkDtRC )
+    return rc;
 
   // make the new pair the current node
   c->cnp = pnp;
@@ -2447,7 +2479,7 @@ cmDtRC_t _cmDataParserOpenPair( cmDataParserCtx_t* c )
   // pair openings must be followed by a colon.
   c->flags  = kColonExpFl;
  
-  return kOkDtRC;
+  return rc;
 }
 
 cmDtRC_t _cmDataParserClosePair( cmDataParserCtx_t* c )
@@ -2492,6 +2524,11 @@ cmDtRC_t _cmDpStoreValue( cmDataParserCtx_t* c, cmData_t* np, const cmChar_t* ty
 
     default:
       rc = _cmDpSyntaxErr(c,"A '%s' value was found outside of a valid container.",typeLabel);
+
+      // Free the new data node because it was not attached and will 
+      // otherwise be lost
+      cmDataFree(np);
+      
   }
 
   c->flags |= kCommaExpFl;
@@ -2501,26 +2538,45 @@ cmDtRC_t _cmDpStoreValue( cmDataParserCtx_t* c, cmData_t* np, const cmChar_t* ty
 
 cmDtRC_t _cmDataParserReal( cmDataParserCtx_t* c )
 {
-  cmDtRC_t rc  = kOkDtRC;
-  double   val = cmLexTokenDouble(c->p->lexH);
+  cmDtRC_t rc      = kOkDtRC;
+  bool     floatFl = cmLexTokenIsSinglePrecision(c->p->lexH);
+  double   dval;
+  float    fval;
 
-  if( c->cnp->tid == kVoidPtrDtId )
-    rc = _cmDpStoreArrayEle(c,&val,sizeof(val));
+  if( floatFl )
+    fval = cmLexTokenFloat(c->p->lexH);
   else
-    rc = _cmDpStoreValue(c,cmDataAllocDouble(NULL,val),"real");
+    dval = cmLexTokenDouble(c->p->lexH);
 
+  
+  if( cmDataIsPtr(c->cnp) )
+  {
+    if( floatFl )
+      rc = _cmDpStoreArrayEle(c,&fval,sizeof(fval),kFloatPtrDtId);
+    else
+      rc = _cmDpStoreArrayEle(c,&dval,sizeof(dval),kDoublePtrDtId);
+  }
+  else
+  {
+    cmData_t* np = floatFl ? cmDataAllocFloat(NULL,fval) : cmDataAllocDouble(NULL,dval);
+    rc = _cmDpStoreValue(c,np,"real");
+  }
   return rc;
 }
 
 cmDtRC_t _cmDataParserInt( cmDataParserCtx_t* c )
 {
-  cmDtRC_t rc  = kOkDtRC;
-  int      val = cmLexTokenInt(c->p->lexH);
+  cmDtRC_t rc         = kOkDtRC;
+  int      val        = cmLexTokenInt(c->p->lexH);
+  bool     unsignedFl = cmLexTokenIsUnsigned(c->p->lexH);
 
-  if( c->cnp->tid == kVoidPtrDtId )
-    rc = _cmDpStoreArrayEle(c,&val,sizeof(val));
+  if( cmDataIsPtr(c->cnp) )
+    rc = _cmDpStoreArrayEle(c,&val,sizeof(val),unsignedFl ? kUIntPtrDtId : kIntPtrDtId);
   else
-    rc = _cmDpStoreValue(c,cmDataAllocInt(NULL,val),"int");
+  {
+    cmData_t* np = unsignedFl ? cmDataAllocUInt(NULL,val) : cmDataAllocInt(NULL,val);
+    rc = _cmDpStoreValue(c,np,"int");
+  }
 
   return rc;
 }
@@ -2542,155 +2598,102 @@ cmDtRC_t _cmDataParserString( cmDataParserCtx_t* c )
 
 cmDtRC_t _cmDataParserOpenRecd( cmDataParserCtx_t* c )
 {
+  cmDtRC_t rc = kOkDtRC;
+
   // records are values - so we must be expecting a value
   if( cmIsFlag(c->flags,kValueExpFl) == false )
     return _cmDpSyntaxErr(c,"Unexpected '{'.");
 
   // store the current node
-  if( cmStackPush(c->p->stH, &c->cnp, 1 ) != kOkStRC )
-    return _cmDpSyntaxErr(c,"Parser stack push failed.");
+  if((rc = _cmDpPushStack(c,c->cnp)) != kOkDtRC )
+    return rc;
 
   // alloc a new record and make it the current node
-  if( (c->cnp = cmDataRecdAlloc(c->cnp)) == NULL )
+  if( (c->cnp = cmDataRecdAlloc(NULL)) == NULL )
     return _cmDpSyntaxErr(c,"'recd' allocate failed.");
 
   // new records must be followed by an id token.
   c->flags = kIdExpFl;
 
-  return kOkDtRC;
+  return rc;
+}
+
+cmDtRC_t _cmDataParserCloseContainer( cmDataParserCtx_t* c, const cmChar_t* typeLabelStr )
+{
+  cmDtRC_t rc;
+
+  cmData_t* np = c->cnp;
+
+  // make the parent node the new current node
+  if((rc = _cmDpPopStack(c,&c->cnp)) != kOkDtRC )
+    return rc;
+
+  return _cmDpStoreValue(c,np,typeLabelStr);
 }
 
 cmDtRC_t _cmDataParserCloseRecd( cmDataParserCtx_t* c )
 {
-  cmDtRC_t rc;
+  assert( c->cnp->tid == kRecordDtId );
 
-  // make the parent node the new curren node
-  if((rc = _cmDpPopStack(c,&c->cnp)) != kOkDtRC )
-    return rc;
-
-  switch( c->cnp->tid )
-  {
-    case kPairDtId:
-      // if the parent node is a pair then close it
-      rc = _cmDataParserClosePair(c);
-      break;
-
-    case kListDtId:
-      // parent node is a list - so expect another value
-      c->flags = kValueExpFl;
-      break;
-
-    default:
-      return _cmDpSyntaxErr(c,"'records' may only be contained in other records or heterogenous arrays.");
-      
-  }
-
-  c->flags |= kCommaExpFl;
-    
-  return rc;
+  return _cmDataParserCloseContainer(c,"record");
 }
 
 cmDtRC_t _cmDataParserOpenList( cmDataParserCtx_t* c )
 {
+  cmDtRC_t rc = kOkDtRC;
+
   // lists are values - so we must be expecting a value
   if( cmIsFlag(c->flags,kValueExpFl) == false )
     return _cmDpSyntaxErr(c,"Unexpected '('.");
 
   // store the current node
-  if( cmStackPush(c->p->stH, &c->cnp, 1 ) != kOkStRC )
-    return _cmDpSyntaxErr(c,"Parser stack push failed.");
+  if((rc = _cmDpPushStack(c,c->cnp)) != kOkDtRC )
+    return rc;
 
   // create a new list
-  if( (c->cnp = cmDataListAlloc(c->cnp)) == NULL )
+  if( (c->cnp = cmDataListAlloc(NULL)) == NULL )
     return _cmDpSyntaxErr(c,"'list' allocate failed.");
 
   // new lists must be followed by a value
   c->flags = kValueExpFl;
 
-  return kOkDtRC;
+  return rc;
 }
 
 cmDtRC_t _cmDataParserCloseList( cmDataParserCtx_t* c )
 {
-  cmDtRC_t rc;
-
-  // make the list's parent the current node
-  if((rc = _cmDpPopStack(c,&c->cnp)) != kOkDtRC )
-    return rc;
-
-  switch( c->cnp->tid )
-  {
-    case kPairDtId:
-      // if the list's parent is a pair then close it
-      rc = _cmDataParserClosePair(c);
-      break;
-
-    case kListDtId:
-      // the list's parent is another list so expect a value
-      c->flags = kValueExpFl;
-      break;
-
-    default:
-      return _cmDpSyntaxErr(c,"'lists' may only be contained in other records or lists.");
-      
-  }
-
-  c->flags |= kCommaExpFl;
-    
-  return rc;
+  assert( c->cnp->tid == kListDtId );
+  return _cmDataParserCloseContainer(c,"list");
 }
 
 cmDtRC_t _cmDataParserOpenArray( cmDataParserCtx_t* c )
 {
+  cmDtRC_t rc = kOkDtRC;
 
   // arrays are values - so we must be expecting a value
   if( cmIsFlag(c->flags,kValueExpFl) == false )
     return _cmDpSyntaxErr(c,"Unexpected '('.");
 
   // store the current node
-  if( cmStackPush(c->p->stH, &c->cnp, 1 ) != kOkStRC )
-    return _cmDpSyntaxErr(c,"Parser stack push failed.");
+  if((rc = _cmDpPushStack(c,c->cnp)) != kOkDtRC )
+    return rc;
 
   // create a new array
-  if( (c->cnp = cmDataSetVoidAllocPtr(c->cnp, NULL, 0 )) == NULL )
+  if( (c->cnp = cmDataVoidAllocPtr(NULL, NULL, 0 )) == NULL )
     return _cmDpSyntaxErr(c,"'array' allocate failed.");
 
   // new arrays must be followed by a value
   c->flags = kValueExpFl;
 
-  return kOkDtRC;
+  return rc;
 
 }
 
 cmDtRC_t _cmDataParserCloseArray( cmDataParserCtx_t* c )
 {
-  cmDtRC_t rc;
-  
-  // make the arrays parent the current node
-  if((rc = _cmDpPopStack(c,&c->cnp)) != kOkDtRC )
-    return rc;
+  assert( cmDataIsPtr(c->cnp) );
 
-  switch( c->cnp->tid )
-  {
-    
-    case kPairDtId:
-      // the arrays parent is a pair - so close it
-      rc = _cmDataParserClosePair(c);
-      break;
-      
-    case kListDtId:
-      // the arrays parent is a list - so expect a value
-      c->flags = kValueExpFl;
-      break;
-
-    default:
-      return _cmDpSyntaxErr(c,"'arrays' may only be contained in other records or lists.");
-      
-  }
-
-  c->flags |= kCommaExpFl;
-    
-  return rc;
+  return _cmDataParserCloseContainer(c,"array");
 }
 
 cmDtRC_t _cmDataParserOnColon( cmDataParserCtx_t* c )
@@ -2726,17 +2729,17 @@ cmDtRC_t cmDataParserExec( cmDataParserH_t h, const cmChar_t* text, cmData_t** p
   cmDataParser_t*   p  = _cmDataParserHandleToPtr(h);
   unsigned          tokenId;
   cmDataParserCtx_t ctx;
-
-  ctx.cnp   = NULL;  // current node ptr
+  cmData_t*         root = cmDataRecdAlloc(NULL);
+  ctx.cnp   = root;
   ctx.p     = p;
-  ctx.flags = kValueExpFl;
+  ctx.flags = kIdExpFl;
 
   if( cmLexSetTextBuffer(p->lexH,text,strlen(text)) != kOkLexRC )
     return cmErrMsg(&p->err,kLexFailDtRC,"The data object lexer failed during reset.");
 
   cmStackClear(p->stH,false);
 
-  while((tokenId = cmLexGetNextToken(p->lexH)) != kEofLexTId )
+  while(rc==kOkDtRC && (tokenId = cmLexGetNextToken(p->lexH)) != kEofLexTId )
   {
     switch(tokenId)
     {
@@ -2745,9 +2748,6 @@ cmDtRC_t cmDataParserExec( cmDataParserH_t h, const cmChar_t* text, cmData_t** p
         break;
 
       case kIntLexTId:      // decimal integer
-        rc = _cmDataParserInt(&ctx);
-        break;
-
       case kHexLexTId:      // hexidecimal integer
         rc = _cmDataParserInt(&ctx);
         break;
@@ -2759,7 +2759,7 @@ cmDtRC_t cmDataParserExec( cmDataParserH_t h, const cmChar_t* text, cmData_t** p
 
       case kLCurlyLexTId:    // a new record is starting
         rc = _cmDataParserOpenRecd(&ctx);
-      break;
+        break;
 
       case kRCurlyLexTId:   // the current record is finished
         rc = _cmDataParserCloseRecd(&ctx);
@@ -2806,7 +2806,13 @@ cmDtRC_t cmDataParserExec( cmDataParserH_t h, const cmChar_t* text, cmData_t** p
 
   if( rc == kOkDtRC )
     *pp = ctx.cnp;
+  else
+  {
+    if( ctx.cnp != root )
+      cmDataUnlinkAndFree(ctx.cnp);
 
+    cmDataUnlinkAndFree(root);
+  }
   return rc;
 }
 
@@ -2913,7 +2919,10 @@ cmDtRC_t cmDataParserTest( cmCtx_t* ctx )
 
   const cmChar_t text[] =
   {
-    "{ f0:1.23 f1:\"hey\" "
+    //0         1         2         3
+    //0123456789012345678901234567890123 
+    "f0:1.23 f1:\"hey\" f2:( a b c ) f3:[ 0f 1f 2f ]"
+    //"f0:1.23 f1:\"hey\""
   };
 
   cmErrSetup(&err,&ctx->rpt,"Data Parser Tester");

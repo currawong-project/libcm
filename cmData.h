@@ -544,6 +544,12 @@ extern "C" {
   cmDtRC_t cmDataParserCreate( cmCtx_t* ctx, cmDataParserH_t* hp );
   cmDtRC_t cmDataParserDestroy( cmDataParserH_t* hp );
   bool     cmDataParserIsValid( cmDataParserH_t h );
+
+  // Parse a text representation into a 'record' type. 
+  // Note that the text is wrapped with implied curly braces 
+  // (e.g. "{ text }").  The contents of the text should therefore
+  // fit the record syntax (e.g. the first token should be a 
+  // 'pair' label.
   cmDtRC_t cmDataParserExec(   cmDataParserH_t  h, const cmChar_t* text, cmData_t** pp );
   //-----------------------------------------------------------------------------
   
