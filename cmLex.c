@@ -7,6 +7,12 @@
 #include "cmMallocDebug.h"
 #include "cmFile.h"
 
+enum
+{
+  kRealFloatLexFl   = 0x01,
+  kIntUnsignedLexFl = 0x02
+};
+
 typedef struct
 {
   unsigned        code;
@@ -29,6 +35,7 @@ cmLexErrorRecd cmLexErrorArray[] =
   { kMemAllocErrLexRC,     "An attempted memory allocation failed"},
   { kEofRC,                "The end of the input text was encountered (this is a normal condition not an error)"},
   { kInvalidLexTIdLexRC,   "An invalid token id was encountered."},
+  { kSignErrorLexRC,       "A signed integer has a 'u' or 'U' suffix."},
   { kInvalidLexRC,         "Unknown lexer error code." }
 };
 
@@ -75,6 +82,7 @@ typedef struct cmLex_str
 
   cmChar_t*         textBuf;         // text buf used by cmLexSetFile()
 
+  unsigned          attrFlags;       // used to store the int and real suffix type flags
 } cmLex;
 
 
@@ -148,7 +156,7 @@ unsigned _cmLexRealMatcher(  cmLex* p, const cmChar_t* cp, unsigned cn, const cm
   unsigned i  = 0;
   unsigned n  = 0;     // decimal point counter
   unsigned d  = 0;     // digit counter
-  bool     fl = false; // true if this real includes an exponent
+  bool     fl = false; // expo flag  
 
   for(; i<cn && n<=1; ++i)
   {
@@ -170,9 +178,11 @@ unsigned _cmLexRealMatcher(  cmLex* p, const cmChar_t* cp, unsigned cn, const cm
   // if there was at least one digit and the next char is an 'e'
   if( d>0 && i<cn && (cp[i] == 'e' || cp[i] == 'E') )
   {
-    d=0;
+    unsigned e=0;
     ++i;
     unsigned j = i;
+
+    fl = false;
 
     for(; i<cn; ++i)
     {
@@ -181,6 +191,7 @@ unsigned _cmLexRealMatcher(  cmLex* p, const cmChar_t* cp, unsigned cn, const cm
 
       if( isdigit(cp[i]) )
       {
+        ++e;
         ++d;
         continue;
       }
@@ -190,17 +201,42 @@ unsigned _cmLexRealMatcher(  cmLex* p, const cmChar_t* cp, unsigned cn, const cm
     }
 
     // an exp exists if digits follwed the 'e'
-    fl = d > 0;
+    fl = e > 0;
      
   }
 
-  return i>1 && (n==1 || fl) ? i : 0;
+  // if at least one digit was found 
+  if( d>0 )
+  {
+    // Note that this path allows a string w/o a decimal pt to trigger a match.
+
+    if(i<cn)
+    {
+      // if the real has a suffix
+      switch(cp[i])
+      {
+        case 'F':
+        case 'f':
+          p->attrFlags = cmSetFlag(p->attrFlags,kRealFloatLexFl);
+          ++i;
+          break;
+      }
+
+    }
+    
+    // match w/o suffix return
+    if( d>0 && (fl || n==1 || cmIsFlag(p->attrFlags,kRealFloatLexFl)) )
+      return i;
+  }
+
+  return 0; // no-match return
 }
 
 unsigned _cmLexIntMatcher(   cmLex* p, const cmChar_t* cp, unsigned cn, const cmChar_t* keyStr )
 {
   unsigned i = 0;
   bool signFl = false;
+
   for(; i<cn; ++i)
   {
     if( i==0 && cp[i]=='-' )
@@ -222,9 +258,35 @@ unsigned _cmLexIntMatcher(   cmLex* p, const cmChar_t* cp, unsigned cn, const cm
   //
   // The current implementation recognizes all numeric strings 
   // containing a decimal point as reals. 
- 
 
-  return signFl && i==1 ? 0 : i;
+  // if no integer was found
+  if( (signFl && i==0) || i==0 )
+    return 0;
+
+
+  // check for suffix
+  if(i<cn )
+  {
+    
+    switch(cp[i])
+    {
+      case 'u':
+      case 'U':
+        if( signFl )
+          _cmLexError(p,kSignErrorLexRC,"A signed integer has a 'u' or 'U' suffix.");
+        else
+        {
+          p->attrFlags = cmSetFlag(p->attrFlags,kIntUnsignedLexFl);          
+          ++i;
+        }
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  return  i;
 }
 
 unsigned _cmLexHexMatcher(   cmLex* p, const cmChar_t* cp, unsigned cn, const cmChar_t* keyStr )
@@ -387,23 +449,6 @@ cmLexH cmLexInit( const cmChar_t* cp, unsigned cn, unsigned flags, cmRpt_t* rpt 
   
   _cmLexSetTextBuffer( p, cp, cn );
 
-  /*
-  p->cp              = (cn==0)    ? NULL : cp;
-  p->cn              = (cp==NULL) ? 0    : cn;
-
-  p->ci              = 0;
-
-
-  p->curTokenId      = kErrorLexTId;
-  p->curTokenCharIdx = cmInvalidIdx;
-  p->curTokenCharCnt = 0;
-
-  p->curLine         = 0;
-  p->curCol          = 0;
-  p->nextLine        = 0;
-  p->nextCol         = 0;
-  */
-
   int init_mfn       = 10;
   p->mfp             = cmMemAllocZ( cmLexMatcher, init_mfn );
   p->mfn             = init_mfn;
@@ -537,70 +582,6 @@ cmRC_t cmLexSetFile( cmLexH h, const cmChar_t* fn )
   return rc;
 }
 
-/*
-cmRC_t cmLexSetFile( cmLexH h, const cmChar_t* fn )
-{
-  cmRC_t   rc      = kOkLexRC;
-  FILE*    fp      = NULL;
-  cmLex*   p       = _cmLexHandleToPtr(h);
-  unsigned n       = 0;
-
-  assert( fn != NULL && p != NULL );
-  
-  // open the file
-  if((fp = fopen(fn,"rb")) == NULL )
-    return _cmLexError(p,kFileOpenErrLexRC,"Unable to open the file:'%s'.",fn);
-
-  // seek to the end
-  if( fseek(fp,0,SEEK_END) != 0 )
-  {
-    rc= _cmLexError(p,kFileSeekErrLexRC,"Unable to seek to the end of '%s'.",fn);
-    goto errLabel;
-  }
-
-  // get the length of the file
-  if( (n=ftell(fp)) == 0 )
-  {
-    rc = _cmLexError(p,kFileOpenErrLexRC,"The file '%s' appears to be empty.",fn);
-    goto errLabel;
-  }
-
-  // rewind the file
-  if( fseek(fp,0,SEEK_SET) != 0 )
-  {
-    rc = _cmLexError(p,kFileSeekErrLexRC,"Unable to seek to the beginning of '%s'.",fn);
-    goto errLabel;
-  }
-
-  // allocate the text buffer
-  if((p->textBuf = cmMemResizeZ( char, p->textBuf, n+1)) == NULL )
-  {
-    rc = _cmLexError(p,kMemAllocErrLexRC,"Unable to allocate the text file buffer for:'%s'.",fn);
-    goto errLabel;
-  }
-
-  // read the file into the text buffer
-  if( fread(p->textBuf,n,1,fp) != 1 )
-  {
-    rc = _cmLexError(p,kFileReadErrLexRC,"File read failed on:'%s'.",fn);
-    goto errLabel;
-  }  
-
-  if((rc = _cmLexSetTextBuffer( p, p->textBuf, n )) != kOkLexRC )
-    goto errLabel;
-
- errLabel:
-
-  // close the file
-  if( fclose(fp) != 0 )
-  {
-    rc =  _cmLexError(p,kFileCloseErrLexRC,"File close failed on:'%s'.",fn);
-    goto errLabel;
-  }
-
-  return rc;
-}
-*/
 
 cmLexMatcher* _cmLexFindUserToken( cmLex* p, unsigned id, const cmChar_t* tokenStr )
 {
@@ -689,9 +670,9 @@ unsigned           cmLexGetNextToken( cmLexH h )
     p->curTokenId      = kErrorLexTId;
     p->curTokenCharIdx = cmInvalidIdx;
     p->curTokenCharCnt = 0;
+    p->attrFlags       = 0;
 
-
-    // try each mater
+    // try each matcher
     for(; mi<p->mfi; ++mi)
       if( p->mfp[mi].enableFl )
       {
@@ -701,6 +682,7 @@ unsigned           cmLexGetNextToken( cmLexH h )
         else
           charCnt = p->mfp[mi].userPtr( p->cp + p->ci, p->cn - p->ci);
 
+        // notice if the matcher set the error code
         if( cmErrLastRC(&p->err) != kOkLexRC )
           return kErrorLexTId;
 
@@ -822,6 +804,19 @@ float              cmLexTokenFloat(        cmLexH h )
 
 double             cmLexTokenDouble(        cmLexH h )
 {  return strtod( cmLexTokenText(h),NULL ); }
+
+
+bool               cmLexTokenIsUnsigned( cmLexH h )
+{
+  cmLex* p = _cmLexHandleToPtr(h);
+  return p->curTokenId == kIntLexTId && cmIsFlag(p->attrFlags,kIntUnsignedLexFl);
+}
+
+bool               cmLexTokenIsSinglePrecision( cmLexH h )
+{
+  cmLex* p = _cmLexHandleToPtr(h);
+  return p->curTokenId == kRealLexTId && cmIsFlag(p->attrFlags,kRealFloatLexFl);
+}
 
 unsigned cmLexCurrentLineNumber( cmLexH h )
 { 
