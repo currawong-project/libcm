@@ -97,7 +97,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   double          cmpWndMaxMs  = 1000.0;
   double          cmpWndMs     = 200.0;
 
-
+  double          recdPlayInitAllocSecs    = 10.0;
+  double          recdPlayFadeRateDbPerSec = 4.0;
 
   memset(&r,0,sizeof(r));
   cmErrSetup(&err,&cmCtx->rpt,"Kr Timeline");
@@ -122,6 +123,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* mop  = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, r.midiDevice,r.midiOutPort);
   cmDspInst_t* sfp  = cmDspSysAllocInst(h,"ScFol",       NULL,  1, r.scFn );
   cmDspInst_t* amp  = cmDspSysAllocInst(h,"ActiveMeas",  NULL,  1, 100 );
+  cmDspInst_t* rpp  = cmDspSysAllocInst(h,"RecdPlay",    NULL,  4, 2, r.scFn, recdPlayInitAllocSecs, recdPlayFadeRateDbPerSec );
   cmDspInst_t* modp = cmDspSysAllocInst(h,"ScMod",       NULL,  2, r.modFn, "m1" );
   cmDspInst_t* asp  = cmDspSysAllocInst(h,"AmSync",      NULL,  0 );
 
@@ -173,14 +175,14 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* kr00 = cmDspSysAllocInst(h, "Kr",         NULL,   2, krWndSmpCnt, krHopFact );
   cmDspInst_t* kr01 = cmDspSysAllocInst(h, "Kr",         NULL,   2, krWndSmpCnt, krHopFact );
   cmDspInst_t* fad0 = cmDspSysAllocInst(h, "Xfader",     NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl ); 
-  cmDspInst_t* mix0 = cmDspSysAllocInst(h, "AMix",       NULL,   3, xfadeChCnt, mixGain, mixGain );
+  cmDspInst_t* mix0 = cmDspSysAllocInst(h, "AMix",       NULL,   4, xfadeChCnt+1, mixGain, mixGain, mixGain );
   cmDspInst_t* cmp0 =  cmDspSysAllocInst(h,"Compressor", NULL,   8, cmpBypassFl, cmpThreshDb, cmpRatio_num, cmpAtkMs, cmpRlsMs, cmpMakeup, cmpWndMs, cmpWndMaxMs ); 
   cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 0 );
   
   cmDspInst_t* kr10 = cmDspSysAllocInst(h, "Kr",         NULL,   2, krWndSmpCnt, krHopFact );
   cmDspInst_t* kr11 = cmDspSysAllocInst(h, "Kr",         NULL,   2, krWndSmpCnt, krHopFact );
   cmDspInst_t* fad1 = cmDspSysAllocInst(h, "Xfader",     NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl ); 
-  cmDspInst_t* mix1 = cmDspSysAllocInst(h, "AMix",       NULL,   3, xfadeChCnt, mixGain, mixGain );
+  cmDspInst_t* mix1 = cmDspSysAllocInst(h, "AMix",       NULL,   4, xfadeChCnt+1, mixGain, mixGain, mixGain );
   cmDspInst_t* cmp1 =  cmDspSysAllocInst(h,"Compressor", NULL,   8, cmpBypassFl, cmpThreshDb, cmpRatio_num, cmpAtkMs, cmpRlsMs, cmpMakeup, cmpWndMs, cmpWndMaxMs ); 
   cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 1 );
 
@@ -377,12 +379,14 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysConnectAudio(h, wtp,  "out",   au0Sw, "a-in-0" ); // wt  -> sw
   cmDspSysConnectAudio(h, ai0p, "out",   au0Sw, "a-in-1" ); // ain -> sw
   cmDspSysConnectAudio(h, ai0p, "out",   mi0p,  "in" );
+  cmDspSysConnectAudio(h, au0Sw,"a-out", rpp,   "in-0");    // sw  -> rcdply
   cmDspSysConnectAudio(h, au0Sw,"a-out", kr00, "in"  );     // sw  -> kr
   cmDspSysConnectAudio(h, kr00, "out",   fad0, "in-0");     // kr  -> fad
   cmDspSysConnectAudio(h, fad0, "out-0", mix0, "in-0");     // fad -> mix
   cmDspSysConnectAudio(h, au0Sw,"a-out", kr01, "in"  );     // sw  -> kr
   cmDspSysConnectAudio(h, kr01, "out",   fad0, "in-1");     // kr  -> fad
   cmDspSysConnectAudio(h, fad0, "out-1", mix0, "in-1");     // fad -> mix
+  cmDspSysConnectAudio(h, rpp,  "out-0", mix0, "in-2");
   cmDspSysConnectAudio(h, mix0, "out",   cmp0, "in");       // mix -> cmp
   cmDspSysConnectAudio(h, cmp0, "out",   ao0p, "in" );      // cmp -> aout
 
@@ -390,12 +394,14 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysConnectAudio(h, wtp,  "out",   au1Sw, "a-in-0" );  // wt -> kr
   cmDspSysConnectAudio(h, ai1p, "out",   au1Sw, "a-in-1" );
   cmDspSysConnectAudio(h, ai1p, "out",   mi1p,  "in" );
+  cmDspSysConnectAudio(h, au1Sw,"a-out", rpp,   "in-1");    // sw  -> rcdply
   cmDspSysConnectAudio(h, au1Sw,"a-out", kr10, "in"  );  
   cmDspSysConnectAudio(h, kr10, "out",   fad1, "in-0");
   cmDspSysConnectAudio(h, fad1, "out-0", mix1, "in-0");
   cmDspSysConnectAudio(h, au1Sw,"a-out", kr11, "in"  );  // wt -> kr
   cmDspSysConnectAudio(h, kr11, "out",   fad1, "in-1");  
   cmDspSysConnectAudio(h, fad1, "out-1", mix1, "in-1");
+  cmDspSysConnectAudio(h, rpp,  "out-0", mix1, "in-2");
   cmDspSysConnectAudio(h, mix1, "out",   cmp1, "in");
   cmDspSysConnectAudio(h, cmp1, "out",   ao1p, "in" );   // comp -> aout
 
@@ -435,6 +441,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, pts, "on",      wtRt,  "s-in",  NULL );
   cmDspSysInstallCb(h, wtRt,"s-out-0", wtp,   "cmd",   NULL );
   cmDspSysInstallCb(h, pts, "on",      modp,  "cmd",   NULL );
+  cmDspSysInstallCb(h, pts, "on",      rpp,   "cmd",   NULL );
   cmDspSysInstallCb(h, onb, "sym",     amCmd, "rewind",NULL );
   cmDspSysInstallCb(h, onb, "out",     achan0,"reset",  NULL );
   cmDspSysInstallCb(h, onb, "out",     achan1,"reset",  NULL );
@@ -491,7 +498,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, mip, "d0",     sfp, "d0",     NULL );
   cmDspSysInstallCb(h, mip, "status", sfp, "status", NULL );
 
-  // score follower to modulator and printers
+  // score follower to recd_play,modulator and printers
+  cmDspSysInstallCb(h, sfp, "out",     rpp,     "index", NULL );
   cmDspSysInstallCb(h, sfp, "out",     modp,    "index", NULL );
   cmDspSysInstallCb(h, sfp, "recent",  prp,     "in",  NULL );  // report 'recent' but only act on 'max' loc index
 
