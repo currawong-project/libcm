@@ -572,7 +572,7 @@ cmDspRC_t _cmDspScoreReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   }
 
   if((tlFn =  cmDspStrcz(inst, kFnScId )) !=  NULL )
-    if( cmScoreInitialize(ctx->cmCtx, &p->scH, tlFn, cmDspSampleRate(ctx), dynRefArray, dynRefCnt, _cmDspScoreCb, p, cmSymTblNullHandle ) != kOkTlRC )
+    if( cmScoreInitialize(ctx->cmCtx, &p->scH, tlFn, cmDspSampleRate(ctx), dynRefArray, dynRefCnt, _cmDspScoreCb, p, ctx->stH ) != kOkTlRC )
       rc = cmErrMsg(&inst->classPtr->err, kInstResetFailDspRC, "Score file open failed.");
 
  errLabel:
@@ -2263,4 +2263,251 @@ struct cmDspClass_str* cmNanoMapClassCons( cmDspCtx_t* ctx )
     "Nanosynth Mapper");
 
   return &_cmNanoMapDC;
+}
+
+//==========================================================================================================================================
+enum
+{
+  kChCntPrId,
+  kFnPrId,
+  kSecsPrId,
+  kFadeRatePrId,
+  kScLocIdxPrId,
+  kCmdPrId,
+  kInAudioBasePrId
+};
+
+cmDspClass_t _cmRecdPlayDC;
+
+typedef struct
+{
+  cmDspInst_t inst;
+  cmRecdPlay* rcdply;
+  cmScH_t     scH;
+  unsigned    onSymId;
+  unsigned    offSymId;
+  unsigned    audioOutBaseId;
+  unsigned    chCnt;
+  unsigned    scLocIdx;
+} cmDspRecdPlay_t;
+
+cmDspRC_t _cmDspRecdPlayOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
+{
+  cmDspRC_t rc =kOkDspRC;
+  const cmChar_t* fn;
+
+  cmDspRecdPlay_t* p = (cmDspRecdPlay_t*)inst;
+
+  p->scLocIdx = 0;
+
+
+  if((fn = cmDspStrcz(inst,kFnPrId)) == NULL || strlen(fn)==0 )
+    return cmErrMsg(&inst->classPtr->err, kInvalidArgDspRC, "No score file name supplied.");
+
+  if( cmScoreInitialize(ctx->cmCtx, &p->scH, fn, cmDspSampleRate(ctx), NULL, 0, NULL, NULL, ctx->stH ) != kOkScRC )
+    return cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Unable to open the score '%s'.",fn);
+
+  if( cmScoreIsValid(p->scH) )
+  {
+    unsigned i;
+    unsigned markerCnt = cmScoreMarkerLabelCount(p->scH);
+
+    if((p->rcdply = cmRecdPlayAlloc(ctx->cmProcCtx, NULL, cmDspSampleRate(ctx), markerCnt, p->chCnt, cmDspDouble(inst,kSecsPrId))) == NULL)
+      return cmErrMsg(&inst->classPtr->err,kSubSysFailDspRC,"Unable to create the internal recorder-player object.");    
+
+    for(i=0; i<markerCnt; ++i)
+      cmRecdPlayRegisterFrag(p->rcdply,i, cmScoreMarkerLabelSymbolId(p->scH,i ));
+
+  }
+
+  return rc;
+}
+
+
+cmDspInst_t*  _cmDspRecdPlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+
+  if( va_cnt < 1 )
+  {
+    cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'RecdPlay' constructor must have a count of input ports.");
+    return NULL;
+  }
+
+  va_list vl1;
+  va_copy(vl1,vl);
+
+  int      chCnt         = va_arg(vl,int);
+  unsigned audioOutBase  = kInAudioBasePrId + chCnt;    
+
+  cmDspRecdPlay_t* p = cmDspInstAllocV(cmDspRecdPlay_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl1,
+    1,         "chs",    kChCntPrId,      0,0, kUIntDsvFl | kReqArgDsvFl,              "channel count.",
+    1,         "fn",     kFnPrId,         0,0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl, "Score file." ,
+    1,         "secs",   kSecsPrId,       0,0, kInDsvFl   | kDoubleDsvFl | kReqArgDsvFl, "Initial fragment allocation in seconds.",
+    1,         "frate",  kFadeRatePrId,   0,0, kInDsvFl   | kDoubleDsvFl,              "Fade rate in dB per second.",
+    1,         "index",  kScLocIdxPrId,   0,0, kInDsvFl   | kUIntDsvFl,                "Score follower location index.",
+    1,         "cmd",    kCmdPrId,        0,0, kInDsvFl   | kSymDsvFl,                 "on=reset off=stop.",
+    chCnt,     "in",     kInAudioBasePrId,0,1, kInDsvFl   | kAudioBufDsvFl,            "Audio input",
+    chCnt,     "out",    audioOutBase,    0,1, kOutDsvFl  | kAudioBufDsvFl,            "Audio output",
+    0 );
+
+  va_end(vl1);
+
+  p->onSymId        = cmSymTblId(ctx->stH,"on");
+  p->offSymId       = cmSymTblId(ctx->stH,"off");
+  p->audioOutBaseId = audioOutBase;
+  p->chCnt          = chCnt;
+  p->scLocIdx       = 0;
+
+  cmDspSetDefaultDouble(ctx,&p->inst, kSecsPrId,     0, 10.0 );
+  cmDspSetDefaultDouble(ctx,&p->inst, kFadeRatePrId, 0, 1.0);
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspRecdPlayFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t        rc = kOkDspRC;
+  cmDspRecdPlay_t* p = (cmDspRecdPlay_t*)inst;
+
+  cmRecdPlayFree(&p->rcdply);
+
+  cmScoreFinalize(&p->scH);
+  return rc;
+}
+
+cmDspRC_t _cmDspRecdPlayReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspApplyAllDefaults(ctx,inst);
+
+  return _cmDspRecdPlayOpenScore(ctx,inst);
+} 
+
+cmDspRC_t _cmDspRecdPlayExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t      rc = kOkDspRC;
+
+  cmDspRecdPlay_t* p = (cmDspRecdPlay_t*)inst;
+
+  const cmSample_t* x[ p->chCnt ];
+  cmSample_t*       y[ p->chCnt ];
+  unsigned n;
+  unsigned i;
+  unsigned actChCnt = 0;
+
+  for(i=0; i<p->chCnt; ++i)
+  {
+    if( i==0 )
+      n  = cmDspAudioBufSmpCount(ctx,inst,kInAudioBasePrId+i,0);
+    else
+    { assert( n == cmDspAudioBufSmpCount(ctx,inst,kInAudioBasePrId+i,0)); }
+
+    x[i] = cmDspAudioBuf(ctx,inst,kInAudioBasePrId+i,0);
+
+    if( x[i] != NULL )
+    {
+      y[i] = cmDspAudioBuf(ctx,inst,p->audioOutBaseId+i,0);
+
+      if( y[i] != NULL )
+      {
+        assert( n == cmDspAudioBufSmpCount(ctx,inst,p->audioOutBaseId+i,0));
+
+        cmVOS_Zero(y[i],n);
+
+        actChCnt += 1;
+      }
+      
+    }
+  }
+
+  cmRecdPlayExec(p->rcdply,x,y,actChCnt,n);
+
+  return rc;
+}
+
+cmDspRC_t _cmDspRecdPlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRecdPlay_t* p = (cmDspRecdPlay_t*)inst;
+
+  cmDspSetEvent(ctx,inst,evt);
+
+  switch( evt->dstVarId )
+  {
+    case kCmdPrId:
+      if( cmDspSymbol(inst,kCmdPrId) == p->onSymId )
+      {
+        printf("rewind\n");
+        cmRecdPlayRewind(p->rcdply);
+        p->scLocIdx = 0;
+      }
+      else
+        if( cmDspSymbol(inst,kCmdPrId) == p->offSymId )
+        {
+        }
+
+      break;
+
+    case kScLocIdxPrId:
+      {
+        unsigned endScLocIdx = cmDspUInt(inst,kScLocIdxPrId) ;
+
+        for(; p->scLocIdx<=endScLocIdx; p->scLocIdx+=1)
+        {
+          cmScoreLoc_t*    loc = cmScoreLoc(p->scH, p->scLocIdx );
+          cmScoreMarker_t* mp  = loc->markList;
+
+          for(; mp!=NULL; mp=mp->link)
+            switch( mp->markTypeId )
+            {
+              case kRecdBegScMId:
+                printf("recd-beg\n");
+                cmRecdPlayBeginRecord(p->rcdply, mp->labelSymId );
+                break;
+                
+              case kRecdEndScMId:
+                printf("recd-end\n");
+                cmRecdPlayEndRecord(p->rcdply, mp->labelSymId );
+                break;
+                
+              case kPlayBegScMId:
+                printf("play-beg\n");
+                cmRecdPlayBeginPlay(p->rcdply, mp->labelSymId );
+                break;
+
+              case kPlayEndScMId:
+                printf("recd-end\n");
+                cmRecdPlayEndPlay(p->rcdply, mp->labelSymId );
+                break;
+
+              case kFadeScMId:
+                printf("fade-beg\n");
+                cmRecdPlayBeginFade(p->rcdply, mp->labelSymId, cmDspDouble(inst,kFadeRatePrId) );
+                break;
+
+              default:
+                break;
+            }
+        }
+
+        p->scLocIdx = endScLocIdx+1;
+      }
+      break;
+  }
+
+  return kOkDspRC;
+}
+
+struct cmDspClass_str* cmRecdPlayClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmRecdPlayDC,ctx,"RecdPlay",
+    NULL,
+    _cmDspRecdPlayAlloc,
+    _cmDspRecdPlayFree,
+    _cmDspRecdPlayReset,
+    _cmDspRecdPlayExec,
+    _cmDspRecdPlayRecv,
+    NULL,
+    NULL,
+    "Score controlled live recorder/player");
+
+  return &_cmRecdPlayDC;
 }
