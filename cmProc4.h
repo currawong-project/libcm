@@ -649,14 +649,18 @@ extern "C" {
     double           srate;         // system sample rate
     unsigned         chCnt;         // count of input and output audio channels
     double           initFragSecs;  // size initial memory allocated to each frag in seconds
+    unsigned         maxLaSmpCnt;   // samples allocated to each channel of the look-ahead buffers.
+    unsigned         curLaSmpCnt;   // current look-ahead time in samples (curLaSmpCnt<=maxLaSmpCnt)
+    cmSample_t**     laChs;         // laChs[chCnt][maxLaSmpCnt] - look-ahead buffers
+    int              laSmpIdx;      // next look-ahead buffer index to receive a sample
     cmRecdPlayFrag*  plist;         // currently playing frags
     cmRecdPlayFrag*  rlist;         // currently recording frags
   } cmRecdPlay;
 
 
-  cmRecdPlay*    cmRecdPlayAlloc( cmCtx* c, cmRecdPlay* p, double srate, unsigned fragCnt, unsigned chCnt, double initFragSecs  );
+  cmRecdPlay*    cmRecdPlayAlloc( cmCtx* c, cmRecdPlay* p, double srate, unsigned fragCnt, unsigned chCnt, double initFragSecs, double maxLaSecs, double curLaSecs  );
   cmRC_t         cmRecdPlayFree(  cmRecdPlay** pp );
-  cmRC_t         cmRecdPlayInit(  cmRecdPlay* p, double srate, unsigned flagCnt, unsigned chCnt, double initFragSecs  );
+  cmRC_t         cmRecdPlayInit(  cmRecdPlay* p, double srate, unsigned flagCnt, unsigned chCnt, double initFragSecs, double maxLaSecs, double curLaSecs  );
   cmRC_t         cmRecdPlayFinal( cmRecdPlay* p );
 
   cmRC_t         cmRecdPlayRegisterFrag( cmRecdPlay* p, unsigned fragIdx, unsigned labelSymId );

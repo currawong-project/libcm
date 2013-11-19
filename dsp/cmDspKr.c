@@ -2271,6 +2271,8 @@ enum
   kChCntPrId,
   kFnPrId,
   kSecsPrId,
+  kMaxLaSecsPrId,
+  kCurLaSecsPrId,
   kFadeRatePrId,
   kScLocIdxPrId,
   kCmdPrId,
@@ -2311,8 +2313,11 @@ cmDspRC_t _cmDspRecdPlayOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
   {
     unsigned i;
     unsigned markerCnt = cmScoreMarkerLabelCount(p->scH);
+    double initFragSecs = cmDspDouble(inst,kSecsPrId);
+    double maxLaSecs    = cmDspDouble(inst,kMaxLaSecsPrId);
+    double curLaSecs    = cmDspDouble(inst,kCurLaSecsPrId);
 
-    if((p->rcdply = cmRecdPlayAlloc(ctx->cmProcCtx, NULL, cmDspSampleRate(ctx), markerCnt, p->chCnt, cmDspDouble(inst,kSecsPrId))) == NULL)
+    if((p->rcdply = cmRecdPlayAlloc(ctx->cmProcCtx, NULL, cmDspSampleRate(ctx), markerCnt, p->chCnt, initFragSecs, maxLaSecs, curLaSecs)) == NULL)
       return cmErrMsg(&inst->classPtr->err,kSubSysFailDspRC,"Unable to create the internal recorder-player object.");    
 
     for(i=0; i<markerCnt; ++i)
@@ -2343,6 +2348,8 @@ cmDspInst_t*  _cmDspRecdPlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
     1,         "chs",    kChCntPrId,      0,0, kUIntDsvFl | kReqArgDsvFl,              "channel count.",
     1,         "fn",     kFnPrId,         0,0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl, "Score file." ,
     1,         "secs",   kSecsPrId,       0,0, kInDsvFl   | kDoubleDsvFl | kReqArgDsvFl, "Initial fragment allocation in seconds.",
+    1,         "maxla",  kMaxLaSecsPrId,  0,0, kInDsvFl   | kDoubleDsvFl,              "Maximum look-ahead buffer in seconds.",
+    1,         "curla",  kCurLaSecsPrId,  0,0, kInDsvFl   | kDoubleDsvFl,              "Current look-head buffer in seconds.",
     1,         "frate",  kFadeRatePrId,   0,0, kInDsvFl   | kDoubleDsvFl,              "Fade rate in dB per second.",
     1,         "index",  kScLocIdxPrId,   0,0, kInDsvFl   | kUIntDsvFl,                "Score follower location index.",
     1,         "cmd",    kCmdPrId,        0,0, kInDsvFl   | kSymDsvFl,                 "on=reset off=stop.",
@@ -2359,6 +2366,8 @@ cmDspInst_t*  _cmDspRecdPlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   p->scLocIdx       = 0;
 
   cmDspSetDefaultDouble(ctx,&p->inst, kSecsPrId,     0, 10.0 );
+  cmDspSetDefaultDouble(ctx,&p->inst, kMaxLaSecsPrId,0, 2.0);
+  cmDspSetDefaultDouble(ctx,&p->inst, kCurLaSecsPrId,0, 0.5);
   cmDspSetDefaultDouble(ctx,&p->inst, kFadeRatePrId, 0, 1.0);
 
   return &p->inst;
@@ -2446,6 +2455,9 @@ cmDspRC_t _cmDspRecdPlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
       break;
 
+    case kCurLaSecsPrId:
+      break;
+
     case kScLocIdxPrId:
       {
         unsigned endScLocIdx = cmDspUInt(inst,kScLocIdxPrId) ;
@@ -2474,7 +2486,7 @@ cmDspRC_t _cmDspRecdPlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
                 break;
 
               case kPlayEndScMId:
-                printf("recd-end\n");
+                printf("play-end\n");
                 cmRecdPlayEndPlay(p->rcdply, mp->labelSymId );
                 break;
 
