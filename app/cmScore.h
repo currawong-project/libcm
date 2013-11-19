@@ -12,8 +12,8 @@ extern "C" {
     kSyntaxErrScRC,
     kInvalidIdxScRC,
     kTimeLineFailScRC,
-    kInvalidDynRefCntScRC
-  
+    kInvalidDynRefCntScRC,
+    kMidiFileFailScRC
   };
 
   enum
@@ -36,12 +36,12 @@ extern "C" {
   // Flags used by cmScoreEvt_t.flags
   enum
   {
-    kEvenScFl    = 0x01,        // This note is marked for evenness measurement
-    kDynScFl     = 0x02,        // This note is marked for dynamics measurement
-    kTempoScFl   = 0x04,        // This note is marked for tempo measurement
-    kSkipScFl    = 0x08,        // This isn't a real event (e.g. tied note) skip over it
-    kGraceScFl   = 0x10,        // This is a grace note
-    kInvalidScFl = 0x20         // This note has a calculated time
+    kEvenScFl    = 0x001,        // This note is marked for evenness measurement
+    kDynScFl     = 0x002,        // This note is marked for dynamics measurement
+    kTempoScFl   = 0x004,        // This note is marked for tempo measurement
+    kSkipScFl    = 0x008,        // This isn't a real event (e.g. tied note) skip over it
+    kGraceScFl   = 0x010,        // This is a grace note
+    kInvalidScFl = 0x020         // This note has a calculated time
   };
 
 
@@ -103,7 +103,26 @@ extern "C" {
     double                 value;
     struct cmScoreSet_str* llink;      // cmScoreLoc_t setList link
   } cmScoreSet_t;
-  
+
+  typedef enum
+  {
+    kInvalidScMId,
+    kRecdBegScMId,
+    kRecdEndScMId,
+    kFadeScMId,
+    kPlayBegScMId,
+    kPlayEndScMId  
+  } cmMarkScMId_t;
+
+  // score markers
+  typedef struct cmScoreMarker_str
+  {
+    cmMarkScMId_t             markTypeId;  // marker type
+    unsigned                  labelSymId;  // marker label
+    struct cmScoreLoc_str*    scoreLocPtr; // score location of the marker
+    unsigned                  csvRowIdx;   // score CSV file line assoc'd w/ this marker
+    struct cmScoreMarker_str* link;        // cmScoreLoc_t.markList links
+  } cmScoreMarker_t;
 
   // All events which are simultaneous are collected into a single
   // cmScoreLoc_t record.
@@ -116,6 +135,7 @@ extern "C" {
     unsigned          barNumb;       // Bar number this event is contained by.                            
     cmScoreSet_t*     setList;       // Set's which end on this time location (linked through cmScoreSet_t.llink)
     cmScoreSection_t* begSectPtr;    // NULL if this location does not start a section
+    cmScoreMarker_t*  markList;      // List of markers assigned to this location
   } cmScoreLoc_t;
 
   typedef void (*cmScCb_t)( void* arg, const void* data, unsigned byteCnt );
@@ -169,6 +189,10 @@ extern "C" {
 
   // Return the count of sets.
   unsigned      cmScoreSetCount( cmScH_t h );
+
+  unsigned      cmScoreMarkerLabelCount( cmScH_t h );
+  unsigned      cmScoreMarkerLabelSymbolId( cmScH_t h, unsigned idx );
+  const cmScoreMarker_t* cmScoreMarker( cmScH_t h, cmMarkScMId_t markMId, unsigned labelSymId );
 
   // Make callbacks for all events in the score. The callbacks
   // contain cmScMsg_t records serialized as a byte stream.
@@ -234,6 +258,9 @@ extern "C" {
   cmScRC_t      cmScoreDecode( const void* msg, unsigned msgByteCnt, cmScMsg_t* );
 
   void          cmScorePrint( cmScH_t h, cmRpt_t* rpt );
+
+  // Generate a new score file from a MIDI file.
+  cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* scoreFn );
 
   void          cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn );
 

@@ -729,6 +729,20 @@ unsigned   cmCsvInsertSymUInt(   cmCsvH_t h, unsigned v )
   return cmInvalidId;
 }
 
+unsigned   cmCsvInsertSymHex(   cmCsvH_t h, unsigned v )
+{
+  const char* fmt = "0x%x";
+  unsigned    n   = snprintf(NULL,0,fmt,v)+1;
+  char        buf[n];
+
+  buf[0]= 0;
+  if( snprintf(buf,n,fmt,v) == n-1 )
+    return cmCsvInsertSymText(h,buf);
+  
+  _cmCsvError(_cmCsvHandleToPtr(h),kDataCvtErrCsvRC,"The unsigned int 0x%x could not be converted to text.",v);
+  return cmInvalidId;
+}
+
 unsigned   cmCsvInsertSymFloat(  cmCsvH_t h, float v )
 {
   const char* fmt = "%f";
@@ -803,6 +817,24 @@ cmCsvRC_t  cmCsvSetCellUInt(   cmCsvH_t h, unsigned row, unsigned col, unsigned 
     return cmErrLastRC(&_cmCsvHandleToPtr(h)->err);
 
   if((symId = cmCsvInsertSymUInt(h,v)) == cmInvalidId )
+    return cmErrLastRC(&_cmCsvHandleToPtr(h)->err);
+  
+  cp->symId = symId;
+  cp->flags &= !kTypeTMask;
+  cp->flags |= kIntCsvTFl;
+
+  return kOkCsvRC;  
+}
+
+cmCsvRC_t  cmCsvSetCellHex(   cmCsvH_t h, unsigned row, unsigned col, unsigned v )
+{
+  cmCsvCell_t* cp;
+  unsigned     symId;
+
+  if((cp = _cmCsvCellPtr(h,row,col)) == NULL )
+    return cmErrLastRC(&_cmCsvHandleToPtr(h)->err);
+
+  if((symId = cmCsvInsertSymHex(h,v)) == cmInvalidId )
     return cmErrLastRC(&_cmCsvHandleToPtr(h)->err);
   
   cp->symId = symId;
@@ -985,7 +1017,7 @@ cmCsvRC_t  cmCsvInsertTextColAfter(   cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCs
   cmCsvCell_t* ncp;
 
   if( cellPtrPtr != NULL )
-    cellPtrPtr = NULL;
+    *cellPtrPtr = NULL;
 
   if((rc = cmCsvInsertColAfter(h, leftCellPtr, &ncp, cmInvalidId, 0, lexTId )) == kOkCsvRC )
     if((rc = cmCsvSetCellText(h, ncp->row, ncp->col, text )) == kOkCsvRC )
@@ -1001,7 +1033,7 @@ cmCsvRC_t  cmCsvInsertIntColAfter(    cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCs
   cmCsvCell_t* ncp;
 
   if( cellPtrPtr != NULL )
-    cellPtrPtr = NULL;
+    *cellPtrPtr = NULL;
 
   if((rc = cmCsvInsertColAfter(h, leftCellPtr, &ncp, cmInvalidId, 0, lexTId )) == kOkCsvRC )
     if((rc = cmCsvSetCellInt(h, ncp->row, ncp->col, val )) == kOkCsvRC )
@@ -1017,10 +1049,26 @@ cmCsvRC_t  cmCsvInsertUIntColAfter(   cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCs
   cmCsvCell_t* ncp;
 
   if( cellPtrPtr != NULL )
-    cellPtrPtr = NULL;
+    *cellPtrPtr = NULL;
 
   if((rc = cmCsvInsertColAfter(h, leftCellPtr, &ncp, cmInvalidId, 0, lexTId )) == kOkCsvRC )
     if((rc = cmCsvSetCellUInt(h, ncp->row, ncp->col, val )) == kOkCsvRC )
+      if( cellPtrPtr != NULL )
+        *cellPtrPtr = ncp;
+  
+  return rc;
+}
+
+cmCsvRC_t  cmCsvInsertHexColAfter(   cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, unsigned val, unsigned lexTId )
+{
+  cmCsvRC_t    rc;
+  cmCsvCell_t* ncp;
+
+  if( cellPtrPtr != NULL )
+    *cellPtrPtr = NULL;
+
+  if((rc = cmCsvInsertColAfter(h, leftCellPtr, &ncp, cmInvalidId, 0, lexTId )) == kOkCsvRC )
+    if((rc = cmCsvSetCellHex(h, ncp->row, ncp->col, val )) == kOkCsvRC )
       if( cellPtrPtr != NULL )
         *cellPtrPtr = ncp;
   
@@ -1033,7 +1081,7 @@ cmCsvRC_t  cmCsvInsertFloatColAfter(  cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCs
   cmCsvCell_t* ncp;
 
   if( cellPtrPtr != NULL )
-    cellPtrPtr = NULL;
+    *cellPtrPtr = NULL;
 
   if((rc = cmCsvInsertColAfter(h, leftCellPtr, &ncp, cmInvalidId, 0, lexTId )) == kOkCsvRC )
     if((rc = cmCsvSetCellFloat(h, ncp->row, ncp->col, val )) == kOkCsvRC )
@@ -1049,7 +1097,7 @@ cmCsvRC_t  cmCsvInsertDoubleColAfter( cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCs
   cmCsvCell_t* ncp;
 
   if( cellPtrPtr != NULL )
-    cellPtrPtr = NULL;
+    *cellPtrPtr = NULL;
 
   if((rc = cmCsvInsertColAfter(h, leftCellPtr, &ncp, cmInvalidId, 0, lexTId )) == kOkCsvRC )
     if((rc = cmCsvSetCellDouble(h, ncp->row, ncp->col, val )) == kOkCsvRC )

@@ -50,7 +50,8 @@ enum
   kMemAllocErrLexRC,       //< 10  An attempted memory allocation failed
   kEofRC,                  //< 11 The end of the input text was encountered (this is a normal condition not an error)
   kInvalidLexTIdLexRC,     //< 12 An invalid lex token id was encountered.
-  kInvalidLexRC            //< 13 Sentinal value.
+  kSignErrorLexRC,         //< 13 An signed integer has a 'u' or 'U' suffix."
+  kInvalidLexRC            //< 1r Sentinal value.
 
 };
 
@@ -119,14 +120,22 @@ unsigned           cmLexTokenCharCount(  cmLexH h );
 // Return the value of the current token as an integer.
 int                cmLexTokenInt( cmLexH h );
 
-// Return the value of the current token as an integer.
+// Return the value of the current token as an unsigned integer.
 unsigned           cmLexTokenUInt( cmLexH h );
 
-// Return the value of the current token as an integer.
+// Return the value of the current token as a float.
 float              cmLexTokenFloat( cmLexH h );
 
 // Return the value of the current token as a double.
 double             cmLexTokenDouble( cmLexH h );
+
+// Return true if the current token is an int and it was suffixed
+// with 'u' to indicate that it is unsigned.
+bool               cmLexTokenIsUnsigned( cmLexH h );
+
+// Return true if the current token is a real and it was suffexed 
+// with 'f' to indicate that it is a single precision float.
+bool               cmLexTokenIsSinglePrecision( cmLexH h );
 
 // Return the line number associated with the current token 
 unsigned           cmLexCurrentLineNumber( cmLexH h );

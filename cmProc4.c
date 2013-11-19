@@ -4135,3 +4135,356 @@ cmRC_t  cmScModulatorDump(  cmScModulator* p )
   
   return rc;
 }
+
+//=======================================================================================================================
+cmRecdPlay*    cmRecdPlayAlloc( cmCtx* c, cmRecdPlay* p, double srate, unsigned fragCnt, unsigned chCnt, double initFragSecs, double maxLaSecs, double curLaSecs  )
+{
+  cmRecdPlay* op = cmObjAlloc(cmRecdPlay,c,p);
+
+  if( cmRecdPlayInit(op,srate,fragCnt,chCnt,initFragSecs,maxLaSecs,curLaSecs) != cmOkRC )
+    cmRecdPlayFree(&op);
+
+  return op;
+}
+
+cmRC_t         cmRecdPlayFree(  cmRecdPlay** pp )
+{
+  cmRC_t rc = cmOkRC;
+  if( pp==NULL || *pp==NULL )
+    return rc;
+
+  cmRecdPlay* p = *pp;
+  if((rc = cmRecdPlayFinal(p)) != cmOkRC )
+    return rc;
+
+  cmObjFree(pp);
+  return rc;
+
+}
+
+cmRC_t cmRecdPlayInit(  cmRecdPlay* p, double srate, unsigned fragCnt, unsigned chCnt, double initFragSecs, double maxLaSecs, double curLaSecs  )
+{
+  cmRC_t rc;
+  unsigned i;
+
+  if( curLaSecs > maxLaSecs )
+    return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The initial look-ahead time %f is greater than the maximum look-ahead time %f.",curLaSecs,maxLaSecs);    
+
+  if((rc = cmRecdPlayFinal(p)) != cmOkRC )
+    return rc;
+
+  if( chCnt == 0 )
+    return cmOkRC;
+
+  p->frags        = cmMemAllocZ(cmRecdPlayFrag,fragCnt);
+  p->fragCnt      = fragCnt;
+  p->srate        = srate;
+  p->chCnt        = chCnt;
+  p->initFragSecs = initFragSecs;
+  p->maxLaSmpCnt  = floor(maxLaSecs*srate);
+  p->curLaSmpCnt  = floor(curLaSecs*srate); 
+  p->laChs        = cmMemAllocZ(cmSample_t*,chCnt);
+  p->laSmpIdx     = 0;
+
+  for(i=0; i<chCnt; ++i)
+    p->laChs[i] = cmMemAllocZ(cmSample_t,p->maxLaSmpCnt);
+  
+  return rc;
+}
+
+cmRC_t         cmRecdPlayFinal( cmRecdPlay* p )
+{ 
+  unsigned i,j;
+  // free the fragments
+  for(i=0; i<p->fragCnt; ++i)
+  {
+    for(j=0; j<p->chCnt; ++j)
+      cmMemFree(p->frags[i].chArray[j]);
+
+    cmMemFree(p->frags[i].chArray);
+  }
+
+  // free the look-ahead buffers
+  for(i=0; i<p->chCnt; ++i)
+    cmMemFree(p->laChs[i]);
+
+  cmMemPtrFree(&p->laChs);
+  cmMemPtrFree(&p->frags);
+  p->fragCnt = 0;
+  p->chCnt   = 0;
+  p->rlist   = NULL;
+  p->plist   = NULL;
+  return cmOkRC;
+}
+
+cmRC_t         cmRecdPlayRegisterFrag( cmRecdPlay* p,  unsigned fragIdx, unsigned labelSymId )
+{
+  assert( fragIdx < p->fragCnt );
+
+  unsigned i;
+
+  p->frags[ fragIdx ].labelSymId = labelSymId;
+
+  p->frags[ fragIdx ].chArray = cmMemResizeZ(cmSample_t*,p->frags[fragIdx].chArray,p->chCnt);
+
+  for(i=0; i<p->chCnt; ++i)
+  {
+    
+    p->frags[ fragIdx ].allocCnt = floor(p->initFragSecs * p->srate);
+    p->frags[ fragIdx ].chArray[i] = cmMemResizeZ(cmSample_t,p->frags[ fragIdx ].chArray[i],p->frags[fragIdx].allocCnt);
+  }
+
+  return cmOkRC;
+}
+
+cmRC_t         cmRecdPlayRewind( cmRecdPlay* p )
+{
+  unsigned i;
+
+  p->laSmpIdx = 0;
+
+  while( p->plist != NULL )
+    cmRecdPlayEndPlay(p,p->plist->labelSymId);
+  
+  while( p->rlist != NULL )
+    cmRecdPlayEndRecord(p,p->plist->labelSymId);
+
+  for(i=0; i<p->fragCnt; ++i)
+    p->frags[i].playIdx = 0;
+
+  return cmOkRC;
+}
+
+
+cmRC_t         cmRecdPlayBeginRecord( cmRecdPlay* p, unsigned labelSymId )
+{
+  unsigned i;
+
+  for(i=0; i<p->fragCnt; ++i)
+    if( p->frags[i].labelSymId == labelSymId )
+    {
+      // if the frag is not already on the recd list
+      if( p->frags[i].rlink == NULL )
+      {
+        p->frags[i].recdIdx = 0;
+        p->frags[i].playIdx = 0;
+        p->frags[i].rlink   = p->rlist;
+        p->rlist            = p->frags + i;
+
+        // handle LA buf longer than frag buf.
+        int cpyCnt  = cmMin(p->curLaSmpCnt,p->frags[i].allocCnt); 
+
+         // go backwards in LA buf from newest sample to find init src offset
+        int srcOffs = p->laSmpIdx - cpyCnt;
+
+        // if the src is before the first sample in the LA buf then wrap to end of buf
+        if( srcOffs < 0 )
+          srcOffs += p->maxLaSmpCnt; 
+
+        assert( 0 <= srcOffs && srcOffs < p->maxLaSmpCnt );
+
+        // cnt of samples to copy from LA buf (limited by end of LA buf)
+        int n0 = cmMin(cpyCnt,p->maxLaSmpCnt - srcOffs); 
+
+        // if necessary wrap to begin of LA buf for remaining samples
+        int n1 = cpyCnt>n0 ? n1 = cpyCnt-n0 : 0;
+        int j;
+
+        assert(n0+n1 == cpyCnt );
+
+        for(j=0; j<p->chCnt; ++j)
+          cmVOS_Copy(p->frags[i].chArray[j],n0,p->laChs[j]+srcOffs);
+
+        if( n1 > 0 )
+        {
+          for(j=0; j<p->chCnt; ++j)
+            cmVOS_Copy(p->frags[i].chArray[j]+n0,n1,p->laChs[j]);
+        }
+
+        p->frags[i].recdIdx = cpyCnt;
+
+      }
+      
+      return cmOkRC;
+    }
+
+  return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'begin record'.",labelSymId);    
+}
+
+cmRC_t         cmRecdPlayEndRecord(   cmRecdPlay* p, unsigned labelSymId )
+{
+  cmRecdPlayFrag* fp = p->rlist;
+  cmRecdPlayFrag* pp = NULL;
+
+  for(; fp != NULL; fp=fp->rlink )
+  {
+    if( fp->labelSymId == labelSymId )
+    {
+      if( pp == NULL )
+        p->rlist = fp->rlink;
+      else
+        pp->rlink = fp->rlink;
+
+      fp->rlink = NULL;
+
+      return cmOkRC;
+    }
+
+    pp = fp;
+  }
+
+  return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'end record'.",labelSymId);      
+}
+
+cmRC_t         cmRecdPlayBeginPlay(   cmRecdPlay* p, unsigned labelSymId )
+{
+  unsigned i;
+
+  for(i=0; i<p->fragCnt; ++i)
+    if( p->frags[i].labelSymId == labelSymId )
+    {
+      // if the frag is not already on the play list
+      if( p->frags[i].plink == NULL )
+      {
+        p->frags[i].playIdx      = 0;
+        p->frags[i].fadeSmpIdx   = 0;
+        p->frags[i].fadeDbPerSec = 0.0;
+        p->frags[i].plink        = p->plist;
+        p->plist                 = p->frags + i;
+      }
+
+      return cmOkRC;
+    }
+
+  return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'begin play'.",labelSymId);    
+
+}
+
+cmRC_t         cmRecdPlayEndPlay(     cmRecdPlay* p, unsigned labelSymId )
+{
+  cmRecdPlayFrag* fp = p->plist;
+  cmRecdPlayFrag* pp = NULL;
+
+  for(; fp != NULL; fp=fp->plink )
+  {
+    if( fp->labelSymId == labelSymId )
+    {
+      if( pp == NULL )
+        p->plist = fp->plink;
+      else
+        pp->plink = fp->plink;
+
+      fp->plink = NULL;
+
+      return cmOkRC;
+    }
+
+    pp = fp;
+  }
+
+  return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'end play'.",labelSymId);    
+}
+
+cmRC_t cmRecdPlayBeginFade(   cmRecdPlay* p, unsigned labelSymId, double fadeDbPerSec )
+{
+  cmRecdPlayFrag* fp = p->plist;
+
+  for(; fp != NULL; fp=fp->plink )
+    if( fp->labelSymId == labelSymId )
+    {
+      fp->fadeDbPerSec = -fabs(fadeDbPerSec);
+      return cmOkRC;
+    }
+  
+  return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'fade begin'.",labelSymId);      
+}
+
+
+cmRC_t         cmRecdPlayExec( cmRecdPlay* p, const cmSample_t** iChs, cmSample_t** oChs, unsigned chCnt, unsigned smpCnt )
+{
+  unsigned i;
+
+  chCnt = cmMin(chCnt, p->chCnt);
+
+  //-------------------------------------------------------------------
+  // copy incoming audio into the look-head buffers
+  //
+
+  // if the number of incoming samples is longer than the look-head buffer
+  // then copy exactly maxLaSmpCnt samples from the end of the incoming sample
+  // buffer to the look-ahead buffer.
+  unsigned srcOffs   = 0;
+  unsigned srcSmpCnt = smpCnt;
+  if( srcSmpCnt > p->maxLaSmpCnt )
+  {
+    // advance incoming sample buffer so that there are maxLaSmpCnt samples remaining
+    srcOffs   = smpCnt-p->maxLaSmpCnt; 
+    srcSmpCnt = p->maxLaSmpCnt;        // decrease the total samples to copy  
+  }
+
+  // count of samples from cur posn to end of the LA buffer.
+  unsigned          n0  = cmMin(srcSmpCnt, p->maxLaSmpCnt - p->laSmpIdx );
+
+  // count of samples past the end of the LA buffer to be wrapped into begin of buffer
+  unsigned          n1  = srcSmpCnt>n0 ? srcSmpCnt-n0 : 0;
+
+  assert(n0+n1 == srcSmpCnt);
+
+  // copy first block to end of LA buffer
+  for(i=0; i<chCnt; ++i)
+    cmVOS_Copy(p->laChs[i]+p->laSmpIdx,n0,iChs[i] + srcOffs);
+
+  p->laSmpIdx += n0;
+
+  if( n1!=0)
+  {
+    // copy second block to begin of LA buffer
+    for(i=0; i<chCnt; ++i)
+      cmVOS_Copy(p->laChs[i],n1,iChs[i] + srcOffs + n0);
+
+    p->laSmpIdx = n1; 
+
+  }
+
+  //-------------------------------------------------------------------
+  // copy incoming audio into the active record buffers
+  //
+  cmRecdPlayFrag* fp = p->rlist;
+
+  for(; fp!=NULL; fp=fp->rlink)
+  {
+    assert( fp->recdIdx <= fp->allocCnt);
+    unsigned n = cmMin(fp->allocCnt - fp->recdIdx,smpCnt);
+    unsigned i;
+    for(i=0; i<p->chCnt; ++i)
+    {
+      cmVOS_Copy(fp->chArray[i] + fp->recdIdx, n, iChs[i] );
+      fp->recdIdx += n;
+    }
+  }  
+
+  //-------------------------------------------------------------------
+  // copy outgoing audio out of the active play buffers
+  //
+  fp = p->plist;
+  for(; fp!=NULL; fp=fp->rlink)
+  {
+    assert( fp->playIdx <= fp->recdIdx);
+
+    double   gain = pow(10.0,((fp->fadeSmpIdx / p->srate) * fp->fadeDbPerSec)/20.0);
+    unsigned n    = cmMin(fp->recdIdx - fp->playIdx,smpCnt);
+    unsigned i;
+
+    for(i=0; i<p->chCnt; ++i)
+    {
+      cmVOS_MultVVS(oChs[i],n,fp->chArray[i] + fp->playIdx,gain);
+      fp->playIdx += n;
+    }
+
+    // if a fade rate has been set then advance the fade phase
+    if(fp->fadeDbPerSec!=0.0)
+      fp->fadeSmpIdx += smpCnt;
+  }  
+
+  return cmOkRC;
+}
