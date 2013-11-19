@@ -5418,6 +5418,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmActiveMeasClassCons,
   cmAmSyncClassCons,
   cmNanoMapClassCons,
+  cmRecdPlayClassCons,
   NULL,
 };
 
