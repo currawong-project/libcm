@@ -1306,27 +1306,30 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
         break;
     }
     
-    if( secs != DBL_MAX )
-      cur_secs = secs;
-
-    // form the section list
-    if( j > 0 )
-      if((rc = _cmScParseSectionColumn(p,i,j-1,p->sectList)) != kOkScRC )
-        break;
-
-    // the bar lines don't have times so set the time of the bar line to the
-    // time of the first event in the bar.
-    if( barEvtIdx != cmInvalidIdx && secs != DBL_MAX )
+    if( rc == kOkScRC )
     {
-      assert( p->array[ barEvtIdx ].type == kBarEvtScId );
-      p->array[ barEvtIdx ].secs = secs;
+      if( secs != DBL_MAX )
+        cur_secs = secs;
 
-      // handle the case where the previous bar had no events
-      // BUG BUG BUG this is a hack which will fail if the first bar does not have events.
-      if( barEvtIdx>=1 && p->array[ barEvtIdx-1].type == kBarEvtScId )
-        p->array[ barEvtIdx-1].secs = secs;
+      // form the section list
+      if( j > 0 )
+        if((rc = _cmScParseSectionColumn(p,i,j-1,p->sectList)) != kOkScRC )
+          break;
 
-      barEvtIdx = cmInvalidIdx;
+      // the bar lines don't have times so set the time of the bar line to the
+      // time of the first event in the bar.
+      if( barEvtIdx != cmInvalidIdx && secs != DBL_MAX )
+      {
+        assert( p->array[ barEvtIdx ].type == kBarEvtScId );
+        p->array[ barEvtIdx ].secs = secs;
+
+        // handle the case where the previous bar had no events
+        // BUG BUG BUG this is a hack which will fail if the first bar does not have events.
+        if( barEvtIdx>=1 && p->array[ barEvtIdx-1].type == kBarEvtScId )
+          p->array[ barEvtIdx-1].secs = secs;
+
+        barEvtIdx = cmInvalidIdx;
+      }
     }
     
   }
