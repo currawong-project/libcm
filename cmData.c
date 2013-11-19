@@ -10,6 +10,1318 @@
 #include "cmText.h"
 #include "cmStack.h"
 
+typedef struct
+{
+  cmDataTypeId_t  typeId; 
+  unsigned        byteWidth;
+  const cmChar_t* label;
+} cmDtTypeInfo_t;
+
+typedef struct
+{
+  cmDataContainerId_t id;
+  const cmChar_t* label;
+} cmDtCntInfo_t;
+
+cmDtTypeInfo_t _cmDtTypeInfoArray[] =
+{
+  { kNullDtId,   0,                    "null"           },
+  { kUCharDtId,  sizeof(unsigned char),  "uchar"        },
+  { kCharDtId,   sizeof(char),           "char"         },
+  { kUShortDtId, sizeof(unsigned short), "ushort"       },
+  { kShortDtId,  sizeof(short),          "short"        },
+  { kUIntDtId,   sizeof(unsigned int),   "uint"         },
+  { kIntDtId,    sizeof(int),            "int"          },
+  { kULongDtId,  sizeof(unsigned long),  "ulong"        },
+  { kLongDtId,   sizeof(long),           "long"         },
+  { kFloatDtId,  sizeof(float),          "float"        },
+  { kDoubleDtId, sizeof(double),         "double"       },
+  { kStrDtId,    sizeof(char*),          "string"       },
+  { kBlobDtId,   sizeof(void*),          "blob"         },
+  { kInvalidTypeDtId, 0,               "<invalid-type>" },
+};
+
+cmDtCntInfo_t _cmDtCntInfoArray[] =
+{
+  { kScalarDtId, "scalar" },
+  { kArrayDtId,  "array" },
+  { kListDtId,   "list"  },
+  { kPairDtId,   "pair"  },
+  { kRecordDtId, "record"},
+  { kInvalidCntDtId,"<invalid-container>"}
+};
+
+cmData_t cmDataNull = { kInvalidTypeDtId,kInvalidCntDtId,0,NULL,NULL,0 };
+
+cmDtRC_t _cmDtErrMsgV( const cmData_t* d, cmDtRC_t rc, const cmChar_t* fmt, va_list vl )
+{
+  // REPLACE this with a global cmRpt call.
+  vprintf(fmt,vl);
+  return rc;
+}
+
+cmDtRC_t _cmDtErrMsg( const cmData_t* d, cmDtRC_t rc, const cmChar_t* fmt, ... )
+{
+  va_list vl;
+  va_start(vl,fmt);
+  rc = _cmDtErrMsgV(d,rc,fmt,vl);
+  va_end(vl);
+  return rc;
+}
+
+const cmChar_t* cmDataTypeToLabel( cmDataTypeId_t tid )
+{
+  unsigned i;
+  for(i=0; _cmDtTypeInfoArray[i].typeId!=kInvalidTypeDtId; ++i)
+    if( _cmDtTypeInfoArray[i].typeId == tid )
+      return _cmDtTypeInfoArray[i].label;
+  return NULL;
+}
+
+cmDataTypeId_t   cmDataLabelToType( const cmChar_t* typeLabelStr )
+{
+  unsigned i;
+  for(i=0; _cmDtTypeInfoArray[i].typeId!=kInvalidTypeDtId; ++i)
+    if( strcmp(_cmDtTypeInfoArray[i].label,typeLabelStr) == 0 )
+      return _cmDtTypeInfoArray[i].typeId;
+  return kInvalidTypeDtId;
+}
+
+unsigned cmDataByteWidth( cmDataTypeId_t tid )
+{
+  unsigned i;
+  for(i=0; _cmDtTypeInfoArray[i].typeId!=kInvalidTypeDtId; ++i)
+    if( _cmDtTypeInfoArray[i].typeId == tid )
+      return _cmDtTypeInfoArray[i].byteWidth;
+  return cmInvalidCnt;
+}
+
+const cmChar_t*  cmDataContainerIdToLabel( cmDataContainerId_t tid )
+{
+  unsigned i;
+  for(i=0; _cmDtCntInfoArray[i].id!=kInvalidCntDtId; ++i)
+    if( _cmDtCntInfoArray[i].id == tid )
+      return _cmDtCntInfoArray[i].label;
+  return NULL;  
+}
+
+cmDataContainerId_t  cmDataLabelToContainerId( const cmChar_t* contLabelStr )
+{
+  unsigned i;
+  for(i=0; _cmDtCntInfoArray[i].id!=kInvalidCntDtId; ++i)
+    if( strcmp(_cmDtCntInfoArray[i].label,contLabelStr) == 0 )
+      return _cmDtCntInfoArray[i].id;
+  return kInvalidCntDtId;
+}
+
+bool _cmDataIsDataOwner( const cmData_t* d )
+{ return cmIsFlag(d->flags,kFreeValueDtFl) && (d->cid==kArrayDtId || d->tid==kStrDtId || d->tid==kBlobDtId); }
+
+
+cmDtRC_t  _cmDataFreeData( cmData_t* d )
+{
+  if( _cmDataIsDataOwner(d) )
+  {
+    // A object marked with kFreeValueDtFl should never also be 'const.
+    // (??? is this true ???? )
+    assert( cmIsNotFlag(d->flags,kConstValueDtFl) );
+
+    cmMemPtrFree(&d->u.vp);    
+  }
+
+  d->flags  = cmClrFlag(d->flags,kFreeValueDtFl | kConstValueDtFl );
+  d->tid    = kNullDtId; // objects without data are always of type 'null'.
+  d->cnt    = 0;
+  memset(&d->u,0,sizeof(d->u));
+  return kOkDtRC;
+}
+
+void _cmDataFree( cmData_t* p )
+{
+  if( p == NULL )
+    return;
+
+  if( cmDataIsStruct(p) )
+  {
+    cmData_t* cp = p->u.child;
+    for(; cp!=NULL; cp=cp->sibling)
+      _cmDataFree(cp);
+  }
+    
+  _cmDataFreeData(p);
+
+  if( cmIsFlag(p->flags,kFreeObjDtFl) )
+    cmMemFree(p);
+}
+
+/*
+cmData_t* _cmDataAllocNode( cmData_t* parent, cmDataFmtId_t tid )
+{
+  cmData_t* p = cmMemAllocZ(cmData_t,1);
+  p->tid    = tid;
+  p->flags  = kDynObjDtFl;
+  p->parent = parent;
+  if( parent != NULL )
+    return cmDataAppendChild(parent,p);
+  return p;
+}
+*/
+
+
+// Dynamically allocate a 'null' data object.
+cmDtRC_t _cmDataNew(cmData_t* parent, cmData_t** ref)
+{
+  cmData_t* d = cmMemAllocZ(cmData_t,1);
+  d->tid    = kNullDtId;   // objects without data are of type 'null'.
+  d->cid    = kScalarDtId;
+  d->flags  = kFreeObjDtFl;
+  d->parent = parent;
+  d->cnt = 0;
+
+  if( parent != NULL )
+    cmDataAppendChild(parent,d);  
+
+  *ref = d;
+  return kOkDtRC;
+}
+
+
+bool cmDataIsConstObj( const cmData_t* d )
+{ return cmIsFlag(d->flags,kConstObjDtFl); }
+
+void cmDataEnableConstObj( cmData_t* d, bool enaFl )
+{ d->flags = cmEnaFlag(d->flags,kConstObjDtFl,enaFl); }
+
+bool cmDataIsConstValue( const cmData_t* d )
+{ return cmIsFlag(d->flags,kConstValueDtFl); }
+
+void cmDataEnableConstValue( cmData_t* d, bool enaFl )
+{ d->flags = cmEnaFlag(d->flags,kConstValueDtFl,enaFl); }
+
+bool cmDataIsFreeValue( const cmData_t* d )
+{ return cmIsFlag(d->flags,kFreeValueDtFl); }
+
+void cmDataEnableFreeValue( cmData_t* d, bool enaFl )
+{ d->flags = cmEnaFlag(d->flags,kFreeValueDtFl,enaFl); }
+
+bool cmDataIsLeaf( const cmData_t* d)
+{ return d->cid == kScalarDtId || d->cid == kArrayDtId; }
+
+bool cmDataIsStruct( const cmData_t* d )
+{ return !cmDataIsLeaf(d); }
+
+
+cmDtRC_t cmDataNewScalar( cmData_t* parent, cmDataTypeId_t tid, unsigned flags, void* vp, unsigned byteCnt, cmData_t** ref )
+{
+  cmData_t* d = NULL;
+  cmDtRC_t rc;
+
+  *ref = NULL;
+  
+  // create a scalar null object
+  if((rc = _cmDataNew(parent,&d)) != kOkDtRC )
+    return rc;
+
+  if( tid!=kStrDtId && tid!=kBlobDtId )
+  {
+    // When used with scalars kFreeValueDtFl and kNoCopyDtFl only 
+    // has meaning for strings and blobs - so clear these flags for other types.
+    flags = cmClrFlag(flags,kFreeValueDtFl | kNoCopyDtFl);    
+
+    // if this is not a blob or string then the byteCnt is reset
+    byteCnt = cmDataByteWidth(tid);
+  }
+
+  
+
+  // assign the value
+  if((rc = cmDataSetScalarValue(d,tid,vp,byteCnt,flags)) != kOkDtRC )
+    return rc;
+
+  // set the const flags for the new object
+  d->flags = cmSetFlag(d->flags, flags & (kConstValueDtFl | kConstObjDtFl));
+
+  *ref = d;
+
+  return rc;
+}
+
+cmDtRC_t cmDataNewNull(   cmData_t* parent, unsigned flags, cmData_t** ref )
+{ return _cmDataNew(parent, ref); }
+cmDtRC_t cmDataNewChar(   cmData_t* parent, unsigned flags, char v, cmData_t** ref )
+{ return cmDataNewScalar(parent,kCharDtId,flags,&v,0,ref); }
+cmDtRC_t cmDataNewUChar(  cmData_t* parent, unsigned flags, unsigned char v,  cmData_t** ref )
+{ return cmDataNewScalar(parent,kUCharDtId,flags,&v,0,ref); }
+cmDtRC_t cmDataNewShort(  cmData_t* parent, unsigned flags, short v, cmData_t** ref )
+{ return cmDataNewScalar(parent,kShortDtId,flags,&v,0,ref); }
+cmDtRC_t cmDataNewUShort( cmData_t* parent, unsigned flags, unsigned short v, cmData_t** ref )
+{ return cmDataNewScalar(parent,kUShortDtId,flags,&v,0,ref); }
+cmDtRC_t cmDataNewInt(    cmData_t* parent, unsigned flags, int v,  cmData_t** ref )
+{ return cmDataNewScalar(parent,kIntDtId,flags,&v,0,ref); }
+cmDtRC_t cmDataNewUInt(   cmData_t* parent, unsigned flags, unsigned int v,  cmData_t** ref )
+{ return cmDataNewScalar(parent,kUIntDtId,flags,&v,0,ref); }
+cmDtRC_t cmDataNewLong(   cmData_t* parent, unsigned flags, long v,  cmData_t** ref )
+{ return cmDataNewScalar(parent,kLongDtId,flags,&v,0,ref); }
+cmDtRC_t cmDataNewULong(  cmData_t* parent, unsigned flags, unsigned long v, cmData_t** ref )
+{ return cmDataNewScalar(parent,kULongDtId,flags,&v,0,ref); }
+cmDtRC_t cmDataNewFloat(  cmData_t* parent, unsigned flags, float v, cmData_t** ref )
+{ return cmDataNewScalar(parent,kFloatDtId,flags,&v,0,ref); }
+cmDtRC_t cmDataNewDouble( cmData_t* parent, unsigned flags, double v,  cmData_t** ref )
+{ return cmDataNewScalar(parent,kDoubleDtId,flags,&v,0,ref); }
+cmDtRC_t cmDataNewStr( cmData_t* parent, unsigned flags, cmChar_t* v, cmData_t** ref )
+{ return cmDataNewScalar(parent,kStrDtId,flags,v,strlen(v)+1,ref); }
+cmDtRC_t cmDataNewConstStr( cmData_t* parent, unsigned flags, const cmChar_t* v, cmData_t** ref )
+{ return cmDataNewScalar(parent,kStrDtId,flags | kConstValueDtFl, (void*)v,strlen(v)+1,ref); }
+cmDtRC_t cmDataNewStrN( cmData_t* parent, unsigned flags, cmChar_t* v, unsigned charCnt, cmData_t** ref )
+{ return cmDataNewScalar(parent,kStrDtId,flags,v,charCnt+1,ref); }
+cmDtRC_t cmDataNewConstStrN( cmData_t* parent, unsigned flags, const cmChar_t* v, unsigned charCnt, cmData_t** ref )
+{ return cmDataNewScalar(parent,kStrDtId,flags | kConstValueDtFl, (void*)v,charCnt+1,ref); }
+cmDtRC_t cmDataNewBlob( cmData_t* parent, unsigned flags, void* v, unsigned byteCnt, cmData_t** ref )
+{ return cmDataNewScalar(parent,kBlobDtId,flags,v,byteCnt,ref); }
+cmDtRC_t cmDataNewConstBlob( cmData_t* parent, unsigned flags, const void* v, unsigned byteCnt, cmData_t** ref )
+{ return cmDataNewScalar(parent,kBlobDtId,flags | kConstValueDtFl, (void*)v,byteCnt,ref); }
+
+
+cmDtRC_t  cmDataSetScalarValue( cmData_t* d, cmDataTypeId_t tid, void* vp, unsigned byteCnt, unsigned flags )
+{
+  cmDtRC_t rc;
+
+  // if the type of the object is changing
+  if( d->tid != tid || d->cid != kScalarDtId )
+  {
+    // verify that it is legal to change the type of the object
+    if( cmIsFlag(d->flags,kConstObjDtFl) )
+      return _cmDtErrMsg(d,kConstErrDtRC,"Const object violation.");
+
+    // convert this to a scalar null object.
+    if((rc = _cmDataFreeData(d)) != kOkDtRC )
+      return rc;
+  }
+
+  // verify that it is legal to change the value of this object
+  if( cmIsFlag(d->flags,kConstValueDtFl) )
+    return _cmDtErrMsg(d,kConstErrDtRC,"Const value violation.");
+
+  switch( tid )
+  {
+    case kInvalidTypeDtId:    
+      return  _cmDtErrMsg(d,kAssertErrDtRC,"Invalid data type.");
+
+    case kNullDtId: // 'd' is already NULL.      
+      break;
+      
+    case kUCharDtId:   d->u.uc = *(unsigned char*)vp;  break;
+    case kCharDtId:    d->u.c  = *(char*)vp;           break;  
+    case kUShortDtId:  d->u.us = *(unsigned short*)vp; break;   
+    case kShortDtId:   d->u.s  = *(short*)vp;          break;  
+    case kUIntDtId:    d->u.ui = *(unsigned int*)vp;   break;  
+    case kIntDtId:     d->u.i  = *(int*)vp;            break;  
+    case kULongDtId:   d->u.ul = *(unsigned long*)vp;  break;  
+    case kLongDtId:    d->u.l  = *(long*)vp;           break;  
+    case kFloatDtId:   d->u.f  = *(float*)vp;          break;  
+    case kDoubleDtId:  d->u.d  = *(double*)vp;         break;
+    case kStrDtId:  
+    case kBlobDtId:
+      {
+        cmChar_t* blankStr = "";
+
+        // strings must have a byteCnt of at least one
+        assert( tid==kBlobDtId || (tid==kStrDtId && byteCnt>0) );
+
+        // if a NULL source string is encountered then make it a 0 length string
+        if( d->tid==kStrDtId && vp==NULL )
+          vp = blankStr;
+
+        // if an empty blob was passed in then be sure it's src ptr is NULL and byteCnt==0
+        if( d->tid==kBlobDtId && (vp==NULL || byteCnt==0) )
+        {
+          if((rc = _cmDataFreeData(d)) != kOkDtRC )
+            return rc;
+
+          byteCnt = 0;
+          d->u.z  = NULL;
+          break;
+        }
+
+        // if the incoming string/blob should be internally duplicated
+        if( cmIsNotFlag(flags,kNoCopyDtFl) )
+        {
+
+          // allocate internal space to store the incoming data
+          if( (d->tid==kBlobDtId || d->tid == kStrDtId) && cmIsFlag(d->flags,kFreeValueDtFl) )
+            d->u.z = cmMemResize(char,d->u.z,byteCnt);
+          else
+            d->u.z = cmMemAlloc(char,byteCnt);
+
+          // store the source string/blob into the internal memory buffer
+          memcpy(d->u.z,vp,byteCnt);
+
+          // by default the system now takes responsibility for freeing this buffer
+          d->flags |= kFreeValueDtFl;
+        }
+        else // the incoming string/blob pointer is simply being assigned w/o duplication
+        {
+          // free the objects previous value ...
+          if((rc = _cmDataFreeData(d)) != kOkDtRC )
+            return rc;
+          
+          // and assign the new value (without reallocating the string)
+          d->u.z    = vp;
+
+          d->flags  = cmEnaFlag(d->flags,kFreeValueDtFl,cmIsFlag(flags,kFreeValueDtFl));
+          d->flags |= kNoCopyDtFl;
+        }
+      }
+      break;
+      
+    default:
+      break;
+  }
+
+  // we can't set this above because the string type relies
+  // on knowing the previous type of the object
+  d->cid = kScalarDtId;
+  d->tid = tid;
+  d->cnt = byteCnt;
+  return rc;
+}
+
+cmDtRC_t cmDataSetNull(      cmData_t* d )
+{ return cmDataSetScalarValue(d, kNullDtId, NULL, 0, kNoFlagsDtFl ); }
+cmDtRC_t cmDataSetChar(      cmData_t* d, char v )
+{ return cmDataSetScalarValue(d, kCharDtId, &v, 0, kNoFlagsDtFl ); }
+cmDtRC_t cmDataSetUChar(     cmData_t* d, unsigned char v )
+{ return cmDataSetScalarValue(d, kUCharDtId, &v, 0, kNoFlagsDtFl ); }
+cmDtRC_t cmDataSetShort(     cmData_t* d, short v )
+{ return cmDataSetScalarValue(d, kShortDtId, &v, 0, kNoFlagsDtFl ); }
+cmDtRC_t cmDataSetUShort(    cmData_t* d, unsigned short v )
+{ return cmDataSetScalarValue(d, kUShortDtId, &v, 0, kNoFlagsDtFl ); }
+cmDtRC_t cmDataSetInt(       cmData_t* d, int v )
+{ return cmDataSetScalarValue(d, kIntDtId, &v, 0, kNoFlagsDtFl ); }
+cmDtRC_t cmDataSetUInt(      cmData_t* d, unsigned int v )
+{ return cmDataSetScalarValue(d, kUIntDtId, &v, 0, kNoFlagsDtFl ); }
+cmDtRC_t cmDataSetLong(      cmData_t* d, long v )
+{ return cmDataSetScalarValue(d, kLongDtId, &v, 0, kNoFlagsDtFl ); }
+cmDtRC_t cmDataSetULong(     cmData_t* d, unsigned long v )
+{ return cmDataSetScalarValue(d, kULongDtId, &v, 0, kNoFlagsDtFl ); }
+cmDtRC_t cmDataSetFloat(     cmData_t* d, float v )
+{ return cmDataSetScalarValue(d, kFloatDtId, &v, 0, kNoFlagsDtFl ); }
+cmDtRC_t cmDataSetDouble(    cmData_t* d, double v )
+{ return cmDataSetScalarValue(d, kDoubleDtId, &v, 0, kNoFlagsDtFl ); }
+cmDtRC_t cmDataSetStr(       cmData_t* d, unsigned flags, cmChar_t* v )
+{ return cmDataSetScalarValue(d, kStrDtId, v, v==NULL ? 1 : strlen(v)+1, flags ); }
+cmDtRC_t cmDataSetConstStr(  cmData_t* d, unsigned flags, const cmChar_t* v )
+{ return cmDataSetScalarValue(d, kStrDtId, (void*)v, v==NULL ? 1 : strlen(v)+1, flags |= kConstValueDtFl ); }
+cmDtRC_t cmDataSetStrN(      cmData_t* d, unsigned flags, cmChar_t* v, unsigned charCnt )
+{ return cmDataSetScalarValue(d, kStrDtId, (void*)v, v==NULL ? 1 : charCnt+1, flags); }
+cmDtRC_t cmDataSetConstStrN( cmData_t* d, unsigned flags, const cmChar_t* v, unsigned charCnt )
+{ return cmDataSetScalarValue(d, kStrDtId, (void*)v, v==NULL ? 1 : charCnt+1, flags |= kConstValueDtFl); }
+cmDtRC_t cmDataSetBlob(      cmData_t* d, unsigned flags, void* v, unsigned byteCnt )
+{ return cmDataSetScalarValue(d, kBlobDtId, v, byteCnt, flags); }
+cmDtRC_t cmDataSetConstBlob( cmData_t* d, unsigned flags, const void* v, unsigned byteCnt )
+{ return cmDataSetScalarValue(d, kBlobDtId, (void*)v, byteCnt, flags |= kConstValueDtFl); }
+
+
+
+cmDtRC_t cmDataChar(      const cmData_t* d, char* v )
+{
+  if( d->tid != kCharDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:char but encountered type:%s.",cmDataTypeToLabel(d->tid));
+  *v = d->u.c;
+  return kOkDtRC; 
+}
+
+cmDtRC_t cmDataUChar(     const cmData_t* d, unsigned char* v )
+{
+  if( d->tid != kUCharDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:uchar but encountered type:%s.",cmDataTypeToLabel(d->tid));
+  *v = d->u.uc;
+  return kOkDtRC; 
+}
+
+cmDtRC_t cmDataShort(     const cmData_t* d, short* v )
+{
+  if( d->tid != kShortDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:short but encountered type:%s.",cmDataTypeToLabel(d->tid));
+  *v = d->u.s;
+  return kOkDtRC; 
+}
+
+cmDtRC_t cmDataUShort(    const cmData_t* d, unsigned short* v )
+{
+  if( d->tid != kUShortDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:ushort but encountered type:%s.",cmDataTypeToLabel(d->tid));
+  *v = d->u.us;
+  return kOkDtRC; 
+}
+
+cmDtRC_t cmDataInt(       const cmData_t* d, int* v )
+{
+  if( d->tid != kIntDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:int but encountered type:%s.",cmDataTypeToLabel(d->tid));
+  *v = d->u.i;
+  return kOkDtRC; 
+}
+
+cmDtRC_t cmDataUInt(      const cmData_t* d, unsigned int* v )
+{
+  if( d->tid != kUIntDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:uint but encountered type:%s.",cmDataTypeToLabel(d->tid));
+  *v = d->u.ui;
+  return kOkDtRC; 
+}
+
+cmDtRC_t cmDataLong(      const cmData_t* d, long* v )
+{
+  if( d->tid != kLongDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:long but encountered type:%s.",cmDataTypeToLabel(d->tid));
+  *v = d->u.l;
+  return kOkDtRC; 
+}
+
+cmDtRC_t cmDataULong(     const cmData_t* d, unsigned long* v )
+{
+  if( d->tid != kULongDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:ulong but encountered type:%s.",cmDataTypeToLabel(d->tid));
+  *v = d->u.ul;
+  return kOkDtRC; 
+}
+
+cmDtRC_t cmDataFloat(     const cmData_t* d, float* v )
+{
+  if( d->tid != kFloatDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:float but encountered type:%s.",cmDataTypeToLabel(d->tid));
+  *v = d->u.f;
+  return kOkDtRC; 
+}
+
+cmDtRC_t cmDataDouble(    const cmData_t* d, double* v )
+{
+  if( d->tid != kDoubleDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:double but encountered type:%s.",cmDataTypeToLabel(d->tid));
+  *v = d->u.d;
+  return kOkDtRC; 
+}
+
+cmDtRC_t cmDataStr(       const cmData_t* d, cmChar_t** v )
+{
+  if( d->tid != kStrDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:string but encountered type:%s.",cmDataTypeToLabel(d->tid));
+
+  if( cmIsFlag(d->flags,kConstValueDtFl) )
+    return _cmDtErrMsg(d,kConstErrDtRC,"A const string cannot return as a non-const string.");
+
+  *v = d->u.z;
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataConstStr(  const cmData_t* d, const cmChar_t** v )
+{
+  if( d->tid != kStrDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:string but encountered type:%s.",cmDataTypeToLabel(d->tid));
+
+  *v = d->u.z;
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataBlob(       const cmData_t* d, cmChar_t** v, unsigned* byteCntRef )
+{
+  if( v != NULL )
+    *v = NULL;
+
+  if( byteCntRef != NULL )
+    *byteCntRef = 0;
+
+  if( d->tid != kBlobDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:string but encountered type:%s.",cmDataTypeToLabel(d->tid));
+
+  if( v != NULL )
+    *v = d->u.z;
+
+  if( byteCntRef != NULL )
+    *byteCntRef = d->cnt;
+
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataConstBlob(  const cmData_t* d, const cmChar_t** v, unsigned* byteCntRef )
+{
+  if( v != NULL )
+    *v = NULL;
+
+  if( byteCntRef != NULL )
+    *byteCntRef = 0;
+
+  if( d->tid != kBlobDtId )
+    return _cmDtErrMsg(d,kInvalidTypeDtRC,"Expected type:string but encountered type:%s.",cmDataTypeToLabel(d->tid));
+
+  if( v != NULL )
+    *v = d->u.z;
+
+  if( byteCntRef != NULL )
+    *byteCntRef = d->cnt;
+
+  return kOkDtRC;
+}
+
+
+cmDtRC_t  cmDataGetUChar( const cmData_t* p, unsigned char* vp )
+{
+  if( p->cid != kScalarDtId )
+    return _cmDtErrMsg(p,kInvalidContDtRC,"Cannot convert a non-scalar value to a scalar value.");
+
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp =                p->u.uc; break;
+    case kCharDtId:   *vp = (unsigned char)p->u.c;  break;
+    case kUShortDtId: *vp = (unsigned char)p->u.us; break;
+    case kShortDtId:  *vp = (unsigned char)p->u.s;  break;
+    case kUIntDtId:   *vp = (unsigned char)p->u.ui; break;
+    case kIntDtId:    *vp = (unsigned char)p->u.i;  break;
+    case kULongDtId:  *vp = (unsigned char)p->u.ul; break;
+    case kLongDtId:   *vp = (unsigned char)p->u.l;  break;
+    case kFloatDtId:  *vp = (unsigned char)p->u.f;  break;
+    case kDoubleDtId: *vp = (unsigned char)p->u.d;  break;
+    default:
+      return _cmDtErrMsg(p,kCvtErrDtRC,"Cannot convert '%s' to 'uchar'.",cmDataTypeToLabel(p->tid));
+  }
+  return kOkDtRC;
+}
+
+cmDtRC_t  cmDataGetChar( const cmData_t* p, char* vp )
+{
+  if( p->cid != kScalarDtId )
+    return _cmDtErrMsg(p,kInvalidContDtRC,"Cannot convert a non-scalar value to a scalar value.");
+
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp = (char)p->u.uc; break;
+    case kCharDtId:   *vp =       p->u.c;  break;
+    case kUShortDtId: *vp = (char)p->u.us; break;
+    case kShortDtId:  *vp = (char)p->u.s;  break;
+    case kUIntDtId:   *vp = (char)p->u.ui; break;
+    case kIntDtId:    *vp = (char)p->u.i;  break;
+    case kULongDtId:  *vp = (char)p->u.ul; break;
+    case kLongDtId:   *vp = (char)p->u.l;  break;
+    case kFloatDtId:  *vp = (char)p->u.f;  break;
+    case kDoubleDtId: *vp = (char)p->u.d;  break;
+    default:
+      return _cmDtErrMsg(p,kCvtErrDtRC,"Cannot convert '%s' to 'char'.",cmDataTypeToLabel(p->tid));
+  }
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataGetShort(     const cmData_t* p, short* vp )
+{
+  if( p->cid != kScalarDtId )
+    return _cmDtErrMsg(p,kInvalidContDtRC,"Cannot convert a non-scalar value to a scalar value.");
+
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp = (short)p->u.uc; break;
+    case kCharDtId:   *vp = (short)p->u.c;  break;
+    case kUShortDtId: *vp = (short)p->u.us; break;
+    case kShortDtId:  *vp =        p->u.s;  break;
+    case kUIntDtId:   *vp = (short)p->u.ui; break;
+    case kIntDtId:    *vp = (short)p->u.i;  break;
+    case kULongDtId:  *vp = (short)p->u.ul; break;
+    case kLongDtId:   *vp = (short)p->u.l;  break;
+    case kFloatDtId:  *vp = (short)p->u.f;  break;
+    case kDoubleDtId: *vp = (short)p->u.d;  break;
+    default:
+      return _cmDtErrMsg(p,kCvtErrDtRC,"Cannot convert '%s' to 'short'.",cmDataTypeToLabel(p->tid));
+
+  }
+  return kOkDtRC;
+}
+
+
+cmDtRC_t  cmDataGetUShort(    const cmData_t* p, unsigned short* vp )
+{
+  if( p->cid != kScalarDtId )
+    return _cmDtErrMsg(p,kInvalidContDtRC,"Cannot convert a non-scalar value to a scalar value.");
+
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp = (unsigned short)p->u.uc; break;
+    case kCharDtId:   *vp = (unsigned short)p->u.c;  break;
+    case kUShortDtId: *vp =                 p->u.us; break;
+    case kShortDtId:  *vp = (unsigned short)p->u.s;  break;
+    case kUIntDtId:   *vp = (unsigned short)p->u.ui; break;
+    case kIntDtId:    *vp = (unsigned short)p->u.i;  break;
+    case kULongDtId:  *vp = (unsigned short)p->u.ul; break;
+    case kLongDtId:   *vp = (unsigned short)p->u.l;  break;
+    case kFloatDtId:  *vp = (unsigned short)p->u.f;  break;
+    case kDoubleDtId: *vp = (unsigned short)p->u.d;  break;
+    default:
+      return _cmDtErrMsg(p,kCvtErrDtRC,"Cannot convert '%s' to 'ushort'.",cmDataTypeToLabel(p->tid));
+
+  }
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataGetInt(       const cmData_t* p, int* vp )
+{
+  if( p->cid != kScalarDtId )
+    return _cmDtErrMsg(p,kInvalidContDtRC,"Cannot convert a non-scalar value to a scalar value.");
+
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp = (int)p->u.uc; break;
+    case kCharDtId:   *vp = (int)p->u.c;  break;
+    case kUShortDtId: *vp = (int)p->u.us; break;
+    case kShortDtId:  *vp = (int)p->u.s;  break;
+    case kUIntDtId:   *vp = (int)p->u.ui; break;
+    case kIntDtId:    *vp =      p->u.i;  break;
+    case kULongDtId:  *vp = (int)p->u.ul; break;
+    case kLongDtId:   *vp = (int)p->u.l;  break;
+    case kFloatDtId:  *vp = (int)p->u.f;  break;
+    case kDoubleDtId: *vp = (int)p->u.d;  break;
+    default:
+      return _cmDtErrMsg(p,kCvtErrDtRC,"Cannot convert '%s' to 'int'.",cmDataTypeToLabel(p->tid));
+
+  }
+  return kOkDtRC;
+}
+
+cmDtRC_t    cmDataGetUInt(      const cmData_t* p, unsigned int* vp )
+{
+  if( p->cid != kScalarDtId )
+    return _cmDtErrMsg(p,kInvalidContDtRC,"Cannot convert a non-scalar value to a scalar value.");
+
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp = (unsigned int)p->u.uc; break;
+    case kCharDtId:   *vp = (unsigned int)p->u.c;  break;
+    case kUShortDtId: *vp = (unsigned int)p->u.us; break;
+    case kShortDtId:  *vp = (unsigned int)p->u.s;  break;
+    case kUIntDtId:   *vp =               p->u.ui; break;
+    case kIntDtId:    *vp = (unsigned int)p->u.i;  break;
+    case kULongDtId:  *vp = (unsigned int)p->u.ul; break;
+    case kLongDtId:   *vp = (unsigned int)p->u.l;  break;
+    case kFloatDtId:  *vp = (unsigned int)p->u.f;  break;
+    case kDoubleDtId: *vp = (unsigned int)p->u.d;  break;
+    default:
+      return _cmDtErrMsg(p,kCvtErrDtRC,"Cannot convert '%s' to 'uint'.",cmDataTypeToLabel(p->tid));
+
+  }
+  return kOkDtRC;
+}
+
+cmDtRC_t  cmDataGetLong( const cmData_t* p, long* vp )
+{
+  if( p->cid != kScalarDtId )
+    return _cmDtErrMsg(p,kInvalidContDtRC,"Cannot convert a non-scalar value to a scalar value.");
+
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp = (long)p->u.uc; break;
+    case kCharDtId:   *vp = (long)p->u.c;  break;
+    case kUShortDtId: *vp = (long)p->u.us; break;
+    case kShortDtId:  *vp = (long)p->u.s;  break;
+    case kUIntDtId:   *vp = (long)p->u.ui; break;
+    case kIntDtId:    *vp = (long)p->u.i;  break;
+    case kULongDtId:  *vp = (long)p->u.ul; break;
+    case kLongDtId:   *vp =       p->u.l;  break;
+    case kFloatDtId:  *vp = (long)p->u.f;  break;
+    case kDoubleDtId: *vp = (long)p->u.d;  break;
+    default:
+      return _cmDtErrMsg(p,kCvtErrDtRC,"Cannot convert '%s' to 'long'.",cmDataTypeToLabel(p->tid));
+
+  }
+  return kOkDtRC;
+}
+
+cmDtRC_t   cmDataGetULong(     const cmData_t* p, unsigned long* vp )
+{
+  if( p->cid != kScalarDtId )
+    return _cmDtErrMsg(p,kInvalidContDtRC,"Cannot convert a non-scalar value to a scalar value.");
+
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp = (unsigned long)p->u.uc; break;
+    case kCharDtId:   *vp = (unsigned long)p->u.c;  break;
+    case kUShortDtId: *vp = (unsigned long)p->u.us; break;
+    case kShortDtId:  *vp = (unsigned long)p->u.s;  break;
+    case kUIntDtId:   *vp = (unsigned long)p->u.ui; break;
+    case kIntDtId:    *vp = (unsigned long)p->u.i;  break;
+    case kULongDtId:  *vp =                p->u.ul; break;
+    case kLongDtId:   *vp = (unsigned long)p->u.l;  break;
+    case kFloatDtId:  *vp = (unsigned long)p->u.f;  break;
+    case kDoubleDtId: *vp = (unsigned long)p->u.d;  break;
+    default:
+      return _cmDtErrMsg(p,kCvtErrDtRC,"Cannot convert '%s' to 'ulong'.",cmDataTypeToLabel(p->tid));
+
+  }
+  return kOkDtRC;
+}
+
+cmDtRC_t   cmDataGetFloat(     const cmData_t* p, float* vp )
+{
+  if( p->cid != kScalarDtId )
+    return _cmDtErrMsg(p,kInvalidContDtRC,"Cannot convert a non-scalar value to a scalar value.");
+
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp = (float)p->u.uc; break;
+    case kCharDtId:   *vp = (float)p->u.c;  break;
+    case kUShortDtId: *vp = (float)p->u.us; break;
+    case kShortDtId:  *vp = (float)p->u.s;  break;
+    case kUIntDtId:   *vp = (float)p->u.ui; break;
+    case kIntDtId:    *vp = (float)p->u.i;  break;
+    case kULongDtId:  *vp = (float)p->u.ul; break;
+    case kLongDtId:   *vp = (float)p->u.l;  break;
+    case kFloatDtId:  *vp =        p->u.f;  break;
+    case kDoubleDtId: *vp = (float)p->u.d;  break;
+    default:
+      return _cmDtErrMsg(p,kCvtErrDtRC,"Cannot convert '%s' to 'float'.",cmDataTypeToLabel(p->tid));
+
+  }
+  return kOkDtRC;
+}
+
+cmDtRC_t  cmDataGetDouble(    const cmData_t* p, double* vp )
+{
+  if( p->cid != kScalarDtId )
+    return _cmDtErrMsg(p,kInvalidContDtRC,"Cannot convert a non-scalar value to a scalar value.");
+
+  switch( p->tid )
+  {
+    case kUCharDtId:  *vp = (double)p->u.uc; break;
+    case kCharDtId:   *vp = (double)p->u.c;  break;
+    case kUShortDtId: *vp = (double)p->u.us; break;
+    case kShortDtId:  *vp = (double)p->u.s;  break;
+    case kUIntDtId:   *vp = (double)p->u.ui; break;
+    case kIntDtId:    *vp = (double)p->u.i;  break;
+    case kULongDtId:  *vp = (double)p->u.ul; break;
+    case kLongDtId:   *vp = (double)p->u.l;  break;
+    case kFloatDtId:  *vp = (double)p->u.f;  break;
+    case kDoubleDtId: *vp =         p->u.d;  break;
+    default:
+      return _cmDtErrMsg(p,kCvtErrDtRC,"Cannot convert '%s' to 'double'.",cmDataTypeToLabel(p->tid));
+
+  }
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataNewArray( cmData_t* parent, cmDataTypeId_t tid, void* vp, unsigned eleCnt, unsigned flags, cmData_t** ref )
+{
+  cmDtRC_t rc;
+  cmData_t* d = NULL;
+
+  *ref = NULL;
+
+  // create a new 'null' object
+  if((rc = _cmDataNew(parent, &d)) != kOkDtRC )
+    return rc;
+
+  // assign the value
+  if((rc = cmDataSetArrayValue(d,tid,vp,eleCnt,flags)) != kOkDtRC )
+    return rc;
+
+  // set the flags for the new object
+  d->flags = cmSetFlag(d->flags, flags & (kConstValueDtFl | kConstObjDtFl | kNoCopyDtFl));
+
+  *ref = d;
+
+  return rc;
+
+}
+
+cmDtRC_t cmDataNewCharArray(   cmData_t* parent, char* v,  unsigned eleCnt, unsigned flags, cmData_t** ref )
+{ return cmDataNewArray(parent, kCharDtId, v, eleCnt, flags, ref ); }
+cmDtRC_t cmDataNewUCharArray(  cmData_t* parent, unsigned char* v,  unsigned eleCnt, unsigned flags, cmData_t** ref )
+{ return cmDataNewArray(parent, kUCharDtId, v, eleCnt, flags, ref ); }
+cmDtRC_t cmDataNewShortArray(  cmData_t* parent, short* v,          unsigned eleCnt, unsigned flags, cmData_t** ref )
+{ return cmDataNewArray(parent, kShortDtId, v, eleCnt, flags, ref ); }
+cmDtRC_t cmDataNewUShortArray( cmData_t* parent, unsigned short* v, unsigned eleCnt, unsigned flags, cmData_t** ref )
+{ return cmDataNewArray(parent, kUShortDtId, v, eleCnt, flags, ref ); }
+cmDtRC_t cmDataNewIntArray(    cmData_t* parent, int* v,            unsigned eleCnt, unsigned flags, cmData_t** ref )
+{ return cmDataNewArray(parent, kIntDtId, v, eleCnt, flags, ref ); }
+cmDtRC_t cmDataNewUIntArray(   cmData_t* parent, unsigned int* v,   unsigned eleCnt, unsigned flags, cmData_t** ref )
+{ return cmDataNewArray(parent, kUIntDtId, v, eleCnt, flags, ref ); }
+cmDtRC_t cmDataNewLongArray(   cmData_t* parent, long* v,           unsigned eleCnt, unsigned flags, cmData_t** ref )
+{ return cmDataNewArray(parent, kLongDtId, v, eleCnt, flags, ref ); }
+cmDtRC_t cmDataNewULongArray(  cmData_t* parent, unsigned long* v,  unsigned eleCnt, unsigned flags, cmData_t** ref )
+{ return cmDataNewArray(parent, kULongDtId, v, eleCnt, flags, ref ); }
+cmDtRC_t cmDataNewFloatArray(  cmData_t* parent, float* v,          unsigned eleCnt, unsigned flags, cmData_t** ref )
+{ return cmDataNewArray(parent, kFloatDtId, v, eleCnt, flags, ref ); }
+cmDtRC_t cmDataNewDoubleArray( cmData_t* parent, double* v,         unsigned eleCnt, unsigned flags, cmData_t** ref )
+{ return cmDataNewArray(parent, kDoubleDtId, v, eleCnt, flags, ref ); }
+cmDtRC_t cmDataNewStrArray(    cmData_t* parent, cmChar_t** v,       unsigned eleCnt, unsigned flags, cmData_t** ref )
+{  return cmDataNewArray(parent, kStrDtId, v, eleCnt, flags, ref );  }
+cmDtRC_t cmDataNewConstStrArray( cmData_t* parent, const cmChar_t** v,unsigned eleCnt, unsigned flags, cmData_t** ref )
+{  return cmDataNewArray(parent, kStrDtId, (cmChar_t**)v, eleCnt, flags, ref );  }
+
+
+cmDtRC_t cmDataSetArrayValue( cmData_t* d, cmDataTypeId_t tid, void* vp, unsigned eleCnt, unsigned flags )
+{
+  cmDtRC_t rc = kOkDtRC;
+
+  // if the type of the object is changing
+  if( d->tid != tid || d->cid != kScalarDtId )
+  {
+    // verify that it is legal to change the type of the object
+    if( cmIsFlag(d->flags,kConstObjDtFl) )
+      return _cmDtErrMsg(d,kConstErrDtRC,"Const object violation.");
+
+    // convert this to a scalar null object.
+    if((rc = _cmDataFreeData(d)) != kOkDtRC )
+      return rc;
+  }
+
+  // verify that it is legal to change the value of this object
+  if( cmIsFlag(d->flags,kConstValueDtFl) )
+    return _cmDtErrMsg(d,kConstErrDtRC,"Const value violation.");
+
+
+  // if the array should be reallocated 
+  if( cmIsNotFlag(flags,kNoCopyDtFl) )
+  {
+    unsigned byteCnt = cmDataByteWidth(tid) * eleCnt;
+
+    // reallocate a new string
+    if( d->cid == kArrayDtId && cmIsFlag(d->flags,kFreeValueDtFl) )
+      d->u.vp = cmMemResize(char,d->u.z,byteCnt);
+    else
+      d->u.vp = cmMemAlloc(char,byteCnt);
+
+    memcpy(d->u.z,vp,byteCnt);
+
+    d->flags |= kFreeValueDtFl;
+  }
+  else
+  {
+    // free the previous value ...
+    if((rc = _cmDataFreeData(d)) != kOkDtRC )
+      return rc;
+    
+    // and assign the new value (without reallocating the array)
+    d->u.vp    = vp;
+
+    d->flags  = cmEnaFlag(d->flags,kFreeValueDtFl,cmIsFlag(flags,kFreeValueDtFl));
+
+  }
+
+  // we can't set this above because the string type relies
+  // on knowing the previous type of the object
+  d->cid    = kArrayDtId;
+  d->tid    = tid;
+  d->cnt    = eleCnt;
+
+  return rc;
+
+}
+
+cmDtRC_t cmDataSetCharArray(   cmData_t* d, char* v,           unsigned eleCnt, unsigned flags )
+{ return cmDataSetArrayValue(d, kCharDtId, v, eleCnt, flags ); }
+cmDtRC_t cmDataSetUCharArray(  cmData_t* d, unsigned char* v,  unsigned eleCnt, unsigned flags )
+{ return cmDataSetArrayValue(d, kUCharDtId, v, eleCnt, flags ); }
+cmDtRC_t cmDataSetShortArray(  cmData_t* d, short* v,          unsigned eleCnt, unsigned flags )
+{ return cmDataSetArrayValue(d, kShortDtId, v, eleCnt, flags ); }
+cmDtRC_t cmDataSetUShortArray( cmData_t* d, unsigned short* v, unsigned eleCnt, unsigned flags )
+{ return cmDataSetArrayValue(d, kUShortDtId, v, eleCnt, flags ); }
+cmDtRC_t cmDataSetIntArray(    cmData_t* d, int* v,            unsigned eleCnt, unsigned flags )
+{ return cmDataSetArrayValue(d, kIntDtId, v, eleCnt, flags ); }
+cmDtRC_t cmDataSetUIntArray(   cmData_t* d, unsigned int* v,   unsigned eleCnt, unsigned flags )
+{ return cmDataSetArrayValue(d, kUIntDtId, v, eleCnt, flags ); }
+cmDtRC_t cmDataSetLongArray(   cmData_t* d, long* v,           unsigned eleCnt, unsigned flags )
+{ return cmDataSetArrayValue(d, kLongDtId, v, eleCnt, flags ); }
+cmDtRC_t cmDataSetULongArray(  cmData_t* d, unsigned long* v,  unsigned eleCnt, unsigned flags )
+{ return cmDataSetArrayValue(d, kULongDtId, v, eleCnt, flags ); }
+cmDtRC_t cmDataSetFloatArray(  cmData_t* d, float* v,          unsigned eleCnt, unsigned flags )
+{ return cmDataSetArrayValue(d, kFloatDtId, v, eleCnt, flags ); }
+cmDtRC_t cmDataSetDoubleArray( cmData_t* d, double* v,         unsigned eleCnt, unsigned flags )
+{ return cmDataSetArrayValue(d, kDoubleDtId, v, eleCnt, flags ); }
+cmDtRC_t cmDataSetStrArray(    cmData_t* d, cmChar_t** v,      unsigned eleCnt, unsigned flags )
+{ return cmDataSetArrayValue(d, kStrDtId, v, eleCnt, flags ); }
+cmDtRC_t cmDataSetConstStrArray(cmData_t* d,const cmChar_t** v,unsigned eleCnt, unsigned flags )
+{ return cmDataSetArrayValue(d, kStrDtId, (cmChar_t**)v, eleCnt, flags ); }
+
+
+unsigned cmDataArrayEleCount( const cmData_t* d )
+{ return d->cid==kArrayDtId ? d->cnt : 0; }
+
+
+cmDtRC_t cmDataCharArray(      const cmData_t* d, char** v )
+{
+  if( d->cid != kArrayDtId )
+    return _cmDtErrMsg(d,kInvalidContDtRC,"Cannot return an array base for a %s container.",cmDataContainerIdToLabel(d->cid));
+  *v = (char*)d->u.vp;
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataUCharArray(     const cmData_t* d, unsigned char** v )
+{
+  if( d->cid != kArrayDtId )
+    return _cmDtErrMsg(d,kInvalidContDtRC,"Cannot return an array base for a %s container.",cmDataContainerIdToLabel(d->cid));
+  *v = (unsigned char*)d->u.vp;
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataShortArray(     const cmData_t* d, short** v )
+{
+  if( d->cid != kArrayDtId )
+    return _cmDtErrMsg(d,kInvalidContDtRC,"Cannot return an array base for a %s container.",cmDataContainerIdToLabel(d->cid));
+  *v = (short*)d->u.vp;
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataUShortArray(    const cmData_t* d, unsigned short** v )
+{
+  if( d->cid != kArrayDtId )
+    return _cmDtErrMsg(d,kInvalidContDtRC,"Cannot return an array base for a %s container.",cmDataContainerIdToLabel(d->cid));
+  *v = (unsigned short*)d->u.vp;
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataIntArray(       const cmData_t* d, int** v )
+{
+  if( d->cid != kArrayDtId )
+    return _cmDtErrMsg(d,kInvalidContDtRC,"Cannot return an array base for a %s container.",cmDataContainerIdToLabel(d->cid));
+  *v = (int*)d->u.vp;
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataUIntArray(      const cmData_t* d, unsigned int** v )
+{
+  if( d->cid != kArrayDtId )
+    return _cmDtErrMsg(d,kInvalidContDtRC,"Cannot return an array base for a %s container.",cmDataContainerIdToLabel(d->cid));
+  *v = (unsigned int*)d->u.vp;
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataLongArray(      const cmData_t* d, long** v )
+{
+  if( d->cid != kArrayDtId )
+    return _cmDtErrMsg(d,kInvalidContDtRC,"Cannot return an array base for a %s container.",cmDataContainerIdToLabel(d->cid));
+  *v = (long*)d->u.vp;
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataULongArray(     const cmData_t* d, unsigned long** v )
+{
+  if( d->cid != kArrayDtId )
+    return _cmDtErrMsg(d,kInvalidContDtRC,"Cannot return an array base for a %s container.",cmDataContainerIdToLabel(d->cid));
+  *v = (unsigned long*)d->u.vp;
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataFloatArray(     const cmData_t* d, float** v )
+{
+  if( d->cid != kArrayDtId )
+    return _cmDtErrMsg(d,kInvalidContDtRC,"Cannot return an array base for a %s container.",cmDataContainerIdToLabel(d->cid));
+  *v = (float*)d->u.vp;
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataDoubleArray(    const cmData_t* d, double** v )
+{
+  if( d->cid != kArrayDtId )
+    return _cmDtErrMsg(d,kInvalidContDtRC,"Cannot return an array base for a %s container.",cmDataContainerIdToLabel(d->cid));
+  *v = (double*)d->u.vp;
+  return kOkDtRC;
+}
+
+cmDtRC_t cmDataStrArray(       const cmData_t* d, cmChar_t*** v )
+{
+}
+
+cmDtRC_t cmDataConstStrArray(  const cmData_t* d, const cmChar_t*** v )
+{
+}
+
+
+
+
+//----------------------------------------------------------------------------
+// Structure related functions
+//
+
+
+void  cmDataFree( cmData_t* p )
+{
+  _cmDataFree(p);
+}
+
+cmData_t* cmDataUnlink( cmData_t* p )
+{
+  if( p->parent == NULL )
+    return p;
+
+  assert( cmDataIsStruct(p->parent) );
+
+  cmData_t* cp = p->u.child;
+  cmData_t* pp = NULL;
+  for(; cp!=NULL; cp=cp->sibling)
+    if( cp == p )
+    {
+      if( pp == NULL )
+        p->parent->u.child = p->sibling;
+      else
+        pp->sibling = cp->sibling;
+    }
+  return p;
+}
+
+void cmDataUnlinkAndFree( cmData_t* p )
+{
+  cmDataUnlink(p);
+  cmDataFree(p);
+}
+
+cmDtRC_t _cmDataDupl( const cmData_t* d, cmData_t* parent, cmData_t** ref )
+{
+  cmData_t* rp = NULL;
+
+  *ref = NULL;
+
+  switch( d->cid )
+  {
+    case kScalarDtId:
+      if( d->tid == kBlobDtId || d->tid == kStrDtId )
+        rc = cmDataNewScalar(parent, d->tid, d->flags, d->u.vp, d->cnt, &rp );
+      else
+        rc = cmDataNewScalar(parent, d->tid, d->flags, d->u.vp, 0, &rp );
+      break;
+
+    case kArrayDtId:
+      rc = cmDataNewArray(parent, d->tid, d->u.vp, d->cnt, d->flags, &rp );
+      break;
+
+    case kListDtId:
+    case kPairDtId:
+    case kRecordDtId:
+      {
+        rp = _cmDataAllocNode(parent,d->tid);
+        cmData_t* cp  = d->u.child;
+        for(; cp!=NULL; cp=cd->sibling)
+          cmDataAppendChild(rp,_cmDataDupl(cp,rp));
+      }
+      break;
+
+    default:
+      assert(0);
+      break;
+  }
+
+  if( rp != NULL )
+    *ref = rp;
+
+  return rc;
+
+  /*
+  cmData_t* rp = NULL;
+
+  switch( p->tid )
+  {
+    case kNullDtId:      rp = cmDataAllocNull(parent);          break;
+    case kUCharDtId:     rp = cmDataAllocUChar(parent,p->u.uc); break; 
+    case kCharDtId:      rp = cmDataAllocChar(parent,p->u.c);   break;
+    case kUShortDtId:    rp = cmDataAllocShort(parent,p->u.us); break;
+    case kShortDtId:     rp = cmDataAllocUShort(parent,p->u.s); break;
+    case kUIntDtId:      rp = cmDataAllocUInt(parent,p->u.i);   break;
+    case kIntDtId:       rp = cmDataAllocInt(parent,p->u.ui);   break;
+    case kULongDtId:     rp = cmDataAllocULong(parent,p->u.ul); break;
+    case kLongDtId:      rp = cmDataAllocLong(parent,p->u.l);   break;
+    case kFloatDtId:     rp = cmDataAllocFloat(parent,p->u.f);  break;
+    case kDoubleDtId:    rp = cmDataAllocDouble(parent,p->u.d); break;
+
+
+    case kStrDtId:       rp = cmDataStrAlloc(parent,p->u.z);                break;
+    case kConstStrDtId:  rp = cmDataConstStrAlloc(parent,p->u.cz);          break;
+
+    case kUCharPtrDtId:  rp = cmDataUCharAllocPtr(parent,p->u.ucp,p->cnt);  break;
+    case kCharPtrDtId:   rp = cmDataCharAllocPtr(parent,p->u.cp,p->cnt);    break;
+    case kUShortPtrDtId: rp = cmDataUShortAllocPtr(parent,p->u.usp,p->cnt); break;
+    case kShortPtrDtId:  rp = cmDataShortAllocPtr(parent,p->u.sp,p->cnt);   break;
+    case kUIntPtrDtId:   rp = cmDataUIntAllocPtr(parent,p->u.uip,p->cnt);   break;
+    case kIntPtrDtId:    rp = cmDataIntAllocPtr(parent,p->u.ip,p->cnt);     break;
+    case kULongPtrDtId:  rp = cmDataULongAllocPtr(parent,p->u.ulp,p->cnt);  break;
+    case kLongPtrDtId:   rp = cmDataLongAllocPtr(parent,p->u.lp,p->cnt);    break;
+    case kFloatPtrDtId:  rp = cmDataFloatAllocPtr(parent,p->u.fp,p->cnt);   break;
+    case kDoublePtrDtId: rp = cmDataDoubleAllocPtr(parent,p->u.dp,p->cnt);  break;
+    case kVoidPtrDtId:   rp = cmDataVoidAllocPtr(parent,p->u.vp,p->cnt);    break;
+
+    case kListDtId:      
+    case kPairDtId:  
+    case kRecordDtId:
+      {
+        rp = _cmDataAllocNode(parent,p->tid);
+        cmData_t* cp  = p->u.child;
+        for(; cp!=NULL; cp=cp->sibling)
+          cmDataAppendChild(rp,_cmDataDupl(cp,rp));
+      }
+      break;
+
+    default:
+      assert(0);
+  }
+
+  return rp;
+  */
+}
+
+cmData_t* cmDataDupl( const cmData_t* p )
+{ return _cmDataDupl(p,NULL); }
+
+cmData_t* cmDataReplace( cmData_t* dst, cmData_t* src )
+{
+  if( dst->parent == NULL )
+  {
+    cmDataUnlinkAndFree(dst);
+    src->parent = NULL;
+    return src;
+  }
+
+  cmData_t* parent = dst->parent;
+  cmData_t* cp     = parent->u.child;
+  cmData_t* pp     = NULL;
+  unsigned  i      = 0;
+  unsigned  n      = cmDataChildCount(parent);
+
+  // locate dst's right sibling
+  for(i=0; i<n; ++i,cp=cp->sibling)
+  {
+    
+    if( cp == dst )
+    {
+      // link in 'src' in place of 'dst'
+      src->sibling = dst->sibling;
+
+      // free dst
+      cmDataUnlinkAndFree(dst);
+
+      // update the sibling link to 
+      if( pp == NULL )
+        parent->u.child = src;
+      else
+        pp->sibling = src;
+
+      src->parent = parent;
+      break;
+    }
+    pp = cp;
+  }
+  return src;
+}
+
+
+unsigned cmDataChildCount( const cmData_t* p )
+{
+  if( !cmDataIsStruct(p) )
+    return 0;
+
+  unsigned n = 0;
+  const cmData_t* cp = p->u.child;
+  for(; cp!=NULL; cp=cp->sibling)
+    ++n;
+
+  return n;
+}
+
+cmData_t* cmDataChild( cmData_t* p, unsigned index )
+{
+  if( !cmDataIsStruct(p) )
+    return NULL;
+
+  unsigned  n  = 0;
+  cmData_t* cp = p->u.child;
+  for(; cp!=NULL; cp=cp->sibling)
+  {
+    if( n == index )
+      break;
+    ++n;
+  }
+
+  return cp;
+}
+
+cmData_t* cmDataPrependChild(cmData_t* parent, cmData_t* p )
+{
+  assert( cmDataIsStruct(p) );
+  
+
+  cmDataUnlink(p);
+
+  p->u.child    = parent->u.child;
+  parent->u.child = p;
+  p->parent = parent;
+  return p;
+}
+
+cmData_t* cmDataAppendChild( cmData_t* parent, cmData_t* p )
+{
+  assert( cmDataIsStruct(parent) );
+  assert( parent->cid != kRecordDtId || (parent->cid == kRecordDtId && p->cid==kPairDtId));
+
+  cmDataUnlink(p);
+
+  cmData_t* cp = parent->u.child;
+  if( cp == NULL )
+    parent->u.child = p;
+  else
+  {
+    for(; cp!=NULL; cp=cp->sibling)
+      if( cp->sibling == NULL )
+      {
+        cp->sibling = p;
+        break;
+      }
+  }
+
+  p->parent  = parent;
+  p->sibling = NULL;
+  return p;
+}
+
+cmData_t* cmDataInsertChild( cmData_t* parent, unsigned index, cmData_t* p )
+{
+  if( !cmDataIsStruct(parent) )
+    return NULL;
+
+  cmDataUnlink(p);
+
+  unsigned  n  = 0;
+  cmData_t* cp = parent->u.child;
+  cmData_t* pp = NULL;
+  for(; cp!=NULL; cp=cp->sibling)
+  {
+    if( n == index )
+    {
+      if( pp == NULL )
+      {
+        parent->u.child = p;
+        p->sibling = NULL;
+      }
+      else
+      {
+        p->sibling  = pp->sibling;
+        pp->sibling = p;
+      }
+      break;
+        
+    }
+    ++n;
+  }
+
+  p->parent = parent;
+
+  return p;
+  
+}
+
+
+void     cmDataTest( cmCtx_t* ctx )
+{
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////
+#ifdef NOT_DEF
 cmDtRC_t _cmDataErrNo = kOkDtRC;
 
 cmData_t cmDataNull = { kInvalidDtId,0,NULL,NULL,0 };
@@ -2985,4 +4297,4 @@ void     cmDataTest( cmCtx_t* ctx )
   cmRptPrintf(&ctx->rpt,"Done!.\n");
 }
 
-
+#endif
