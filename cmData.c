@@ -1009,6 +1009,7 @@ cmDtRC_t cmDataDoubleArray(    const cmData_t* d, double** v )
   return kOkDtRC;
 }
 
+#ifdef NOT_DEF
 cmDtRC_t cmDataStrArray(       const cmData_t* d, cmChar_t*** v )
 {
 }
@@ -1016,7 +1017,7 @@ cmDtRC_t cmDataStrArray(       const cmData_t* d, cmChar_t*** v )
 cmDtRC_t cmDataConstStrArray(  const cmData_t* d, const cmChar_t*** v )
 {
 }
-
+#endif
 
 
 
@@ -1753,6 +1754,8 @@ cmData_t*       cmDataRecdAllocIdA( cmData_t* parent, ... )
   va_end(vl);
   return p;
 }
+
+#ifdef NOT_DEF
 
 cmDtRC_t _cmDataRecdParseV(cmData_t* p, bool idFl, cmErr_t* err, unsigned errRC, va_list vl )
 {
@@ -2850,3 +2853,4 @@ void     cmDataTest( cmCtx_t* ctx )
   cmRptPrintf(&ctx->rpt,"Done!.\n");
 }
 
+#endif

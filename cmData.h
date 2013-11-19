@@ -127,7 +127,7 @@ extern "C" {
     unsigned            flags;     // 
     struct cmData_str*  parent;    // this childs parent
     struct cmData_str*  sibling;   // this childs left sibling
-    unsigned            cnt;    // byte cnt for strings/blobs and ele count for arrays
+    unsigned            cnt;       // byte cnt for strings/blobs and ele count for arrays
 
     union
     {
@@ -146,6 +146,7 @@ extern "C" {
 
       void*             vp;
 
+      /*
       char*             cp;
       unsigned char*   ucp;
       short*            sp;
@@ -156,7 +157,7 @@ extern "C" {
       unsigned long*   ulp;
       float*            fp;
       double*           dp;
-
+      */
 
       struct cmData_str* child; // first child (list,record,pair)
     } u;
