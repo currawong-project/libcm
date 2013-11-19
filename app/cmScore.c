@@ -6,6 +6,7 @@
 #include "cmCtx.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
+#include "cmLinkedHeap.h"
 #include "cmMidi.h"
 #include "cmLex.h"
 #include "cmCsv.h"
@@ -13,6 +14,7 @@
 #include "cmMidiFile.h"
 #include "cmAudioFile.h"
 #include "cmTimeLine.h"
+#include "cmText.h"
 #include "cmScore.h"
 #include "cmVectOpsTemplateMain.h"
 
@@ -41,7 +43,8 @@ enum
   kFracColScIdx      = 18,
   kDynColScIdx       = 19,
   kSectionColScIdx   = 20,
-  kRemarkColScIdx    = 21
+  kRecdPlayColScIdx  = 21,
+  kRemarkColScIdx    = 22
 };
 
 
@@ -75,6 +78,15 @@ typedef struct cmScSet_str
   struct cmScSet_str* link;   // 
 } cmScSet_t;
 
+typedef struct cmScMark_str
+{
+  cmMarkScMId_t      cmdId;
+  unsigned           labelSymId;
+  unsigned           scoreIdx;
+  unsigned           csvRowIdx;
+  struct cmScMark_str* link;
+} cmScMark_t;
+
 typedef struct
 {
   cmErr_t           err;
@@ -94,11 +106,15 @@ typedef struct
   cmScoreSection_t* sect;
   unsigned          sectCnt;
 
+  unsigned*         markLabelArray;    // one symId per unique cmScoreMarker_t.labelSymId;
+  unsigned          markLabelCnt; 
+
   unsigned          sciPitchLexTId; // sci pitch and section id lexer token id's
   unsigned          sectionLexTId;
 
   cmScSect_t*       sectList;       // lists used during parsing
   cmScSet_t*        setList;    
+  cmScMark_t*       markList;
 
   cmScoreSet_t*     sets;
   unsigned          setCnt;
@@ -313,6 +329,17 @@ unsigned _cmScLexSectionIdMatcher( const cmChar_t* cp, unsigned cn )
   return 0;
 }
 
+void _cmScFreeMarkList( cmScMark_t* markList )
+{
+  cmScMark_t* mp = markList;
+  while( mp!=NULL )
+  {
+    cmScMark_t* np = mp->link;
+    cmMemFree(mp);
+    mp = np;
+  }
+}
+
 void _cmScFreeSetList( cmScSet_t* setList )
 {
   cmScSet_t* tp = setList;
@@ -366,6 +393,8 @@ cmScRC_t _cmScFinalize( cmSc_t* p )
 
   _cmScFreeSetList(p->setList);
 
+  _cmScFreeMarkList(p->markList);
+
   if( p->loc != NULL )
   {
     for(i=0; i<p->locCnt; ++i)
@@ -373,12 +402,23 @@ cmScRC_t _cmScFinalize( cmSc_t* p )
       cmMemFree(p->loc[i].evtArray);
       if( p->loc[i].begSectPtr != NULL )
         cmMemFree(p->loc[i].begSectPtr->setArray);
+
+      // free the marker list assoc'd with this location
+      cmScoreMarker_t* smp = p->loc[i].markList;
+      while( smp!=NULL )
+      {
+        cmScoreMarker_t* np = smp->link;
+        cmMemFree(smp);
+        smp = np;
+      }
+
     }
     cmMemFree(p->loc);
   }
 
+  
   cmMemPtrFree(&p->dynRefArray);
-
+  cmMemFree(p->markLabelArray);
   cmMemFree(p->sect);
   cmMemFree(p->fn);
   cmMemFree(p->array);
@@ -557,6 +597,79 @@ cmScRC_t _cmScParseAttr(cmSc_t* p, unsigned scoreIdx, const cmChar_t* text, unsi
   return kOkScRC;
 }
 
+// Parse a record/playback string
+cmScRC_t _cmScParseMarkers( cmSc_t* p, unsigned scoreIdx, const cmChar_t* text, unsigned rowIdx )
+{
+  const cmChar_t* cp = text;
+  const cmChar_t* ip;
+  const cmChar_t* ep;
+
+  // if no symbol table has been registered then don't bother storing markers.
+  // (NOTE - THIS IS A HACK BECAUSE THE SCORE OBJECT USED IN THE cmdIf DOES NOT HAVE
+  // A SYMBOL TABLE - WE COULD EASILY ADD ONE IF IT EVENTUALLY NEEDS ACCESS TO THE MARKERS
+  // - OR A SYMBOL TABLE COULD BE ADDED TO THE SCORE ITSELF.)
+  if( cmSymTblIsValid(p->stH) == false )
+    return kOkScRC;
+
+  // go to command/id space
+  if((ip = cmTextNextWhiteOrEosC(text)) == NULL )
+    goto errLabel;
+
+  // goto label 
+  if((ip = cmTextNextNonWhiteC(ip)) == NULL )
+    goto errLabel;
+
+  // goto end of label
+  if((ep = cmTextNextWhiteOrEosC(ip)) == NULL )
+    goto errLabel;
+  else
+  {
+    unsigned n =  (ep-ip)+1;
+    cmChar_t markTextStr[n+1];
+    strncpy(markTextStr,ip,n);
+
+    // for each command code
+    // (there may be more than one character)
+    for(; *cp && !isspace(*cp); ++cp)
+    {
+      cmMarkScMId_t cmdId = kInvalidScMId;
+
+      switch( *cp )
+      {
+        case 'c': cmdId = kRecdBegScMId; break;
+        case 'e': cmdId = kRecdEndScMId; break;
+        case 'p': cmdId = kPlayBegScMId; break;
+        case 'd': cmdId = kPlayEndScMId; break;
+        case 'f': cmdId = kFadeScMId;    break;
+        default:
+          return cmErrMsg(&p->err,kSyntaxErrScRC,"Unrecognized marker command character '%c' at row index %i.",*cp,rowIdx);
+      }
+
+      cmScMark_t* mp       = cmMemAllocZ(cmScMark_t,1);
+      mp->cmdId      = cmdId;
+      mp->labelSymId = cmSymTblRegisterSymbol(p->stH,markTextStr);
+      mp->scoreIdx   = scoreIdx;
+      mp->csvRowIdx  = rowIdx;
+
+      // insert the new mark at the end of the list
+      if( p->markList == NULL )
+        p->markList = mp;
+      else
+      {
+        cmScMark_t* ep = p->markList;
+        while( ep->link != NULL )
+          ep = ep->link;
+
+        ep->link = mp;
+      }    
+    }
+  }
+  return kOkScRC;
+
+ errLabel:
+  return cmErrMsg(&p->err,kSyntaxErrScRC,"Invalid record/playback field ('%s') on row index:%i.",cmStringNullGuard(text),rowIdx);
+}
+
 void _cmScPrintSets( const cmChar_t* label, cmScSet_t* setList )
 {
   printf("%s\n",label);
@@ -598,7 +711,7 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
     return cmErrMsg(&p->err,kSyntaxErrScRC,"Expected a scientific pitch value");
           
   if((midiPitch = cmSciPitchToMidi(sciPitch)) == kInvalidMidiPitch)
-   return cmErrMsg(&p->err,kSyntaxErrScRC,"Unable to convert the scientific pitch '%s' to a MIDI value. ");
+    return cmErrMsg(&p->err,kSyntaxErrScRC,"Unable to convert the scientific pitch '%s' to a MIDI value. ");
 
   // it is possible that note delta-secs field is empty - so default to 0
   if((secs =  cmCsvCellDouble(p->cH, rowIdx, kSecsColScIdx )) == DBL_MAX) // Returns DBL_MAX on error.
@@ -656,6 +769,14 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
   // Returns DBL_MAX on error.
   if((durSecs =  cmCsvCellDouble(p->cH, rowIdx, kDSecsColScIdx )) == DBL_MAX) 
     durSecs = 0.25;
+
+
+  // parse the recd/play markers
+  if((attr = cmCsvCellText(p->cH,rowIdx,kRecdPlayColScIdx)) != NULL )
+  {
+    if((rc = _cmScParseMarkers(p,scoreIdx,attr,rowIdx)) != kOkScRC )
+      return rc;
+  } 
 
 
   s->type       = kNonEvtScId;
@@ -870,6 +991,8 @@ cmScRC_t _cmScProcSets( cmSc_t* p )
 }
 
 
+
+
 cmScRC_t _cmScProcSections( cmSc_t* p, cmScSect_t* sectList )
 {
   cmScRC_t rc = kOkScRC;
@@ -933,6 +1056,153 @@ cmScRC_t _cmScProcSections( cmSc_t* p, cmScSect_t* sectList )
 
 
   return rc;
+}
+
+const cmScoreLoc_t*  _cmScFindMarkLoc( cmSc_t* p, cmMarkScMId_t cmdId, unsigned labelSymId, const cmScoreMarker_t** markRef )
+{
+  unsigned i;
+  for(i=0; i<p->locCnt; ++i)
+  {
+    cmScoreMarker_t* smp = p->loc[i].markList;
+    for(; smp!=NULL; smp=smp->link)
+    {
+      if( smp->markTypeId==cmdId && smp->labelSymId==labelSymId )
+        return p->loc + i;
+
+      if( markRef != NULL )
+        *markRef = smp;
+    }
+  }
+  return NULL;
+}
+
+unsigned _cmScMarkerLabelIndex( cmSc_t* p, unsigned labelSymId )
+{
+  unsigned i;
+  for(i=0; i<p->markLabelCnt; ++i)
+    if( p->markLabelArray[i] == labelSymId )
+      return i;
+
+  return cmInvalidIdx;
+}
+
+
+// Verify that the record/play begin/end and fade markers fall in the correct time order.
+// (e.g. 'begin' must be before 'end' and 'fade' must be between and 'begin' and 'end').
+cmScRC_t _cmScValidateMarkers( cmSc_t* p )
+{
+  cmScRC_t rc = kOkScRC;
+  unsigned i;
+
+  for(i=0; i<p->locCnt; ++i)
+  {
+    cmScoreMarker_t* sm0p = p->loc[i].markList;
+    for(; sm0p!=NULL; sm0p=sm0p->link)
+    {
+      const cmScoreLoc_t* sl0p;
+      const cmScoreLoc_t* sl1p;
+
+      switch( sm0p->markTypeId )
+      {
+        case kRecdBegScMId:
+          if((sl0p = _cmScFindMarkLoc(p,kRecdEndScMId, sm0p->labelSymId, NULL )) == NULL )
+            rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'record begin' marker at CSV row index %i does not have an associated 'record end' marker.",sm0p->csvRowIdx);
+          else
+            if( sl0p->index <= p->loc[i].index )
+              rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'record end' marker comes before associated with the 'record begin' marker at CSV row index %i.",sm0p->csvRowIdx);
+          break;
+          
+        case kRecdEndScMId:
+          if((sl0p = _cmScFindMarkLoc(p,kRecdBegScMId, sm0p->labelSymId, NULL )) == NULL )
+            rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'record end' marker at CSV row index %i does not have an associated 'record begin' marker.",sm0p->csvRowIdx);
+          else
+            if( sl0p->index > p->loc[i].index )
+              rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'record begin' marker comes after the associated with the 'record end' marker at CSV row index %i.",sm0p->csvRowIdx);
+          break;
+          
+        case kFadeScMId:
+          if((sl0p = _cmScFindMarkLoc(p,kRecdBegScMId, sm0p->labelSymId, NULL )) == NULL )
+            rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'fade' marker at CSV row index %i does not have an associated 'record begin' marker.",sm0p->csvRowIdx);
+          else
+            if((sl1p = _cmScFindMarkLoc(p,kRecdEndScMId, sm0p->labelSymId, NULL )) == NULL )
+              rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'fade' marker at CSV row index %i does not have an associated 'record end' marker.",sm0p->csvRowIdx);
+            else
+              if( sl0p->index > p->loc[i].index || sl1p->index < p->loc[i].index )
+                rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'fade' marker at CSV row index %i is not between it's associated 'record begin' and 'record end' markers.",sm0p->csvRowIdx);
+          break;
+          
+        case kPlayBegScMId:
+          if((sl0p = _cmScFindMarkLoc(p,kPlayEndScMId, sm0p->labelSymId, NULL )) == NULL )
+            rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'play begin' marker at CSV row index %i does not have an associated 'play end' marker.",sm0p->csvRowIdx);
+          else
+            if( sl0p->index <= p->loc[i].index )
+              rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'play end' marker comes before associated with the 'play begin' marker at CSV row index %i.",sm0p->csvRowIdx);
+          break;
+
+        case kPlayEndScMId:
+          if((sl0p = _cmScFindMarkLoc(p,kPlayBegScMId, sm0p->labelSymId, NULL )) == NULL )
+            rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'play end' marker at CSV row index %i does not have an associated 'play begin' marker.",sm0p->csvRowIdx);
+          else
+            if( sl0p->index > p->loc[i].index )
+              rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'play begin' marker comes after the associated with the 'play end' marker at CSV row index %i.",sm0p->csvRowIdx);
+          break;
+
+        default:
+          break;
+
+      }
+    }
+  }
+
+  return rc;
+}
+
+
+
+cmScRC_t _cmScProcMarkers( cmSc_t* p )
+{
+  // for each marker in the p->markList 
+  // (p->markList is created by _cmScParseMarkers() during CSV file parsing.)
+  cmScMark_t* mp = p->markList;
+  for(; mp!=NULL; mp=mp->link)
+  {
+    assert( mp->scoreIdx < p->cnt );
+
+    // get the score location assoc'd with this marker
+    unsigned locIdx = p->array[ mp->scoreIdx ].locIdx;
+    assert( locIdx < p->locCnt );
+
+    cmScoreLoc_t*    slp = p->loc + locIdx;
+
+    // create a cmScoreMarker record.
+    cmScoreMarker_t* smp = cmMemAllocZ(cmScoreMarker_t,1);
+    smp->markTypeId  = mp->cmdId;
+    smp->labelSymId  = mp->labelSymId;
+    smp->csvRowIdx   = mp->csvRowIdx;
+    smp->scoreLocPtr = slp; 
+
+    // attach the new scoreMarker record to the assoc'd score loc. recd
+    if( slp->markList == NULL )
+      slp->markList = smp;
+    else
+    {
+      cmScoreMarker_t* sm0p = slp->markList;
+      while( sm0p->link != NULL )
+        sm0p = sm0p->link;
+      sm0p->link = smp;
+    }
+
+    // if the id represented by this marker
+    if( _cmScMarkerLabelIndex(p,smp->labelSymId) == cmInvalidIdx )
+    {
+      p->markLabelArray = cmMemResizeP(unsigned,p->markLabelArray,p->markLabelCnt+1);
+      p->markLabelArray[p->markLabelCnt] = smp->labelSymId;
+      p->markLabelCnt += 1;
+    }
+  }
+
+  // validate the markers 
+  return _cmScValidateMarkers(p);
 }
 
 cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
@@ -1164,6 +1434,9 @@ cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, doubl
   if((rc = _cmScProcSections(p,p->sectList)) != kOkScRC )
     goto errLabel;
 
+  if((rc = _cmScProcMarkers(p)) != kOkScRC )
+    goto errLabel;
+  
   // load the dynamic reference array
   if( dynRefArray != NULL && dynRefCnt > 0)
   {
@@ -1409,6 +1682,30 @@ unsigned cmScoreSetCount( cmScH_t h )
   return p->setCnt;
 }
 
+unsigned      cmScoreMarkerLabelCount( cmScH_t h )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  return p->markLabelCnt;
+}
+
+unsigned      cmScoreMarkerLabelSymbolId( cmScH_t h, unsigned idx )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  assert( idx < p->markLabelCnt );
+  return p->markLabelArray[idx];
+}
+
+const cmScoreMarker_t* cmScoreMarker( cmScH_t h, cmMarkScMId_t markMId, unsigned labelSymId )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  const cmScoreMarker_t* smp = NULL;
+  if( _cmScFindMarkLoc(p, markMId, labelSymId, &smp ) == NULL )
+    return NULL;
+
+  return smp;
+}
+
+
 cmScRC_t      cmScoreSeqNotify( cmScH_t h )
 {
   cmScRC_t  rc = kOkScRC;
@@ -1502,7 +1799,7 @@ void _cmScPerfSortTimes( unsigned *v, unsigned n )
         fl = true;
       }
     }
-   --n;
+    --n;
   }
 }
 
@@ -1568,13 +1865,13 @@ bool _cmScPerfEven(cmSc_t* p, cmScoreSet_t* stp, bool printMissFl)
   if(printFl)
   {
     /*
-    for(i=0; i<stp->eleCnt; ++i)
-    {
+      for(i=0; i<stp->eleCnt; ++i)
+      {
       printf("%i %i ",i,v[i]);
       if( i > 0 )
-        printf("%i ", d[i-1]);
+      printf("%i ", d[i-1]);
       printf("\n");
-    }
+      }
     */
     printf("%s EVENESS:%f\n",sortFl?"SORTED ":"",stp->value);
   }
@@ -2110,42 +2407,42 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
       goto errLabel;
     }
 
-      switch( tmp->status )
-      {
-        case kNoteOnMdId:
-          if( cmCsvInsertTextColAfter(csvH, cp, &cp, cmMidiToSciPitch(tmp->u.chMsgPtr->d0,NULL,0), lexTId ) != kOkCsvRC )
-          {
-            cmErrMsg(&err,kCsvFailScRC,"Error inserting 'opcode' column in '%s'.",cmStringNullGuard(scoreFn));
-            goto errLabel;
-          }
+    switch( tmp->status )
+    {
+      case kNoteOnMdId:
+        if( cmCsvInsertTextColAfter(csvH, cp, &cp, cmMidiToSciPitch(tmp->u.chMsgPtr->d0,NULL,0), lexTId ) != kOkCsvRC )
+        {
+          cmErrMsg(&err,kCsvFailScRC,"Error inserting 'opcode' column in '%s'.",cmStringNullGuard(scoreFn));
+          goto errLabel;
+        }
 
-        case kMetaStId:
-          switch( tmp->metaId )
-          {
-            case kTimeSigMdId:
-              if( cmCsvInsertUIntColAfter(csvH, cp, &cp, tmp->u.timeSigPtr->num, lexTId ) != kOkCsvRC )
-              {
-                cmErrMsg(&err,kCsvFailScRC,"Error inserting time sign. numerator column in '%s'.",cmStringNullGuard(scoreFn));
-                goto errLabel;
-              }
+      case kMetaStId:
+        switch( tmp->metaId )
+        {
+          case kTimeSigMdId:
+            if( cmCsvInsertUIntColAfter(csvH, cp, &cp, tmp->u.timeSigPtr->num, lexTId ) != kOkCsvRC )
+            {
+              cmErrMsg(&err,kCsvFailScRC,"Error inserting time sign. numerator column in '%s'.",cmStringNullGuard(scoreFn));
+              goto errLabel;
+            }
 
-              if( cmCsvInsertUIntColAfter(csvH, cp, &cp, tmp->u.timeSigPtr->den, lexTId ) != kOkCsvRC )
-              {
-                cmErrMsg(&err,kCsvFailScRC,"Error inserting time sign. denominator column in '%s'.",cmStringNullGuard(scoreFn));
-                goto errLabel;
-              }
-              break;
+            if( cmCsvInsertUIntColAfter(csvH, cp, &cp, tmp->u.timeSigPtr->den, lexTId ) != kOkCsvRC )
+            {
+              cmErrMsg(&err,kCsvFailScRC,"Error inserting time sign. denominator column in '%s'.",cmStringNullGuard(scoreFn));
+              goto errLabel;
+            }
+            break;
 
-            case kTempoMdId:
-              if( cmCsvInsertUIntColAfter(csvH, cp, &cp, 60000000/tmp->u.iVal, lexTId ) != kOkCsvRC )
-              {
-                cmErrMsg(&err,kCsvFailScRC,"Error inserting 'tempo' in '%s'.",cmStringNullGuard(scoreFn));
-                goto errLabel;
-              }
-              break;
-          }
+          case kTempoMdId:
+            if( cmCsvInsertUIntColAfter(csvH, cp, &cp, 60000000/tmp->u.iVal, lexTId ) != kOkCsvRC )
+            {
+              cmErrMsg(&err,kCsvFailScRC,"Error inserting 'tempo' in '%s'.",cmStringNullGuard(scoreFn));
+              goto errLabel;
+            }
+            break;
+        }
 
-      }
+    }
 
 
   }
@@ -2157,10 +2454,10 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
   }
 
  errLabel:
-   cmMidiFileClose(&mfH);
-   cmCsvFinalize(&csvH);
+  cmMidiFileClose(&mfH);
+  cmCsvFinalize(&csvH);
 
-   return rc;
+  return rc;
 }
 
 void cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
