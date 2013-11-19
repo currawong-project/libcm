@@ -626,6 +626,51 @@ extern "C" {
   cmRC_t         cmScModulatorExec(  cmScModulator* p, unsigned scLocIdx );
   cmRC_t         cmScModulatorDump(  cmScModulator* p );
 
+  //=======================================================================================================================
+ 
+  typedef struct cmRecdPlayFrag_str
+  {
+    unsigned                   labelSymId; // this fragments label
+    cmSample_t**               chArray;    // record buffer chArray[cmRecdPlay.chCnt][allocCnt]
+    unsigned                   allocCnt;   // count of samples allocated to each channel
+    unsigned                   playIdx;    // index of next sample to play
+    unsigned                   recdIdx;    // index of next sample to receieve audio (count of full samples)
+    double                     fadeDbPerSec; // fade rate in dB per second
+    unsigned                   fadeSmpIdx; 
+    struct cmRecdPlayFrag_str* rlink;      // cmRecdPlay.rlist link
+    struct cmRecdPlayFrag_str* plink;      // cmRecdPlay.plist link
+  } cmRecdPlayFrag;
+
+  typedef struct
+  {
+    cmObj            obj;
+    cmRecdPlayFrag*  frags;         // frags[fragCnt] fragment array
+    unsigned         fragCnt;       // count of fragments 
+    double           srate;         // system sample rate
+    unsigned         chCnt;         // count of input and output audio channels
+    double           initFragSecs;  // size initial memory allocated to each frag in seconds
+    cmRecdPlayFrag*  plist;         // currently playing frags
+    cmRecdPlayFrag*  rlist;         // currently recording frags
+  } cmRecdPlay;
+
+
+  cmRecdPlay*    cmRecdPlayAlloc( cmCtx* c, cmRecdPlay* p, double srate, unsigned fragCnt, unsigned chCnt, double initFragSecs  );
+  cmRC_t         cmRecdPlayFree(  cmRecdPlay** pp );
+  cmRC_t         cmRecdPlayInit(  cmRecdPlay* p, double srate, unsigned flagCnt, unsigned chCnt, double initFragSecs  );
+  cmRC_t         cmRecdPlayFinal( cmRecdPlay* p );
+
+  cmRC_t         cmRecdPlayRegisterFrag( cmRecdPlay* p, unsigned fragIdx, unsigned labelSymId );
+
+  cmRC_t         cmRecdPlayRewind(      cmRecdPlay* p );
+  cmRC_t         cmRecdPlayBeginRecord( cmRecdPlay* p, unsigned labelSymId );
+  cmRC_t         cmRecdPlayEndRecord(   cmRecdPlay* p, unsigned labelSymId );
+  cmRC_t         cmRecdPlayBeginPlay(   cmRecdPlay* p, unsigned labelSymId );
+  cmRC_t         cmRecdPlayEndPlay(     cmRecdPlay* p, unsigned labelSymId );
+
+  cmRC_t         cmRecdPlayBeginFade(   cmRecdPlay* p, unsigned labelSymId, double fadeDbPerSec );
+
+  cmRC_t         cmRecdPlayExec(        cmRecdPlay* p, const cmSample_t** iChs, cmSample_t** oChs, unsigned chCnt, unsigned smpCnt );
+
 #ifdef __cplusplus
 }
 #endif

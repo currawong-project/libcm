@@ -4132,3 +4132,250 @@ cmRC_t  cmScModulatorDump(  cmScModulator* p )
   
   return rc;
 }
+
+//=======================================================================================================================
+cmRecdPlay*    cmRecdPlayAlloc( cmCtx* c, cmRecdPlay* p, double srate, unsigned fragCnt, unsigned chCnt, double initFragSecs  )
+{
+  cmRecdPlay* op = cmObjAlloc(cmRecdPlay,c,p);
+
+  if( cmRecdPlayInit(op,srate,fragCnt,chCnt,initFragSecs) != cmOkRC )
+    cmRecdPlayFree(&op);
+
+  return op;
+}
+
+cmRC_t         cmRecdPlayFree(  cmRecdPlay** pp )
+{
+  cmRC_t rc = cmOkRC;
+  if( pp==NULL || *pp==NULL )
+    return rc;
+
+  cmRecdPlay* p = *pp;
+  if((rc = cmRecdPlayFinal(p)) != cmOkRC )
+    return rc;
+
+  cmObjFree(pp);
+  return rc;
+
+}
+
+cmRC_t         cmRecdPlayInit(  cmRecdPlay* p, double srate, unsigned fragCnt, unsigned chCnt, double initFragSecs  )
+{
+  
+  cmRC_t rc;
+
+  if((rc = cmRecdPlayFinal(p)) != cmOkRC )
+    return rc;
+
+  p->frags        = cmMemAllocZ(cmRecdPlayFrag,fragCnt);
+  p->fragCnt      = fragCnt;
+  p->srate        = srate;
+  p->chCnt        = chCnt;
+  p->initFragSecs = initFragSecs;
+
+  return rc;
+}
+
+cmRC_t         cmRecdPlayFinal( cmRecdPlay* p )
+{ 
+  unsigned i,j;
+  for(i=0; i<p->fragCnt; ++i)
+  {
+    for(j=0; j<p->chCnt; ++j)
+      cmMemFree(p->frags[i].chArray[j]);
+
+    cmMemFree(p->frags[i].chArray);
+  }
+  cmMemFree(p->frags);
+  p->fragCnt=0;
+  p->chCnt=0;
+  return cmOkRC;
+}
+
+cmRC_t         cmRecdPlayRegisterFrag( cmRecdPlay* p,  unsigned fragIdx, unsigned labelSymId )
+{
+  assert( fragIdx < p->fragCnt );
+
+  unsigned i;
+
+  p->frags[ fragIdx ].labelSymId = labelSymId;
+
+  p->frags[ fragIdx ].chArray = cmMemResizeZ(cmSample_t*,p->frags[fragIdx].chArray,p->chCnt);
+
+  for(i=0; i<p->chCnt; ++i)
+  {
+    
+    p->frags[ fragIdx ].allocCnt = floor(p->initFragSecs * p->srate);
+    p->frags[ fragIdx ].chArray[i] = cmMemResizeZ(cmSample_t,p->frags[ fragIdx ].chArray[i],p->frags[fragIdx].allocCnt);
+  }
+
+  return cmOkRC;
+}
+
+cmRC_t         cmRecdPlayRewind( cmRecdPlay* p )
+{
+  unsigned i;
+
+  while( p->plist != NULL )
+    cmRecdPlayEndPlay(p,p->plist->labelSymId);
+  
+  while( p->rlist != NULL )
+    cmRecdPlayEndRecord(p,p->plist->labelSymId);
+
+  for(i=0; i<p->fragCnt; ++i)
+    p->frags[i].playIdx = 0;
+
+  return cmOkRC;
+}
+
+cmRC_t         cmRecdPlayBeginRecord( cmRecdPlay* p, unsigned labelSymId )
+{
+  unsigned i;
+
+  for(i=0; i<p->fragCnt; ++i)
+    if( p->frags[i].labelSymId == labelSymId )
+    {
+      // if the frag is not already on the recd list
+      if( p->frags[i].rlink == NULL )
+      {
+        p->frags[i].recdIdx = 0;
+        p->frags[i].playIdx = 0;
+        p->frags[i].rlink   = p->rlist;
+        p->rlist            = p->frags + i;
+      }
+      
+      return cmOkRC;
+    }
+
+  return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'begin record'.",labelSymId);    
+}
+
+cmRC_t         cmRecdPlayEndRecord(   cmRecdPlay* p, unsigned labelSymId )
+{
+  cmRecdPlayFrag* fp = p->rlist;
+  cmRecdPlayFrag* pp = NULL;
+
+  for(; fp != NULL; fp=fp->rlink )
+  {
+    if( fp->labelSymId == labelSymId )
+    {
+      if( pp == NULL )
+        p->rlist = fp->rlink;
+      else
+        pp->rlink = fp->rlink;
+
+      fp->rlink = NULL;
+
+      return cmOkRC;
+    }
+
+    pp = fp;
+  }
+
+  return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'end record'.",labelSymId);      
+}
+
+cmRC_t         cmRecdPlayBeginPlay(   cmRecdPlay* p, unsigned labelSymId )
+{
+  unsigned i;
+
+  for(i=0; i<p->fragCnt; ++i)
+    if( p->frags[i].labelSymId == labelSymId )
+    {
+      // if the frag is not already on the play list
+      if( p->frags[i].plink == NULL )
+      {
+        p->frags[i].playIdx      = 0;
+        p->frags[i].fadeSmpIdx   = 0;
+        p->frags[i].fadeDbPerSec = 0.0;
+        p->frags[i].plink        = p->plist;
+        p->plist                 = p->frags + i;
+      }
+
+      return cmOkRC;
+    }
+
+  return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'begin play'.",labelSymId);    
+
+}
+
+cmRC_t         cmRecdPlayEndPlay(     cmRecdPlay* p, unsigned labelSymId )
+{
+  cmRecdPlayFrag* fp = p->plist;
+  cmRecdPlayFrag* pp = NULL;
+
+  for(; fp != NULL; fp=fp->plink )
+  {
+    if( fp->labelSymId == labelSymId )
+    {
+      if( pp == NULL )
+        p->plist = fp->plink;
+      else
+        pp->plink = fp->plink;
+
+      fp->plink = NULL;
+
+      return cmOkRC;
+    }
+
+    pp = fp;
+  }
+
+  return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'end play'.",labelSymId);    
+}
+
+cmRC_t cmRecdPlayBeginFade(   cmRecdPlay* p, unsigned labelSymId, double fadeDbPerSec )
+{
+  cmRecdPlayFrag* fp = p->plist;
+
+  for(; fp != NULL; fp=fp->plink )
+    if( fp->labelSymId == labelSymId )
+    {
+      fp->fadeDbPerSec = -fabs(fadeDbPerSec);
+      return cmOkRC;
+    }
+  
+  return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'fade begin'.",labelSymId);      
+}
+
+
+cmRC_t         cmRecdPlayExec( cmRecdPlay* p, const cmSample_t** iChs, cmSample_t** oChs, unsigned chCnt, unsigned smpCnt )
+{
+  chCnt = cmMin(chCnt, p->chCnt);
+
+  cmRecdPlayFrag* fp = p->rlist;
+
+  for(; fp!=NULL; fp=fp->rlink)
+  {
+    assert( fp->recdIdx <= fp->allocCnt);
+    unsigned n = cmMin(fp->allocCnt - fp->recdIdx,smpCnt);
+    unsigned i;
+    for(i=0; i<p->chCnt; ++i)
+    {
+      cmVOS_Copy(fp->chArray[i] + fp->recdIdx, n, iChs[i] );
+      fp->recdIdx += n;
+    }
+  }  
+
+  fp = p->plist;
+  for(; fp!=NULL; fp=fp->rlink)
+  {
+    assert( fp->playIdx <= fp->recdIdx);
+
+    double   gain = pow(10.0,((fp->fadeSmpIdx / p->srate) * fp->fadeDbPerSec)/20.0);
+    unsigned n    = cmMin(fp->recdIdx - fp->playIdx,smpCnt);
+    unsigned i;
+
+    for(i=0; i<p->chCnt; ++i)
+    {
+      cmVOS_MultVVS(oChs[i],n,fp->chArray[i] + fp->playIdx,gain);
+      fp->playIdx += n;
+    }
+
+    // if a fade rate has been set then advance the fade phase
+    if(fp->fadeDbPerSec!=0.0)
+      fp->fadeSmpIdx += smpCnt;
+  }  
+
+  return cmOkRC;
+}
