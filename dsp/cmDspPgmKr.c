@@ -97,10 +97,13 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   double          cmpWndMaxMs  = 1000.0;
   double          cmpWndMs     = 200.0;
 
+  bool            splitFragFl = true;
   double          recdPlayInitAllocSecs    = 10.0;
   double          recdPlayMaxLaSecs        = 2.0;
   double          recdPlayCurLaSecs        = 0.1;
   double          recdPlayFadeRateDbPerSec = 4.0;
+  double          fragMixGain              = splitFragFl ? 0.0 : mixGain;
+
 
   memset(&r,0,sizeof(r));
   cmErrSetup(&err,&cmCtx->rpt,"Kr Timeline");
@@ -177,17 +180,24 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* kr00 = cmDspSysAllocInst(h, "Kr",         NULL,   2, krWndSmpCnt, krHopFact );
   cmDspInst_t* kr01 = cmDspSysAllocInst(h, "Kr",         NULL,   2, krWndSmpCnt, krHopFact );
   cmDspInst_t* fad0 = cmDspSysAllocInst(h, "Xfader",     NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl ); 
-  cmDspInst_t* mix0 = cmDspSysAllocInst(h, "AMix",       NULL,   4, xfadeChCnt+1, mixGain, mixGain, mixGain );
+  cmDspInst_t* mix0 = cmDspSysAllocInst(h, "AMix",       NULL,   4, xfadeChCnt+1, mixGain, mixGain, fragMixGain );
   cmDspInst_t* cmp0 =  cmDspSysAllocInst(h,"Compressor", NULL,   8, cmpBypassFl, cmpThreshDb, cmpRatio_num, cmpAtkMs, cmpRlsMs, cmpMakeup, cmpWndMs, cmpWndMaxMs ); 
   cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 0 );
   
   cmDspInst_t* kr10 = cmDspSysAllocInst(h, "Kr",         NULL,   2, krWndSmpCnt, krHopFact );
   cmDspInst_t* kr11 = cmDspSysAllocInst(h, "Kr",         NULL,   2, krWndSmpCnt, krHopFact );
   cmDspInst_t* fad1 = cmDspSysAllocInst(h, "Xfader",     NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl ); 
-  cmDspInst_t* mix1 = cmDspSysAllocInst(h, "AMix",       NULL,   4, xfadeChCnt+1, mixGain, mixGain, mixGain );
+  cmDspInst_t* mix1 = cmDspSysAllocInst(h, "AMix",       NULL,   4, xfadeChCnt+1, mixGain, mixGain, fragMixGain );
   cmDspInst_t* cmp1 =  cmDspSysAllocInst(h,"Compressor", NULL,   8, cmpBypassFl, cmpThreshDb, cmpRatio_num, cmpAtkMs, cmpRlsMs, cmpMakeup, cmpWndMs, cmpWndMaxMs ); 
   cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 1 );
 
+  cmDspInst_t* ao2p = NULL;
+  cmDspInst_t* ao3p = NULL;
+  if( splitFragFl )
+  {
+    ao2p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 2 );
+    ao3p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 );
+  }
 
   cmDspSysNewPage(h,"Controls");
   cmDspInst_t* liveb= cmDspSysAllocInst(h,"Button", "live",    2, kCheckDuiId,  0.0 );
@@ -292,8 +302,13 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspInst_t* igain0 = cmDspSysAllocInst(h,"Scalar", "In Gain-0",    5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
   cmDspInst_t* igain1 = cmDspSysAllocInst(h,"Scalar", "In Gain-1",    5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
+
+  cmDspInst_t* lasecs = cmDspSysAllocInst(h,"Scalar", "LA Secs",      5, kNumberDuiId, 0.0,   recdPlayMaxLaSecs,0.01,   recdPlayCurLaSecs );  
+  cmDspInst_t* dbpsec = cmDspSysAllocInst(h,"Scalar", "Fade dBpSec",  5, kNumberDuiId, 0.0,   24.0, 0.01, recdPlayFadeRateDbPerSec);
   cmDspInst_t* ogain0 = cmDspSysAllocInst(h,"Scalar", "Out Gain-0",   5, kNumberDuiId, 0.0,   10.0,0.01,   3.0 );  
   cmDspInst_t* ogain1 = cmDspSysAllocInst(h,"Scalar", "Out Gain-1",   5, kNumberDuiId, 0.0,   10.0,0.01,   3.0 );  
+  cmDspInst_t* ogain2 = cmDspSysAllocInst(h,"Scalar", "Out Gain-2",   5, kNumberDuiId, 0.0,   10.0,0.01,   3.0 );  
+  cmDspInst_t* ogain3 = cmDspSysAllocInst(h,"Scalar", "Out Gain-3",   5, kNumberDuiId, 0.0,   10.0,0.01,   3.0 );  
   cmDspInst_t* xfadMs = cmDspSysAllocInst(h,"Scalar", "Xfade Ms",     5, kNumberDuiId, 0.0,   1000.0,0.01, 50.0 );  
 
   // Audio file recording
@@ -410,6 +425,12 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysConnectAudio(h, cmp0, "out", afop, "in0" );    // comp -> audio_file_out
   cmDspSysConnectAudio(h, cmp1, "out", afop, "in1" );
+
+  if( splitFragFl )
+  {
+    cmDspSysConnectAudio(h, rpp, "out-0", ao2p, "in" );
+    cmDspSysConnectAudio(h, rpp, "out-1", ao3p, "in" );
+  }
 
   // wave-table to time-line cursor
   cmDspSysInstallCb(   h, wtp, "fidx",tlp,  "curs", NULL); 
@@ -542,10 +563,16 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, iv10p,     "val",   kr11, "invt", NULL );   // invert->kr
   cmDspSysInstallCb(h, wet10p,    "val",   kr11, "wet", NULL );    //  wet->kr
 
-  cmDspSysInstallCb(h, igain0, "val", ai0p, "gain", NULL );   // output gain control
+ 
+  cmDspSysInstallCb(   h, lasecs, "val", rpp, "curla", NULL ); // recd/play control
+  cmDspSysInstallCb(   h, dbpsec, "val", rpp, "frate", NULL );
+
+  cmDspSysInstallCb(h, igain0, "val", ai0p, "gain", NULL );   // input gain control
   cmDspSysInstallCb(h, igain1, "val", ai1p, "gain", NULL );
   cmDspSysInstallCb(h, ogain0, "val", ao0p, "gain", NULL );   // output gain control
   cmDspSysInstallCb(h, ogain1, "val", ao1p, "gain", NULL );
+  cmDspSysInstallCb(h, ogain2, "val", ao2p, "gain", NULL );  
+  cmDspSysInstallCb(h, ogain3, "val", ao3p, "gain", NULL );
   cmDspSysInstallCb(h, xfadMs, "val", fad0, "ms", NULL );
   cmDspSysInstallCb(h, xfadMs, "val", fad1, "ms", NULL );
 
@@ -826,7 +853,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(   h, comp_recallBtn, "out",    comp_pts,    "recall", NULL );
   cmDspSysInstallCb(   h, comp_pts,       "store",  comp_preset, "cmd", NULL );
   cmDspSysInstallCb(   h, comp_pts,       "recall", comp_preset, "cmd", NULL );
-
+  
   return rc;
 }
 
