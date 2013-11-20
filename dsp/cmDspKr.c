@@ -1940,13 +1940,13 @@ cmDspClass_t _cmAmSyncDC;
 
 typedef struct cmDspAmSyncEntry_str
 {
-  const cmChar_t* afn;    
-  const cmChar_t* mfn;     
+  const cmChar_t* afn;  // audio file name  
+  const cmChar_t* mfn;  // midi file name   
   unsigned        asmp; // Audio sample index to sync to MIDI event
   unsigned        mid;  // MIDI event unique id (cmMidiTrackMsg_t.uid)
-  int             afi;
+  int             afi;  // 
   int             mfi;
-  unsigned        state;
+  unsigned        state; // as incoming msg match this record the state is updated with kXXXAmFl flags 
 } cmDspAmSyncEntry_t;
 
 typedef struct
@@ -2057,7 +2057,15 @@ cmDspRC_t _cmDspAmSyncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 
           int dframes = r->mfi-r->afi; 
           cmRptPrintf(ctx->rpt,"0x%x : %s %i %i - %s %i  %i : frm:%i smp:%i sec:%f\n",
-            r->state,r->afn,r->asmp,r->afi,r->mfn,r->mid,r->mfi,dframes,dframes*fpc,dframes*fpc/srate);
+            r->state,
+            r->afn,
+            r->asmp,
+            r->afi,
+            r->mfn,
+            r->mid,
+            r->mfi,
+            dframes,
+            dframes*fpc,dframes*fpc/srate);
 
           r->afi = cmInvalidIdx;
           r->mfi = cmInvalidIdx;
@@ -2071,7 +2079,9 @@ cmDspRC_t _cmDspAmSyncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 
     case kAFnAmId:
       {
+        // an audio file name just arrived - set p->acur to point to it
         const cmChar_t* fn = cmDspStrcz(inst, kAFnAmId );
+        
         for(i=0; i<p->arrayCnt; ++i)
           if( strcmp(fn,p->array[i].afn) == 0 )
           {
@@ -2083,6 +2093,7 @@ cmDspRC_t _cmDspAmSyncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 
     case kMFnAmId:
       {
+        // an midi file name just arrived - set p->mcur to point to it
         const cmChar_t* fn = cmDspStrcz(inst, kMFnAmId );
         for(i=0; i<p->arrayCnt; ++i)
           if( strcmp(fn,p->array[i].mfn) == 0 )
@@ -2095,8 +2106,10 @@ cmDspRC_t _cmDspAmSyncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 
     case kASmpAmId:
       {
+        // a audio file sample index has just arrived
         int v = cmDspInt(inst,kASmpAmId); 
-
+        
+        // if a valid audio file has been set
         if( p->acur != NULL )
           for(i=0; i<p->arrayCnt; ++i)
           {
