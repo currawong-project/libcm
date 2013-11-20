@@ -1121,14 +1121,14 @@ cmScRC_t _cmScValidateMarkers( cmSc_t* p )
           break;
           
         case kFadeScMId:
-          if((sl0p = _cmScFindMarkLoc(p,kRecdBegScMId, sm0p->labelSymId, NULL )) == NULL )
-            rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'fade' marker at CSV row index %i does not have an associated 'record begin' marker.",sm0p->csvRowIdx);
+          if((sl0p = _cmScFindMarkLoc(p,kPlayBegScMId, sm0p->labelSymId, NULL )) == NULL )
+            rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'fade' marker at CSV row index %i does not have an associated 'play begin' marker.",sm0p->csvRowIdx);
           else
-            if((sl1p = _cmScFindMarkLoc(p,kRecdEndScMId, sm0p->labelSymId, NULL )) == NULL )
-              rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'fade' marker at CSV row index %i does not have an associated 'record end' marker.",sm0p->csvRowIdx);
+            if((sl1p = _cmScFindMarkLoc(p,kPlayEndScMId, sm0p->labelSymId, NULL )) == NULL )
+              rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'fade' marker at CSV row index %i does not have an associated 'play end' marker.",sm0p->csvRowIdx);
             else
               if( sl0p->index > p->loc[i].index || sl1p->index < p->loc[i].index )
-                rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'fade' marker at CSV row index %i is not between it's associated 'record begin' and 'record end' markers.",sm0p->csvRowIdx);
+                rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The 'fade' marker at CSV row index %i is not between it's associated 'play begin' and 'play end' markers.",sm0p->csvRowIdx);
           break;
           
         case kPlayBegScMId:
