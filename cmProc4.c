@@ -4237,18 +4237,31 @@ cmRC_t         cmRecdPlayRegisterFrag( cmRecdPlay* p,  unsigned fragIdx, unsigne
   return cmOkRC;
 }
 
-cmRC_t         cmRecdPlayRewind( cmRecdPlay* p )
+cmRC_t cmRecdPlaySetLaSecs( cmRecdPlay* p, double curLaSecs )
+{
+   p->curLaSmpCnt  = floor(curLaSecs*p->srate);  
+   return cmOkRC;
+}
+
+
+cmRC_t cmRecdPlayRewind( cmRecdPlay* p )
 {
   unsigned i;
 
+  // zero the look-ahead buffers
   p->laSmpIdx = 0;
+  for(i=0; i<p->chCnt; ++i)
+    cmVOS_Zero(p->laChs[i],p->maxLaSmpCnt);
 
+  // remove all the active players
   while( p->plist != NULL )
     cmRecdPlayEndPlay(p,p->plist->labelSymId);
   
+  // remove all the active recorders
   while( p->rlist != NULL )
-    cmRecdPlayEndRecord(p,p->plist->labelSymId);
+    cmRecdPlayEndRecord(p,p->rlist->labelSymId);
 
+  // rewind all the fragments play posn. 
   for(i=0; i<p->fragCnt; ++i)
     p->frags[i].playIdx = 0;
 
@@ -4271,6 +4284,7 @@ cmRC_t         cmRecdPlayBeginRecord( cmRecdPlay* p, unsigned labelSymId )
         p->frags[i].rlink   = p->rlist;
         p->rlist            = p->frags + i;
 
+       
         // handle LA buf longer than frag buf.
         int cpyCnt  = cmMin(p->curLaSmpCnt,p->frags[i].allocCnt); 
 
@@ -4302,7 +4316,8 @@ cmRC_t         cmRecdPlayBeginRecord( cmRecdPlay* p, unsigned labelSymId )
         }
 
         p->frags[i].recdIdx = cpyCnt;
-
+        p->frags[i].playIdx = 0;
+        
       }
       
       return cmOkRC;
@@ -4407,7 +4422,7 @@ cmRC_t         cmRecdPlayExec( cmRecdPlay* p, const cmSample_t** iChs, cmSample_
   chCnt = cmMin(chCnt, p->chCnt);
 
   //-------------------------------------------------------------------
-  // copy incoming audio into the look-head buffers
+  // copy incoming audio into the look-ahead buffers
   //
 
   // if the number of incoming samples is longer than the look-head buffer
@@ -4418,7 +4433,7 @@ cmRC_t         cmRecdPlayExec( cmRecdPlay* p, const cmSample_t** iChs, cmSample_
   if( srcSmpCnt > p->maxLaSmpCnt )
   {
     // advance incoming sample buffer so that there are maxLaSmpCnt samples remaining
-    srcOffs   = smpCnt-p->maxLaSmpCnt; 
+    srcOffs   = srcSmpCnt-p->maxLaSmpCnt; 
     srcSmpCnt = p->maxLaSmpCnt;        // decrease the total samples to copy  
   }
 
@@ -4457,10 +4472,10 @@ cmRC_t         cmRecdPlayExec( cmRecdPlay* p, const cmSample_t** iChs, cmSample_
     unsigned n = cmMin(fp->allocCnt - fp->recdIdx,smpCnt);
     unsigned i;
     for(i=0; i<p->chCnt; ++i)
-    {
       cmVOS_Copy(fp->chArray[i] + fp->recdIdx, n, iChs[i] );
-      fp->recdIdx += n;
-    }
+
+    fp->recdIdx += n;
+
   }  
 
   //-------------------------------------------------------------------
@@ -4476,10 +4491,9 @@ cmRC_t         cmRecdPlayExec( cmRecdPlay* p, const cmSample_t** iChs, cmSample_
     unsigned i;
 
     for(i=0; i<p->chCnt; ++i)
-    {
       cmVOS_MultVVS(oChs[i],n,fp->chArray[i] + fp->playIdx,gain);
-      fp->playIdx += n;
-    }
+
+    fp->playIdx += n;
 
     // if a fade rate has been set then advance the fade phase
     if(fp->fadeDbPerSec!=0.0)

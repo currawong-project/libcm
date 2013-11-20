@@ -665,6 +665,8 @@ extern "C" {
 
   cmRC_t         cmRecdPlayRegisterFrag( cmRecdPlay* p, unsigned fragIdx, unsigned labelSymId );
 
+  cmRC_t         cmRecdPlaySetLaSecs( cmRecdPlay* p, double curLaSecs );
+
   cmRC_t         cmRecdPlayRewind(      cmRecdPlay* p );
   cmRC_t         cmRecdPlayBeginRecord( cmRecdPlay* p, unsigned labelSymId );
   cmRC_t         cmRecdPlayEndRecord(   cmRecdPlay* p, unsigned labelSymId );
