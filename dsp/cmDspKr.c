@@ -572,9 +572,12 @@ cmDspRC_t _cmDspScoreReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   }
 
   if((tlFn =  cmDspStrcz(inst, kFnScId )) !=  NULL )
+  {
     if( cmScoreInitialize(ctx->cmCtx, &p->scH, tlFn, cmDspSampleRate(ctx), dynRefArray, dynRefCnt, _cmDspScoreCb, p, ctx->stH ) != kOkTlRC )
       rc = cmErrMsg(&inst->classPtr->err, kInstResetFailDspRC, "Score file open failed.");
-
+    //else
+    //  cmScorePrintLoc(p->scH);
+  }
  errLabel:
   return rc;
 }
@@ -2365,10 +2368,10 @@ cmDspInst_t*  _cmDspRecdPlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   p->chCnt          = chCnt;
   p->scLocIdx       = 0;
 
-  cmDspSetDefaultDouble(ctx,&p->inst, kSecsPrId,     0, 10.0 );
-  cmDspSetDefaultDouble(ctx,&p->inst, kMaxLaSecsPrId,0, 2.0);
-  cmDspSetDefaultDouble(ctx,&p->inst, kCurLaSecsPrId,0, 0.5);
-  cmDspSetDefaultDouble(ctx,&p->inst, kFadeRatePrId, 0, 1.0);
+  cmDspSetDefaultDouble(ctx,&p->inst, kSecsPrId,     0.0, 10.0 );
+  cmDspSetDefaultDouble(ctx,&p->inst, kMaxLaSecsPrId,0.0, 2.0);
+  cmDspSetDefaultDouble(ctx,&p->inst, kCurLaSecsPrId,0.0, 0.1);
+  cmDspSetDefaultDouble(ctx,&p->inst, kFadeRatePrId, 0.0, 1.0);
 
   return &p->inst;
 }
@@ -2456,6 +2459,7 @@ cmDspRC_t _cmDspRecdPlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
       break;
 
     case kCurLaSecsPrId:
+      cmRecdPlaySetLaSecs(p->rcdply, cmDspDouble(inst,kCurLaSecsPrId));
       break;
 
     case kScLocIdxPrId:
