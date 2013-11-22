@@ -1918,6 +1918,31 @@ struct cmDspClass_str* cmActiveMeasClassCons( cmDspCtx_t* ctx )
 
 //==========================================================================================================================================
 // Audio MIDI Sync
+/*
+ Usage:
+ 1)  In the program resource file setup a list of sync points.
+ 'asmp' refers to a sample offset into the audio file 'af'
+ which should match to the midi event index 'mid' in the
+ midi file 'mf'.
+
+  amSync :
+  [
+   { af:"af-16" asmp:34735276  mf:"mf-10"  mid:350 }
+   { af:"af-16" asmp:71802194  mf:"mf-10"  mid:787 }
+  ]
+
+ 2) Feed the 'fidx' output from a wave table loaded with 'af' into the 'asmp' input port of this amSync object.
+    Feed the 'id' output from the MIDI file player loaded with 'mf' into the 'mid' input port of this amSync object.
+
+ 3) Run the players. 
+ 4) When the run is complete send any message to the 'sel' port of this amSync object.
+    The 'frm:' field of the printed output gives the difference in samples between
+    MIDI and audio sync points.
+
+    If the value is positive then the MIDI point is after the Audio point.
+    If the value is negative then the MIDI point is before the audio point.
+
+*/
 
 enum
 {
@@ -1944,8 +1969,8 @@ typedef struct cmDspAmSyncEntry_str
   const cmChar_t* mfn;  // midi file name   
   unsigned        asmp; // Audio sample index to sync to MIDI event
   unsigned        mid;  // MIDI event unique id (cmMidiTrackMsg_t.uid)
-  int             afi;  // 
-  int             mfi;
+  int             afi;  // closest DSP system cycle index to the reference audio sample index (asmp).
+  int             mfi;  // DSP system cycle on which the reference MIDI event (mid) arrived.
   unsigned        state; // as incoming msg match this record the state is updated with kXXXAmFl flags 
 } cmDspAmSyncEntry_t;
 
@@ -2093,7 +2118,7 @@ cmDspRC_t _cmDspAmSyncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 
     case kMFnAmId:
       {
-        // an midi file name just arrived - set p->mcur to point to it
+        // a midi file name just arrived - set p->mcur to point to it
         const cmChar_t* fn = cmDspStrcz(inst, kMFnAmId );
         for(i=0; i<p->arrayCnt; ++i)
           if( strcmp(fn,p->array[i].mfn) == 0 )
@@ -2113,6 +2138,9 @@ cmDspRC_t _cmDspAmSyncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
         if( p->acur != NULL )
           for(i=0; i<p->arrayCnt; ++i)
           {
+            // if the audio sync point is before or on the new audio file sample index then 
+            // this is the closest audio file index to the audio sync point - record the 
+            // associated cycleCnt
             cmDspAmSyncEntry_t* r = p->array + i;
             if( cmIsNotFlag(r->state,kAsmpAmFl)  && r->asmp <= v && strcmp(p->acur->afn,r->afn)==0  )
             {
@@ -2126,10 +2154,13 @@ cmDspRC_t _cmDspAmSyncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 
     case kMIdAmId:
       {
+        // a new MIDI event was received 
         int v = cmDspInt(inst,kMIdAmId);
         if( p->mcur != NULL )
           for(i=0; i<p->arrayCnt; ++i)
           {
+            // if the new MIDI event matched the MIDI sync point then record the 
+            // current cycleCnt.
             cmDspAmSyncEntry_t* r = p->array + i;
             if( cmIsNotFlag(r->state,kMidAmFl)  && r->mid == v && strcmp(p->mcur->mfn,r->mfn)==0  )
             {
