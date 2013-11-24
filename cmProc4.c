@@ -4559,8 +4559,8 @@ cmRC_t cmGoertzelExec( cmGoertzel* p, const cmSample_t* x, unsigned procSmpCnt, 
   {
     cmGoertzelCh* ch = p->ch + i;
     
-    ch->s1 = x[0];
-    ch->s2 = x[1] + 2 * x[0] * ch->coeff;
+    ch->s2 = x[0];
+    ch->s1 = x[1] + 2 * x[0] * ch->coeff;
     for(j=2; j<procSmpCnt; ++j)
     {
       ch->s0 = x[j] + ch->coeff * ch->s1 - ch->s2;
@@ -4573,3 +4573,5 @@ cmRC_t cmGoertzelExec( cmGoertzel* p, const cmSample_t* x, unsigned procSmpCnt, 
 
   return cmOkRC;
 }
+
+

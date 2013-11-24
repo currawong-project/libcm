@@ -723,7 +723,6 @@ extern "C" {
   cmRC_t cmGoertzelExec( cmGoertzel* p, const cmSample_t* in, unsigned procSmpCnt,  double* outV, unsigned chCnt );
 
 
-
 #ifdef __cplusplus
 }
 #endif
