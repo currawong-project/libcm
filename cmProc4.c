@@ -4502,3 +4502,74 @@ cmRC_t         cmRecdPlayExec( cmRecdPlay* p, const cmSample_t** iChs, cmSample_
 
   return cmOkRC;
 }
+
+//=======================================================================================================================
+cmGoertzel* cmGoertzelAlloc( cmCtx* c, cmGoertzel* p, double srate, const double* fcHzV, unsigned chCnt )
+{
+  cmGoertzel* op = cmObjAlloc(cmGoertzel,c,p);
+
+  if( cmGoertzelInit(op,srate,fcHzV,chCnt) != cmOkRC )
+    cmGoertzelFree(&op);
+
+  return op;
+}
+
+cmRC_t cmGoertzelFree( cmGoertzel** pp )
+{
+  cmRC_t rc = cmOkRC;
+  if( pp==NULL || *pp==NULL )
+    return rc;
+
+  cmGoertzel* p = *pp;
+  if((rc = cmGoertzelFinal(p)) != cmOkRC )
+    return rc;
+
+  cmMemFree(p->ch);
+  cmObjFree(pp);
+  return rc;
+
+}
+
+cmRC_t cmGoertzelInit( cmGoertzel* p, double srate, const double* fcHzV, unsigned chCnt )
+{
+  cmRC_t rc;
+  unsigned i;
+
+  if((rc = cmGoertzelFinal(p)) != cmOkRC )
+    return rc;
+
+  p->ch    = cmMemResizeZ(cmGoertzelCh,p->ch,chCnt);
+  p->chCnt = chCnt;
+  p->srate = srate;
+
+  for(i=0; i<p->chCnt; ++i)
+    p->ch[i].coeff = 2*cos(2*M_PI*fcHzV[i]/srate);
+  
+  return rc;
+}
+
+cmRC_t cmGoertzelFinal( cmGoertzel* p )
+{ return cmOkRC; }
+
+cmRC_t cmGoertzelExec( cmGoertzel* p, const cmSample_t* x, unsigned procSmpCnt, double* outV, unsigned chCnt )
+{
+  unsigned i,j;
+
+  for(i=0; i<chCnt; ++i)
+  {
+    cmGoertzelCh* ch = p->ch + i;
+    
+    ch->s1 = x[0];
+    ch->s2 = x[1] + 2 * x[0] * ch->coeff;
+    for(j=2; j<procSmpCnt; ++j)
+    {
+      ch->s0 = x[j] + ch->coeff * ch->s1 - ch->s2;
+      ch->s2 = ch->s1;
+      ch->s1 = ch->s0;
+    }
+    
+    outV[i] = ch->s2*ch->s2 + ch->s1*ch->s1 - ch->coeff * ch->s2 * ch->s1;
+  }
+
+  return cmOkRC;
+}

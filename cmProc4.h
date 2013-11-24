@@ -627,7 +627,10 @@ extern "C" {
   cmRC_t         cmScModulatorDump(  cmScModulator* p );
 
   //=======================================================================================================================
- 
+  //
+  // Record fragments of audio, store them, and play them back at a later time.
+  //
+
   typedef struct cmRecdPlayFrag_str
   {
     unsigned                   labelSymId; // this fragments label
@@ -658,6 +661,17 @@ extern "C" {
   } cmRecdPlay;
 
 
+  // srate        - system sample rate
+  // fragCnt      - total count of samples to record
+  // chCnt        - count of input and output audio channels.
+  // initFragSecs - amount of memory to pre-allocate for each fragment.
+  // maxLaSecs    -  maximum value for curLaSecs
+  // curLaSecs    -  current duration of look-ahead buffer 
+  //
+  // The look-ahead buffer is a circular buffer which hold the previous 'curLaSecs' seconds
+  // of incoming audio.  When recording is enabled with via cmRecdPlayBeginRecord() the
+  // look ahead buffer is automatically prepended to the fragment.
+
   cmRecdPlay*    cmRecdPlayAlloc( cmCtx* c, cmRecdPlay* p, double srate, unsigned fragCnt, unsigned chCnt, double initFragSecs, double maxLaSecs, double curLaSecs  );
   cmRC_t         cmRecdPlayFree(  cmRecdPlay** pp );
   cmRC_t         cmRecdPlayInit(  cmRecdPlay* p, double srate, unsigned flagCnt, unsigned chCnt, double initFragSecs, double maxLaSecs, double curLaSecs  );
@@ -667,15 +681,48 @@ extern "C" {
 
   cmRC_t         cmRecdPlaySetLaSecs( cmRecdPlay* p, double curLaSecs );
 
+  // Deactivates all active recorders and players, zeros the look-ahead buffer and
+  // rewinds all fragment play positions.  This function does not clear the audio from 
+  // frabments that have already been recorded.
   cmRC_t         cmRecdPlayRewind(      cmRecdPlay* p );
+
   cmRC_t         cmRecdPlayBeginRecord( cmRecdPlay* p, unsigned labelSymId );
   cmRC_t         cmRecdPlayEndRecord(   cmRecdPlay* p, unsigned labelSymId );
   cmRC_t         cmRecdPlayBeginPlay(   cmRecdPlay* p, unsigned labelSymId );
   cmRC_t         cmRecdPlayEndPlay(     cmRecdPlay* p, unsigned labelSymId );
 
+  // Begin fading out the specified fragment at a rate deteremined by 'dbPerSec'.
   cmRC_t         cmRecdPlayBeginFade(   cmRecdPlay* p, unsigned labelSymId, double fadeDbPerSec );
 
   cmRC_t         cmRecdPlayExec(        cmRecdPlay* p, const cmSample_t** iChs, cmSample_t** oChs, unsigned chCnt, unsigned smpCnt );
+
+  //=======================================================================================================================
+  // Goertzel Filter
+  //
+
+  typedef struct
+  {
+    double s0;
+    double s1;
+    double s2;
+    double coeff;
+  } cmGoertzelCh;
+
+  typedef struct
+  {
+    cmObj         obj;
+    cmGoertzelCh* ch;
+    unsigned      chCnt;
+    double        srate;
+  } cmGoertzel;
+
+  cmGoertzel* cmGoertzelAlloc( cmCtx* c, cmGoertzel* p, double srate, const double* fcHzV, unsigned chCnt );
+  cmRC_t cmGoertzelFree( cmGoertzel** pp );
+  cmRC_t cmGoertzelInit( cmGoertzel* p, double srate, const double* fcHzV, unsigned chCnt );
+  cmRC_t cmGoertzelFinal( cmGoertzel* p );
+  cmRC_t cmGoertzelExec( cmGoertzel* p, const cmSample_t* in, unsigned procSmpCnt,  double* outV, unsigned chCnt );
+
+
 
 #ifdef __cplusplus
 }
