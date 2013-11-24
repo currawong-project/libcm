@@ -5419,6 +5419,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmAmSyncClassCons,
   cmNanoMapClassCons,
   cmRecdPlayClassCons,
+  cmGoertzelClassCons,
   NULL,
 };
 

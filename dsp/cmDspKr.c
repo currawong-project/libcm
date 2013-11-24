@@ -2571,3 +2571,125 @@ struct cmDspClass_str* cmRecdPlayClassCons( cmDspCtx_t* ctx )
 
   return &_cmRecdPlayDC;
 }
+
+//==========================================================================================================================================
+enum
+{
+  kInGrId,
+  kOutBaseGrId,
+};
+
+cmDspClass_t _cmGoertzelDC;
+
+typedef struct
+{
+  cmDspInst_t inst;
+  cmGoertzel* g;
+  double      outPhs;
+} cmDspGoertzel_t;
+
+
+cmDspInst_t*  _cmDspGoertzelAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+
+  if( va_cnt !=2 )
+  {
+    cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'Goertzel' constructor must have two arguments: a channel count and frequency array.");
+    return NULL;
+  }
+
+  va_list vl1;
+  va_copy(vl1,vl);
+
+  int     chCnt = va_arg(vl,int);
+  double* hzV   = va_arg(vl,double*);
+
+  cmDspGoertzel_t* p = cmDspInstAllocV(cmDspGoertzel_t,ctx,classPtr,instSymId,id,storeSymId,0,vl1,
+    1,          "in",    kInGrId,       0,1, kInDsvFl   | kAudioBufDsvFl,  "Audio input",
+    chCnt,     "out",    kOutBaseGrId,  0,1, kOutDsvFl  | kDoubleDsvFl,    "Detector output",
+    0 );
+
+  va_end(vl1);
+
+  p->g = cmGoertzelAlloc(ctx->cmProcCtx, NULL, cmDspSysSampleRate(ctx->dspH), hzV, chCnt );
+    
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspGoertzelFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t        rc = kOkDspRC;
+  cmDspGoertzel_t* p = (cmDspGoertzel_t*)inst;
+
+  cmGoertzelFree(&p->g);
+
+  return rc;
+}
+
+cmDspRC_t _cmDspGoertzelReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspGoertzel_t* p = (cmDspGoertzel_t*)inst;
+
+  cmDspApplyAllDefaults(ctx,inst);
+
+  p->outPhs = 0;
+
+  return kOkDspRC;
+} 
+
+cmDspRC_t _cmDspGoertzelExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t         rc        = kOkDspRC;
+  cmDspGoertzel_t*  p         = (cmDspGoertzel_t*)inst;
+  const cmSample_t* x         = cmDspAudioBuf(ctx,inst,kInGrId,0);
+  unsigned          n         = cmDspAudioBufSmpCount(ctx,inst,kInGrId,0);
+  double            outMs     = 50.0;
+  double            outPhsMax = outMs * cmDspSysSampleRate(ctx->dspH)  / 1000.0;
+  double            outV[ p->g->chCnt ];
+  unsigned          i;
+
+  if( x != NULL )
+  {
+    cmGoertzelExec(p->g,x,n,outV,p->g->chCnt);
+
+    p->outPhs += n;
+    if( p->outPhs > outPhsMax )
+    {
+      while( p->outPhs > outPhsMax )
+        p->outPhs -= outPhsMax;
+
+      for(i=0; i<p->g->chCnt; ++i)
+      {
+        cmDspSetDouble(ctx,inst,kOutBaseGrId+i,outV[i]);
+        //printf("%f ",outV[i]);
+      }
+      //printf("\n");
+    }
+  }
+
+  return rc;
+}
+
+cmDspRC_t _cmDspGoertzelRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspSetEvent(ctx,inst,evt);
+
+  return kOkDspRC;
+}
+
+struct cmDspClass_str* cmGoertzelClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmGoertzelDC,ctx,"Goertzel",
+    NULL,
+    _cmDspGoertzelAlloc,
+    _cmDspGoertzelFree,
+    _cmDspGoertzelReset,
+    _cmDspGoertzelExec,
+    _cmDspGoertzelRecv,
+    NULL,
+    NULL,
+    "Goertzel Tone Detector Filter");
+
+  return &_cmGoertzelDC;
+}
