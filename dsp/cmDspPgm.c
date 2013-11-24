@@ -2450,9 +2450,60 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
 
 }
 
+cmDspRC_t _cmDspSysPgm_Goertzel( cmDspSysH_t h, void** userPtrPtr )
+{
+  cmDspRC_t rc;
+  const unsigned chCnt        = 3;
+  double         dfltHz       = 19000;
+  double fcHzV[]              = { 18000, dfltHz, 20000 };
+  unsigned       sigGenMode   = 2; // sine
+  double         sigGenGain   = 0.9;
+
+  cmDspInst_t*  ain  = cmDspSysAllocAudioIn(  h, 0, 1.0);
+  cmDspInst_t* amtr  = cmDspSysAllocInst( h, "AMeter", NULL, 0 );
+
+  cmDspInst_t*  goer = cmDspSysAllocInst( h, "Goertzel",  NULL,   2, chCnt, fcHzV );
+  cmDspInst_t** mtr  = cmDspSysAllocInstArray(h, chCnt,"Meter", "Mtr", NULL,  3, 0.0, 0.0, 1.0 );
+  
+  cmDspInst_t*  sg   = cmDspSysAllocInst( h, "SigGen",    NULL,   2, dfltHz, sigGenMode, sigGenGain, 0 );
+  cmDspInst_t*  ao0  = cmDspSysAllocAudioOut( h, 0, 1.0);
+  cmDspInst_t*  ao1  = cmDspSysAllocAudioOut( h, 0, 1.0);
+
+  cmDspInst_t*  hz   = cmDspSysAllocScalar(    h, "hz",0.0, 22000.0, 100.0, dfltHz );
+  cmDspInst_t*  ogain= cmDspSysAllocScalar(    h, "ogain", 0.0, 3.0, 0.01, 1.0 );
+  cmDspInst_t*  igain= cmDspSysAllocScalar(    h, "igain", 0.0, 3.0, 0.01, 1.0 );
+
+  cmDspInst_t* prnt = cmDspSysAllocInst( h,"Printer", NULL,     1, ">" );
+
+  // check for allocation errors
+  if((rc = cmDspSysLastRC(h)) != kOkDspRC )
+    goto errLabel;
+
+  cmDspSysConnectAudio(h,ain,"out", goer, "in" );
+  cmDspSysConnectAudio(h,ain,"out", amtr, "in" );
+
+
+  cmDspSysConnectAudio(h,sg,"out", ao0, "in" );
+  cmDspSysConnectAudio(h,sg,"out", ao1, "in" );
+
+  cmDspSysInstallCb( h, hz,    "val", sg,  "hz", NULL);
+  cmDspSysInstallCb( h, ogain, "val", ao0, "gain", NULL);
+  cmDspSysInstallCb( h, ogain, "val", ao1, "gain", NULL);
+  cmDspSysInstallCb( h, igain, "val", ain, "gain", NULL);
+  cmDspSysInstallCb(h,goer,"out-0", mtr[0], "in",NULL);
+  cmDspSysInstallCb(h,goer,"out-1", mtr[1], "in",NULL);
+  cmDspSysInstallCb(h,goer,"out-2", mtr[2], "in",NULL);
+  //cmDspSysInstallCb(h,goer,"out-1", prnt, "in",NULL);
+  
+ errLabel:
+  return rc;
+}
+
+
 _cmDspSysPgm_t _cmDspSysPgmArray[] = 
 {
   { "time_line",     _cmDspSysPgm_TimeLine,     NULL, NULL },
+  { "goertzel",      _cmDspSysPgm_Goertzel,     NULL, NULL },
   { "kr_live",       _cmDspSysPgm_KrLive,       NULL, NULL },
   { "main",          _cmDspSysPgm_Main,         NULL, NULL },
   { "array",         _cmDspSysPgm_Array,        NULL, NULL },
