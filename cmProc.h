@@ -44,7 +44,7 @@ extern "C" {
   //------------------------------------------------------------------------------------------------------------
   /// The buffer is intended to synchronize sample block rates between processes and to provide an overlapped 
   /// input buffer.
-  typedef struct 
+  typedef struct cmShiftBuf_str
   {
     cmObj       obj;
     unsigned    bufSmpCnt;  // wndSmpCnt + hopSmpCnt
