@@ -2453,25 +2453,38 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
 cmDspRC_t _cmDspSysPgm_Goertzel( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
-  const unsigned chCnt        = 3;
-  double         dfltHz       = 19000;
-  double fcHzV[]              = { 18000, dfltHz, 20000 };
+  const unsigned chCnt        = 8;
+  unsigned       hopFact      = 2;
+  double         dfltHz       = 18000.0;
   unsigned       sigGenMode   = 2; // sine
   double         sigGenGain   = 0.9;
+  double         dfltMixGain  = 1.0/chCnt;
+  double         fcHzV[chCnt];
+  unsigned       i;
 
-  cmDspInst_t*  ain  = cmDspSysAllocAudioIn(  h, 0, 1.0);
-  cmDspInst_t* amtr  = cmDspSysAllocInst( h, "AMeter", NULL, 0 );
-
-  cmDspInst_t*  goer = cmDspSysAllocInst( h, "Goertzel",  NULL,   2, chCnt, fcHzV );
-  cmDspInst_t** mtr  = cmDspSysAllocInstArray(h, chCnt,"Meter", "Mtr", NULL,  3, 0.0, 0.0, 1.0 );
+  for(i=0; i<chCnt; ++i)
+    fcHzV[i] = 18000.0 + (20000.0-18000.0) * i /chCnt;
   
-  cmDspInst_t*  sg   = cmDspSysAllocInst( h, "SigGen",    NULL,   2, dfltHz, sigGenMode, sigGenGain, 0 );
-  cmDspInst_t*  ao0  = cmDspSysAllocAudioOut( h, 0, 1.0);
-  cmDspInst_t*  ao1  = cmDspSysAllocAudioOut( h, 0, 1.0);
 
-  cmDspInst_t*  hz   = cmDspSysAllocScalar(    h, "hz",0.0, 22000.0, 100.0, dfltHz );
-  cmDspInst_t*  ogain= cmDspSysAllocScalar(    h, "ogain", 0.0, 3.0, 0.01, 1.0 );
-  cmDspInst_t*  igain= cmDspSysAllocScalar(    h, "igain", 0.0, 3.0, 0.01, 1.0 );
+  cmDspInst_t*  ain   = cmDspSysAllocAudioIn(  h, 0, 1.0);
+  cmDspInst_t*  amtr  = cmDspSysAllocInst(     h, "AMeter", "In", 0 );
+
+  cmDspInst_t*  goer  = cmDspSysAllocInst(     h, "Goertzel",  NULL,   3, hopFact, chCnt, fcHzV );
+
+  cmDspSysNewColumn(h,0);
+  cmDspInst_t** mtrV  = cmDspSysAllocInstArray(h, chCnt, "Meter",  "Mtr", NULL,  3, 0.0, 0.0, 1.0 );  
+  cmDspInst_t** sgV   = cmDspSysAllocInstArray(h, chCnt, "SigGen", "SG",  NULL,  2, dfltHz, sigGenMode, sigGenGain, 0 );
+  cmDspInst_t*  mix   = cmDspSysAllocInst(     h, "AMix", NULL,1, chCnt );
+  cmDspInst_t*  ao0   = cmDspSysAllocAudioOut( h, 0, 1.0);
+  cmDspInst_t*  ao1   = cmDspSysAllocAudioOut( h, 0, 1.0);
+
+  cmDspSysNewColumn(h,0);
+  cmDspInst_t**  hzV   = cmDspSysAllocInstArray( h, chCnt, "Scalar", "Hz",   NULL, 5, kNumberDuiId, 0.0, 22000.0, 100.0, dfltHz );
+
+  cmDspSysNewColumn(h,0);
+  cmDspInst_t**  gnV   = cmDspSysAllocInstArray( h, chCnt, "Scalar", "Gain", NULL, 5, kNumberDuiId, 0.0, 1.0, 0.01, dfltMixGain );
+  cmDspInst_t*   igain = cmDspSysAllocScalar(    h, "igain", 0.0,  3.0, 0.01, 1.0 );
+  cmDspInst_t*   hop   = cmDspSysAllocScalar(    h, "hop",   0.0, 16.0, 1.0,  4.0 );
 
   cmDspInst_t* prnt = cmDspSysAllocInst( h,"Printer", NULL,     1, ">" );
 
@@ -2481,19 +2494,17 @@ cmDspRC_t _cmDspSysPgm_Goertzel( cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysConnectAudio(h,ain,"out", goer, "in" );
   cmDspSysConnectAudio(h,ain,"out", amtr, "in" );
+  
+  cmDspSysConnectAudioN11N(h,sgV, "out", mix, "in", chCnt );
+  cmDspSysConnectAudio(h,mix,"out", ao0, "in" );
+  cmDspSysConnectAudio(h,mix,"out", ao1, "in" );
 
-
-  cmDspSysConnectAudio(h,sg,"out", ao0, "in" );
-  cmDspSysConnectAudio(h,sg,"out", ao1, "in" );
-
-  cmDspSysInstallCb( h, hz,    "val", sg,  "hz", NULL);
-  cmDspSysInstallCb( h, ogain, "val", ao0, "gain", NULL);
-  cmDspSysInstallCb( h, ogain, "val", ao1, "gain", NULL);
   cmDspSysInstallCb( h, igain, "val", ain, "gain", NULL);
-  cmDspSysInstallCb(h,goer,"out-0", mtr[0], "in",NULL);
-  cmDspSysInstallCb(h,goer,"out-1", mtr[1], "in",NULL);
-  cmDspSysInstallCb(h,goer,"out-2", mtr[2], "in",NULL);
-  //cmDspSysInstallCb(h,goer,"out-1", prnt, "in",NULL);
+  cmDspSysInstallCbN1N1( h, hzV, "val", sgV, "hz",   chCnt);
+  cmDspSysInstallCbN11N( h, hzV, "val", goer, "hz",  chCnt );
+  cmDspSysInstallCbN11N( h, gnV, "val", mix, "gain", chCnt); 
+  cmDspSysInstallCb1NN1( h, goer, "out", mtrV, "in", chCnt );
+  cmDspSysInstallCb(     h, hop, "val",  goer, "hop", NULL ); 
   
  errLabel:
   return rc;
