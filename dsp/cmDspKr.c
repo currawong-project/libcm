@@ -2575,8 +2575,9 @@ struct cmDspClass_str* cmRecdPlayClassCons( cmDspCtx_t* ctx )
 //==========================================================================================================================================
 enum
 {
+  kHopFactGrId,
   kInGrId,
-  kOutBaseGrId,
+  kHzBaseGrId,
 };
 
 cmDspClass_t _cmGoertzelDC;
@@ -2586,13 +2587,15 @@ typedef struct
   cmDspInst_t inst;
   cmGoertzel* g;
   double      outPhs;
+  unsigned    outBaseGrId;
+  unsigned    chCnt;
 } cmDspGoertzel_t;
 
 
 cmDspInst_t*  _cmDspGoertzelAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
 
-  if( va_cnt !=2 )
+  if( va_cnt !=3 )
   {
     cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'Goertzel' constructor must have two arguments: a channel count and frequency array.");
     return NULL;
@@ -2601,20 +2604,59 @@ cmDspInst_t*  _cmDspGoertzelAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   va_list vl1;
   va_copy(vl1,vl);
 
-  int     chCnt = va_arg(vl,int);
-  double* hzV   = va_arg(vl,double*);
+  unsigned hopFact     = va_arg(vl,unsigned);
+  int      chCnt       = va_arg(vl,int);
+  double*  hzV         = va_arg(vl,double*);
+  unsigned outBaseGrId = kHzBaseGrId + chCnt;
+  unsigned i;
 
-  cmDspGoertzel_t* p = cmDspInstAllocV(cmDspGoertzel_t,ctx,classPtr,instSymId,id,storeSymId,0,vl1,
-    1,          "in",    kInGrId,       0,1, kInDsvFl   | kAudioBufDsvFl,  "Audio input",
-    chCnt,     "out",    kOutBaseGrId,  0,1, kOutDsvFl  | kDoubleDsvFl,    "Detector output",
+  cmDspGoertzel_t* p = cmDspInstAllocV(cmDspGoertzel_t,ctx,classPtr,instSymId,id,storeSymId,1,vl1,
+    1,         "hop", kHopFactGrId,  0,0, kInDsvFl   | kDoubleDsvFl,    "Hop factor",
+    1,         "in",  kInGrId,       0,1, kInDsvFl   | kAudioBufDsvFl,  "Audio input",
+    chCnt,     "hz",  kHzBaseGrId,   0,0, kInDsvFl   | kDoubleDsvFl,    "Hz input.",
+    chCnt,     "out", outBaseGrId,   0,1, kOutDsvFl  | kDoubleDsvFl,    "Detector output",
     0 );
 
   va_end(vl1);
 
-  p->g = cmGoertzelAlloc(ctx->cmProcCtx, NULL, cmDspSysSampleRate(ctx->dspH), hzV, chCnt );
-    
+
+  p->outBaseGrId = outBaseGrId;
+  p->chCnt       = chCnt;
+
+  p->g = cmGoertzelAlloc(ctx->cmProcCtx, NULL, 0, NULL, 0,0,0,0 );
+  cmDspSetDefaultUInt(ctx,&p->inst, kHopFactGrId, 0, cmMax(hopFact,1));
+
+  for(i=0; i<chCnt; ++i)
+    cmDspSetDefaultDouble(ctx,&p->inst, kHzBaseGrId+i, 0.0, hzV[i] );
 
   return &p->inst;
+}
+
+cmDspRC_t _cmDspGoertzelSetup( cmDspCtx_t* ctx, cmDspInst_t* inst )
+{
+  cmDspRC_t        rc         = kOkDspRC;
+  cmDspGoertzel_t* p          = (cmDspGoertzel_t*)inst;
+  unsigned         hopFact    = cmDspUInt(inst,kHopFactGrId);
+  unsigned         procSmpCnt = cmDspAudioBufSmpCount(ctx,inst,kInGrId,0);
+  unsigned         wndSmpCnt  = procSmpCnt * hopFact;
+  double           fcHzV[ p->chCnt ];
+  unsigned         i;
+
+  for(i=0; i<p->chCnt; ++i)
+  {
+    double hz;
+    if( p->g->ch == NULL || p->g->ch[i].hz == 0 )
+      hz = cmDspDouble(inst,kHzBaseGrId);
+    else
+      hz = p->g->ch[i].hz;
+
+    fcHzV[i] = hz;
+  }
+   
+  if( cmGoertzelInit(p->g,cmDspSysSampleRate(ctx->dspH),fcHzV,p->chCnt,procSmpCnt,procSmpCnt,wndSmpCnt) != cmOkRC )
+    rc = cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Unable to initialize the internal Goertzel detector.");
+
+  return rc;
 }
 
 cmDspRC_t _cmDspGoertzelFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
@@ -2635,7 +2677,7 @@ cmDspRC_t _cmDspGoertzelReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
 
   p->outPhs = 0;
 
-  return kOkDspRC;
+  return _cmDspGoertzelSetup(ctx, inst );
 } 
 
 cmDspRC_t _cmDspGoertzelExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
@@ -2646,12 +2688,12 @@ cmDspRC_t _cmDspGoertzelExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   unsigned          n         = cmDspAudioBufSmpCount(ctx,inst,kInGrId,0);
   double            outMs     = 50.0;
   double            outPhsMax = outMs * cmDspSysSampleRate(ctx->dspH)  / 1000.0;
-  double            outV[ p->g->chCnt ];
+  double            outV[ p->chCnt ];
   unsigned          i;
 
   if( x != NULL )
   {
-    cmGoertzelExec(p->g,x,n,outV,p->g->chCnt);
+    cmGoertzelExec(p->g,x,n,outV,p->chCnt);
 
     p->outPhs += n;
     if( p->outPhs > outPhsMax )
@@ -2659,9 +2701,9 @@ cmDspRC_t _cmDspGoertzelExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
       while( p->outPhs > outPhsMax )
         p->outPhs -= outPhsMax;
 
-      for(i=0; i<p->g->chCnt; ++i)
+      for(i=0; i<p->chCnt; ++i)
       {
-        cmDspSetDouble(ctx,inst,kOutBaseGrId+i,outV[i]);
+        cmDspSetDouble(ctx,inst,p->outBaseGrId+i,outV[i]);
         //printf("%f ",outV[i]);
       }
       //printf("\n");
@@ -2673,8 +2715,19 @@ cmDspRC_t _cmDspGoertzelExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
 cmDspRC_t _cmDspGoertzelRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
+  cmDspGoertzel_t*  p         = (cmDspGoertzel_t*)inst;
+
   cmDspSetEvent(ctx,inst,evt);
 
+  if( kHzBaseGrId <= evt->dstVarId && evt->dstVarId < kHzBaseGrId+p->chCnt )
+    cmGoertzelSetFcHz(p->g, evt->dstVarId - kHzBaseGrId, cmDspDouble(inst,evt->dstVarId));
+  else
+  {
+    if( evt->dstVarId==kHopFactGrId )
+    {
+      _cmDspGoertzelSetup(ctx,inst);
+    }
+  }
   return kOkDspRC;
 }
 
