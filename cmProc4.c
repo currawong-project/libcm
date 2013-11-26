@@ -4504,12 +4504,15 @@ cmRC_t         cmRecdPlayExec( cmRecdPlay* p, const cmSample_t** iChs, cmSample_
 }
 
 //=======================================================================================================================
-cmGoertzel* cmGoertzelAlloc( cmCtx* c, cmGoertzel* p, double srate, const double* fcHzV, unsigned chCnt )
+cmGoertzel* cmGoertzelAlloc( cmCtx* c, cmGoertzel* p, double srate, const double* fcHzV, unsigned chCnt, unsigned procSmpCnt, unsigned hopSmpCnt, unsigned wndSmpCnt )
 {
   cmGoertzel* op = cmObjAlloc(cmGoertzel,c,p);
+  
+  op->shb = cmShiftBufAlloc(c,NULL,0,0,0);
 
-  if( cmGoertzelInit(op,srate,fcHzV,chCnt) != cmOkRC )
-    cmGoertzelFree(&op);
+  if( srate > 0 )  
+    if( cmGoertzelInit(op,srate,fcHzV,chCnt,procSmpCnt,wndSmpCnt,hopSmpCnt) != cmOkRC )
+      cmGoertzelFree(&op);
 
   return op;
 }
@@ -4524,13 +4527,14 @@ cmRC_t cmGoertzelFree( cmGoertzel** pp )
   if((rc = cmGoertzelFinal(p)) != cmOkRC )
     return rc;
 
+  cmShiftBufFree(&p->shb);
   cmMemFree(p->ch);
   cmObjFree(pp);
   return rc;
 
 }
 
-cmRC_t cmGoertzelInit( cmGoertzel* p, double srate, const double* fcHzV, unsigned chCnt )
+cmRC_t cmGoertzelInit( cmGoertzel* p, double srate, const double* fcHzV, unsigned chCnt, unsigned procSmpCnt, unsigned hopSmpCnt, unsigned wndSmpCnt )
 {
   cmRC_t rc;
   unsigned i;
@@ -4541,34 +4545,58 @@ cmRC_t cmGoertzelInit( cmGoertzel* p, double srate, const double* fcHzV, unsigne
   p->ch    = cmMemResizeZ(cmGoertzelCh,p->ch,chCnt);
   p->chCnt = chCnt;
   p->srate = srate;
+  p->wnd   = cmMemResizeZ(cmSample_t,p->wnd,wndSmpCnt);
+
+  cmVOS_Hann(p->wnd,wndSmpCnt);
+
+  cmShiftBufInit(p->shb,procSmpCnt,wndSmpCnt,hopSmpCnt);
 
   for(i=0; i<p->chCnt; ++i)
-    p->ch[i].coeff = 2*cos(2*M_PI*fcHzV[i]/srate);
-  
+  {
+    cmGoertzelSetFcHz(p,i,fcHzV[i]);
+  }
+
   return rc;
 }
 
 cmRC_t cmGoertzelFinal( cmGoertzel* p )
 { return cmOkRC; }
 
-cmRC_t cmGoertzelExec( cmGoertzel* p, const cmSample_t* x, unsigned procSmpCnt, double* outV, unsigned chCnt )
+cmRC_t cmGoertzelSetFcHz( cmGoertzel* p, unsigned chIdx, double hz )
+{
+  assert( chIdx < p->chCnt );
+  p->ch[chIdx].hz   = hz;
+  p->ch[chIdx].coeff = 2*cos(2*M_PI*hz/p->srate);
+  
+  return cmOkRC;
+}
+
+cmRC_t cmGoertzelExec( cmGoertzel* p, const cmSample_t* inpV, unsigned procSmpCnt, double* outV, unsigned chCnt )
 {
   unsigned i,j;
 
-  for(i=0; i<chCnt; ++i)
+  while( cmShiftBufExec(p->shb,inpV,procSmpCnt) )
   {
-    cmGoertzelCh* ch = p->ch + i;
-    
-    ch->s2 = x[0];
-    ch->s1 = x[1] + 2 * x[0] * ch->coeff;
-    for(j=2; j<procSmpCnt; ++j)
+    unsigned   xn = p->shb->wndSmpCnt;
+    cmSample_t x[ xn ];
+
+    cmVOS_MultVVV(x,xn,p->wnd,p->shb->outV);
+
+    for(i=0; i<chCnt; ++i)
     {
-      ch->s0 = x[j] + ch->coeff * ch->s1 - ch->s2;
-      ch->s2 = ch->s1;
-      ch->s1 = ch->s0;
-    }
+      cmGoertzelCh* ch = p->ch + i;
     
-    outV[i] = ch->s2*ch->s2 + ch->s1*ch->s1 - ch->coeff * ch->s2 * ch->s1;
+      ch->s2 = x[0];
+      ch->s1 = x[1] + 2 * x[0] * ch->coeff;
+      for(j=2; j<xn; ++j)
+      {
+        ch->s0 = x[j] + ch->coeff * ch->s1 - ch->s2;
+        ch->s2 = ch->s1;
+        ch->s1 = ch->s0;
+      }
+    
+      outV[i] = ch->s2*ch->s2 + ch->s1*ch->s1 - ch->coeff * ch->s2 * ch->s1;
+    }
   }
 
   return cmOkRC;
