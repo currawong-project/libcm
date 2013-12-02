@@ -7,7 +7,7 @@ extern "C" {
 
   /*
     TODO:
-    0) Figure out a error handling scheme that does not rely on
+    0) Figure out an error handling scheme that does not rely on
     a global errno.  This is not useful in multi-thread environments.
     It might be ok to go with an 'all errors are fatal' model
     (except in the var-args functions).
@@ -55,6 +55,10 @@ extern "C" {
     kCvtErrDtRC,
     kInvalidContDtRC,
     kInvalidTypeDtRC,
+    kMissingFieldDtRC,
+    kLexFailDtRC,
+    kParseStackFailDtRC,
+    kSyntaxErrDtRC,
     kEolDtRC
   };
 
@@ -76,7 +80,9 @@ extern "C" {
     kDoubleDtId,     // 11 
     kStrDtId,        // 12 zero terminated string
     kBlobDtId,       // 13 application defined raw memory object
-    kStructDtId      // 14 node is a pair,list, or recd
+    kStructDtId,      // 14 node is a pair,list, or recd
+
+    kOptArgDtFl = 0x10000000
   } cmDataTypeId_t;
 
 
@@ -119,6 +125,19 @@ extern "C" {
 
   };
 
+  // The kInvalidDtXXX constants  are used to indicate an error when returned
+  // from the cmDtXXX() functions below.
+#define   kInvalidDtFloat  FLT_MAX
+#define   kInvalidDtDouble DBL_MAX
+
+  enum
+  {
+    kInvalidDtChar = 0xff,
+    kInvalidDtShort = 0xffff,
+    kInvalidDtInt   = 0xffffffff,
+    kInvalidDtLong  = kInvalidDtInt,
+  };
+
 
   typedef struct cmData_str
   {
@@ -145,19 +164,6 @@ extern "C" {
       cmChar_t*         z;
 
       void*             vp;
-
-      /*
-      char*             cp;
-      unsigned char*   ucp;
-      short*            sp;
-      unsigned short*  usp;
-      int*              ip;
-      unsigned int*    uip;
-      long*             lp;
-      unsigned long*   ulp;
-      float*            fp;
-      double*           dp;
-      */
 
       struct cmData_str* child; // first child (list,record,pair)
     } u;
@@ -266,8 +272,30 @@ extern "C" {
   cmDtRC_t cmDataDouble(    const cmData_t* p, double* v );
   cmDtRC_t cmDataStr(       const cmData_t* p, cmChar_t** v );
   cmDtRC_t cmDataConstStr(  const cmData_t* p, const cmChar_t** v );
-  cmDtRC_t cmDataBlob(      const cmData_t* p, cmChar_t** v, unsigned* byteCntRef );
-  cmDtRC_t cmDataConstBlob( const cmData_t* p, const cmChar_t** v, unsigned* byteCntRef );
+  cmDtRC_t cmDataBlob(      const cmData_t* p, void** v, unsigned* byteCntRef );
+  cmDtRC_t cmDataConstBlob( const cmData_t* p, const void** v, unsigned* byteCntRef );
+
+  // Functions in this group which return pointers will return NULL
+  // on error.  The other function indicate an error by returning 
+  // kInvalidDtXXX depending on their type.
+  // Note that there is no guarantee, except as determined by the 
+  // application, that one of the kInvalidDtXXX is not in fact a legal return value.
+  // These function are simple wrappers around calls to cmDataXXX() and
+  // therefore do NOT do any type conversion.
+  char           cmDtChar(      const cmData_t* p );
+  unsigned char  cmDtUChar(     const cmData_t* p );
+  short          cmDtShort(     const cmData_t* p );
+  unsigned short cmDtUShort(    const cmData_t* p );
+  int            cmDtInt(       const cmData_t* p );
+  unsigned       cmDtUInt(      const cmData_t* p );
+  long           cmDtLong(      const cmData_t* p );
+  unsigned long  cmDtULong(     const cmData_t* p );
+  float          cmDtFloat(     const cmData_t* p );
+  double         cmDtDouble(    const cmData_t* p );
+  char*          cmDtStr(       const cmData_t* p );
+  const char*    cmDtConstStr(  const cmData_t* p );
+  void*          cmDtBlob(      const cmData_t* p, unsigned* byteCntRef );
+  const void*    cmDtConstBlob( const cmData_t* p, unsigned* byteCntRef );
 
   // Get the value of an object with conversion.
   cmDtRC_t cmDataGetChar(      const cmData_t* p, char* v );
@@ -281,6 +309,23 @@ extern "C" {
   cmDtRC_t cmDataGetFloat(     const cmData_t* p, float* v );
   cmDtRC_t cmDataGetDouble(    const cmData_t* p, double* v );
 
+  // Functions in this group which return pointers will return NULL
+  // on error.  The other function indicate an error by returning 
+  // kInvalidDtXXX depending on their type.
+  // Note that there is no guarantee, except as determined by the 
+  // application that one of the kInvalidDtXXX is not in fact a legal return value.
+  // These function are simple wrappers around calls to cmDataGetXXX() and
+  // therefore do type conversion.
+  char           cmDtGetChar(      const cmData_t* p );
+  unsigned char  cmDtGetUChar(     const cmData_t* p );
+  short          cmDtGetShort(     const cmData_t* p );
+  unsigned short cmDtGetUShort(    const cmData_t* p );
+  int            cmDtGetInt(       const cmData_t* p );
+  unsigned       cmDtGetUInt(      const cmData_t* p );
+  long           cmDtGetLong(      const cmData_t* p );
+  unsigned long  cmDtGetULong(     const cmData_t* p );
+  float          cmDtGetFloat(     const cmData_t* p );
+  double         cmDtGetDouble(    const cmData_t* p ); 
 
   //----------------------------------------------------------------------------
   // Array related functions
@@ -368,8 +413,19 @@ extern "C" {
   cmDtRC_t cmDataULongArray(     const cmData_t* d, unsigned long** v );
   cmDtRC_t cmDataFloatArray(     const cmData_t* d, float** v );
   cmDtRC_t cmDataDoubleArray(    const cmData_t* d, double** v );
-  cmDtRC_t cmDataStrArray(       const cmData_t* d, cmChar_t*** v );
-  cmDtRC_t cmDataConstStrArray(  const cmData_t* d, const cmChar_t*** v );
+
+  // This group of functions is a wrapper around calls to the same named
+  // cmDataXXXArray() functions above. On error they return NULL.
+  char*           cmDtCharArray(      const cmData_t* d );
+  unsigned char*  cmDtUCharArray(     const cmData_t* d );
+  short*          cmDtShortArray(     const cmData_t* d );
+  unsigned short* cmDtUShortArray(    const cmData_t* d );
+  int*            cmDtIntArray(       const cmData_t* d );
+  unsigned*       cmDtUIntArray(      const cmData_t* d );
+  long*           cmDtLongArray(      const cmData_t* d );
+  unsigned long*  cmDtULongArray(     const cmData_t* d );
+  float*          cmDtFloatArray(     const cmData_t* d );
+  double*         cmDtDoubleArray(    const cmData_t* d );
   
   //----------------------------------------------------------------------------
   // Structure related functions
@@ -454,17 +510,17 @@ extern "C" {
   // Create a pair value by assigning a key and value to 'p'.
   // 'p' is unlinked and freed prior to the key value assignment.
   // 'key' and 'value' are simply linked in they are not duplicated or reallocated.
-  cmData_t* cmDataMakePair(       cmData_t* parent, cmData_t* p, cmData_t* key, cmData_t* value );
+  cmData_t* cmDataPairMake(       cmData_t* parent, cmData_t* p, cmData_t* key, cmData_t* value );
 
   // Dynamically allocate a pair node. Both the key and value nodes are reallocated.
-  cmData_t* cmDataAllocPair(      cmData_t* parent, const cmData_t* key,  const cmData_t* value );
+  cmData_t* cmDataPairAlloc(      cmData_t* parent, const cmData_t* key,  const cmData_t* value );
 
   // Dynamically allocate the id but link (w/o realloc) the value.
-  cmData_t* cmDataAllocPairId(    cmData_t* parent, unsigned  keyId,       cmData_t* value );
+  cmData_t* cmDataPairAllocId(    cmData_t* parent, unsigned  keyId,       cmData_t* value );
 
   // Dynamically allocate the label but link (w/o realloc) the value.
-  cmData_t* cmDataAllocPairLabelN(cmData_t* parent, const cmChar_t* label, unsigned charCnt, cmData_t* value);
-  cmData_t* cmDataAllocPairLabel( cmData_t* parent, const cmChar_t* label, cmData_t* value );
+  cmData_t* cmDataPairAllocLabelN(cmData_t* parent, const cmChar_t* label, unsigned charCnt, cmData_t* value);
+  cmData_t* cmDataPairAllocLabel( cmData_t* parent, const cmChar_t* label, cmData_t* value );
 
   //----------------------------------------------------------------------------
   // List related functions
@@ -476,6 +532,7 @@ extern "C" {
   // Return the ith element in the list.
   cmData_t* cmDataListEle(    cmData_t* p, unsigned index );
 
+  // 
   cmData_t* cmDataListMake(  cmData_t* parent, cmData_t* p );
   cmData_t* cmDataListAlloc( cmData_t* parent);
 
@@ -544,9 +601,14 @@ extern "C" {
   cmData_t*       cmDataRecdAllocIdA( cmData_t* parent, ... );
   
   // Extract the data in a record to C variables.
+  // Var-args format:
+  // (label | id) <cid> <typeId> <ptr> {cnt_ptr}
   // The var-args list must be NULL terminated.
   // The <'id' | 'label'> identify a pair.  
+  // The <cid> indicates the type of the target container.
   // The <typeId> indicates the C type of 'pointer'.
+  // If <cid> is kArrayDtId then the <cnt_ptr} must be include to receive the
+  // count of elements in the array.
   // The actual field type must be convertable into this pointer type or the
   // function will fail.
   // 'err' is an application supplied error object to be used if a required
@@ -565,7 +627,7 @@ extern "C" {
 
   //-----------------------------------------------------------------------------
   typedef cmHandle_t cmDataParserH_t;
-  //static cmDataParserH_t cmDataParserNullHandle;
+  extern cmDataParserH_t cmDataParserNullHandle;
 
   cmDtRC_t cmDataParserCreate( cmCtx_t* ctx, cmDataParserH_t* hp );
   cmDtRC_t cmDataParserDestroy( cmDataParserH_t* hp );
