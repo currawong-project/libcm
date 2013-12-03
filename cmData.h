@@ -68,60 +68,67 @@ extern "C" {
   {
     kInvalidTypeDtId,// 0
     kNullDtId,       // 1 the data object exists but it has no data
-    kUCharDtId,      // 2
-    kCharDtId,       // 3
-    kUShortDtId,     // 4 
-    kShortDtId,      // 5
-    kUIntDtId,       // 6
-    kIntDtId,        // 7
-    kULongDtId,      // 8
-    kLongDtId,       // 9
-    kFloatDtId,      // 10 
-    kDoubleDtId,     // 11 
-    kStrDtId,        // 12 zero terminated string
-    kBlobDtId,       // 13 application defined raw memory object
-    kStructDtId,      // 14 node is a pair,list, or recd
+    kBoolDtId,       // 2
+    kUCharDtId,      // 3
+    kCharDtId,       // 4
+    kUShortDtId,     // 5 
+    kShortDtId,      // 6
+    kUIntDtId,       // 7
+    kIntDtId,        // 8
+    kULongDtId,      // 9
+    kLongDtId,       // 10
+    kFloatDtId,      // 11 
+    kDoubleDtId,     // 12 
+    kStrDtId,        // 13 zero terminated string
+    kBlobDtId,       // 14 application defined raw memory object
+    kStructDtId,     // 15 node is a pair,list, or recd
 
-    kOptArgDtFl = 0x10000000
   } cmDataTypeId_t;
 
 
   typedef enum
   {
-    kInvalidCntDtId, // 0 
-    kScalarDtId,     // 1
-    kArrayDtId,      // 2
-    kPairDtId,       // 3
-    kListDtId,       // 4
-    kRecordDtId      // 5
+    kInvalidCntDtId  = kInvalidTypeDtId,
+    kScalarDtId      = 0x00100000,      
+    kArrayDtId       = 0x00200000,      
+    kPairDtId        = 0x00400000,      
+    kListDtId        = 0x00800000,      
+    kRecordDtId      = 0x01000000,      
+    kContainerDtMask = 0x01f00000,
+
+   
   } cmDataContainerId_t;
 
   enum
   {
-    kNoFlagsDtFl = 0x00,
+    kNoFlagsDtFl    = 0x00,
+
+    kOptArgDtFl     = 0x02000000, 
 
     // Indicate that the memory used by the data object
     // was dynamically allocated and should be released
     // by cmDataFree().
-    kFreeObjDtFl   = 0x01,
+    kFreeObjDtFl    = 0x04000000,
 
     // Indicate that the memory used by strings, blobs 
     // and arrays should be freed by cmDataFree().
-    kFreeValueDtFl = 0x02, 
+    kFreeValueDtFl  = 0x08000000, 
 
     // Indicate that the value of the object cannot be changed.
     // (but the object could be reassigned as a new type).
-    kConstValueDtFl = 0x04,
+    kConstValueDtFl = 0x10000000,
 
     // Indicate that the type of the object cannot be changed.
     // (but the value may be changed).
-    kConstObjDtFl  = 0x08,
+    kConstObjDtFl   = 0x20000000,
 
     // Indicate that the array or string should not be 
     // internally reallocated but rather the source pointer
     // should be taken as the new value of the object.
-    kNoCopyDtFl = 0x10, 
+    kNoCopyDtFl     = 0x40000000, 
 
+
+    kFlagsDtMask    = 0x7e000000
 
   };
 
@@ -136,6 +143,7 @@ extern "C" {
     kInvalidDtShort = 0xffff,
     kInvalidDtInt   = 0xffffffff,
     kInvalidDtLong  = kInvalidDtInt,
+    kInvalidDtBool  = kInvalidDtInt
   };
 
 
@@ -150,6 +158,7 @@ extern "C" {
 
     union
     {
+      bool              b;
       char              c;
       unsigned char    uc;
       short             s;
@@ -214,6 +223,7 @@ extern "C" {
 
   // Type specific
   cmDtRC_t cmDataNewNull(     cmData_t* parent, unsigned flags,                   cmData_t** ref );
+  cmDtRC_t cmDataNewBool(     cmData_t* parent, unsigned flags, bool v,           cmData_t** ref );
   cmDtRC_t cmDataNewChar(     cmData_t* parent, unsigned flags, char v,           cmData_t** ref );
   cmDtRC_t cmDataNewUChar(    cmData_t* parent, unsigned flags, unsigned char v,  cmData_t** ref );
   cmDtRC_t cmDataNewShort(    cmData_t* parent, unsigned flags, short v,          cmData_t** ref );
@@ -241,6 +251,7 @@ extern "C" {
   cmDtRC_t  cmDataSetScalarValue( cmData_t* d, cmDataTypeId_t tid, void* vp, unsigned byteCnt, unsigned flags );
   
   cmDtRC_t cmDataSetNull(      cmData_t* p );
+  cmDtRC_t cmDataSetBool(      cmData_t* p, bool v );
   cmDtRC_t cmDataSetChar(      cmData_t* p, char v );
   cmDtRC_t cmDataSetUChar(     cmData_t* p, unsigned char v );
   cmDtRC_t cmDataSetShort(     cmData_t* p, short v );
@@ -260,6 +271,7 @@ extern "C" {
 
   // Get the value of an object. No conversion is applied the
   // type must match exactly or an error is generated.
+  cmDtRC_t cmDataBool(      const cmData_t* p, bool* v );
   cmDtRC_t cmDataChar(      const cmData_t* p, char* v );
   cmDtRC_t cmDataUChar(     const cmData_t* p, unsigned char* v );
   cmDtRC_t cmDataShort(     const cmData_t* p, short* v );
@@ -282,6 +294,7 @@ extern "C" {
   // application, that one of the kInvalidDtXXX is not in fact a legal return value.
   // These function are simple wrappers around calls to cmDataXXX() and
   // therefore do NOT do any type conversion.
+  bool           cmDtBool(      const cmData_t* p );
   char           cmDtChar(      const cmData_t* p );
   unsigned char  cmDtUChar(     const cmData_t* p );
   short          cmDtShort(     const cmData_t* p );
@@ -298,6 +311,7 @@ extern "C" {
   const void*    cmDtConstBlob( const cmData_t* p, unsigned* byteCntRef );
 
   // Get the value of an object with conversion.
+  cmDtRC_t cmDataGetBool(      const cmData_t* p, bool* v );
   cmDtRC_t cmDataGetChar(      const cmData_t* p, char* v );
   cmDtRC_t cmDataGetUChar(     const cmData_t* p, unsigned char* v );
   cmDtRC_t cmDataGetShort(     const cmData_t* p, short* v );
@@ -316,6 +330,7 @@ extern "C" {
   // application that one of the kInvalidDtXXX is not in fact a legal return value.
   // These function are simple wrappers around calls to cmDataGetXXX() and
   // therefore do type conversion.
+  bool           cmDtGetBool(      const cmData_t* p );
   char           cmDtGetChar(      const cmData_t* p );
   unsigned char  cmDtGetUChar(     const cmData_t* p );
   short          cmDtGetShort(     const cmData_t* p );
@@ -359,6 +374,7 @@ extern "C" {
   // the data object is no longer valid.
   cmDtRC_t cmDataNewArray(  cmData_t* parent, cmDataTypeId_t tid, void* vp, unsigned eleCnt, unsigned flags, cmData_t** ref );
 
+  cmDtRC_t cmDataNewBoolArray(     cmData_t* parent, bool* v,           unsigned eleCnt, unsigned flags, cmData_t** ref );
   cmDtRC_t cmDataNewCharArray(     cmData_t* parent, char* v,           unsigned eleCnt, unsigned flags, cmData_t** ref );
   cmDtRC_t cmDataNewUCharArray(    cmData_t* parent, unsigned char* v,  unsigned eleCnt, unsigned flags, cmData_t** ref );
   cmDtRC_t cmDataNewShortArray(    cmData_t* parent, short* v,          unsigned eleCnt, unsigned flags, cmData_t** ref );
@@ -384,6 +400,7 @@ extern "C" {
   cmDtRC_t cmDataSetArrayValue(  cmData_t* dt, cmDataTypeId_t tid, void* vp, unsigned eleCnt, unsigned flags );
 
   // Type sepctific set array functions.
+  cmDtRC_t cmDataSetBoolArray(   cmData_t* d, bool* v,           unsigned eleCnt, unsigned flags );
   cmDtRC_t cmDataSetCharArray(   cmData_t* d, char* v,           unsigned eleCnt, unsigned flags );
   cmDtRC_t cmDataSetUCharArray(  cmData_t* d, unsigned char* v,  unsigned eleCnt, unsigned flags );
   cmDtRC_t cmDataSetShortArray(  cmData_t* d, short* v,          unsigned eleCnt, unsigned flags );
@@ -403,6 +420,7 @@ extern "C" {
   // Get a pointer to the base of an array. 
   // The type must match exactly or an error is generated.
   // Use cmDataEleCount() to determine the number of elements in the array.
+  cmDtRC_t cmDataBoolArray(      const cmData_t* d, bool** v );  
   cmDtRC_t cmDataCharArray(      const cmData_t* d, char** v );
   cmDtRC_t cmDataUCharArray(     const cmData_t* d, unsigned char** v );
   cmDtRC_t cmDataShortArray(     const cmData_t* d, short** v );
@@ -416,6 +434,7 @@ extern "C" {
 
   // This group of functions is a wrapper around calls to the same named
   // cmDataXXXArray() functions above. On error they return NULL.
+  bool*           cmDtBoolArray(      const cmData_t* d );
   char*           cmDtCharArray(      const cmData_t* d );
   unsigned char*  cmDtUCharArray(     const cmData_t* d );
   short*          cmDtShortArray(     const cmData_t* d );
@@ -453,10 +472,10 @@ extern "C" {
   cmData_t* cmDataReplace( cmData_t* dst, cmData_t* src );
 
   // Return the count of child nodes.
-  // 1. Array nodes have one child per array element.
-  // 2. List nodes have one child pair.
-  // 3. Pair nodes have two children.
-  // 4. Leaf nodes have 0 children.
+  // Scalars and arrays have no children.
+  // Pairs have 2 children.
+  // Lists have one child per element.
+  // Records have one child per pair.
   unsigned  cmDataChildCount( const cmData_t* p );
 
   // Returns the ith child of 'p'.
@@ -513,14 +532,14 @@ extern "C" {
   cmData_t* cmDataPairMake(       cmData_t* parent, cmData_t* p, cmData_t* key, cmData_t* value );
 
   // Dynamically allocate a pair node. Both the key and value nodes are reallocated.
-  cmData_t* cmDataPairAlloc(      cmData_t* parent, const cmData_t* key,  const cmData_t* value );
+  cmRC_t cmDataPairAlloc(      cmData_t* parent, const cmData_t* key,  const cmData_t* value, cmData_t** ref );
 
   // Dynamically allocate the id but link (w/o realloc) the value.
-  cmData_t* cmDataPairAllocId(    cmData_t* parent, unsigned  keyId,       cmData_t* value );
+  cmRC_t cmDataPairAllocId(    cmData_t* parent, unsigned  keyId,       cmData_t* value, cmData_t** ref );
 
   // Dynamically allocate the label but link (w/o realloc) the value.
-  cmData_t* cmDataPairAllocLabelN(cmData_t* parent, const cmChar_t* label, unsigned charCnt, cmData_t* value);
-  cmData_t* cmDataPairAllocLabel( cmData_t* parent, const cmChar_t* label, cmData_t* value );
+  cmRC_t cmDataPairAllocLabelN(cmData_t* parent, const cmChar_t* label, unsigned charCnt, cmData_t* value, cmData_t** ref);
+  cmRC_t cmDataPairAllocLabel( cmData_t* parent, const cmChar_t* label, cmData_t* value, cmData_t** ref );
 
   //----------------------------------------------------------------------------
   // List related functions
@@ -536,22 +555,34 @@ extern "C" {
   cmData_t* cmDataListMake(  cmData_t* parent, cmData_t* p );
   cmData_t* cmDataListAlloc( cmData_t* parent);
 
-
-  // Var-args fmt:
-  // <contId> {<typeId>} <value> {<cnt>}
-  // scalar types: <value> is literal,<cnt>   is not included
-  //     null has no <value> or <cnt>
+  // Dynamically allocate a new list object and fill it with values 
+  // using a variable argument list.
+  //
+  // 1) Var-args fmt:
+  // <typeId> {<value>} {<cnt>}
+  //
+  // 2) <typeId> is formed by OR-ing one of the container type flags with a 
+  // data type id.  (e.g. kArrayDtId | kIntDtId).  Note that if no
+  // container is given then the type is assumed to be scalar.
+  //
+  // scalar types: <value> is literal, <cnt> should not be included
+  //               null scalar object should not include <value> or <cnt>
   // array  types: <value> is pointer,<cnt>   is element count
-  // struct types: <value> is cmData_t, <typeId> and <cnt> is not included
-  // Indicate the end of argument list by setting  <typeId> to kInvalidDtId. 
-  // The memory for array based data types is dynamically allocated.
-  cmRC_t cmDataListAllocV(cmData_t* parent, cmData_t** ref, va_list vl );
-  cmRC_t  cmDataListAllocA(cmData_t* parent,  cmData_t** ref, ... );
+  // struct types: <value> is cmData_t pointer,  <cnt> should not be included.
+  //               The struct object is appended to the child list of parent.
+  //
+  // 3) Indicate the end of argument list by setting  <typeId> to kInvalidDtId. 
+  // 4) Scalar and array objects will be dynamically allocated.
+  // 5) Data attribute flags (kXXXDtFl) make also be OR-ed into the <typeId>.
+  // 6) Data attribute flags will only be used with scalar and array object and
+  // will be ignored for all other object types.
+  cmRC_t  cmDataListAllocV( cmData_t* parent,  cmErr_t* err, cmRC_t errRC, cmData_t** ref, va_list vl );
+  cmRC_t  cmDataListAllocA( cmData_t* parent,  cmErr_t* err, cmRC_t errRC, cmData_t** ref, ... );
   
   // Returns a ptr to 'ele'.
   cmData_t* cmDataListAppendEle( cmData_t* p, cmData_t* ele );
-  cmDtRC_t  cmDataListAppendV(   cmData_t* p, va_list vl );
-  cmDtRC_t  cmDataListAppend(    cmData_t* p, ... );
+  cmDtRC_t  cmDataListAppendV(   cmData_t* p, cmErr_t* err, cmRC_t errRC, va_list vl );
+  cmDtRC_t  cmDataListAppend(    cmData_t* p, cmErr_t* err, cmRC_t errRC, ... );
 
   // Return  'p'.
   cmData_t* cmDataListInsertEle( cmData_t* p, unsigned index, cmData_t* ele );
@@ -572,9 +603,11 @@ extern "C" {
   cmData_t*       cmDataRecdValueFromId(    cmData_t* p, unsigned id );
   cmData_t*       cmDataRecdValueFromLabel( cmData_t* p, const cmChar_t* label );
 
-  // Return the ith key
+  // Return the ith key or NULL if it does not exist.
   cmData_t*       cmDataRecdKey(      cmData_t* p, unsigned index );
+  // Returns cmInvalidId if the ith key does not exist or is not an integer.
   unsigned        cmDataRecdKeyId(    cmData_t* p, unsigned index );
+  // Return NULL if the ith key does not exist or is not a string.
   const cmChar_t* cmDataRecdKeyLabel( cmData_t* p, unsigned index );
   
   cmData_t*       cmDataRecdMake( cmData_t* parent, cmData_t* p );
@@ -585,20 +618,24 @@ extern "C" {
   // reallocation or duplicattion takes place.
   cmData_t*       cmDataRecdAppendPair( cmData_t* p, cmData_t* pair );
 
+  // Dynamically allocate a new record object and fill it with values 
+  // using a variable argument list.
+  // 
+  // 1) Var-args format:
+  //   <label|id>  <value>
+  //   
+  //  The <label|id> arg. gives the record pair label and the <value>
+  //  argument list gives the pair value.
+  //
+  // 2) The <value> argument has the same syntax as the cmDataListAllocLabelV()
+  //    call.
+  // 3) The cmDataRecdAllocLabelV() arg. list should be terminated with NULL.
+  //    The cmDataRecdAllocIdV() arg. list should be terminated with 'kInvalidDtId'.
+  cmData_t*       cmDataRecdAllocLabelV( cmData_t* parent, cmErr_t* err, cmRC_t errRC, va_list vl );
+  cmData_t*       cmDataRecdAllocLabelA( cmData_t* parent, cmErr_t* err, cmRC_t errRC, ... );
 
-  // Var-args format:
-  // <label|id> {<cid>} <typeId>  <value> {<cnt>}
-  // scalar types: <value> is literal,<cnt> is not included
-  // null   type: has no <value> or <cnt>
-  // ptr    types: <value> is pointer,  <cnt> is element count
-  // struct types: <value> is cmData_t, <cnt> is not included
-  // Indicate the end of argument list by setting  <typeId> to kInvalidDtId. 
-  // The memory for array based data types is dynamically allocated.
-  cmData_t*       cmDataRecdAllocLabelV( cmData_t* parent, va_list vl );
-  cmData_t*       cmDataRecdAllocLabelA( cmData_t* parent, ... );
-
-  cmData_t*       cmDataRecdAllocIdV( cmData_t* parent, va_list vl );
-  cmData_t*       cmDataRecdAllocIdA( cmData_t* parent, ... );
+  cmData_t*       cmDataRecdAllocIdV( cmData_t* parent, cmErr_t* err, cmRC_t errRC, va_list vl );
+  cmData_t*       cmDataRecdAllocIdA( cmData_t* parent, cmErr_t* err, cmRC_t errRC, ... );
   
   // Extract the data in a record to C variables.
   // Var-args format:
@@ -621,11 +658,18 @@ extern "C" {
   cmDtRC_t cmDataRecdParseIdV(   cmData_t* p, cmErr_t* err, unsigned errRC, va_list vl );
   cmDtRC_t cmDataRecdParseId(    cmData_t* p, cmErr_t* err, unsigned errRC, ... );
   
+  //----------------------------------------------------------------------------
+  // Serialization related functions
+  //
+
   unsigned cmDataSerializeByteCount( const cmData_t* p );
   cmDtRC_t cmDataSerialize(   const cmData_t* p, void* buf, unsigned bufByteCnt );
   cmDtRC_t cmDataDeserialize( const void* buf, unsigned bufByteCnt, cmData_t** pp );
 
-  //-----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  // Text to Data related functions
+  //
+
   typedef cmHandle_t cmDataParserH_t;
   extern cmDataParserH_t cmDataParserNullHandle;
 
