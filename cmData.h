@@ -631,11 +631,11 @@ extern "C" {
   //    call.
   // 3) The cmDataRecdAllocLabelV() arg. list should be terminated with NULL.
   //    The cmDataRecdAllocIdV() arg. list should be terminated with 'kInvalidDtId'.
-  cmData_t*       cmDataRecdAllocLabelV( cmData_t* parent, cmErr_t* err, cmRC_t errRC, va_list vl );
-  cmData_t*       cmDataRecdAllocLabelA( cmData_t* parent, cmErr_t* err, cmRC_t errRC, ... );
+  cmDtRC_t cmDataRecdAllocLabelV( cmData_t* parent, cmErr_t* err, cmRC_t errRC, cmData_t** ref, va_list vl );
+  cmDtRC_t cmDataRecdAllocLabelA( cmData_t* parent, cmErr_t* err, cmRC_t errRC, cmData_t** ref, ... );
 
-  cmData_t*       cmDataRecdAllocIdV( cmData_t* parent, cmErr_t* err, cmRC_t errRC, va_list vl );
-  cmData_t*       cmDataRecdAllocIdA( cmData_t* parent, cmErr_t* err, cmRC_t errRC, ... );
+  cmDtRC_t cmDataRecdAllocIdV( cmData_t* parent, cmErr_t* err, cmRC_t errRC, cmData_t** ref, va_list vl );
+  cmDtRC_t cmDataRecdAllocIdA( cmData_t* parent, cmErr_t* err, cmRC_t errRC, cmData_t** ref, ... );
   
   // Extract the data in a record to C variables.
   // Var-args format:

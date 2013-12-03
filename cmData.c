@@ -2146,46 +2146,60 @@ cmDtRC_t  _cmDataRecdParseInputV(cmData_t* parent, cmErr_t* err, cmRC_t errRC, u
   return rc;
 }
 
-cmData_t*       cmDataRecdAllocLabelV( cmData_t* parent, cmErr_t* err, cmRC_t errRC, va_list vl )
+cmDtRC_t cmDataRecdAllocLabelV( cmData_t* parent, cmErr_t* err, cmRC_t errRC, cmData_t** ref, va_list vl )
 {
   cmData_t* p = cmDataRecdAlloc(parent);
+  if( ref != NULL )
+    *ref = NULL;
+
   cmDtRC_t rc = _cmDataRecdParseInputV(p, err, errRC, false, vl );
   if( rc != kOkDtRC )
   {
     cmDataFree(p);
     p = NULL;
   }
-  return p;
+
+  if( ref != NULL )
+    *ref = p;
+
+  return rc;
 }
 
-cmData_t*       cmDataRecdAllocLabelA( cmData_t* parent, cmErr_t* err, cmRC_t errRC, ... )
+cmDtRC_t cmDataRecdAllocLabelA( cmData_t* parent, cmErr_t* err, cmRC_t errRC, cmData_t** ref, ... )
 {
   va_list vl;
-  va_start(vl,errRC);
-  cmData_t* p = cmDataRecdAllocLabelV(parent,err,errRC,vl);
+  va_start(vl,ref);
+  cmDtRC_t rc = cmDataRecdAllocLabelV(parent,err,errRC,ref,vl);
   va_end(vl);
-  return p;
+  return rc;
 }
 
-cmData_t*       cmDataRecdAllocIdV( cmData_t* parent, cmErr_t* err, cmRC_t errRC, va_list vl )
+cmDtRC_t cmDataRecdAllocIdV( cmData_t* parent, cmErr_t* err, cmRC_t errRC, cmData_t** ref, va_list vl )
 {
   cmData_t* p = cmDataRecdAlloc(parent);
+  if( ref != NULL )
+    *ref = NULL;
+
   cmDtRC_t rc = _cmDataRecdParseInputV(p, err, errRC, true, vl );
   if( rc != kOkDtRC )
   {
     cmDataFree(p);
     p = NULL;
   }
-  return p;
+
+  if( ref != NULL )
+    *ref = p;
+
+  return rc;
 }
 
-cmData_t*       cmDataRecdAllocIdA( cmData_t* parent, cmErr_t* err, cmRC_t errRC, ... )
+cmDtRC_t cmDataRecdAllocIdA( cmData_t* parent, cmErr_t* err, cmRC_t errRC, cmData_t** ref, ... )
 {
   va_list vl;
-  va_start(vl,errRC);
-  cmData_t* p = cmDataRecdAllocIdV(parent,err,errRC,vl);
+  va_start(vl,ref);
+  cmRC_t rc = cmDataRecdAllocIdV(parent,err,errRC,ref,vl);
   va_end(vl);
-  return p;
+  return rc;
 }
 
 cmDtRC_t _cmDataRecdParseErrV( cmErr_t* err, unsigned rc, unsigned id, const cmChar_t* label, const cmChar_t* fmt, va_list vl )
@@ -3348,7 +3362,9 @@ void     cmDataTest( cmCtx_t* ctx )
   if( cmDataParserTest(ctx) != kOkDtRC )
     return;
 
-  cmData_t* d0 = cmDataRecdAllocLabelA(NULL,&ctx->err,0,
+  cmData_t* d0 = NULL;
+
+  cmDataRecdAllocLabelA(NULL,&ctx->err,0,&d0,
     "name", kStrDtId,"This is a string.",
     "id",  kUIntDtId,    21,
     "real",kFloatDtId, 1.23,
