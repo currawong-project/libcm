@@ -872,9 +872,9 @@ enum
 {
   kFnSfId,
   kBufCntSfId,
-  kMinLkAhdSfId,
   kMaxWndCntSfId,
   kMinVelSfId,
+  kMeasflSfId,
   kIndexSfId,
   kStatusSfId,
   kD0SfId,
@@ -883,10 +883,10 @@ enum
   kCmdSfId,
   kOutSfId,
   kRecentSfId,
-  kDynSfId,
-  kEvenSfId,
-  kTempoSfId,
-  kCostSfId,
+  kVlocSfId,
+  kVtypSfId,
+  kVvalSfId,
+  kVcostSfId,
   kSymSfId
 };
 
@@ -909,17 +909,18 @@ typedef struct cmDspScFol_str
   unsigned          printSymId;
   unsigned          quietSymId;
   unsigned          maxScLocIdx;
+  bool              liveFl;
 } cmDspScFol_t;
 
 cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
   cmDspVarArg_t args[] =
   {
-    { "fn",    kFnSfId,       0, 0, kInDsvFl | kStrzDsvFl   | kReqArgDsvFl,   "Score file." },
-    { "bufcnt",kBufCntSfId,   0, 0, kInDsvFl | kUIntDsvFl,                    "Event buffer element count." },
-    { "lkahd", kMinLkAhdSfId, 0, 0, kInDsvFl | kUIntDsvFl,                    "Minimum window look-ahead."},
-    { "wndcnt",kMaxWndCntSfId,0, 0, kInDsvFl | kUIntDsvFl,                    "Maximum window length."},
-    { "minvel",kMinVelSfId,   0, 0, kInDsvFl | kUIntDsvFl,                    "Minimum velocity."},
+    { "fn",    kFnSfId,       0, 0, kInDsvFl | kStrzDsvFl | kReqArgDsvFl,     "Score file." },
+    { "bufcnt",kBufCntSfId,   0, 0, kInDsvFl | kUIntDsvFl | kOptArgDsvFl,     "Event buffer element count." },
+    { "wndcnt",kMaxWndCntSfId,0, 0, kInDsvFl | kUIntDsvFl | kOptArgDsvFl,     "Maximum window length."},
+    { "minvel",kMinVelSfId,   0, 0, kInDsvFl | kUIntDsvFl | kOptArgDsvFl,     "Minimum velocity."},
+    { "measfl",kMeasflSfId,   0, 0, kInDsvFl | kBoolDsvFl | kOptArgDsvFl,     "Enable measurements"},
     { "index", kIndexSfId,    0, 0, kInDsvFl | kUIntDsvFl,                    "Tracking start location."},
     { "status",kStatusSfId,   0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI status byte"},
     { "d0",    kD0SfId,       0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI data byte 0"},
@@ -928,10 +929,10 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     { "cmd",   kCmdSfId,      0, 0, kInDsvFl | kSymDsvFl,                     "Command input: print | quiet"},
     { "out",   kOutSfId,      0, 0, kOutDsvFl| kUIntDsvFl,                    "Maximum score location index."},
     { "recent",kRecentSfId,   0, 0, kOutDsvFl| kUIntDsvFl,                    "Most recent score location index."},
-    { "dyn",   kDynSfId,      0, 0, kOutDsvFl| kDoubleDsvFl,                  "Dynamic value."},
-    { "even",  kEvenSfId,     0, 0, kOutDsvFl| kDoubleDsvFl,                  "Evenness value."},
-    { "tempo", kTempoSfId,    0, 0, kOutDsvFl| kDoubleDsvFl,                  "Tempo value."},
-    { "cost",  kCostSfId,     0, 0, kOutDsvFl| kDoubleDsvFl,                  "Match cost value."},
+    { "vloc",  kVlocSfId,     0, 0, kOutDsvFl| kUIntDsvFl,                    "Score location at which the variable value becomes active."},
+    { "vtyp",  kVtypSfId,     0, 0, kOutDsvFl| kUIntDsvFl,                    "Variable type: 0=even=kEvenVarScId 1=dyn=kDynVarScId 2=tempo=kTempoVarScId."},
+    { "vval",  kVvalSfId,     0, 0, kOutDsvFl| kDoubleDsvFl,                  "Variable value."},
+    { "vcost", kVcostSfId,    0, 0, kOutDsvFl| kDoubleDsvFl,                  "Variable match cost value."},
     { "sym",   kSymSfId,      0, 0, kOutDsvFl| kSymDsvFl,                     "Symbol associated with a global variable which has changed value."},
     { NULL,    0,             0, 0, 0, NULL }
   };
@@ -949,15 +950,11 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
 
   cmDspSetDefaultUInt(   ctx, &p->inst,  kBufCntSfId,     0,     7);
   cmDspSetDefaultUInt(   ctx, &p->inst,  kMaxWndCntSfId,  0,    10);
-  cmDspSetDefaultUInt(   ctx, &p->inst,  kMinLkAhdSfId,   0,     3);
   cmDspSetDefaultUInt(   ctx, &p->inst,  kMinVelSfId,     0,     5);
+  cmDspSetDefaultBool(   ctx, &p->inst,  kMeasflSfId,     0,     0);
   cmDspSetDefaultUInt(   ctx, &p->inst,  kIndexSfId,      0,     0);  
   cmDspSetDefaultUInt(   ctx, &p->inst,  kOutSfId,        0,     0);
   cmDspSetDefaultUInt(   ctx, &p->inst,  kRecentSfId,     0,     0);
-  cmDspSetDefaultDouble( ctx, &p->inst,  kDynSfId,        0,     0);
-  cmDspSetDefaultDouble( ctx, &p->inst,  kEvenSfId,       0,     0);
-  cmDspSetDefaultDouble( ctx, &p->inst,  kTempoSfId,      0,     0);
-  cmDspSetDefaultDouble( ctx, &p->inst,  kCostSfId,       0,     0);
   
   cmDspSetDefaultSymbol(ctx,&p->inst,  kCmdSfId, p->quietSymId );
 
@@ -990,6 +987,7 @@ void _cmScFolMatcherCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
       if(ap->sfp->smp->set[i].value != DBL_MAX )
       {
 
+        /*
         switch( ap->sfp->smp->set[i].sp->varId )
         {
           case kEvenVarScId:
@@ -1009,7 +1007,7 @@ void _cmScFolMatcherCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
         }           
 
         cmDspSetDouble(ap->ctx,inst,kCostSfId,ap->sfp->smp->set[i].match_cost);
-
+        */
 
         // Set the values in the global variable storage
         cmDspValue_t vv,cv;
@@ -1024,6 +1022,14 @@ void _cmScFolMatcherCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
 
           cmDspSetSymbol(ap->ctx,inst,kSymSfId,ap->sfp->smp->set[i].sp->symArray[j]);
           cmDspSetSymbol(ap->ctx,inst,kSymSfId,ap->sfp->smp->set[i].sp->costSymArray[j]);
+
+          if( cmDspBool(inst,kMeasflSfId) )
+          {
+            cmDspSetUInt(   ap->ctx, inst, kVlocSfId,  ap->sfp->smp->set[i].sp->sectArray[j]->locPtr->index);
+            cmDspSetDouble( ap->ctx, inst, kVvalSfId,  ap->sfp->smp->set[i].value);
+            cmDspSetDouble( ap->ctx, inst, kVcostSfId, ap->sfp->smp->set[i].match_cost);
+            cmDspSetUInt(   ap->ctx, inst, kVtypSfId,  ap->sfp->smp->set[i].sp->varId);
+          }
         }
 
 
@@ -2364,6 +2370,9 @@ cmDspRC_t _cmDspRecdPlayOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
     double maxLaSecs    = cmDspDouble(inst,kMaxLaSecsPrId);
     double curLaSecs    = cmDspDouble(inst,kCurLaSecsPrId);
 
+    printf("2 max la secs:%f\n",cmDspDouble(inst,kMaxLaSecsPrId));
+
+
     if((p->rcdply = cmRecdPlayAlloc(ctx->cmProcCtx, NULL, cmDspSampleRate(ctx), markerCnt, p->chCnt, initFragSecs, maxLaSecs, curLaSecs)) == NULL)
       return cmErrMsg(&inst->classPtr->err,kSubSysFailDspRC,"Unable to create the internal recorder-player object.");    
 
@@ -2393,11 +2402,11 @@ cmDspInst_t*  _cmDspRecdPlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
 
   cmDspRecdPlay_t* p = cmDspInstAllocV(cmDspRecdPlay_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl1,
     1,         "chs",    kChCntPrId,      0,0, kUIntDsvFl | kReqArgDsvFl,              "channel count.",
-    1,         "fn",     kFnPrId,         0,0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl, "Score file." ,
+    1,         "fn",     kFnPrId,         0,0, kInDsvFl   | kStrzDsvFl   | kReqArgDsvFl, "Score file." ,
     1,         "secs",   kSecsPrId,       0,0, kInDsvFl   | kDoubleDsvFl | kReqArgDsvFl, "Initial fragment allocation in seconds.",
-    1,         "maxla",  kMaxLaSecsPrId,  0,0, kInDsvFl   | kDoubleDsvFl,              "Maximum look-ahead buffer in seconds.",
-    1,         "curla",  kCurLaSecsPrId,  0,0, kInDsvFl   | kDoubleDsvFl,              "Current look-head buffer in seconds.",
-    1,         "frate",  kFadeRatePrId,   0,0, kInDsvFl   | kDoubleDsvFl,              "Fade rate in dB per second.",
+    1,         "maxla",  kMaxLaSecsPrId,  0,0, kInDsvFl   | kDoubleDsvFl | kReqArgDsvFl, "Maximum look-ahead buffer in seconds.",
+    1,         "curla",  kCurLaSecsPrId,  0,0, kInDsvFl   | kDoubleDsvFl | kOptArgDsvFl, "Current look-head buffer in seconds.",
+    1,         "frate",  kFadeRatePrId,   0,0, kInDsvFl   | kDoubleDsvFl | kOptArgDsvFl, "Fade rate in dB per second.",
     1,         "index",  kScLocIdxPrId,   0,0, kInDsvFl   | kUIntDsvFl,                "Score follower location index.",
     1,         "cmd",    kCmdPrId,        0,0, kInDsvFl   | kSymDsvFl,                 "on=reset off=stop.",
     chCnt,     "in",     kInAudioBasePrId,0,1, kInDsvFl   | kAudioBufDsvFl,            "Audio input",
@@ -2412,10 +2421,15 @@ cmDspInst_t*  _cmDspRecdPlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   p->chCnt          = chCnt;
   p->scLocIdx       = 0;
 
+  printf("0 max la secs:%f\n",cmDspDouble(&p->inst,kMaxLaSecsPrId));
+
   cmDspSetDefaultDouble(ctx,&p->inst, kSecsPrId,     0.0, 10.0 );
   cmDspSetDefaultDouble(ctx,&p->inst, kMaxLaSecsPrId,0.0, 2.0);
   cmDspSetDefaultDouble(ctx,&p->inst, kCurLaSecsPrId,0.0, 0.1);
   cmDspSetDefaultDouble(ctx,&p->inst, kFadeRatePrId, 0.0, 1.0);
+
+  printf("1 max la secs:%f\n",cmDspDouble(&p->inst,kMaxLaSecsPrId));
+
 
   return &p->inst;
 }
@@ -2433,9 +2447,11 @@ cmDspRC_t _cmDspRecdPlayFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
 cmDspRC_t _cmDspRecdPlayReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
-  cmDspApplyAllDefaults(ctx,inst);
+  cmDspRC_t rc;
+  if((rc = _cmDspRecdPlayOpenScore(ctx,inst)) == kOkDspRC )
+    cmDspApplyAllDefaults(ctx,inst);
 
-  return _cmDspRecdPlayOpenScore(ctx,inst);
+  return rc;
 } 
 
 cmDspRC_t _cmDspRecdPlayExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
@@ -2483,6 +2499,9 @@ cmDspRC_t _cmDspRecdPlayExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 cmDspRC_t _cmDspRecdPlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
   cmDspRecdPlay_t* p = (cmDspRecdPlay_t*)inst;
+
+  if( p->rcdply == NULL )
+    return kOkDspRC;
 
   cmDspSetEvent(ctx,inst,evt);
 
