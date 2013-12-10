@@ -401,6 +401,7 @@ cmDspRC_t _cmDspSysPgm_UiTest(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* trp = cmDspSysAllocInst(h,"Scalar", "target",    5, kNumberDuiId, 0.0, 1.0, 0.01, 0.5 );
   cmDspInst_t* btn = cmDspSysAllocInst(h,"Button", "btn",       2, kButtonDuiId, 12.3 );
   cmDspInst_t* chk = cmDspSysAllocInst(h,"Button", "check",     2, kCheckDuiId, 0 );
+  cmDspInst_t* chb = cmDspSysAllocInst(h,"Checkbox","checkbox", 5, "Checker","up","down", 2.0, 1.0);
   cmDspInst_t* txt = cmDspSysAllocInst(h,"Text",   "text",      1, "Hello" );
   cmDspInst_t* prp = cmDspSysAllocInst(h,"Printer", NULL,   1, ">" );
   cmDspInst_t* mtp = cmDspSysAllocInst(h,"Meter", "meter",  3, 0.0,  0.0, 4.0);
@@ -427,6 +428,9 @@ cmDspRC_t _cmDspSysPgm_UiTest(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, btn, "out", ctp, "next", NULL );
   
   cmDspSysInstallCb(h, txt, "val", prp, "in", NULL );
+
+  cmDspSysInstallCb(h, chb, "out", prp, "in", NULL );
+  cmDspSysInstallCb(h, chb, "sym", prp, "in", NULL );
 
   return rc;
 
@@ -2486,7 +2490,7 @@ cmDspRC_t _cmDspSysPgm_Goertzel( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t*   igain = cmDspSysAllocScalar(    h, "igain", 0.0,  3.0, 0.01, 1.0 );
   cmDspInst_t*   hop   = cmDspSysAllocScalar(    h, "hop",   0.0, 16.0, 1.0,  4.0 );
 
-  cmDspInst_t* prnt = cmDspSysAllocInst( h,"Printer", NULL,     1, ">" );
+  //cmDspInst_t* prnt = cmDspSysAllocInst( h,"Printer", NULL,     1, ">" );
 
   // check for allocation errors
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
