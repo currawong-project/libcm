@@ -513,6 +513,9 @@ void _cmMpMIDISystemReadProc( const MIDIPacketList *pktListPtr, void* readProcRe
     // 1000 times that for microSeconds:
     double microSecs = 1000.0f * nanoSeconds;
 
+    // BUG BUG BUG: How can multiplying the nanoseconds produce microseconds?
+    // Shouldn't the nano to micro conversion be a divide?
+
     double deltaMicroSecs = microSecs - pp->prevMicroSecs;
 
     pp->prevMicroSecs = microSecs;
