@@ -5768,8 +5768,8 @@ struct cmDspClass_str* cmRouterClassCons( cmDspCtx_t* ctx )
 //   The gate[] output is designed to work with the gate[] input of Xfader.  When
 //   availCh.gate[] goes high Xfader fades in, when availCh.gate[] goes low
 //   Xfader fades out.  The dis[] channel is designed to connect from Xfader.state[].
-//   When Xfader.state[] goes low, when a fade-out is complete, the connected AvailCh 
-//   is marked as available. 
+//   Xfader.state[] goes low when a fade-out is complete, the connected AvailCh 
+//   is then marked as available. 
 enum
 {
   kChCntAvId,
@@ -5895,19 +5895,39 @@ cmDspRC_t _cmDspAvailCh_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
       // if ch[i] is the first avail inactive channel
       if( fl && !activeFl )
       {
-        cmDspSetUInt(ctx,inst,kChIdxAvId,i);
-        cmDspSetBool(ctx, inst, p->baseDisInAvId   + i, true);
-        cmDspSetBool(ctx, inst, p->baseGateOutAvId + i, true);
-        j = i;
+        // activate the available channel
+        //cmDspSetUInt(ctx,inst,kChIdxAvId,j);
+        //cmDspSetBool(ctx, inst, p->baseDisInAvId   + j, true);
+        //cmDspSetBool(ctx, inst, p->baseGateOutAvId + j, true);
+
+        j  = i;
         fl = false;
       }
 
       // if ch[i] is active - then request that it shutdown 
-      if( activeFl && exclModeFl)
-        cmDspSetBool(ctx, inst, p->baseGateOutAvId + i, false);
+      //if( activeFl && exclModeFl)
+      //  cmDspSetBool(ctx, inst, p->baseGateOutAvId + i, false);
 
     }
 
+    if( j==-1 )
+      cmDspInstErr(ctx,inst,kInvalidStateDspRC,"No available channels exist.");
+    else
+    {
+      // activate the available channel
+      cmDspSetUInt(ctx,inst,kChIdxAvId,j);
+      cmDspSetBool(ctx, inst, p->baseDisInAvId   + j, true);
+      cmDspSetBool(ctx, inst, p->baseGateOutAvId + j, true);
+
+      if( exclModeFl )
+      {
+        for(i=0; i<p->chCnt; ++i)
+          if( i!=j && cmDspBool(inst,p->baseDisInAvId+i) )
+            cmDspSetBool(ctx,inst, p->baseGateOutAvId+i, false );
+      }
+    }
+
+    
     return rc;
   }
 
