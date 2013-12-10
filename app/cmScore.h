@@ -24,6 +24,7 @@ extern "C" {
     kTempoEvtScId,
     kTrackEvtScId,
     kTextEvtScId,
+    kNameEvtScId,
     kEOTrackEvtScId,
     kCopyEvtScId,
     kBlankEvtScId,

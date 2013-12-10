@@ -135,6 +135,7 @@ cmScEvtRef_t _cmScEvtRefArray[] =
   { kTempoEvtScId, 0,   "tmp" },
   { kTrackEvtScId, 0,   "trk" },
   { kTextEvtScId, 0,    "txt" },
+  { kNameEvtScId, 0,    "nam" },
   { kEOTrackEvtScId, 0, "eot" },
   { kCopyEvtScId, 0,    "cpy" },
   { kBlankEvtScId, 0,   "blk" },
