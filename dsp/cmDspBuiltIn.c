@@ -2156,6 +2156,172 @@ struct cmDspClass_str* cmButtonClassCons( cmDspCtx_t* ctx )
 }
 
 //==========================================================================================================================================
+enum
+{
+  kLblCbId,
+  kSym1CbId,
+  kSym0CbId,
+  kVal1CbId,
+  kVal0CbId,
+  kOutCbId,
+  kSymCbId,
+  kInCbId
+};
+
+cmDspClass_t _cmCheckboxDC;
+
+typedef struct
+{
+  cmDspInst_t inst;
+  unsigned    resetSymId;
+  unsigned    onSymId;
+  unsigned    offSymId;
+} cmDspCheckbox_t;
+
+cmDspInst_t*  _cmDspCheckboxAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+
+
+  // Check buttons should transmit their default values. Set kSendDfltDsvFl on outputs to send default values.
+  
+  cmDspVarArg_t args[] =
+  {
+    { "label",kLblCbId,  0, 0, kInDsvFl  | kStrzDsvFl   | kOptArgDsvFl,   "Label"},
+    { "sym1", kSym1CbId, 0, 0, kInDsvFl  | kStrzDsvFl   | kOptArgDsvFl,   "'on' symbol value"},
+    { "sym0", kSym0CbId, 0, 0, kInDsvFl  | kStrzDsvFl   | kOptArgDsvFl,   "'off' symbol value"},
+    { "val1", kVal1CbId, 0, 0, kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl,   "'on' value"},
+    { "val0", kVal0CbId, 0, 0, kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl,   "'off' value"},
+    { "out",  kOutCbId,  0, 0, kOutDsvFl | kDoubleDsvFl | kOptArgDsvFl | kSendDfltDsvFl, "Value"},
+    { "sym",  kSymCbId,  0, 0, kOutDsvFl | kSymDsvFl                   | kSendDfltDsvFl, "Symbol Value"},
+    { "in",   kInCbId,   0, 0, kInDsvFl  | kTypeDsvMask,                  "Simulate UI"},
+    { NULL, 0, 0, 0, 0 }
+  };
+
+  cmDspCheckbox_t* p = cmDspInstAlloc(cmDspCheckbox_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+
+  
+  cmDspSetDefaultDouble(ctx, &p->inst, kVal1CbId, 0.0, 1.0);
+  cmDspSetDefaultDouble(ctx, &p->inst, kVal0CbId, 0.0, 0.0);
+  cmDspSetDefaultStrcz( ctx, &p->inst, kSym1CbId, NULL, "on");
+  cmDspSetDefaultStrcz( ctx, &p->inst, kSym0CbId, NULL, "off");
+  cmDspSetDefaultDouble(ctx, &p->inst, kOutCbId,  0.0, 0.0);
+  cmDspSetDefaultSymbol(ctx, &p->inst, kSymCbId,        instSymId );
+  cmDspSetDefaultStrcz( ctx, &p->inst, kLblCbId, NULL, cmSymTblLabel(ctx->stH,instSymId));
+
+  p->resetSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"_reset");
+  p->onSymId    = cmSymTblRegisterSymbol(ctx->stH, cmDspStrcz(&p->inst,kSym1CbId));
+  p->offSymId   = cmSymTblRegisterSymbol(ctx->stH, cmDspStrcz(&p->inst,kSym0CbId));
+
+  // create the UI control
+  cmDspUiButtonCreate(ctx,&p->inst,kCheckDuiId,kOutCbId,kLblCbId);
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspCheckboxReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspApplyAllDefaults(ctx,inst);
+  return kOkDspRC;
+}
+
+cmDspRC_t _cmDspCheckboxRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t rc = kOkDspRC;
+  cmDspCheckbox_t* p = (cmDspCheckbox_t*)inst;
+
+  switch( evt->dstVarId )
+  {
+    case kLblCbId:
+      // TODO: we have no function for changing a UI control label.
+      return rc;
+
+    case kVal1CbId:
+    case kVal0CbId:
+    case kSym1CbId:
+    case kSym0CbId:
+      cmDspSetEvent(ctx,inst,evt);
+
+      if( evt->dstVarId == kSym1CbId )
+        p->onSymId    = cmSymTblRegisterSymbol(ctx->stH, cmDspStrcz(&p->inst,kSym1CbId));
+
+      if( evt->dstVarId == kSym0CbId )
+        p->offSymId   = cmSymTblRegisterSymbol(ctx->stH, cmDspStrcz(&p->inst,kSym0CbId));
+
+      return rc;
+
+  }
+
+  // the 'in' port is the only input port 
+  // but the UI button pushes use kOutCbId.
+  assert( evt->dstVarId == kInCbId || evt->dstVarId == kOutCbId );
+
+  // We accept all types at the 'in' port but are only interested
+  // in transmitting doubles from the 'out' port and symbols from 
+  // the 'sym' port.
+
+  if( cmDsvCanConvertFlags( kDoubleDsvFl, evt->valuePtr->flags ) )
+  {
+    bool checkFl = cmDsvGetDouble(evt->valuePtr)!=0;
+
+    unsigned valId = checkFl ? kVal1CbId  : kVal0CbId;
+    unsigned symId = checkFl ? p->onSymId : p->offSymId;
+
+
+    // Redirect events which can be converted to type kDoubleDsvFl 
+    // to the output port.
+    // 
+    // Convert the event dest var id from the 'kInCbId' to 'kOutCbId' 
+    // and update the UI  with the incoming value 
+    cmDspEvt_t e;
+    cmDspValue_t v;
+    
+    cmDspEvtCopy(&e,evt);
+    e.valuePtr = &v;
+    cmDsvSetDouble(&v,cmDspDouble(inst,valId));
+    cmDspSetEventUiId(ctx,inst,evt,kOutCbId);
+
+    cmDspSetSymbol( ctx, inst, kSymCbId, symId);
+
+  }
+
+  
+  return kOkDspRC;
+}
+
+cmDspRC_t  _cmDspCheckboxPresetRdWr( cmDspCtx_t* ctx, cmDspInst_t*  inst,  bool storeFl )
+{ 
+  return cmDspVarPresetRdWr(ctx,inst,kOutCbId,storeFl); 
+}
+
+cmDspRC_t  _cmDspCheckboxSysRecvFunc(   cmDspCtx_t* ctx, struct cmDspInst_str* inst,  unsigned attrSymId, const cmDspValue_t* value )
+{
+  cmDspCheckbox_t* p = (cmDspCheckbox_t*)inst;
+  if( attrSymId == p->resetSymId )
+  {
+    cmDspSetSymbol( ctx, inst, kSymCbId, p->resetSymId );
+    cmDspSetDouble(ctx,inst,kOutCbId, cmDspDouble(inst,kOutCbId));
+  }
+
+  return kOkDspRC;
+}
+
+struct cmDspClass_str* cmCheckboxClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmCheckboxDC,ctx,"Checkbox",
+    NULL,
+    _cmDspCheckboxAlloc,
+    NULL,
+    _cmDspCheckboxReset,
+    NULL,
+    _cmDspCheckboxRecv,
+    _cmDspCheckboxPresetRdWr,
+    _cmDspCheckboxSysRecvFunc,
+    "Checkbox control.");
+
+  return &_cmCheckboxDC;
+}
+
+//==========================================================================================================================================
 cmDspClass_t _cmReorderDC;
 
 typedef struct
@@ -5347,6 +5513,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmMeterClassCons,
   cmLabelClassCons,
   cmButtonClassCons,
+  cmCheckboxClassCons,
 
   cmReorderClassCons,
   cmFnameClassCons,
