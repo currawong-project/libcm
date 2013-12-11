@@ -50,6 +50,7 @@ extern "C" {
   // cmScoreSection_t.vars[].
   enum
   {
+    kInvalidVarScId,
     kEvenVarScId,
     kDynVarScId,
     kTempoVarScId,
