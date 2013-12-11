@@ -1699,18 +1699,22 @@ enum
 
 cmDspClass_t _cmActiveMeasDC;
 
-typedef struct
+typedef struct cmDspAmRecd_str
 {
   unsigned loc;
   unsigned type;
   double   value;
   double   cost;
-} cmDspActiveMeasRecd_t;
+  struct cmDspAmRecd_str* link;
+} cmDspAmRecd_t;
 
+
+/*
 int cmDspActiveMeasRecdCompare(const void * p0, const void * p1)
 {
   return ((int)((cmDspActiveMeasRecd_t*)p0)->loc) - (int)(((cmDspActiveMeasRecd_t*)p1)->loc);
 }
+*/
 
 typedef struct
 {
@@ -1719,11 +1723,89 @@ typedef struct
   unsigned               clearSymId;
   unsigned               printSymId;
   unsigned               rewindSymId;
-  cmDspActiveMeasRecd_t* array; // array[cnt]
-  unsigned               cnt;   
-  unsigned               nextEmptyIdx;
-  unsigned               nextFullIdx;
+  cmDspAmRecd_t*         array;       // array[cnt]
+  unsigned               cnt;     
+  cmDspAmRecd_t*         list;        // first recd in list sorted on 'loc'.
+  cmDspAmRecd_t*         avail;       // next empty recd
+  cmDspAmRecd_t*         sent;        // last recd sent
 } cmDspActiveMeas_t;
+
+void _cmDspAmAllocList( cmDspActiveMeas_t* p, unsigned cnt )
+{
+  assert(p->array == NULL );
+
+  cmDspAmRecd_t* r = cmMemAllocZ(cmDspAmRecd_t,cnt);
+
+  p->cnt   = cnt;
+  p->array = r;
+  p->list  = NULL;
+  p->avail = r;
+  p->sent  = NULL;
+}
+
+
+cmDspRC_t _cmDspActiveMeasAdd( cmDspCtx_t* ctx, cmDspActiveMeas_t* p, unsigned loc, unsigned type, double value, double cost)
+{
+  assert( type != kInvalidVarScId );
+
+  cmDspAmRecd_t* rp = p->list;
+  cmDspAmRecd_t* pp = NULL;
+  
+
+  // search for the location to add the new record
+  for(; rp!=NULL; rp=rp->link)
+  {
+    // if this loc and type already exists then replace the value and cost fields
+    if( rp->loc==loc && rp->type==type )
+      goto foundLabel;
+
+    // if this loc should be inserted before rp
+    if( loc < rp->loc )
+      break;
+    
+    pp = rp;
+  }
+
+  // if the pre-allocated list is full
+  if( p->avail >= p->array+p->cnt )
+    return cmDspInstErr(ctx,&p->inst,kInvalidArgDspRC,"Unable to store new measurement record. All preallocated active measurement slots are in use.");
+
+
+  // if prepending to the list
+  if( pp == NULL )
+  {
+    rp        = p->avail;
+    rp->link  = p->list;
+    p->list   = rp;
+  }
+  else
+  {
+    // if appending to the list after pp
+    if( rp == NULL )
+    {
+      // nothing to do
+    }
+    else // if inserting between pp and rp
+    {
+      p->avail->link = rp;
+    }
+
+    rp       = p->avail;
+    pp->link = rp;
+
+  }
+
+  p->avail += 1;
+  
+ foundLabel:
+  rp->loc   = loc;
+  rp->type  = type;
+  rp->value = value;
+  rp->cost  = cost;
+
+  return kOkDspRC;
+}
+
 
 cmDspInst_t*  _cmDspActiveMeasAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
@@ -1733,7 +1815,7 @@ cmDspInst_t*  _cmDspActiveMeasAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
     { "cnt",      kCntAmId,      0,0, kInDsvFl  | kUIntDsvFl,    "Maximum count of active measurements."},
     { "sfloc",    kSflocAmId,    0,0, kInDsvFl  | kUIntDsvFl,    "Score follower location input." },
     { "loc",      kLocAmId,      0,0, kInDsvFl  | kUIntDsvFl,    "Meas. location." },
-    { "type",     kTypeAmId,     0,0, kInDsvFl  | kUIntDsvFl,    "Meas. Type." },
+    { "type",     kTypeAmId,     0,0, kInDsvFl  | kUIntDsvFl,    "Meas. Type. (even,dyn,...)" },
     { "val",      kValueAmId,    0,0, kInDsvFl  | kDoubleDsvFl,  "Meas. Value."},
     { "cst",      kCstAmId,      0,0, kInDsvFl  | kDoubleDsvFl,  "Meas. Cost."},
     { "cmd",      kCmdAmId,      0,0, kInDsvFl  | kSymDsvFl,     "Commands:add | clear | dump | rewind"}, 
@@ -1754,24 +1836,23 @@ cmDspInst_t*  _cmDspActiveMeasAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
   p->printSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"dump");
   p->rewindSymId= cmSymTblRegisterStaticSymbol(ctx->stH,"rewind");
 
-  cmDspSetDefaultUInt(  ctx,&p->inst,kCntAmId,  0,100);
+  cmDspSetDefaultUInt(  ctx,&p->inst,kCntAmId,  0,256);
   cmDspSetDefaultUInt(  ctx,&p->inst,kScLocAmId,0,0);
   cmDspSetDefaultDouble(ctx,&p->inst,kEvenAmId, 0,0);
   cmDspSetDefaultDouble(ctx,&p->inst,kDynAmId,  0,0);
   cmDspSetDefaultDouble(ctx,&p->inst,kTempoAmId,0,0);
   cmDspSetDefaultDouble(ctx,&p->inst,kTempoAmId,0,0);
 
-
   return &p->inst;
 }
 
 cmDspRC_t _cmDspActiveMeasPrint(cmDspCtx_t* ctx, cmDspActiveMeas_t* p )
 {
-  unsigned i;
-  for(i=0; i<p->nextEmptyIdx; ++i)
+  cmDspAmRecd_t* rp = p->list;
+  for(; rp!=NULL; rp=rp->link)
   {
     const cmChar_t* label = "<null>";
-    switch( p->array[i].type )
+    switch( rp->type )
     {
       case kEvenVarScId:    label="even "; break;
       case kDynVarScId:     label="dyn  "; break;
@@ -1780,7 +1861,7 @@ cmDspRC_t _cmDspActiveMeasPrint(cmDspCtx_t* ctx, cmDspActiveMeas_t* p )
         { assert(0); }
     }
 
-    cmRptPrintf(ctx->rpt,"loc:%i %s %f %f\n",p->array[i].loc,label,p->array[i].value,p->array[i].cost);
+    cmRptPrintf(ctx->rpt,"loc:%i %s %f %f\n",rp->loc,label,rp->value,rp->cost);
   }
 
   return kOkDspRC;
@@ -1788,15 +1869,17 @@ cmDspRC_t _cmDspActiveMeasPrint(cmDspCtx_t* ctx, cmDspActiveMeas_t* p )
 
 cmDspRC_t _cmDspActiveMeasClear(cmDspCtx_t* ctx, cmDspActiveMeas_t* p )
 {
-  p->nextEmptyIdx = 0;
-  p->nextFullIdx  = cmInvalidIdx;
+  memset(p->array,0,sizeof(p->array[0])*p->cnt);
+  p->avail = p->array;
+  p->list  = NULL;
+  p->avail = p->array;
+
   return kOkDspRC;
 }
 
 cmDspRC_t _cmDspActiveMeasFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
   cmDspActiveMeas_t* p  = (cmDspActiveMeas_t*)inst;
-  _cmDspActiveMeasClear(ctx,p);
   cmMemPtrFree(&p->array);
   return kOkDspRC;
 }
@@ -1810,17 +1893,78 @@ cmDspRC_t _cmDspActiveMeasReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspE
 
   unsigned cnt = cmMax(100,cmDspUInt(inst,kCntAmId));
   _cmDspActiveMeasFree(ctx,inst,evt);
-  p->array = cmMemAllocZ(cmDspActiveMeasRecd_t,cnt);
-  p->cnt   = cnt;
+  _cmDspAmAllocList(p,cnt);
+
   return rc;
 }
 
 cmDspRC_t _cmDspActiveMeasRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
-  cmDspRC_t       rc = kOkDspRC;
+  cmDspRC_t          rc = kOkDspRC;
   cmDspActiveMeas_t* p  = (cmDspActiveMeas_t*)inst;
   cmDspSetEvent(ctx,inst,evt);
 
+  switch( evt->dstVarId )
+  {
+    case kSflocAmId:
+      {
+                
+        unsigned       sfloc  = cmDspUInt(inst,kSflocAmId);                  // get the recv'd score location
+        cmDspAmRecd_t* rp     = p->sent==NULL ? p->list : p->sent->link;     // get the next recd to send
+        bool           fl     = false;
+
+        for(; rp!=NULL; rp=rp->link)
+          if( rp->loc <= sfloc )
+          {
+            // deterimine the records type
+            unsigned varId = cmInvalidId;
+            switch( rp->type )
+            {
+              case kEvenVarScId:   varId = kEvenAmId;  break;
+              case kDynVarScId:    varId = kDynAmId;   break;
+              case kTempoVarScId:  varId = kTempoAmId; break;
+              default:
+                { assert(0); }
+            }
+
+            // Sending the location triggers the avail-ch to switch - so the location should only
+            //  be sent once.
+            if( !fl )
+            {
+              cmDspSetUInt(ctx,inst,kScLocAmId,rp->loc);
+              fl = true;
+            }
+
+            // transmit the records value and cost
+            cmDspSetDouble(ctx,inst,varId,rp->value);
+            cmDspSetDouble(ctx,inst,kCostAmId,rp->cost);
+            p->sent = rp;
+          }
+                
+      }
+      break;
+
+    case kCmdAmId:
+      {
+        unsigned cmdSymId = cmDspSymbol(inst,kCmdAmId);
+
+        if( cmdSymId == p->addSymId )
+          rc = _cmDspActiveMeasAdd(ctx,p,cmDspUInt(inst,kLocAmId),cmDspUInt(inst,kTypeAmId),cmDspDouble(inst,kValueAmId),cmDspDouble(inst,kCstAmId));
+        else          
+          if( cmdSymId == p->clearSymId )
+            rc = _cmDspActiveMeasClear(ctx,p);
+          else
+            if( cmdSymId == p->printSymId )
+              rc = _cmDspActiveMeasPrint(ctx,p);
+            else
+              if(cmdSymId == p->rewindSymId )
+                p->sent = NULL;
+      }
+      break;
+
+  }
+
+  /*
   switch( evt->dstVarId )
   {
     case kSflocAmId:
@@ -1903,6 +2047,8 @@ cmDspRC_t _cmDspActiveMeasRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
       break;
 
   }
+  */
+
   return rc;
 }
 
