@@ -3303,7 +3303,7 @@ cmDspRC_t _cmDspAudioNofM_Exec( cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspE
   unsigned i;
   const cmSample_t* x[ p->inChCnt ];
   cmSample_t*       y[ p->outChCnt ];
-  unsigned n;
+  unsigned n = 0;
   
   for(i=0; i<p->inChCnt; ++i)
   {
