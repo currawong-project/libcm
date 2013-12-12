@@ -2209,8 +2209,8 @@ cmDspInst_t*  _cmDspCheckboxAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspSetDefaultStrcz( ctx, &p->inst, kLblCbId, NULL, cmSymTblLabel(ctx->stH,instSymId));
 
   p->resetSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"_reset");
-  p->onSymId    = cmSymTblRegisterSymbol(ctx->stH, cmDspStrcz(&p->inst,kSym1CbId));
-  p->offSymId   = cmSymTblRegisterSymbol(ctx->stH, cmDspStrcz(&p->inst,kSym0CbId));
+  p->onSymId    = cmSymTblRegisterSymbol(ctx->stH, cmDspDefaultStrcz(&p->inst,kSym1CbId));
+  p->offSymId   = cmSymTblRegisterSymbol(ctx->stH, cmDspDefaultStrcz(&p->inst,kSym0CbId));
 
   // create the UI control
   cmDspUiButtonCreate(ctx,&p->inst,kCheckDuiId,kOutCbId,kLblCbId);
