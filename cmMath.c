@@ -342,28 +342,52 @@ float    cmMidiToHz( unsigned midi )
 
 //=================================================================
 // Floating point byte swapping
+
+// Unions used to type-pun the swapping functions and thereby 
+// avoid strict aliasing problems with -O2.  Using unions for 
+// this purpose is apparently legal under C99 but not C++.
+
+typedef union
+{
+  unsigned u;
+  float    f;
+} _cmMathU_t;
+
+typedef union
+{
+  unsigned long long u;
+  double    f;
+} _cmMathUL_t;
+
 unsigned           cmFfSwapFloatToUInt( float v )
 {
   assert( sizeof(float) == sizeof(unsigned));
-  return cmSwap32(*(unsigned*)&v);
+  _cmMathU_t u;
+  u.f=v;
+  return cmSwap32(u.u);
 }
 
 float              cmFfSwapUIntToFloat( unsigned v )
 {
   assert( sizeof(float) == sizeof(unsigned));
-  v = cmSwap32(v);
-  return *((float*)&v);
+  _cmMathU_t u;
+
+  u.u = cmSwap32(v);
+  return u.f;
 }
 
 unsigned long long cmFfSwapDoubleToULLong( double v )
 {
   assert( sizeof(double) == sizeof(unsigned long long));
-  return cmSwap64(*(unsigned long long*)&v);
+  _cmMathUL_t u;
+  u.f = v;
+  return cmSwap64(u.u);
 }
 
 double             cmFfSwapULLongToDouble( unsigned long long v )
 {
   assert( sizeof(double) == sizeof(unsigned long long));
-  v = cmSwap64(v);
-  return *((double*)&v);
+  _cmMathUL_t u;
+  u.u = cmSwap64(v);
+  return u.f;
 }

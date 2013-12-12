@@ -1068,7 +1068,21 @@ bool     cmThFloatCAS( float*    addr, float    old, float    new )
 #endif
 
 #ifdef OS_LINUX
-  return  __sync_bool_compare_and_swap((unsigned*)addr, *(unsigned*)(&old),*(unsigned*)(&new)); 
+  // If we use pointer aliasing to pun the pointer types then it will violate the
+  // strict pointer aliasing rules used by -O2. Instead we use this union
+  // punning scheme which in theory should always work in C99 (although no C++).
+
+  typedef union 
+  {
+    unsigned* up;
+    float*    fp;
+  } u;
+
+  u u0,u1;
+  u0.fp = &old;
+  u1.fp = &new;
+
+  return  __sync_bool_compare_and_swap((unsigned*)addr,*u0.up,*u1.up); 
 #endif
 }
 
