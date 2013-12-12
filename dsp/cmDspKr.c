@@ -2608,7 +2608,7 @@ cmDspRC_t _cmDspRecdPlayExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
   const cmSample_t* x[ p->chCnt ];
   cmSample_t*       y[ p->chCnt ];
-  unsigned n;
+  unsigned n = 0;
   unsigned i;
   unsigned actChCnt = 0;
 
