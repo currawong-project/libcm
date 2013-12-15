@@ -100,7 +100,8 @@ extern "C" {
 
   typedef struct 
   {
-    unsigned     deltaUs; // time since last MIDI msg in microseconds
+    //unsigned     deltaUs; // time since last MIDI msg in microseconds
+    cmTimeSpec_t timeStamp;
     cmMidiByte_t status;  // midi status byte
     cmMidiByte_t d0;      // midi data byte 0
     cmMidiByte_t d1;      // midi data byte 1
