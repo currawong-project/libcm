@@ -60,6 +60,7 @@ extern "C" {
     unsigned flags;          ///< kInterleavedApFl | kFloatApFl
     void*    audioBytesPtr;  ///< pointer to sample data
     void*    userCbPtr;      ///< user defined value passed in cmApDeviceSetup()
+    cmTimeSpec_t timeStamp;  ///< Packet time stamp.
   }  cmApAudioPacket_t; 
 
 
