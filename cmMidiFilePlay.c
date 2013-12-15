@@ -7,6 +7,7 @@
 #include "cmMem.h"
 #include "cmMallocDebug.h"
 #include "cmFile.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmMidiPort.h"
 #include "cmMidiFile.h"
@@ -410,7 +411,8 @@ void _cmMfpCb( void* userCbPtr, unsigned dmicros, const cmMidiTrackMsg_t* msgPtr
     cmMidiMsg      msg;
     _cmMfpTest2CbData_t* d = (_cmMfpTest2CbData_t*)userCbPtr;
 
-    msg.deltaUs = dmicros;
+    msg.timeStamp.tv_sec = 0;
+    msg.timeStamp.tv_nsec = 0;
     msg.status  = msgPtr->status + msgPtr->u.chMsgPtr->ch;
     msg.d0      = msgPtr->u.chMsgPtr->d0;
     msg.d1      = msgPtr->u.chMsgPtr->d1;
@@ -535,10 +537,8 @@ cmRC_t cmMfpTest2( const char* midiFn, const char* audioFn, cmCtx_t* ctx )
       cmErrMsg(&err,kProcObjFailMfptRC,"Audio file write failed.");
       goto errLabel;
     }
-
   }
   
-
  errLabel:
   if( cmMidiSynthFree(&msp) != cmOkRC )
     cmErrMsg(&err,kProcObjFailMfptRC,"MIDI synth. free failed.");
