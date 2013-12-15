@@ -46,13 +46,13 @@ extern "C" {
   cmMpParserH_t cmMpParserCreate( unsigned devIdx, unsigned portIdx, cmMpCallback_t cbFunc, void* cbDataPtr, unsigned bufByteCnt, cmRpt_t* rpt );
   void          cmMpParserDestroy(    cmMpParserH_t* hp );
   unsigned      cmMpParserErrorCount( cmMpParserH_t h );
-  void          cmMpParseMidiData(    cmMpParserH_t h, unsigned deltaMicroSecs, const cmMidiByte_t* buf, unsigned bufByteCnt );
+  void          cmMpParseMidiData(    cmMpParserH_t h, const cmTimeSpec_t* timestamp, const cmMidiByte_t* buf, unsigned bufByteCnt );
 
   // The following two functions are intended to be used togetther.
   // Use cmMpParserMidiTriple() to insert pre-parsed msg's to the output buffer,
   // and then use cmMpParserTransmit() to send the buffer via the parsers callback function.
   // Set the data bytes to 0xff if they are not used by the message.
-  cmMpRC_t      cmMpParserMidiTriple( cmMpParserH_t h, unsigned deltaMicroSecs, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 );
+  cmMpRC_t      cmMpParserMidiTriple( cmMpParserH_t h, const cmTimeSpec_t* timestamp, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 );
   cmMpRC_t      cmMpParserTransmit(    cmMpParserH_t h ); 
 
   // Install/Remove additional callbacks.

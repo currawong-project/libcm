@@ -5,6 +5,7 @@
 #include "cmCtx.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmMidiPort.h"
 
@@ -179,7 +180,7 @@ void _cmMpTransmitSysEx( cmMpParser_t* p )
 
 }
 
-void _cmMpParserStoreChMsg( cmMpParser_t* p, unsigned deltaMicroSecs,  cmMidiByte_t d )
+void _cmMpParserStoreChMsg( cmMpParser_t* p, const cmTimeSpec_t* timeStamp,  cmMidiByte_t d )
 {
   // if there is not enough room left in the buffer then transmit
   // the current messages
@@ -193,7 +194,7 @@ void _cmMpParserStoreChMsg( cmMpParser_t* p, unsigned deltaMicroSecs,  cmMidiByt
   cmMidiMsg* msgPtr = (cmMidiMsg*)(p->buf + p->bufIdx);
 
   // fill the buffer msg
-  msgPtr->deltaUs = deltaMicroSecs;
+  msgPtr->timeStamp = *timeStamp;
   msgPtr->status  = p->status;
 
   switch( p->dataCnt )
@@ -221,7 +222,7 @@ void _cmMpParserStoreChMsg( cmMpParser_t* p, unsigned deltaMicroSecs,  cmMidiByt
 
 }
 
-void cmMpParseMidiData( cmMpParserH_t h, unsigned deltaMicroSecs, const cmMidiByte_t* iBuf, unsigned iByteCnt )
+void cmMpParseMidiData( cmMpParserH_t h, const cmTimeSpec_t* timeStamp, const cmMidiByte_t* iBuf, unsigned iByteCnt )
 {
   
   cmMpParser_t* p = _cmMpParserFromHandle(h);
@@ -271,7 +272,7 @@ void cmMpParseMidiData( cmMpParserH_t h, unsigned deltaMicroSecs, const cmMidiBy
           else
           {
             // this is a status only msg - store it
-            _cmMpParserStoreChMsg(p,deltaMicroSecs,*ip);
+            _cmMpParserStoreChMsg(p,timeStamp,*ip);
 
             p->state   = kExpectStatusStId;
             p->dataIdx = cmInvalidIdx;
@@ -299,7 +300,7 @@ void cmMpParseMidiData( cmMpParserH_t h, unsigned deltaMicroSecs, const cmMidiBy
             switch( p->dataCnt )
             {
               case 1: // ... of a 1 byte msg - the msg is complete
-                _cmMpParserStoreChMsg(p,deltaMicroSecs,*ip);
+                _cmMpParserStoreChMsg(p,timeStamp,*ip);
                 p->state = kExpectStatusOrDataStId; 
                 break;
 
@@ -318,7 +319,7 @@ void cmMpParseMidiData( cmMpParserH_t h, unsigned deltaMicroSecs, const cmMidiBy
             assert( p->dataCnt == 2 );
             assert( p->state == kExpectDataStId );
 
-            _cmMpParserStoreChMsg(p,deltaMicroSecs,*ip);
+            _cmMpParserStoreChMsg(p,timeStamp,*ip);
             p->state   = kExpectStatusOrDataStId;
             p->dataIdx = 0;
             break;
@@ -348,7 +349,7 @@ void cmMpParseMidiData( cmMpParserH_t h, unsigned deltaMicroSecs, const cmMidiBy
  
 }
 
-cmMpRC_t  cmMpParserMidiTriple(   cmMpParserH_t h, unsigned deltaMicroSecs, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 )
+cmMpRC_t  cmMpParserMidiTriple(   cmMpParserH_t h, const cmTimeSpec_t* timeStamp, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 )
 {
   cmMpRC_t rc = kOkMpRC;
   cmMpParser_t* p = _cmMpParserFromHandle(h);
@@ -385,7 +386,7 @@ cmMpRC_t  cmMpParserMidiTriple(   cmMpParserH_t h, unsigned deltaMicroSecs, cmMi
   }
 
   if( mb != 0xff )
-    _cmMpParserStoreChMsg(p,deltaMicroSecs,mb);
+    _cmMpParserStoreChMsg(p,timeStamp,mb);
   
   p->dataCnt = cmInvalidCnt;
 
@@ -512,7 +513,7 @@ void cmMpTestCb( const cmMidiPacket_t* pktArray, unsigned pktCnt )
 
     for(j=0; j<p->msgCnt; ++j)
       if( p->msgArray != NULL )
-        printf("%8i 0x%x %i %i\n", p->msgArray[j].deltaUs/1000, p->msgArray[j].status,p->msgArray[j].d0, p->msgArray[j].d1);
+        printf("%ld %ld 0x%x %i %i\n", p->msgArray[j].timeStamp.tv_sec, p->msgArray[j].timeStamp.tv_nsec, p->msgArray[j].status,p->msgArray[j].d0, p->msgArray[j].d1);
       else
         printf("0x%x ",p->sysExMsg[j]);
 
