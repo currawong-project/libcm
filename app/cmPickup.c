@@ -10,6 +10,7 @@
 #include "cmLinkedHeap.h"
 #include "cmSymTbl.h"
 #include "cmJson.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmAudioFile.h"
 #include "cmFile.h"

@@ -20,6 +20,7 @@
 #include "cmThread.h" 
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
+#include "cmTime.h"
 #include "cmAudioSys.h"
 #include "cmProcObj.h"
 #include "cmDspCtx.h"

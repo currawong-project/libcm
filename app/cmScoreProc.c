@@ -9,6 +9,7 @@
 #include "cmSymTbl.h"
 #include "cmJson.h"
 #include "cmFile.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmMidiFile.h"
 #include "cmAudioFile.h"

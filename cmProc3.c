@@ -18,6 +18,7 @@
 #include "cmProc.h"
 #include "cmVectOps.h"
 #include "cmProc3.h"
+#include "cmTime.h"
 #include "cmMidi.h"  // cmMidiToSciPitch();
 
 cmPitchShift* cmPitchShiftAlloc( cmCtx* c, cmPitchShift* p, unsigned procSmpCnt, cmReal_t srate )

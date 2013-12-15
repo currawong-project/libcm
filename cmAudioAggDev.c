@@ -4,6 +4,7 @@
 #include "cmCtx.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
+#include "cmTime.h"
 #include "cmAudioPort.h"
 #include "cmAudioAggDev.h"
 #include "cmThread.h" // cmThUIntIncr()

@@ -10,6 +10,7 @@
 #include "cmJson.h"
 #include "cmText.h"
 #include "cmThread.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmMidiPort.h"
 #include "cmAudioPort.h"

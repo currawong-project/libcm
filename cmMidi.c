@@ -1,5 +1,6 @@
 #include "cmPrefix.h"
 #include "cmGlobal.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 
 

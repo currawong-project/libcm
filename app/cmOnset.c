@@ -9,6 +9,7 @@
 #include "cmLinkedHeap.h"
 #include "cmSymTbl.h"
 #include "cmAudioFile.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmFile.h"
 #include "cmMath.h"

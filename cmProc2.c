@@ -19,6 +19,7 @@
 #include "cmVectOps.h"
 #include "cmKeyboard.h"
 #include "cmGnuPlot.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmProc2.h"
 

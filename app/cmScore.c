@@ -7,6 +7,7 @@
 #include "cmMem.h"
 #include "cmMallocDebug.h"
 #include "cmLinkedHeap.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmLex.h"
 #include "cmCsv.h"

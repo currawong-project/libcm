@@ -8,6 +8,7 @@
 #include "cmJson.h"
 #include "cmThread.h"
 #include "cmUdpPort.h"
+#include "cmTime.h"
 #include "cmRtSysMsg.h"
 #include "cmRtNet.h"
 #include "cmRtSys.h"

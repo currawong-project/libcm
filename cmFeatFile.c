@@ -14,6 +14,7 @@
 #include "cmAudioFile.h"
 #include "cmJson.h"
 #include "cmFileSys.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmProcObj.h"
 #include "cmProcTemplateMain.h"

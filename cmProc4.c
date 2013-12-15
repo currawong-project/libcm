@@ -18,6 +18,7 @@
 #include "cmMath.h"
 #include "cmProc.h"
 #include "cmVectOps.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmMidiFile.h"
 #include "cmTimeLine.h"

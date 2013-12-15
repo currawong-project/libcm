@@ -6,6 +6,7 @@
 #include "cmMallocDebug.h"
 #include "cmAudioFile.h"
 #include "cmThread.h"
+#include "cmTime.h"
 #include "cmAudioPort.h"
 #include "cmAudioFileDev.h"
 #include "cmTime.h"

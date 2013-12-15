@@ -10,6 +10,7 @@
 #include "cmText.h"
 #include "cmFileSys.h"
 #include "cmSymTbl.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmJson.h"
 #include "cmPrefs.h"

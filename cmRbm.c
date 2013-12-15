@@ -11,6 +11,7 @@
 #include "cmMath.h"
 #include "cmFile.h"
 #include "cmSymTbl.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmAudioFile.h"
 #include "cmVectOpsTemplateMain.h"

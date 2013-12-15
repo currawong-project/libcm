@@ -11,6 +11,7 @@
 #include "cmJson.h"
 #include "cmFileSys.h"
 #include "cmPrefs.h"
+#include "cmTime.h"
 #include "cmAudioPort.h"
 #include "cmAudioAggDev.h"
 #include "cmAudioNrtDev.h"
