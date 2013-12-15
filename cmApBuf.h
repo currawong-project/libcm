@@ -64,8 +64,11 @@ extern "C" {
     unsigned outFramesPerCycle    ///< maximum number of outgoing sample frames in an audio port cycle
                          );
 
-  // Prime the buffer with 'audioCycleCnt' * outFramesPerCycle samples ready to be played
+  /// Prime the buffer with 'audioCycleCnt' * outFramesPerCycle samples ready to be played
   cmAbRC_t cmApBufPrimeOutput( unsigned devIdx, unsigned audioCycleCnt );
+
+  /// Notify the audio buffer that a device is being enabled or disabled.
+  void     cmApBufOnPortEnable( unsigned devIdx, bool enabelFl );
 
   /// This function is called asynchronously by the audio device driver to transfer incoming samples to the
   /// the buffer and to send outgoing samples to the DAC. This function is 
@@ -204,7 +207,10 @@ extern "C" {
   /// 2) The client is required to use this function to implement pass-through internally.
   /// 3) This function just returns audio information it does not
   /// change any cmApBuf() internal states.
-  void cmApBufGetIO(   unsigned iDevIdx, cmApSample_t* iBufArray[], unsigned iBufChCnt, unsigned oDevIdx, cmApSample_t* oBufArray[], unsigned oBufChCnt );
+  /// 4) The timestamp pointers are optional.
+  void cmApBufGetIO(   unsigned iDevIdx, cmApSample_t* iBufArray[], unsigned iBufChCnt, cmTimeSpec_t* iTimeStampPtr, 
+                       unsigned oDevIdx, cmApSample_t* oBufArray[], unsigned oBufChCnt, cmTimeSpec_t* oTimeStampPtr );
+
 
   /// The application calls this function each time it completes processing of a bufArray[]
   /// returned from cmApBufGet(). 'flags' can be set to either or both kInApFl and kOutApFl.

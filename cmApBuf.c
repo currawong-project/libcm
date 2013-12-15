@@ -4,6 +4,7 @@
 #include "cmErr.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
+#include "cmTime.h"
 #include "cmAudioPort.h"
 #include "cmApBuf.h"
 #include "cmThread.h"
@@ -64,15 +65,17 @@ typedef struct
 
 typedef struct
 {
-  unsigned    chCnt;
-  cmApCh*     chArray;
+  unsigned     chCnt;
+  cmApCh*      chArray;
 
-  unsigned    n;     // length of b[] (multiple of dspFrameCnt)  bufCnt*framesPerCycle
-  double      srate; // device sample rate;
+  unsigned     n;     // length of b[] (multiple of dspFrameCnt)  bufCnt*framesPerCycle
+  double       srate; // device sample rate;
 
-  unsigned    faultCnt;
-  unsigned    framesPerCycle;
-  unsigned    dspFrameCnt;
+  unsigned     faultCnt;
+  unsigned     framesPerCycle;
+  unsigned     dspFrameCnt;
+  cmTimeSpec_t timeStamp;    // base (starting) time stamp for this device
+  unsigned     ioFrameCnt;   // count of frames input or output for this device
 
 } cmApIO;
 
@@ -169,13 +172,16 @@ void _cmApIoInitialize( cmApIO* ioPtr, double srate, unsigned framesPerCycle, un
 
   n += (n % dspFrameCnt); // force buffer size to be a multiple of dspFrameCnt
   
-  ioPtr->chArray        = chCnt==0 ? NULL : cmMemAllocZ( cmApCh, chCnt );
-  ioPtr->chCnt          = chCnt;
-  ioPtr->n              = n;
-  ioPtr->faultCnt       = 0;
-  ioPtr->framesPerCycle = framesPerCycle;
-  ioPtr->srate          = srate;
-  ioPtr->dspFrameCnt    = dspFrameCnt;
+  ioPtr->chArray           = chCnt==0 ? NULL : cmMemAllocZ( cmApCh, chCnt );
+  ioPtr->chCnt             = chCnt;
+  ioPtr->n                 = n;
+  ioPtr->faultCnt          = 0;
+  ioPtr->framesPerCycle    = framesPerCycle;
+  ioPtr->srate             = srate;
+  ioPtr->dspFrameCnt       = dspFrameCnt;
+  ioPtr->timeStamp.tv_sec  = 0;
+  ioPtr->timeStamp.tv_nsec = 0;
+  ioPtr->ioFrameCnt        = 0;
 
   for(i=0; i<chCnt; ++i )
     _cmApChInitialize( ioPtr->chArray + i, n, meterBufN );
@@ -277,6 +283,24 @@ cmAbRC_t cmApBufPrimeOutput( unsigned devIdx, unsigned audioCycleCnt )
   return kOkAbRC;
 }
 
+void cmApBufOnPortEnable( unsigned devIdx, bool enableFl )
+{
+  if( devIdx == cmInvalidIdx || enableFl==false)
+    return;
+   
+  cmApIO*  iop = _cmApBuf.devArray[devIdx].ioArray + kOutApIdx;
+  iop->timeStamp.tv_sec = 0;
+  iop->timeStamp.tv_nsec = 0;
+  iop->ioFrameCnt = 0;
+
+  iop = _cmApBuf.devArray[devIdx].ioArray + kInApIdx;
+  iop->timeStamp.tv_sec = 0;
+  iop->timeStamp.tv_nsec = 0;
+  iop->ioFrameCnt = 0;
+
+
+}
+
 cmAbRC_t cmApBufUpdate(
   cmApAudioPacket_t*  inPktArray, 
   unsigned           inPktCnt, 
@@ -292,6 +316,10 @@ cmAbRC_t cmApBufUpdate(
     {
       cmApAudioPacket_t*  pp  = inPktArray + i;           
       cmApIO*             ip  = _cmApBuf.devArray[pp->devIdx].ioArray + kInApIdx; // dest io recd
+
+      // if the base time stamp has not yet been set - then set it
+      if( ip->timeStamp.tv_sec==0 && ip->timeStamp.tv_nsec==0 )
+        ip->timeStamp = pp->timeStamp;
 
       // for each source packet channel and enabled dest channel
       for(j=0; j<pp->chCnt; ++j)
@@ -369,6 +397,9 @@ cmAbRC_t cmApBufUpdate(
       cmApAudioPacket_t* pp = outPktArray + i;           
       cmApIO*            op = _cmApBuf.devArray[pp->devIdx].ioArray + kOutApIdx; // dest io recd
 
+      // if the base timestamp has not yet been set then set it.
+      if( op->timeStamp.tv_sec==0 && op->timeStamp.tv_nsec==0 )
+        op->timeStamp = pp->timeStamp;
 
       // for each dest packet channel and enabled source channel
       for(j=0; j<pp->chCnt; ++j)
@@ -637,7 +668,26 @@ void cmApBufGet( unsigned devIdx, unsigned flags, cmApSample_t* bufArray[], unsi
   
 }
 
-void cmApBufGetIO(   unsigned iDevIdx, cmApSample_t* iBufArray[], unsigned iBufChCnt, unsigned oDevIdx, cmApSample_t* oBufArray[], unsigned oBufChCnt )
+void _cmApBufCalcTimeStamp( double srate, const cmTimeSpec_t* baseTimeStamp, unsigned frmCnt, cmTimeSpec_t* retTimeStamp )
+{
+  if( retTimeStamp==NULL )
+    return;
+
+  double   secs         = frmCnt / srate;
+  unsigned int_secs     = floor(secs);
+  double   frac_secs    = secs - int_secs;
+
+  retTimeStamp->tv_nsec = floor(baseTimeStamp->tv_nsec + frac_secs * 1000000000);
+  retTimeStamp->tv_sec  = baseTimeStamp->tv_sec  + int_secs;
+
+  if( retTimeStamp->tv_nsec > 1000000000 )
+  {
+    retTimeStamp->tv_nsec -= 1000000000;
+    retTimeStamp->tv_sec  += 1;
+  }
+}
+
+void cmApBufGetIO(   unsigned iDevIdx, cmApSample_t* iBufArray[], unsigned iBufChCnt, cmTimeSpec_t* iTimeStampPtr, unsigned oDevIdx, cmApSample_t* oBufArray[], unsigned oBufChCnt, cmTimeSpec_t* oTimeStampPtr )
 {
   cmApBufGet( iDevIdx, kInApFl, iBufArray, iBufChCnt );
   cmApBufGet( oDevIdx, kOutApFl,oBufArray, oBufChCnt );
@@ -651,6 +701,9 @@ void cmApBufGetIO(   unsigned iDevIdx, cmApSample_t* iBufArray[], unsigned iBufC
     unsigned      minChCnt = cmMin(iBufChCnt,oBufChCnt);  
     unsigned      frmCnt   = cmMin(ip->dspFrameCnt,op->dspFrameCnt);
     unsigned      byteCnt  = frmCnt * sizeof(cmApSample_t);
+    
+    _cmApBufCalcTimeStamp(ip->srate, &ip->timeStamp, ip->ioFrameCnt, iTimeStampPtr );
+    _cmApBufCalcTimeStamp(op->srate, &op->timeStamp, op->ioFrameCnt, oTimeStampPtr );
 
     for(i=0; i<minChCnt; ++i)
     {
@@ -681,6 +734,8 @@ void cmApBufGetIO(   unsigned iDevIdx, cmApSample_t* iBufArray[], unsigned iBufC
     const cmApIO* op  = _cmApBuf.devArray[oDevIdx].ioArray + kOutApIdx;
     unsigned byteCnt  = op->dspFrameCnt * sizeof(cmApSample_t);
 
+    _cmApBufCalcTimeStamp(op->srate, &op->timeStamp, op->ioFrameCnt, oTimeStampPtr );
+
     for(; i<oBufChCnt; ++i)
       if( oBufArray[i] != NULL )
         memset( oBufArray[i], 0, byteCnt );
@@ -703,12 +758,13 @@ void cmApBufAdvance( unsigned devIdx, unsigned flags )
     {
       cmApCh* cp = ioPtr->chArray + i;
       cp->oi     = (cp->oi + ioPtr->dspFrameCnt) % ioPtr->n;
-      //cp->fn    -= ioPtr->dspFrameCnt;
       cmThUIntDecr(&cp->fn,ioPtr->dspFrameCnt);
     }
 
-    //ioPtr->oi     = (ioPtr->oi + ioPtr->dspFrameCnt) % ioPtr->n;
-    //ioPtr->fn    -= ioPtr->dspFrameCnt;
+    // count the number of samples input from this device
+    if( ioPtr->timeStamp.tv_sec!=0 && ioPtr->timeStamp.tv_nsec!=0 )
+      cmThUIntIncr(&ioPtr->ioFrameCnt,ioPtr->dspFrameCnt);
+
   }
   
   if( flags & kOutApFl )
@@ -718,13 +774,12 @@ void cmApBufAdvance( unsigned devIdx, unsigned flags )
     {
       cmApCh* cp = ioPtr->chArray + i;
       cp->ii     = (cp->ii + ioPtr->dspFrameCnt) % ioPtr->n;
-      //cp->fn    += ioPtr->dspFrameCnt;
       cmThUIntIncr(&cp->fn,ioPtr->dspFrameCnt);
     }
 
-
-    //ioPtr->ii     = (ioPtr->ii + ioPtr->dspFrameCnt) % ioPtr->n;
-    //ioPtr->fn    += ioPtr->dspFrameCnt;
+    // count the number of samples output from this device
+    if( ioPtr->timeStamp.tv_sec!=0 && ioPtr->timeStamp.tv_nsec!=0 )
+      cmThUIntIncr(&ioPtr->ioFrameCnt,ioPtr->dspFrameCnt);
   }
 }
 
