@@ -18,6 +18,7 @@
 #include "cmThread.h"
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
+#include "cmTime.h"
 #include "cmAudioSys.h"
 #include "cmDspCtx.h"
 #include "cmDspClass.h"
@@ -41,6 +42,7 @@
 #include "cmTimeLine.h"
 #include "cmScore.h"
 #include "cmProc4.h"
+#include "cmSyncRecd.h"
 
 enum
 {
@@ -2910,4 +2912,199 @@ struct cmDspClass_str* cmGoertzelClassCons( cmDspCtx_t* ctx )
     "Goertzel Tone Detector Filter");
 
   return &_cmGoertzelDC;
+}
+
+//==========================================================================================================================================
+enum
+{
+  kRecdDirSrId,
+  kSrFnSrId,
+  kAfSrId,
+  kBitsSrId,
+  kCmdSrId,
+  kStatusSrId,
+  kD0SrId,
+  kD1SrId,
+  kSecSrId,
+  kNSecSrId,
+  kAinBaseSrId
+};
+
+cmDspClass_t _cmSyncRecdDC;
+
+typedef struct
+{
+  cmDspInst_t     inst;
+  unsigned        chCnt;
+  cmTimeSpec_t    ats;
+  cmSyncRecdH_t   srH;
+  unsigned        openSymId;
+  unsigned        closeSymId;
+  const cmChar_t* aFn;
+  const cmChar_t* srFn;
+  unsigned        smpIdx;
+} cmDspSyncRecd_t;
+
+cmDspRC_t _cmDspSyncRecdCreateFile( cmDspCtx_t* ctx, cmDspInst_t* inst )
+{
+  cmDspSyncRecd_t* p = (cmDspSyncRecd_t*)inst;
+
+  const cmChar_t* aFn  = cmDspStrcz(inst,kAfSrId);
+  const cmChar_t* srFn = cmDspStrcz(inst,kSrFnSrId);
+  const cmChar_t* dir  = cmDspStrcz(inst,kRecdDirSrId);
+
+  if( !cmFsIsDir(dir) )
+    return cmDspInstErr(ctx,&p->inst,kInvalidArgDspRC,"'%s' is not a valid directory.",cmStringNullGuard(dir));
+
+  cmMemPtrFree(&p->aFn);
+  if( cmFsGenFn(dir,aFn,"aiff",&p->aFn) != kOkFsRC )
+    return cmDspInstErr(ctx,&p->inst,kFileSysFailDspRC,"Audio file name generation failed for dir='%s' and prefix='%s'.",cmStringNullGuard(dir),cmStringNullGuard(aFn));
+
+  cmMemPtrFree(&p->srFn);
+  if( cmFsGenFn(dir,srFn,"sr",&p->srFn) != kOkFsRC )
+    return cmDspInstErr(ctx,&p->inst,kFileSysFailDspRC,"Sync-recd file name generation failed for dir='%s' and prefix='%s'.",cmStringNullGuard(dir),cmStringNullGuard(srFn));
+
+  unsigned bits = cmDspUInt(inst,kBitsSrId);
+  if( cmSyncRecdCreate(  ctx->cmCtx, &p->srH, p->srFn, p->aFn, cmDspSampleRate(ctx), p->chCnt, bits ) != kOkSrRC )
+    return cmDspInstErr(ctx,&p->inst,kSubSysFailDspRC,"Sync-recd file create failed for '%s'.",p->srFn);
+
+  p->smpIdx = 0;
+
+  return kOkDspRC;
+}
+
+cmDspInst_t*  _cmDspSyncRecdAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  cmDspSyncRecd_t* p = cmDspInstAllocV(cmDspSyncRecd_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl,
+    1,         "dir",    kRecdDirSrId,  0,0, kInDsvFl | kStrzDsvFl | kReqArgDsvFl, "Recording  directory.",
+    1,         "srfn",   kSrFnSrId,     0,0, kInDsvFl | kStrzDsvFl | kReqArgDsvFl, "SyncRecd file prefix.",
+    1,         "afn",    kAfSrId,       0,0, kInDsvFl | kStrzDsvFl | kReqArgDsvFl, "Audio file prefix.",
+    1,         "bits",   kBitsSrId,     0,0, kInDsvFl | kUIntDsvFl | kOptArgDsvFl, "Audio file bits per sample.",
+    1,         "cmd",    kCmdSrId,      0,0, kInDsvFl | kSymDsvFl,                 "Command: open | close",
+    1,         "status", kStatusSrId,   0,0, kInDsvFl | kUIntDsvFl,                "MIDI status",
+    1,         "d0",     kD0SrId,       0,0, kInDsvFl | kUIntDsvFl,                "MIDI d0",
+    1,         "d1",     kD1SrId,       0,0, kInDsvFl | kUIntDsvFl,                "MIDI d1", 
+    1,         "sec",    kSecSrId,      0,0, kInDsvFl | kUIntDsvFl,                "MIDI Timestamp Seconds",
+    1,         "nsec",   kNSecSrId,     0,0, kInDsvFl | kUIntDsvFl,                "MIDI Timestamp Nanoseconds",
+    2,         "ain",    kAinBaseSrId,  0,1, kInDsvFl | kAudioBufDsvFl,            "Audio Input",    
+    0 );
+
+  p->chCnt = 2;
+
+  p->openSymId  = cmSymTblRegisterStaticSymbol(ctx->stH,"open");
+  p->closeSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"close");
+
+  cmDspSetDefaultUInt(ctx,&p->inst,kBitsSrId,0,16);
+
+  return &p->inst;
+}
+
+
+cmDspRC_t _cmDspSyncRecdFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t        rc = kOkDspRC;
+  cmDspSyncRecd_t* p = (cmDspSyncRecd_t*)inst;
+
+  cmMemPtrFree(&p->aFn);
+  cmMemPtrFree(&p->srFn);
+  cmSyncRecdFinal(&p->srH);
+
+  return rc;
+}
+
+cmDspRC_t _cmDspSyncRecdReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t rc = kOkDspRC;
+
+  cmDspApplyAllDefaults(ctx,inst);
+
+  return rc;
+} 
+
+cmDspRC_t _cmDspSyncRecdExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+
+  cmDspRC_t      rc = kOkDspRC;
+
+  cmDspSyncRecd_t* p = (cmDspSyncRecd_t*)inst;
+
+  const cmSample_t* x[ p->chCnt ];
+  unsigned n = 0;
+  unsigned i;
+
+  //const cmTimeSpec_t* ts  = &ctx->ctx->oTimeStamp;
+  //printf("SR: %ld %ld\n",ts->tv_sec,ts->tv_nsec);
+  p->ats = ctx->ctx->iTimeStamp;
+
+  for(i=0; i<p->chCnt; ++i)
+  {
+    if( i==0 )
+      n  = cmDspAudioBufSmpCount(ctx,inst,kAinBaseSrId+i,0);
+    else
+    { assert( n == cmDspAudioBufSmpCount(ctx,inst,kAinBaseSrId+i,0)); }
+
+    x[i] = cmDspAudioBuf(ctx,inst,kAinBaseSrId+i,0);
+  }
+
+  if( n>0 && cmSyncRecdIsValid(p->srH ) )
+    if( cmSyncRecdAudioWrite( p->srH, &ctx->ctx->iTimeStamp, p->smpIdx, x, p->chCnt, n ) != kOkSrRC )
+      return cmDspInstErr(ctx,&p->inst,kSubSysFailDspRC,"Sync-recd audio update failed.");
+
+  return rc;
+}
+
+cmDspRC_t _cmDspSyncRecdRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t rc = kOkDspRC;
+  cmDspSyncRecd_t*  p         = (cmDspSyncRecd_t*)inst;
+
+  cmDspSetEvent(ctx,inst,evt);
+
+  switch( evt->dstVarId )
+  {
+    case kStatusSrId:
+      if(cmMidiIsChStatus( evt->dstVarId ) )
+      {
+        cmTimeSpec_t ts;
+        ts.tv_sec = cmDspUInt(inst,kSecSrId);
+        ts.tv_nsec = cmDspUInt(inst,kNSecSrId);
+
+        //printf("%i %i\n",cmDspUInt(inst,kD1SrId),cmTimeElapsedMicros(&ts,&p->ats));
+
+        if( cmSyncRecdIsValid(p->srH ) )
+          if( cmSyncRecdMidiWrite(p->srH, &ts, cmDspUInt(inst,kStatusSrId), cmDspUInt(inst,kD0SrId), cmDspUInt(inst,kD1SrId) ) != kOkSrRC )
+            return cmDspInstErr(ctx,&p->inst,kSubSysFailDspRC,"Sync-recd MIDI update failed.");
+      }
+      break;
+
+    case kCmdSrId:
+      {
+        unsigned cmdId = cmDspSymbol(inst,kCmdSrId);
+        if( cmdId == p->openSymId )
+          rc = _cmDspSyncRecdCreateFile(ctx,inst);
+        else
+          if( cmdId == p->closeSymId )
+            cmSyncRecdFinal(&p->srH);
+          
+      }
+      break;
+  }
+
+  return rc;
+}
+
+struct cmDspClass_str* cmSyncRecdClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmSyncRecdDC,ctx,"SyncRecd",
+    NULL,
+    _cmDspSyncRecdAlloc,
+    _cmDspSyncRecdFree,
+    _cmDspSyncRecdReset,
+    _cmDspSyncRecdExec,
+    _cmDspSyncRecdRecv,
+    NULL,
+    NULL,
+    "Synchronized Audio and MIDI recorder.");
+
+  return &_cmSyncRecdDC;
 }
