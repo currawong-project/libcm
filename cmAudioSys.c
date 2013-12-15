@@ -6,6 +6,7 @@
 #include "cmCtx.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
+#include "cmTime.h"
 #include "cmAudioPort.h"
 #include "cmAudioNrtDev.h"
 #include "cmAudioPortFile.h"
@@ -276,7 +277,8 @@ void _cmAsDspExecCallback( _cmAsCfg_t* cp )
   //   1) Buffers associated with disabled input/output channels will be set to NULL in iChArray[]/oChArray[].
   //   2) Buffers associated with channels marked for pass-through will be set to NULL in oChArray[].
   //   3) All samples returned in oChArray[] buffers will be set to zero.
-  cmApBufGetIO(cp->ss.args.inDevIdx, cp->ctx.iChArray, cp->ctx.iChCnt, cp->ss.args.outDevIdx, cp->ctx.oChArray, cp->ctx.oChCnt  );
+  cmApBufGetIO(cp->ss.args.inDevIdx,  cp->ctx.iChArray, cp->ctx.iChCnt, &cp->ctx.iTimeStamp, 
+               cp->ss.args.outDevIdx, cp->ctx.oChArray, cp->ctx.oChCnt, &cp->ctx.oTimeStamp  );
 
   // call the application provided DSP process
   cp->ctx.audioRateFl = true;
@@ -554,6 +556,9 @@ cmAsRC_t _cmAudioSysEnable( cmAs_t* p, bool enableFl )
   {
     _cmAsCfg_t* cp = p->ssArray + i;
 
+    cmApBufOnPortEnable(cp->ss.args.inDevIdx,enableFl);
+    cmApBufOnPortEnable(cp->ss.args.outDevIdx,enableFl);
+    
     if( enableFl )
     {
 

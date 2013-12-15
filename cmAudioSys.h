@@ -179,10 +179,12 @@ extern "C" {
                                        // output (playback) buffers
     cmSample_t**        oChArray;      // each ele is a ptr to buffer with cfg.dspFramesPerCycle samples
     unsigned            oChCnt;        // count of output channels (ele's in oChArray[])
+    cmTimeSpec_t        oTimeStamp;
 
                                        // input (recording) buffers
     cmSample_t**        iChArray;      // each ele is a ptr to buffer with cfg.dspFramesPerCycle samples
     unsigned            iChCnt;        // count of input channels (ele's in iChArray[])
+    cmTimeSpec_t        iTimeStamp;
     
   } cmAudioSysCtx_t;
 
