@@ -2,6 +2,7 @@
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmRpt.h"
+#include "cmTime.h"
 #include "cmAudioPort.h"
 #include "cmMem.h"
 #include "cmTime.h"
@@ -598,7 +599,6 @@ void _cmApStateRecover( snd_pcm_t* pcmH, cmApDevRecd_t* drp, bool inputFl  )
 // set smpPtr to NULL to write a buffer of silence
 int _cmApWriteBuf( const cmApDevRecd_t* drp, snd_pcm_t* pcmH, const cmApSample_t* sp, unsigned chCnt, unsigned frmCnt, unsigned bits, unsigned sigBits )
 {
-
   int                 err         = 0;
   unsigned            bytesPerSmp = (bits==24 ? 32 : bits)/8;
   unsigned            smpCnt      = chCnt * frmCnt;
@@ -774,13 +774,14 @@ void _cmApStaticAsyncHandler( snd_async_handler_t* ahandler )
   pkt.flags                = kInterleavedApFl | kFloatApFl;
   pkt.audioBytesPtr        = b;
   pkt.userCbPtr            = drp->userCbPtr;
- 
+  
   recdCb(drp,inputFl,0);
 
   _cmApStateRecover( pcmH, drp, inputFl );
   
   while( (avail = snd_pcm_avail_update(pcmH)) >= (snd_pcm_sframes_t)frmCnt )
   {
+
     // Handle inpuut
     if( inputFl )
     {
@@ -853,6 +854,7 @@ bool _cmApThreadFunc(void* param)
           unsigned short    revents = 0;
           int               err;
           cmApAudioPacket_t pkt;
+          snd_pcm_uframes_t avail_frames;
 
           inputFl ? drp->iCbCnt++ : drp->oCbCnt++;
           
@@ -867,6 +869,35 @@ bool _cmApThreadFunc(void* param)
 
           inputFl ? drp->iCbCnt++ : drp->oCbCnt++;
 
+          // get the timestamp for this buffer
+          if((err = snd_pcm_htimestamp(pcmH,&avail_frames,&pkt.timeStamp)) != 0 )
+          {
+            _cmApDevSetupError(p, err, p->pollfdsDesc[i].inputFl, drp, "Get timestamp error.");
+            pkt.timeStamp.tv_sec  = 0;
+            pkt.timeStamp.tv_nsec = 0;
+          }
+
+          // Note that based on experimenting with the timestamp and the current
+          // clock_gettime(CLOCK_MONOTONIC) time it appears that the time stamp
+          // marks the end of the current buffer - so in fact the time stamp should
+          // be backed up by the availble sample count period to get the time of the 
+          // first sample in the buffer
+          /*
+          unsigned avail_nano_secs = (unsigned)(avail_frames * (1000000000.0/drp->srate));
+          if( pkt.timeStamp.tv_nsec > avail_nano_secs )
+            pkt.timeStamp.tv_nsec -= avail_nano_secs;
+          else
+          {
+            pkt.timeStamp.tv_sec -= 1;
+            pkt.timeStamp.tv_nsec = 1000000000 - avail_nano_secs;
+          }
+          */
+
+          //printf("AUDI: %ld %ld\n",pkt.timeStamp.tv_sec,pkt.timeStamp.tv_nsec);
+          //cmTimeSpec_t t;
+          //clock_gettime(CLOCK_PROCESS_CPUTIME_ID,&t);
+          //printf("AUDI: %ld %ld\n",t.tv_sec,t.tv_nsec);
+          
 
           switch( snd_pcm_state(pcmH) )
           {
@@ -910,6 +941,22 @@ bool _cmApThreadFunc(void* param)
 
           if( !inputFl && (revents & POLLOUT) )
           {
+
+            /*
+            unsigned srate = 96;
+            cmTimeSpec_t t1;
+            static cmTimeSpec_t t0 = {0,0};
+            clock_gettime(CLOCK_MONOTONIC,&t1);
+
+            // time since the time-stamp was generated
+            unsigned smp =  (srate * (t1.tv_nsec - pkt.timeStamp.tv_nsec)) / 1000000;
+
+            // time since the last output buffer was sent
+            unsigned dsmp = (srate * (t1.tv_nsec - t0.tv_nsec)) / 1000000;
+            printf("%i %ld %i : %ld %ld -> %ld %ld\n",smp,avail_frames,dsmp,pkt.timeStamp.tv_sec,pkt.timeStamp.tv_nsec,t1.tv_sec,t1.tv_nsec);          
+            t0 = t1;
+            */
+
             // callback to fill the buffer
             drp->cbPtr(NULL,0,&pkt,1);
 
@@ -1061,6 +1108,9 @@ bool _cmApDevSetup( cmApDevRecd_t *drp, unsigned srate, unsigned framesPerCycle,
 
           if((err = snd_pcm_sw_params_set_avail_min(pcmH,swParams,periodFrameCnt)) < 0 )
             retFl = _cmApDevSetupError(p,err,inputFl,drp,"Error setting the avail. min. setting.");
+
+          if((err = snd_pcm_sw_params_set_tstamp_mode(pcmH,swParams,SND_PCM_TSTAMP_MMAP)) < 0 )
+            retFl = _cmApDevSetupError(p,err,inputFl,drp,"Error setting the time samp mode.");
 
           if((err = snd_pcm_sw_params(pcmH,swParams)) < 0 )
             retFl = _cmApDevSetupError(p,err,inputFl,drp,"Error applying sw params.");
@@ -1588,6 +1638,13 @@ cmApRC_t      cmApAlsaDeviceStop( unsigned devIdx )
   if( drp->oPcmH != NULL )
 	if((err = snd_pcm_drop(drp->oPcmH)) < 0 )
 	  retFl = _cmApDevSetupError(p,err,false,drp,"Output stop failed.");
+
+  if( p->asyncFl == false )
+    if( cmThreadPause(p->thH,kPauseThFl) != kOkThRC )
+    {
+      _cmApOsError(p,0,"Audio thread pause failed.");
+      retFl = false;
+    }
 
   return retFl ? kOkApRC : kSysErrApRC;
 }
