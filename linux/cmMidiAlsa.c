@@ -8,6 +8,7 @@
 #include "cmMallocDebug.h"
 #include "cmLinkedHeap.h"
 #include "cmThread.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmMidiPort.h"
 
@@ -62,6 +63,8 @@ typedef struct
   unsigned        prvTimeMicroSecs; // time of last recognized event in microseconds
   unsigned        eventCnt;     // count of recognized events
   
+  cmTimeSpec_t    baseTimeStamp;
+
 } cmMpRoot_t;
 
 cmMpRoot_t* _cmMpRoot = NULL;
@@ -164,7 +167,7 @@ cmMpRC_t cmMpPoll()
       //printf("dev:%i port:%i ch:%i %i\n",ev->source.client,ev->source.port,ev->data.note.channel,ev->data.note.note);
 
       unsigned     microSecs1     = (ev->time.time.tv_sec * 1000000) + (ev->time.time.tv_nsec/1000);
-      unsigned     deltaMicroSecs = p->prvTimeMicroSecs==0 ? 0 : microSecs1 - p->prvTimeMicroSecs;
+      //unsigned     deltaMicroSecs = p->prvTimeMicroSecs==0 ? 0 : microSecs1 - p->prvTimeMicroSecs;
       cmMidiByte_t d0             = 0xff;
       cmMidiByte_t d1             = 0xff;
       cmMidiByte_t status         = 0;
@@ -254,8 +257,18 @@ cmMpRC_t cmMpPoll()
       if( status != 0 )
       {
         cmMidiByte_t ch = ev->data.note.channel;
+        cmTimeSpec_t ts;
+        ts.tv_sec  = p->baseTimeStamp.tv_sec  + ev->time.time.tv_sec;
+        ts.tv_nsec = p->baseTimeStamp.tv_nsec + ev->time.time.tv_nsec;
+        if( ts.tv_nsec > 1000000000 )
+        {
+          ts.tv_nsec -= 1000000000;
+          ts.tv_sec  += 1;
+        }
 
-        cmMpParserMidiTriple(p->prvRcvPort->parserH, deltaMicroSecs, status | ch, d0, d1 );
+        //printf("MIDI: %ld %ld : 0x%x %i %i\n",ts.tv_sec,ts.tv_nsec,status,d0,d1);
+
+        cmMpParserMidiTriple(p->prvRcvPort->parserH, &ts, status | ch, d0, d1 );
 
         p->prvTimeMicroSecs  = microSecs1;
         p->eventCnt         += 1;
@@ -515,6 +528,9 @@ cmMpRC_t cmMpInitialize( cmCtx_t* ctx, cmMpCallback_t cbFunc, void* cbArg, unsig
   
   // send any pending commands to the driver
   snd_seq_drain_output(p->h);
+  
+  // all time stamps will be an offset from this time stamp
+  clock_gettime(CLOCK_MONOTONIC,&p->baseTimeStamp);
 
   if( cmThreadPause(p->thH,0) != kOkThRC )
     rc = _cmMpErrMsg(&p->err,kThreadErrMpRC,0,"Thread start failed.");
