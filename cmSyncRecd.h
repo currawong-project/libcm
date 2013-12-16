@@ -25,6 +25,8 @@ extern "C" {
   cmSrRC_t cmSyncRecdAudioWrite( cmSyncRecdH_t h, const cmTimeSpec_t* timestamp, unsigned smpIdx, const cmSample_t* ch[], unsigned chCnt, unsigned frmCnt );
   
 
+  cmSrRC_t cmSyncRecdTest( cmCtx_t* ctx );
+
 #ifdef __cplusplus
 }
 #endif

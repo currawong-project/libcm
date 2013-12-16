@@ -13,7 +13,7 @@
 
 typedef enum
 {
-kInvalidSrId,
+  kInvalidSrId,
   kMidiSrId,
   kAudioSrId
   } cmSrTypeId_t;
@@ -66,7 +66,7 @@ typedef struct cmSr_str
 } cmSr_t;
 
 
-
+cmSyncRecdH_t cmSyncRecdNullHandle  = cmSTATIC_NULL_HANDLE;
 
 cmSr_t* _cmSrHtoP( cmSyncRecdH_t h )
 {
@@ -434,4 +434,53 @@ cmSrRC_t cmSyncRecdAudioWrite( cmSyncRecdH_t h, const cmTimeSpec_t* timestamp, u
 
  errLabel:
   return rc;
+}
+
+
+cmSrRC_t cmSyncRecdPrint( cmSyncRecdH_t h )
+{
+  cmSrRC_t rc = kOkSrRC;
+  cmSr_t* p = _cmSrHtoP(h);
+
+  unsigned i;
+  
+  for(i=0; i<p->cn; ++i)
+  {
+    cmSrRecd_t* r = p->cache + i;
+    cmRptPrintf(p->err.rpt,"0x%x %3i %3i %ld %5.3f %ld %5.3f",r->u.m.status,r->u.m.d0,r->u.m.d1,r->u.m.timestamp.tv_sec,r->u.m.timestamp.tv_nsec/1000000000.0,p->map[i].timestamp.tv_sec,p->map[i].timestamp.tv_nsec/1000000000.0);
+  }
+
+  return rc;
+}
+
+cmSrRC_t cmSyncRecdTest( cmCtx_t* ctx )
+{
+  enum
+  {
+    kOkTestRC,
+    kTestFailRC,
+  };
+
+  cmSrRC_t rc = kOkSrRC;
+  const cmChar_t* srFn = "/home/kevin/temp/kr/sr/sr10.sr";
+  cmErr_t err;
+  cmSyncRecdH_t srH = cmSyncRecdNullHandle;
+
+  cmErrSetup(&err,&ctx->rpt,"SyncRecdTest");
+  
+
+  if((rc = cmSyncRecdOpen(ctx, &srH, srFn )) != kOkSrRC )
+  {
+    cmErrMsg(&err,kTestFailRC,"Sync-recd open failed.");
+    goto errLabel;
+  }
+
+  cmSyncRecdPrint(srH);
+
+ errLabel:
+  if((rc = cmSyncRecdFinal(&srH)) != kOkSrRC )
+    cmErrMsg(&err,kTestFailRC,"Sync-recd close failed.");
+
+  return rc;
+
 }
