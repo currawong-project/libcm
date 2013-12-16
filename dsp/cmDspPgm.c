@@ -16,6 +16,7 @@
 #include "cmThread.h"
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
+#include "cmTime.h"
 #include "cmAudioSys.h"
 #include "cmProcObj.h"
 #include "cmDspCtx.h"
@@ -24,6 +25,50 @@
 #include "cmDspPgm.h"
 #include "cmDspPgmPP.h"
 #include "cmDspPgmKr.h"
+
+cmDspRC_t _cmDspSysPgm_SyncRecd(  cmDspSysH_t h, void** userPtrPtr )
+{
+  cmDspRC_t rc = kOkDspRC;
+  unsigned audioFileBits = 24;
+  
+  cmDspInst_t* ai0p   = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 0 );
+  cmDspInst_t* ai1p   = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 1 );
+  cmDspInst_t* mip    = cmDspSysAllocInst(h,"MidiIn",  NULL,   0 );
+  cmDspInst_t* srp    = cmDspSysAllocInst(h,"SyncRecd",NULL,   3, "/home/kevin/temp/kr/sr","sr","audio",audioFileBits);
+  cmDspInst_t* am0p   = cmDspSysAllocInst(h,"AMeter",  "Left", 0);
+  cmDspInst_t* am1p   = cmDspSysAllocInst(h,"AMeter",  "Right",0);
+  cmDspInst_t* ao0p   = cmDspSysAllocInst(h,"AudioOut", NULL,  1, 0 );
+  cmDspInst_t* ao1p   = cmDspSysAllocInst(h,"AudioOut", NULL,  1, 1 );
+
+  cmDspInst_t* chk    = cmDspSysAllocInst(h,"Checkbox","recd", 5, "Recd","open","close", 1.0, 0.0);
+  cmDspInst_t* gain0 = cmDspSysAllocInst(h,"Scalar", "In Gain-0",    5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
+  cmDspInst_t* gain1 = cmDspSysAllocInst(h,"Scalar", "In Gain-1",    5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
+
+  
+  // check for allocation errors
+  if((rc = cmDspSysLastRC(h)) != kOkDspRC )
+    goto errLabel;
+
+  cmDspSysInstallCb(h, mip,   "status", srp, "status", NULL);
+  cmDspSysInstallCb(h, mip,   "d0",     srp, "d0",     NULL);
+  cmDspSysInstallCb(h, mip,   "d1",     srp, "d1",     NULL);
+  cmDspSysInstallCb(h, mip,   "sec",    srp, "sec",    NULL);
+  cmDspSysInstallCb(h, mip,   "nsec",   srp, "nsec",   NULL);
+  cmDspSysInstallCb(h, chk,   "sym",    srp, "cmd",    NULL);
+  cmDspSysInstallCb(h, gain0, "val",   ai0p, "gain",   NULL);
+  cmDspSysInstallCb(h, gain1, "val",   ai1p, "gain",   NULL);
+
+  cmDspSysConnectAudio(h, ai0p, "out", srp,  "ain-0");
+  cmDspSysConnectAudio(h, ai1p, "out", srp,  "ain-1");
+  cmDspSysConnectAudio(h, ai0p, "out", am0p, "in");
+  cmDspSysConnectAudio(h, ai1p, "out", am1p, "in");
+  cmDspSysConnectAudio(h, ai0p, "out", ao0p, "in");
+  cmDspSysConnectAudio(h, ai1p, "out", ao1p, "in");
+
+ errLabel:
+  return rc;
+
+}
 
 cmDspRC_t _cmDspSysPgm_Test_Midi( cmDspSysH_t h, void** userPtrPtr )
 {
@@ -202,7 +247,6 @@ cmDspRC_t _cmDspSysPgm_PlaySine( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, useBuiltInFl ? 0 : 2 );
   cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, useBuiltInFl ? 1 : 3 );
   cmDspInst_t* om0p = cmDspSysAllocInst(h,"AMeter","Out", 0);
-  
   
 
   cmDspSysConnectAudio(h, php, "out", wtp,  "phs" );  // phasor -> wave table
@@ -2543,6 +2587,7 @@ _cmDspSysPgm_t _cmDspSysPgmArray[] =
   { "pickup tails", _cmDspSysPgm_NoiseTails,    NULL, NULL },
   { "tails_2",      _cmDspSysPgm_NoiseTails2,   NULL, NULL },
   { "pickups",     _cmDspSysPgm_Pickups0,       NULL, NULL },
+  { "sync_recd",   _cmDspSysPgm_SyncRecd,       NULL, NULL },
   { "midi_test",   _cmDspSysPgm_Test_Midi,      NULL, NULL },
   { "2_thru",      _cmDspSysPgm_Stereo_Through, NULL, NULL },
   { "guitar",      _cmDspSysPgmGuitar,          NULL, NULL },
