@@ -24,15 +24,14 @@ extern "C" {
    */
   void cmTimeGet( cmTimeSpec_t* t );
 
-  // Return the elapsed time (t1 - t0)
-  // in microseconds
-  unsigned cmTimeElapsedMicros
-    ( 
-      const 
-      cmTimeSpec_t* 
-      t0,  //< ptr to start time
-      const cmTimeSpec_t* t1 );// ptr to end time
+  // Return the elapsed time (t1 - t0) in microseconds
+  // t1 is assumed to be at a later time than t0.
+  unsigned cmTimeElapsedMicros( const cmTimeSpec_t*  t0, const cmTimeSpec_t* t1 );
 
+  
+  // Same as cmTimeElapsedMicros() but the times are not assumed to be ordered.
+  // The function therefore begins by swapping t1 and t0 if t0 is after t1.
+  unsigned cmTimeAbsElapsedMicros( const cmTimeSpec_t*  t0, const cmTimeSpec_t* t1 ); 
 
   //)
   //}

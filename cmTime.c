@@ -59,3 +59,15 @@ unsigned cmTimeElapsedMicros( const cmTimeSpec_t* t0, const cmTimeSpec_t* t1 )
   // take diff between t1 and t0
   return u1 - u0;
 }
+
+unsigned cmTimeAbsElapsedMicros( const cmTimeSpec_t*  t0, const cmTimeSpec_t* t1 )
+{
+  if( t1->tv_sec > t0->tv_sec )
+    return cmTimeElapsedMicros(t0,t1);
+
+  if( t1->tv_sec == t0->tv_sec )
+    if( t1->tv_nsec > t0->tv_nsec )
+      return cmTimeElapsedMicros(t0,t1);
+
+  return cmTimeElapsedMicros(t1,t0);
+}
