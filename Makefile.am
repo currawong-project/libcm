@@ -71,8 +71,8 @@ cmSRC += src/libcm/cmProcObj.c src/libcm/cmProc.c src/libcm/cmProc2.c src/libcm/
 cmHDR += src/libcm/app/cmOnset.h src/libcm/app/cmTimeLine.h src/libcm/app/cmScore.h src/libcm/app/cmScoreProc.h 
 cmSRC += src/libcm/app/cmOnset.c src/libcm/app/cmTimeLine.c src/libcm/app/cmScore.c src/libcm/app/cmScoreProc.c 
 
-cmHDR += src/libcm/app/cmPickup.h src/libcm/cmRbm.h src/libcm/cmTaskMgr.h
-cmSRC += src/libcm/app/cmPickup.c src/libcm/cmRbm.c src/libcm/cmTaskMgr.c
+cmHDR += src/libcm/app/cmPickup.h src/libcm/cmRbm.h src/libcm/cmTaskMgr.h  src/libcm/cmSyncRecd.h
+cmSRC += src/libcm/app/cmPickup.c src/libcm/cmRbm.c src/libcm/cmTaskMgr.c  src/libcm/cmSyncRecd.c
 
 if OS_LINUX
  cmSRC += src/libcm/linux/cmFileSysLinux.c  src/libcm/linux/cmAudioPortAlsa.c src/libcm/linux/cmMidiAlsa.c
