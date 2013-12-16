@@ -25,6 +25,7 @@
 #include "cmThread.h"
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
+#include "cmTime.h"
 #include "cmAudioSys.h"
 #include "cmDspSys.h"
 
@@ -995,7 +996,9 @@ enum
   kSmpIdxMiId,
   kStatusMiId,
   kD0MiId,
-  kD1MiId
+  kD1MiId,
+  kSecMiId,
+  kNSecMiId
 };
 
 
@@ -1006,6 +1009,7 @@ typedef struct
   cmDspInst_t inst;
   unsigned midiSymId;
   unsigned prevSmpIdx;
+  cmTimeSpec_t prevTimeStamp;
 } cmDspMidiIn_t;
 
 cmDspInst_t*  _cmDspMidiInAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
@@ -1018,6 +1022,8 @@ cmDspInst_t*  _cmDspMidiInAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigne
     { "status", kStatusMiId, 0,  0,  kOutDsvFl | kUIntDsvFl, "MIDI status" },
     { "d0",     kD0MiId,     0,  0,  kOutDsvFl | kUIntDsvFl, "MIDI channel message d0" },
     { "d1",     kD1MiId,     0,  0,  kOutDsvFl | kUIntDsvFl, "MIDI channel message d1" },
+    { "sec",    kSecMiId,    0,  0,  kOutDsvFl | kUIntDsvFl, "Time stamp integer seconds."},
+    { "nsec",   kNSecMiId,   0,  0,  kOutDsvFl | kUIntDsvFl, "Time stamp fractional second (nanoseconds)."},
     { NULL, 0, 0, 0, 0 }
   };
 
@@ -1052,7 +1058,9 @@ cmDspRC_t  _cmDspMidiInRecvFunc(   cmDspCtx_t* ctx, struct cmDspInst_str* inst, 
     for(i=0; i<pkt->msgCnt; ++i)
     {
       cmMidiMsg* m = pkt->msgArray + i;
-      unsigned   deltaSmpCnt = floor((m->deltaUs * cmDspSampleRate(ctx)) / 1000000.0);
+      unsigned   deltaSmpCnt = 0;
+      if( p->prevTimeStamp.tv_sec!=0 && p->prevTimeStamp.tv_nsec!=0 )
+        deltaSmpCnt = floor(cmTimeElapsedMicros(&p->prevTimeStamp,&m->timeStamp) * cmDspSampleRate(ctx) / 1000000.0);
 
       if( p->prevSmpIdx == 0 )
         p->prevSmpIdx = ctx->cycleCnt * cmDspSamplesPerCycle(ctx);
@@ -1060,9 +1068,13 @@ cmDspRC_t  _cmDspMidiInRecvFunc(   cmDspCtx_t* ctx, struct cmDspInst_str* inst, 
         p->prevSmpIdx += deltaSmpCnt;
 
       cmDspSetUInt(ctx, inst, kSmpIdxMiId, p->prevSmpIdx );
+      cmDspSetUInt(ctx, inst, kSecMiId,    m->timeStamp.tv_sec);
+      cmDspSetUInt(ctx, inst, kNSecMiId,   m->timeStamp.tv_nsec);
       cmDspSetUInt(ctx, inst, kD1MiId,     m->d1 );
       cmDspSetUInt(ctx, inst, kD0MiId,     m->d0 );
       cmDspSetUInt(ctx, inst, kStatusMiId, m->status );
+
+      p->prevTimeStamp = m->timeStamp;
     }
   }
 
@@ -2199,18 +2211,23 @@ cmDspInst_t*  _cmDspCheckboxAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
 
   cmDspCheckbox_t* p = cmDspInstAlloc(cmDspCheckbox_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
 
+  p->resetSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"_reset");
+
+  cmDspSetDefaultStrcz( ctx, &p->inst, kSym1CbId, NULL, "on");
+  cmDspSetDefaultStrcz( ctx, &p->inst, kSym0CbId, NULL, "off");
+
+  p->onSymId    = cmSymTblRegisterSymbol(ctx->stH, cmDspDefaultStrcz(&p->inst,kSym1CbId));
+  p->offSymId   = cmSymTblRegisterSymbol(ctx->stH, cmDspDefaultStrcz(&p->inst,kSym0CbId));
+
+
+  bool fl = cmDspDefaultDouble(&p->inst,kOutCbId)!=0;
   
   cmDspSetDefaultDouble(ctx, &p->inst, kVal1CbId, 0.0, 1.0);
   cmDspSetDefaultDouble(ctx, &p->inst, kVal0CbId, 0.0, 0.0);
-  cmDspSetDefaultStrcz( ctx, &p->inst, kSym1CbId, NULL, "on");
-  cmDspSetDefaultStrcz( ctx, &p->inst, kSym0CbId, NULL, "off");
   cmDspSetDefaultDouble(ctx, &p->inst, kOutCbId,  0.0, 0.0);
-  cmDspSetDefaultSymbol(ctx, &p->inst, kSymCbId,        instSymId );
+  cmDspSetDefaultSymbol(ctx, &p->inst, kSymCbId,  fl ? p->onSymId : p->offSymId );
   cmDspSetDefaultStrcz( ctx, &p->inst, kLblCbId, NULL, cmSymTblLabel(ctx->stH,instSymId));
 
-  p->resetSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"_reset");
-  p->onSymId    = cmSymTblRegisterSymbol(ctx->stH, cmDspDefaultStrcz(&p->inst,kSym1CbId));
-  p->offSymId   = cmSymTblRegisterSymbol(ctx->stH, cmDspDefaultStrcz(&p->inst,kSym0CbId));
 
   // create the UI control
   cmDspUiButtonCreate(ctx,&p->inst,kCheckDuiId,kOutCbId,kLblCbId);
@@ -5587,6 +5604,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmNanoMapClassCons,
   cmRecdPlayClassCons,
   cmGoertzelClassCons,
+  cmSyncRecdClassCons,
   NULL,
 };
 
