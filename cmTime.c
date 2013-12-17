@@ -62,12 +62,52 @@ unsigned cmTimeElapsedMicros( const cmTimeSpec_t* t0, const cmTimeSpec_t* t1 )
 
 unsigned cmTimeAbsElapsedMicros( const cmTimeSpec_t*  t0, const cmTimeSpec_t* t1 )
 {
-  if( t1->tv_sec > t0->tv_sec )
+  if( cmTimeIsLTE(t0,t1) )
     return cmTimeElapsedMicros(t0,t1);
-
-  if( t1->tv_sec == t0->tv_sec )
-    if( t1->tv_nsec > t0->tv_nsec )
-      return cmTimeElapsedMicros(t0,t1);
 
   return cmTimeElapsedMicros(t1,t0);
 }
+
+int cmTimeDiffMicros( const cmTimeSpec_t*  t0, const cmTimeSpec_t* t1 )
+{
+  if( cmTimeIsLTE(t0,t1) )
+    return cmTimeElapsedMicros(t0,t1);
+
+  return -((int)cmTimeElapsedMicros(t1,t0));
+}
+
+bool cmTimeIsLTE( const cmTimeSpec_t* t0, const cmTimeSpec_t* t1 )
+{
+  if( t0->tv_sec  < t1->tv_sec )
+    return true;
+
+  if( t0->tv_sec == t1->tv_sec )
+    return t0->tv_nsec <= t1->tv_nsec;
+
+  return false; 
+}
+
+bool cmTimeIsGTE( const cmTimeSpec_t* t0, const cmTimeSpec_t* t1 )
+{
+  if( t0->tv_sec  > t1->tv_sec )
+    return true;
+
+  if( t0->tv_sec == t1->tv_sec )
+    return t0->tv_nsec >= t1->tv_nsec;
+
+  return false;   
+}
+
+bool cmTimeIsEqual( const cmTimeSpec_t* t0, const cmTimeSpec_t* t1 )
+{ return t0->tv_sec==t1->tv_sec && t0->tv_nsec==t1->tv_nsec; }
+
+bool cmTimeIsZero( const cmTimeSpec_t* t0 )
+{ return t0->tv_sec==0  && t0->tv_nsec==0; }
+
+void cmTimeSetZero( cmTimeSpec_t* t0 )
+{
+  t0->tv_sec = 0;
+  t0->tv_nsec = 0;
+}
+
+

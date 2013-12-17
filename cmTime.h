@@ -33,6 +33,23 @@ extern "C" {
   // The function therefore begins by swapping t1 and t0 if t0 is after t1.
   unsigned cmTimeAbsElapsedMicros( const cmTimeSpec_t*  t0, const cmTimeSpec_t* t1 ); 
 
+
+  // Same as cmTimeElapsedMicros() but returns a negative value if t0 is after t1.
+  int cmTimeDiffMicros( const cmTimeSpec_t*  t0, const cmTimeSpec_t* t1 );
+
+
+  // Returns true if t0 <=  t1.
+  bool cmTimeIsLTE( const cmTimeSpec_t* t0, const cmTimeSpec_t* t1 );
+
+  // Return true if t0 >= t1.
+  bool cmTimeIsGTE( const cmTimeSpec_t* t0, const cmTimeSpec_t* t1 );
+
+  bool cmTimeIsEqual( const cmTimeSpec_t* t0, const cmTimeSpec_t* t1 );
+
+  bool cmTimeIsZero( const cmTimeSpec_t* t0 );
+
+  void cmTimeSetZero( cmTimeSpec_t* t0 );
+
   //)
   //}
 
