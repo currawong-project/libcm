@@ -9,8 +9,8 @@
 #include "cmFile.h"
 #include "cmAudioFile.h"
 #include "cmSyncRecd.h"
-
-
+#include "cmVectOpsTemplateMain.h"
+#include "cmMidi.h"
 typedef enum
 {
   kInvalidSrId,
@@ -53,16 +53,17 @@ enum
 
 typedef struct cmSr_str
 {
-  cmErr_t        err;
-  cmFileH_t      fH;
-  cmAudioFileH_t afH;
-  unsigned       flags;  // See kXXXSrFl 
-  cmSrRecd_t*    cache;  // cache[cn]
-  cmSrAudio_t*   map;    // 
-  unsigned       cn;     // count of records in cache[].
-  unsigned       ci;     // next cache recd index
-  unsigned       fn;     // count of recds written to file
-  long           offs;
+  cmErr_t           err;
+  cmFileH_t         fH;
+  cmAudioFileH_t    afH;
+  unsigned          flags;      // See kXXXSrFl 
+  cmSrRecd_t*       cache;      // cache[cn]
+  cmSrAudio_t*      map;        // 
+  unsigned          cn;         // count of records in cache[].
+  unsigned          ci;         // next cache recd index
+  unsigned          fn;         // count of recds written to file
+  long              offs;
+  cmAudioFileInfo_t afInfo;
 } cmSr_t;
 
 
@@ -207,7 +208,6 @@ cmSrRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn
   unsigned  fileUUId   = cmInvalidId;
   unsigned  audioFnCnt = 0;
   cmChar_t* audioFn    = NULL;
-  cmAudioFileInfo_t afInfo;
   unsigned i;
   unsigned acnt = 0;
   unsigned mcnt = 0;
@@ -283,6 +283,8 @@ cmSrRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn
     }
   }
 
+  printf("%i %i = %i\n",mcnt,acnt,p->fn);
+
   // rewind to the begining of the records
   if( cmFileSeek(p->fH,kBeginFileFl,p->offs) != kOkFileRC )
   {
@@ -342,19 +344,19 @@ cmSrRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn
         unsigned time_interval_micros = cmTimeAbsElapsedMicros(&r.u.a.timestamp,&p->cache[j].u.m.timestamp);
 
         // if the audio recd is closer to this midi recd than prior audio records ...
-        if( tiV[j] < time_interval_micros || i==0 )
+        if( time_interval_micros < tiV[j]  || i==0 )
         {
           // ... then store the audio time stamp in the map
-          tiV[j]            = time_interval_micros;
-          p->map->timestamp = r.u.a.timestamp;
-          p->map->smpIdx    = r.u.a.smpIdx;
+          tiV[j]              = time_interval_micros;
+          p->map[j].timestamp = r.u.a.timestamp;
+          p->map[j].smpIdx    = r.u.a.smpIdx;
         }        
       }
     }
   }
 
   // open the audio file
-  if( cmAudioFileIsValid(p->afH = cmAudioFileNewOpen(audioFn,&afInfo,&afRC,&ctx->rpt ))==false)
+  if( cmAudioFileIsValid(p->afH = cmAudioFileNewOpen(audioFn,&p->afInfo,&afRC,&ctx->rpt ))==false)
   {
     rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Unable to open the sync-recd audio file '%s'.",cmStringNullGuard(audioFn));
     goto errLabel;
@@ -440,15 +442,88 @@ cmSrRC_t cmSyncRecdAudioWrite( cmSyncRecdH_t h, const cmTimeSpec_t* timestamp, u
 cmSrRC_t cmSyncRecdPrint( cmSyncRecdH_t h )
 {
   cmSrRC_t rc = kOkSrRC;
-  cmSr_t* p = _cmSrHtoP(h);
-
+  cmSr_t*  p  = _cmSrHtoP(h);
   unsigned i;
+
+  if( cmIsFlag(p->flags,kReadSrFl)==false)
+    return cmErrMsg(&p->err,kInvalidOpSrRC,"The 'print' operation is only valid on sync-recd files opened for reading.");
   
   for(i=0; i<p->cn; ++i)
   {
     cmSrRecd_t* r = p->cache + i;
-    cmRptPrintf(p->err.rpt,"0x%x %3i %3i %ld %5.3f %ld %5.3f",r->u.m.status,r->u.m.d0,r->u.m.d1,r->u.m.timestamp.tv_sec,r->u.m.timestamp.tv_nsec/1000000000.0,p->map[i].timestamp.tv_sec,p->map[i].timestamp.tv_nsec/1000000000.0);
+    cmRptPrintf(p->err.rpt,"0x%x %3i %3i %ld %5.3f : %ld %5.3f %i",r->u.m.status,r->u.m.d0,r->u.m.d1,r->u.m.timestamp.tv_sec,r->u.m.timestamp.tv_nsec/1000000000.0,p->map[i].timestamp.tv_sec,p->map[i].timestamp.tv_nsec/1000000000.0,p->map[i].smpIdx);
   }
+
+  return rc;
+}
+
+cmSrRC_t cmSyncRecdAudioFile( cmSyncRecdH_t h, const cmChar_t* fn )
+{
+  cmSrRC_t       rc        = kOkSrRC;
+  cmSr_t*        p         = _cmSrHtoP(h);
+  cmAudioFileH_t afH       = cmNullAudioFileH;
+  unsigned       chCnt     = 2;
+  unsigned       frmCnt    = 1024;
+  unsigned       chIdx     = 0;
+  cmRC_t         afRC      = kOkAfRC;
+  unsigned       actFrmCnt = 0;
+  unsigned       smpIdx    = 0;
+  cmSample_t*    chs[chCnt];
+  cmSample_t     buf[frmCnt*2];
+  chs[0] = buf;
+  chs[1] = buf+frmCnt;
+
+  if( cmIsFlag(p->flags,kReadSrFl)==false)
+    return cmErrMsg(&p->err,kInvalidOpSrRC,"The 'audio-file-output' operation is only valid on sync-recd files opened for reading.");
+  
+  /// Open an audio file for writing
+  if(cmAudioFileIsValid(afH = cmAudioFileNewCreate(fn, p->afInfo.srate, p->afInfo.bits, chCnt, &afRC, p->err.rpt))==false)
+  {
+    rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Unable to create the synchronized audio file '%s'.",cmStringNullGuard(fn));
+    goto errLabel;
+  }
+  
+  // rewind the input audio file
+  if( cmAudioFileSeek(p->afH,0) != kOkAfRC )
+  {
+    rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Seek failed during synchronized audio file output.");
+    goto errLabel;
+  }
+
+  actFrmCnt = frmCnt;
+
+  // for each buffer of audio 
+  for(smpIdx=0; actFrmCnt==frmCnt; smpIdx+=actFrmCnt)
+  {
+    unsigned i;
+
+    // read frmCnt samples from the first channel of the input audio file
+    if( cmAudioFileReadSample(p->afH, frmCnt, chIdx, 1, chs, &actFrmCnt ) != kOkAfRC )
+    {
+      rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Audio file read failed.");
+      break;
+    }
+
+    // zero the output buffer for the second audio channel
+    cmVOS_Zero(chs[1],frmCnt);
+
+    // insert impulses at the location of the MIDI messages.
+    for(i=0; i<p->cn; ++i)
+      if( p->cache[i].u.m.status==kNoteOnMdId && smpIdx <= p->map[i].smpIdx && p->map[i].smpIdx < smpIdx+frmCnt )
+        chs[1][ p->map[i].smpIdx - smpIdx ] = 1.0;
+
+    // write the audio output samples
+    if( cmAudioFileWriteSample(afH, frmCnt, chCnt, chs ) != kOkAfRC )
+    {
+      rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Synchronized audio file write failed.");
+      break;
+    }    
+
+  }
+
+ errLabel:
+  if( cmAudioFileDelete(&afH) != kOkAfRC )
+    rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Synchronized audio file close failed.");
 
   return rc;
 }
@@ -462,7 +537,8 @@ cmSrRC_t cmSyncRecdTest( cmCtx_t* ctx )
   };
 
   cmSrRC_t rc = kOkSrRC;
-  const cmChar_t* srFn = "/home/kevin/temp/kr/sr/sr10.sr";
+  const cmChar_t* srFn = "/home/kevin/temp/kr/sr/sr0.sr";
+  const cmChar_t* aFn  = "/home/kevin/temp/kr/sr/sync_af.aiff";
   cmErr_t err;
   cmSyncRecdH_t srH = cmSyncRecdNullHandle;
 
@@ -476,6 +552,7 @@ cmSrRC_t cmSyncRecdTest( cmCtx_t* ctx )
   }
 
   cmSyncRecdPrint(srH);
+  cmSyncRecdAudioFile(srH,aFn);
 
  errLabel:
   if((rc = cmSyncRecdFinal(&srH)) != kOkSrRC )

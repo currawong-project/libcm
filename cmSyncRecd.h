@@ -9,7 +9,8 @@ extern "C" {
   {
     kOkSrRC,
     kFileFailSrRC,
-    kAudioFileFailSrRC
+    kAudioFileFailSrRC,
+    kInvalidOpSrRC
   };
 
   typedef cmHandle_t cmSyncRecdH_t;
