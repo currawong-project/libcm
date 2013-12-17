@@ -3050,6 +3050,8 @@ cmDspRC_t _cmDspSyncRecdExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
     if( cmSyncRecdAudioWrite( p->srH, &ctx->ctx->iTimeStamp, p->smpIdx, x, p->chCnt, n ) != kOkSrRC )
       return cmDspInstErr(ctx,&p->inst,kSubSysFailDspRC,"Sync-recd audio update failed.");
 
+  p->smpIdx += n;
+
   return rc;
 }
 
@@ -3063,7 +3065,7 @@ cmDspRC_t _cmDspSyncRecdRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   switch( evt->dstVarId )
   {
     case kStatusSrId:
-      if(cmMidiIsChStatus( evt->dstVarId ) )
+      if(cmMidiIsChStatus( cmDspUInt(inst,kStatusSrId) ) )
       {
         cmTimeSpec_t ts;
         ts.tv_sec = cmDspUInt(inst,kSecSrId);
@@ -3083,8 +3085,12 @@ cmDspRC_t _cmDspSyncRecdRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
         if( cmdId == p->openSymId )
           rc = _cmDspSyncRecdCreateFile(ctx,inst);
         else
-          if( cmdId == p->closeSymId )
+          if( cmdId == p->closeSymId && cmSyncRecdIsValid(p->srH))
+          {
             cmSyncRecdFinal(&p->srH);
+            //cmSyncRecdTest(ctx->cmCtx);
+            
+          }
           
       }
       break;
