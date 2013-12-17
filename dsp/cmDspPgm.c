@@ -94,7 +94,10 @@ cmDspRC_t _cmDspSysPgm_Test_Midi( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* midiOut = cmDspSysAllocInst( h,"MidiOut", NULL,     2, deviceName, portName);
   
   cmDspInst_t* midiIn  = cmDspSysAllocInst( h,"MidiIn",  NULL,     0 );
-  cmDspInst_t* printer = cmDspSysAllocInst( h,"Printer", NULL,     1, ">" );
+  //cmDspInst_t* printer = cmDspSysAllocInst( h,"Printer", NULL,     1, ">" );
+  cmDspInst_t* prst = cmDspSysAllocInst( h,"Printer", NULL,     1, "st>" );
+  cmDspInst_t* prd0 = cmDspSysAllocInst( h,"Printer", NULL,     1, "d0>" );
+  cmDspInst_t* prd1 = cmDspSysAllocInst( h,"Printer", NULL,     1, "d1>" );
 
   // check for allocation errors
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
@@ -108,10 +111,10 @@ cmDspRC_t _cmDspSysPgm_Test_Midi( cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(   h, d0,      "val", midiOut, "d0",    NULL);
   cmDspSysInstallCb(   h, d1,      "val", midiOut, "d1",    NULL);
 
-  cmDspSysInstallCb(   h, midiIn,  "status", printer, "in", NULL);
-  cmDspSysInstallCb(   h, midiIn,  "d0",     printer, "in", NULL);
-  cmDspSysInstallCb(   h, midiIn,  "d1",     printer, "in", NULL);
-  cmDspSysInstallCb(   h, midiIn,  "smpidx", printer, "in", NULL);
+  cmDspSysInstallCb(   h, midiIn,  "status", prst, "in", NULL);
+  cmDspSysInstallCb(   h, midiIn,  "d0",     prd0, "in", NULL);
+  cmDspSysInstallCb(   h, midiIn,  "d1",     prd1, "in", NULL);
+  //cmDspSysInstallCb(   h, midiIn,  "smpidx", printer, "in", NULL);
 
  errLabel:
   return rc;
