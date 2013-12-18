@@ -473,6 +473,7 @@ enum
   kD1ScId,
   kSmpIdxScId,
   kLocIdxScId,
+  kCmdScId,
   kEvtIdxScId,
   kDynScId,
   kValTypeScId,
@@ -486,6 +487,7 @@ typedef struct
   cmDspInst_t inst;
   cmScH_t     scH;
   cmDspCtx_t* ctx;   // temporary ctx ptr used during cmScore callback in _cmDspScoreRecv()
+  unsigned printSymId;
 } cmDspScore_t;
 
 cmDspInst_t*  _cmDspScoreAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
@@ -500,6 +502,7 @@ cmDspInst_t*  _cmDspScoreAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     { "d1",      kD1ScId,     0, 0, kInDsvFl  | kUIntDsvFl,                "Performed MIDI msg data byte 1" },
     { "smpidx",  kSmpIdxScId, 0, 0, kInDsvFl  | kUIntDsvFl,                "Performed MIDi msg time tag as a sample index." }, 
     { "loc",     kLocIdxScId, 0, 0, kInDsvFl  | kUIntDsvFl,                "Performance score location."},
+    { "cmd",     kCmdScId,    0, 0, kInDsvFl  | kSymDsvFl,                 "cmd: dump "},
     { "evtidx",  kEvtIdxScId, 0, 0, kOutDsvFl | kUIntDsvFl,                "Performed event index of following dynamcis level."},
     { "dyn",     kDynScId,    0, 0, kOutDsvFl | kUIntDsvFl,                "Dynamic level of previous event index."},
     { "type",    kValTypeScId,0, 0, kOutDsvFl | kUIntDsvFl,                "Output variable type."},
@@ -510,6 +513,8 @@ cmDspInst_t*  _cmDspScoreAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   cmDspScore_t* p = cmDspInstAlloc(cmDspScore_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
   
   cmDspSetDefaultUInt( ctx, &p->inst,  kSelScId,           0, cmInvalidId);
+
+  p->printSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"dump");
 
   // create the UI control
   cmDspUiScoreCreate(ctx,&p->inst,kFnScId,kSelScId,kSmpIdxScId,kD0ScId,kD1ScId,kLocIdxScId,kEvtIdxScId,kDynScId,kValTypeScId,kValueScId);
@@ -619,6 +624,11 @@ cmDspRC_t _cmDspScoreRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
         // this call may result in callbacks to _cmDspScoreCb()
         cmScoreExecPerfEvent(p->scH, cmDspUInt(inst,kLocIdxScId), cmDspUInt(inst,kSmpIdxScId), cmDspUInt(inst,kD0ScId), cmDspUInt(inst,kD1ScId) );      
       }
+      break;
+
+    case kCmdScId:
+      if( cmDspSymbol(inst,kCmdScId) == p->printSymId )
+        cmScorePrintLoc(p->scH);
       break;
 
   }
