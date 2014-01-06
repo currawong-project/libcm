@@ -120,6 +120,8 @@ cmRC_t _cmLexError( cmLex* p, unsigned rc, const char* fmt, ... )
   return rc;
 }
 
+// Locate 'keyStr' in cp[cn] and return the index into cp[cn] of the character
+// following the last char in 'keyStr'.  If keyStr is not found return cmInvalidIdx.
 unsigned _cmLexScanTo( const cmChar_t* cp, unsigned cn, const cmChar_t* keyStr )
 {
   unsigned i = 0;
@@ -336,6 +338,20 @@ unsigned _cmLexQStrMatcher( cmLex* p, const cmChar_t* cp, unsigned cn, const cmC
   return 0;
 }
 
+unsigned _cmLexQCharMatcher( cmLex* p, const cmChar_t* cp, unsigned cn, const cmChar_t* keyStr )
+{
+  unsigned i = 0;
+  if( i >= cn || cp[i]!='\'' )
+    return 0;
+
+  i+=2;
+
+  if( i >= cn || cp[i]!='\'')
+    return 0;
+
+  return 3;
+}
+
 
 unsigned _cmLexBlockCmtMatcher( cmLex* p, const cmChar_t* cp, unsigned cn, const cmChar_t* keyStr )
 {  
@@ -473,6 +489,9 @@ cmLexH cmLexInit( const cmChar_t* cp, unsigned cn, unsigned flags, cmRpt_t* rpt 
   _cmLexInstallMatcher( p, kQStrLexTId,     _cmLexQStrMatcher,     NULL, NULL  );
   _cmLexInstallMatcher( p, kBlockCmtLexTId, _cmLexBlockCmtMatcher, NULL, NULL  );
   _cmLexInstallMatcher( p, kLineCmtLexTId,  _cmLexLineCmtMatcher,  NULL, NULL  );
+
+  if( cmIsFlag(flags,kReturnQCharLexFl) )
+    _cmLexInstallMatcher( p, kQCharLexTId,    _cmLexQCharMatcher,    NULL, NULL  );
 
   h.h = p;
 

@@ -11,18 +11,19 @@
 // Predefined Lexer Id's
 enum
 {
-  kErrorLexTId,    // 0  the lexer was unable to identify the current token
-  kUnknownLexTId,  // 1  the token is of an unknown type (only used when kReturnUnknownLexFl is set)
-  kEofLexTId,      // 2  the lexer reached the end of input
-  kSpaceLexTId,    // 3  white space
-  kRealLexTId,     // 4  real number (contains a decimal point or is in scientific notation) 
-  kIntLexTId,      // 5  decimal integer
-  kHexLexTId,      // 6  hexidecimal integer
-  kIdentLexTId,    // 7  identifier
-  kQStrLexTId,     // 8  quoted string
-  kBlockCmtLexTId, // 9  block comment
-  kLineCmtLexTId,  // 10  line comment
-  kUserLexTId      // 11 user registered token (See cmLexRegisterToken().)
+  kErrorLexTId,    //  0  the lexer was unable to identify the current token
+  kUnknownLexTId,  //  1  the token is of an unknown type (only used when kReturnUnknownLexFl is set)
+  kEofLexTId,      //  2  the lexer reached the end of input
+  kSpaceLexTId,    //  3  white space
+  kRealLexTId,     //  4  real number (contains a decimal point or is in scientific notation) 
+  kIntLexTId,      //  5  decimal integer
+  kHexLexTId,      //  6  hexidecimal integer
+  kIdentLexTId,    //  7  identifier
+  kQStrLexTId,     //  8  quoted string
+  kQCharLexTId,    //  9  quoted char
+  kBlockCmtLexTId, // 10  block comment
+  kLineCmtLexTId,  // 11  line comment
+  kUserLexTId      // 12 user registered token (See cmLexRegisterToken().)
 };
 
 // Lexer control flags used with cmLexInit().
@@ -31,7 +32,8 @@ enum
   kReturnSpaceLexFl    = 0x01, //< Return space tokens
   kReturnCommentsLexFl = 0x02, //< Return comment tokens
   kReturnUnknownLexFl  = 0x04, //< Return unknown tokens
-  kUserDefPriorityLexFl= 0x08  //< User defined tokens take priority even if a kIdentLexTId token has a longer match
+  kReturnQCharLexFl    = 0x08, //< Return quoted characters
+  kUserDefPriorityLexFl= 0x10  //< User defined tokens take priority even if a kIdentLexTId token has a longer match
 };
 
 // cmLex result codes.
@@ -84,7 +86,7 @@ cmRC_t             cmLexSetFile( cmLexH h, const cmChar_t* fn );
 cmRC_t             cmLexRegisterToken( cmLexH h, unsigned id, const cmChar_t* token );
 
 // Register a user defined token recognition function.  This function should return the count
-// of initial, consecutive, characters in 'cp' which match its token pattern.
+// of initial, consecutive, characters in 'cp[cn]' which match its token pattern.
 typedef unsigned (*cmLexUserMatcherPtr_t)( const cmChar_t* cp, unsigned cn );
 
 cmRC_t             cmLexRegisterMatcher( cmLexH h, unsigned id, cmLexUserMatcherPtr_t funcPtr );
