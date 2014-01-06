@@ -9,7 +9,9 @@ extern "C" {
   //
   // ctags --c-kinds=+p --fields=+n  file.h
   //
-  // --c-kinds=+p turns on function prototype reporting.
+  // --c-kinds=+px 
+  //            p - turns on function prototype reporting.
+  //            x - turns on external and forward decl
   // --field=+n turns on line number reporting
   enum
   {
@@ -27,12 +29,15 @@ extern "C" {
 
   enum
   {
-    kFuncTfFl    = 0x01,
-    kEnumTfFl    = 0x02,
-    kMacroTfFl   = 0x04,
-    kTypedefTfFl = 0x08,
-    kFieldTfFl   = 0x10,
-    kExternTfFl  = 0x20   // extern var's and forward declarations
+    kFuncProtoTfFl = 0x001,
+    kFuncDefnTfFl  = 0x002,
+    kEnumTfFl      = 0x004,
+    kMacroTfFl     = 0x008,
+    kTypedefTfFl   = 0x010,
+    kFieldTfFl     = 0x020,
+    kExternTfFl    = 0x040,   // extern var's and forward declarations
+    kStructTagTfFl = 0x080,
+    kUnionTagTfFl  = 0x100
     // be sure to add new flags to _cmTfFlagsToLabel()
   };
 

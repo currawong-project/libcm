@@ -33,12 +33,15 @@ const cmChar_t* _cmTfFlagsToLabel( unsigned flags )
 {
   switch(flags)
   {
-    case kFuncTfFl:    return "p";
-    case kEnumTfFl:    return "e";
-    case kMacroTfFl:   return "m";
-    case kTypedefTfFl: return "t";
-    case kFieldTfFl:   return "f";
-    case kExternTfFl:  return "x";
+    case kFuncProtoTfFl: return "p";
+    case kFuncDefnTfFl: return "d";
+    case kEnumTfFl:     return "e";
+    case kMacroTfFl:    return "m";
+    case kTypedefTfFl:  return "t";
+    case kFieldTfFl:    return "f";
+    case kExternTfFl:   return "x";
+    case kStructTagTfFl:return "s";
+    case kUnionTagTfFl: return "u";
     default:
       { assert(0); }
   }
@@ -125,7 +128,11 @@ cmTfRC_t _cmTfParseLine( cmTf_t* p, const cmChar_t* fn, unsigned line, cmChar_t*
       break;
 
     case 'p': // function prototype
-      r.flags |= kFuncTfFl;
+      r.flags |= kFuncProtoTfFl;
+      break;
+
+    case 'f': // function defn
+      r.flags |= kFuncDefnTfFl;
       break;
 
     case 't': // typedef
@@ -138,6 +145,14 @@ cmTfRC_t _cmTfParseLine( cmTf_t* p, const cmChar_t* fn, unsigned line, cmChar_t*
 
     case 'x': // externs and forward decl's
       r.flags |= kExternTfFl;
+      break;
+
+    case 's': // struct tag
+      r.flags |= kStructTagTfFl;
+      break;
+
+    case 'u': // union tag
+      r.flags |= kUnionTagTfFl;
       break;
 
     default: // unrecognized type
