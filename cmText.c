@@ -535,17 +535,23 @@ cmChar_t* cmTextReplaceS( cmChar_t* s, const cmChar_t* t, unsigned tn, const cmC
 cmChar_t* _cmTextReplace( cmChar_t* s, const cmChar_t* t, const cmChar_t* u, unsigned n )
 {
   // we will go into an endless loop if 't' is contained in 'u' and n > 1.
-  assert( s!= NULL && t!=NULL && u!=NULL && (n==1 || strstr(u,t) == NULL) );
+  //assert( s!= NULL && t!=NULL && u!=NULL && (n==1 || strstr(u,t) == NULL) );
+
+  assert( s!= NULL && t!=NULL && u!=NULL );
 
   int       tn = strlen(t);
   cmChar_t* c  = NULL;
   unsigned  i  = 0;
+  cmChar_t* s0 = s;
 
-  while( (c = strstr(s,t)) != NULL ) 
+  while( (c = strstr(s0,t)) != NULL ) 
   {
+    int offs = c - s;
     s = cmTextReplaceS(s,c,tn,u);
 
     assert(s!=NULL);
+
+    s0 = s + offs + tn;
 
     ++i;
     if( n!=cmInvalidCnt && i>=n)
@@ -599,6 +605,26 @@ cmChar_t* cmTextAppendSNZ( cmChar_t* s, const cmChar_t* u, unsigned un )
 cmChar_t* cmTextAppendSS( cmChar_t* s, const cmChar_t* u )
 { return cmTextAppendSN(s,u,strlen(u)); }
 
+cmChar_t* cmTextVAppendSS( cmChar_t* s, ... )
+{
+  va_list vl;
+  va_start(vl,s);
+  do
+  {
+    cmChar_t* s0 = va_arg(vl,cmChar_t*);
+    if( s0 == NULL )
+      break;
+
+    s = cmTextAppendSS(s,s0);
+
+  }while(1);
+
+  va_end(vl);
+
+  return s;
+}
+
+
 
 cmChar_t* cmTextAppendChar( cmChar_t* s, cmChar_t c, unsigned n )
 {
@@ -623,6 +649,14 @@ bool cmTextIsEmpty( const cmChar_t* s )
 bool cmTextIsNotEmpty( const cmChar_t* s )
 { return !cmTextIsEmpty(s); }
 
+
+unsigned cmTextLength( const cmChar_t* s0 )
+{
+  if( s0 == NULL )
+    return 0;
+  return strlen(s0);
+}
+
 int cmTextCmp( const cmChar_t* s0, const cmChar_t* s1 )
 {
   if( s0 == NULL && s1 == NULL )
@@ -636,6 +670,46 @@ int cmTextCmp( const cmChar_t* s0, const cmChar_t* s1 )
   }
 
   return strcmp(s0,s1);
+}
+
+int cmTextCmpN( const cmChar_t* s0, const cmChar_t* s1, unsigned n )
+{
+  if( s0 == NULL && s1 == NULL )
+    return 0;
+
+  if( s0 == NULL || s1 == NULL )
+  {
+    if( s0 == NULL )
+      return -1;
+    return 1;
+  }
+
+  return strncmp(s0,s1,n);
+}
+
+
+void cmTextToLower( const cmChar_t* s0, cmChar_t* s1 )
+{
+  if( s0 == NULL || s1==NULL )
+    return;
+
+  for(; *s0; ++s0,++s1)
+    *s1 = tolower(*s0);
+
+  *s1 = 0;
+  return;
+}
+
+void cmTextToUpper( const cmChar_t* s0, cmChar_t* s1 )
+{
+  if( s0 == NULL || s1==NULL )
+    return;
+
+  for(; *s0; ++s0,++s1)
+    *s1 = toupper(*s0);
+
+  *s1 = 0;
+  return;
 }
 
 cmChar_t* cmTextLine( cmChar_t* s, unsigned line )

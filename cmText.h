@@ -192,6 +192,10 @@ extern "C" {
   // both s[] and u[] are strz's
   cmChar_t* cmTextAppendSS( cmChar_t* s, const cmChar_t* u );
 
+  // Same as multiple calls to cmTextAppendSS(). 
+  // Terminate the var-args list with NULL.
+  cmChar_t* cmTextVAppendSS( cmChar_t* s, ... );
+
   // Append 'n' copies of 'c' to the end of s[].
   cmChar_t* cmTextAppendChar( cmChar_t* s, cmChar_t c, unsigned n );
 
@@ -199,9 +203,20 @@ extern "C" {
   bool cmTextIsEmpty( const cmChar_t* s );
   bool cmTextIsNotEmpty( const cmChar_t* s );
 
+  // Same as strlen() but handles case where s0 == NULL as length==0.
+  unsigned cmTextLength( const cmChar_t* s0 );
+
   // Same as strcmp() but handles NULL.  Note that if both s0 and s1 are NULL
   // then return is 0.
   int cmTextCmp( const cmChar_t* s0, const cmChar_t* s1 );
+
+  // Same as cmTextCmp() but only compare the first 'n' characters.
+  int cmTextCmpN( const cmChar_t* s0, const cmChar_t* s1, unsigned n );
+
+  // Convert text in s0[] to upper/lower case in s1[].
+  // Note that s0[] and s1[] may point to the same string
+  void cmTextToLower( const cmChar_t* s0, cmChar_t* s1 );
+  void cmTextToUpper( const cmChar_t* s0, cmChar_t* s1 );
 
   // Returns NULL if string contains fewer than lineIdx lines.
   // Note: first line == 1.
