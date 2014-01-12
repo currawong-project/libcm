@@ -15,7 +15,7 @@ extern "C" {
   typedef cmHandle_t cmStrStreamH_t;
   typedef cmRC_t     cmSsRC_t;
 
-  extern cmStrStreamH_t cmStrStreamNullHandle_t;
+  extern cmStrStreamH_t cmStrStreamNullHandle;
 
 
   cmSsRC_t cmOStrStreamCreate( cmCtx_t* ctx, cmStrStreamH_t* hp, unsigned dfltBlkByteCnt );
@@ -25,6 +25,7 @@ extern "C" {
 
   cmSsRC_t cmOStrStreamWrite(     cmStrStreamH_t h, const void* dp, unsigned byteCnt );
   cmSsRC_t cmOStrStreamWriteStr(  cmStrStreamH_t h, const cmChar_t* str );
+  cmSsRC_t cmOStrStreamWriteStrN( cmStrStreamH_t h, const cmChar_t* str, unsigned n );
   cmSsRC_t cmOStrStreamVPrintf(   cmStrStreamH_t h, const cmChar_t* fmt, va_list vl );  
   cmSsRC_t cmOStrStreamPrintf(    cmStrStreamH_t h, const cmChar_t* fmt, ... );
 
