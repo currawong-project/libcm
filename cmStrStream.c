@@ -24,6 +24,8 @@ typedef struct
   cmSsBlk_t*  elp;
 } cmOss_t;
 
+cmStrStreamH_t cmStrStreamNullHandle = cmSTATIC_NULL_HANDLE;
+
 cmOss_t* _cmOssHandleToPtr( cmStrStreamH_t h )
 {
   cmOss_t* p = (cmOss_t*)h.h;
@@ -90,8 +92,14 @@ bool     cmOStrStreamIsValid( cmStrStreamH_t h )
 cmSsRC_t cmOStrStreamWrite(     cmStrStreamH_t h, const void* vp, unsigned byteCnt )
 {
   cmSsRC_t rc = kOkSsRC;
+
+  if( vp==NULL || byteCnt == 0 )
+    return rc;
+
   cmOss_t* p  = _cmOssHandleToPtr(h);
   char*    cp = (char*)vp;
+  unsigned j  = 0;
+
   do
   {
     // if a blk exists
@@ -99,9 +107,10 @@ cmSsRC_t cmOStrStreamWrite(     cmStrStreamH_t h, const void* vp, unsigned byteC
     {
       // copy as much of vp[] as possible into the current end block
       unsigned n = cmMin(byteCnt, p->blkByteCnt -  p->elp->i);
-      memcpy(p->elp->blk,cp,n);
+      memcpy(p->elp->blk + p->elp->i,cp + j,n);
       byteCnt    -= n;
-      p->elp->i  += n;      
+      p->elp->i  += n;   
+      j          += n;
     }
     
     // if all of vp[] has been copied then we are done
@@ -116,7 +125,7 @@ cmSsRC_t cmOStrStreamWrite(     cmStrStreamH_t h, const void* vp, unsigned byteC
     nbp->i    = 0;
     nbp->link = NULL;
 
-    // end the new blk onto the end of the list
+    // append the new blk onto the end of the list
     if( p->elp == NULL )
       p->blp = nbp;
     else
@@ -136,6 +145,9 @@ cmSsRC_t cmOStrStreamWriteStr(  cmStrStreamH_t h, const cmChar_t* str )
 
   return cmOStrStreamWrite(h,str,strlen(str));
 }
+
+cmSsRC_t cmOStrStreamWriteStrN( cmStrStreamH_t h, const cmChar_t* str, unsigned n )
+{ return cmOStrStreamWrite(h,str,n); }
 
 cmSsRC_t cmOStrStreamVPrintf(   cmStrStreamH_t h, const cmChar_t* fmt, va_list vl )  
 {
