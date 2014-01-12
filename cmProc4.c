@@ -4530,6 +4530,7 @@ cmRC_t cmGoertzelFree( cmGoertzel** pp )
 
   cmShiftBufFree(&p->shb);
   cmMemFree(p->ch);
+  cmMemFree(p->wnd);
   cmObjFree(pp);
   return rc;
 
