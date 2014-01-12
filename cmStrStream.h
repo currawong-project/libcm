@@ -18,8 +18,9 @@ extern "C" {
   extern cmStrStreamH_t cmStrStreamNullHandle;
 
 
+  // If 'dfltBlkByteCnt' 'is set to 0 then the dfltBlkByteCnt is internally set to 4096.
   cmSsRC_t cmOStrStreamCreate( cmCtx_t* ctx, cmStrStreamH_t* hp, unsigned dfltBlkByteCnt );
-  cmSsRC_t cmOStrStreamDestroy(cmStrStreamH_t* hp );
+  cmSsRC_t cmOStrStreamDestroy( cmStrStreamH_t* hp );
 
   bool     cmOStrStreamIsValid( cmStrStreamH_t h );
 
