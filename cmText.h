@@ -249,6 +249,20 @@ extern "C" {
   // character.
   cmChar_t* cmTextEatLeadingSpace( cmChar_t* s );
 
+
+  // Return a pointer to the beginning of the next row
+  // or NULL if there is no next row.
+  cmChar_t*       cmTextNextRow(  cmChar_t* s );
+  const cmChar_t* cmTextNextRowC( const cmChar_t* s );
+  
+  // Return the minimum indent of all rows in s[].
+  unsigned        cmTextMinIndent( const cmChar_t* s );
+
+  // Outdent s[] by 'n'. 
+  // If a row is indented by less than 'n' then it is 
+  // then all leading white space is removed.
+  cmChar_t*       cmTextOutdent( cmChar_t* s, unsigned n );
+
   //)
   //}
 

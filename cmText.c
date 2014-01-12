@@ -875,3 +875,91 @@ cmChar_t* cmTextEatLeadingSpace( cmChar_t* s )
   return s;
 }
 
+cmChar_t*       cmTextNextRow(  cmChar_t* s )
+{
+  if( s == NULL)
+    return NULL;
+
+  for(; *s; ++s)
+    if( *s == '\n' )
+    {
+      ++s;
+      return *s==0 ? NULL : s;
+    }
+
+  return NULL;
+}
+
+const cmChar_t* cmTextNextRowC( const cmChar_t* s )
+{ return cmTextNextRow((cmChar_t*)s); }
+  
+unsigned  cmTextMinIndent( const cmChar_t* s )
+{
+  // leadFl=true if at beginning of row
+  bool     leadFl     = true;   
+  unsigned min_indent = INT_MAX;
+  unsigned indent     = 0;
+  for(; *s; ++s)
+  {
+    if( leadFl )
+    {
+      if( isspace(*s) && *s!='\n' )
+        indent += 1;
+      else
+      {
+        if( indent < min_indent )
+          min_indent = indent;
+
+        indent = 0;
+        leadFl = false;
+      }
+    }
+    else
+    {
+      if( *s == '\n' )
+        leadFl = true;
+    }
+      
+  }
+
+  return min_indent==INT_MAX ? 0 : min_indent;
+}
+
+cmChar_t*       cmTextOutdent( cmChar_t* s, unsigned outdent )
+{
+  // leadFl=true if at beginning of row
+  bool      leadFl = true;   
+  unsigned  indent = 0;
+  cmChar_t* cs     = s;
+  cmChar_t* s0     = s;
+
+  for(; *cs; ++cs)
+  {
+    if( leadFl )
+    {
+      if( isspace(*cs) && *cs!='\n' )
+        indent += 1;
+      else
+      {
+        unsigned n  = cmMin(outdent,indent);
+        cmTextShrinkS(s,s0,n);
+        cs         -= n;
+        
+        indent = 0;
+        leadFl = false;
+      }
+    }
+    else
+    {
+      if( *cs == '\n' )
+      {
+        leadFl = true;
+        s0     = cs + 1;
+      }
+    }
+      
+  }
+
+  return s;
+     
+}
