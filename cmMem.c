@@ -176,7 +176,7 @@ cmMmRC_t _cmMmFreeP( cmMm_t* p, void* dataPtr )
     if( rp == NULL )
       return cmErrMsg(&p->err,kMissingRecdMmRC,"Unable to locate a tracking record associated with released data area pointer:%p.",dataPtr);
     /*
-    if( rp->uniqueId == 176690 )
+    if( rp->uniqueId == 59451 )
     {
       cmErrMsg(&p->err,kOkMmRC,"Breakpoint for memory free id:%i.",rp->uniqueId);
     }
@@ -494,18 +494,7 @@ void* cmMmAllocate(
    unsigned newByteCnt = newEleCnt * newEleByteCnt;
    void*    ndp        = _cmMmAllocate(p,orgDataPtr,newByteCnt,flags);
    
-   /*
-   if( p->nextId == 189114 )
-   {
-     cmErrMsg(&p->err,kOkMmRC,"Breakpoint for memory allocation id:%i.",p->nextId);
-   }
-
-   if( (long long)_cmMmDataToBasePtr(ndp,p->guardByteCnt) == 0x7fffed8d0b40 )
-   {
-     cmErrMsg(&p->err,kOkMmRC,"Breakpoint for memory allocation id:%i.",p->nextId);
-   }
-   */
-
+   
 
    // if we are tracking changes
    if( cmIsFlag(p->flags,kTrackMmFl) )
@@ -526,7 +515,22 @@ void* cmMmAllocate(
          return ndp;
        }
 
+       // p->nextId is incremented here
        cmThUIntIncr(&p->nextId,1);
+
+       /*
+       if( p->nextId == 2393 )
+       {
+         cmErrMsg(&p->err,kOkMmRC,"Breakpoint for memory allocation id:%i.",p->nextId);
+       }
+       */
+       /*
+         if( (long long)_cmMmDataToBasePtr(ndp,p->guardByteCnt) == 0x7fffed8d0b40 )
+         {
+         cmErrMsg(&p->err,kOkMmRC,"Breakpoint for memory allocation id:%i.",p->nextId);
+         }
+       */
+
 
        // initialize the new tracking recd
        rp->dataPtr      = ndp;
