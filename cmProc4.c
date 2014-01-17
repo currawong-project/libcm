@@ -4383,9 +4383,10 @@ cmRC_t         cmRecdPlayInsertRecord(cmRecdPlay* p, unsigned labelSymId, const 
       unsigned chIdx = 0;
       unsigned chCnt = cmMin(p->chCnt,afInfo.chCnt);
       unsigned actFrmCnt = 0;
-      if( cmAudioFileReadSample(afH,afInfo.frameCnt,chIdx,chCnt,&p->frags[i].chArray, &actFrmCnt) != kOkAfRC )
+      if( cmAudioFileReadSample(afH,afInfo.frameCnt,chIdx,chCnt,p->frags[i].chArray, &actFrmCnt) != kOkAfRC )
         return cmCtxRtCondition(&p->obj, cmSubSysFailRC, "Read failed on the audio file '%s'.",cmStringNullGuard(wavFn));
 
+      return rc;
     }
 
     return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'begin record'.",labelSymId);    
