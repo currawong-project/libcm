@@ -2484,8 +2484,6 @@ enum
   kMaxLaSecsPrId,
   kCurLaSecsPrId,
   kFadeRatePrId,
-  kSegFnPrId,
-  kSegLblPrId,
   kScInitLocIdxPrId,
   kScLocIdxPrId,
   kCmdPrId,
@@ -2506,6 +2504,80 @@ typedef struct
   unsigned    scLocIdx;
 } cmDspRecdPlay_t;
 
+cmDspRC_t _cmDspRecdPlayParseRsrc( cmDspCtx_t* ctx, cmDspInst_t* inst, cmRecdPlay* rcdply )
+{
+  cmDspRC_t       rc   = kOkDspRC;
+  const cmChar_t* path = NULL;
+
+  // read the 'recdplay' audio file path
+  if( cmDspRsrcString( ctx->dspH, &path, "recdPlayPath", NULL ) != kOkDspRC )
+  {
+    cmDspInstErr(ctx,inst,kRsrcNotFoundDspRC,"The 'recdPlayPath' resource string was not found.");
+  }
+
+  if( path == NULL )
+    path = "";
+
+  cmJsonH_t     jsH = cmDspSysPgmRsrcHandle(ctx->dspH);
+  cmJsonNode_t* jnp = cmJsonFindValue(jsH,"recdPlay",NULL, kStringTId);
+
+  if( jnp == NULL || cmJsonIsArray(jnp)==false )
+  {
+    // this is really a warning - the object does not require preloaded segments.
+    cmDspInstErr(ctx,inst,kRsrcNotFoundDspRC,"The 'recdPlay' resource used to define pre-loaded segments was not found.");
+    return kOkDspRC;
+  }
+
+  unsigned n = cmJsonChildCount(jnp);
+  unsigned i;
+
+  // for each 'recdplay' segment record
+  for(i=0; i<n && rc==kOkDspRC; ++i)
+  {
+    cmJsonNode_t*   cnp      = cmJsonArrayElement(jnp,i);
+    const cmChar_t* label    = NULL;
+    unsigned        segSymId = cmInvalidId;
+    const cmChar_t* errLabel = NULL;
+    const cmChar_t* fn       = NULL;
+
+    // read the ith segment record
+    if( cmJsonMemberValues(cnp,&errLabel,
+        "label", kStringTId, &label,
+        "file",  kStringTId, &fn,
+        NULL) != kOkJsRC )
+    {
+      rc = cmDspInstErr(ctx,inst,kRsrcNotFoundDspRC,"The record at index %i in the 'recdPlay' pre-loaded segment list could not be parsed.",i);
+      goto errLabel;
+    }
+
+    // find or generate the symbol id for the segment label symbol
+    if((segSymId = cmSymTblRegisterSymbol(ctx->stH,label)) == cmInvalidId )
+    {
+      rc = cmDspInstErr(ctx,inst,kSymNotFoundDspRC,"The 'recdPlay' pre-load segment symbol '%s' could not be found or registered.",cmStringNullGuard(label));
+      goto errLabel;
+    }
+
+    // create the full path name for the segment audio file
+    if((fn = cmFsMakeFn( path, fn, NULL, NULL )) == NULL )
+    {
+      rc = cmDspInstErr(ctx,inst,kFileSysFailDspRC,"The 'recdPlay' file name '%s/%s' could not be generated.",cmStringNullGuard(path),cmStringNullGuard(fn));
+      goto errLabel;
+    }
+    
+
+    // pre-load the segment
+    if( cmRecdPlayInsertRecord(rcdply,segSymId,fn) != cmOkRC )
+      rc = cmDspInstErr(ctx,inst,kSubSysFailDspRC,"The 'recdPlay' segment label:'%s'  file:'%s' could not be loaded.",cmStringNullGuard(label),cmStringNullGuard(fn));
+
+   
+    cmFsFreeFn(fn);
+        
+  }
+  
+ errLabel:
+  return rc;
+}
+
 cmDspRC_t _cmDspRecdPlayOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
 {
   cmDspRC_t rc =kOkDspRC;
@@ -2517,10 +2589,10 @@ cmDspRC_t _cmDspRecdPlayOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
 
 
   if((fn = cmDspStrcz(inst,kFnPrId)) == NULL || strlen(fn)==0 )
-    return cmErrMsg(&inst->classPtr->err, kInvalidArgDspRC, "No score file name supplied.");
+    return cmDspInstErr(ctx,inst, kInvalidArgDspRC, "No score file name supplied.");
 
   if( cmScoreInitialize(ctx->cmCtx, &p->scH, fn, cmDspSampleRate(ctx), NULL, 0, NULL, NULL, ctx->stH ) != kOkScRC )
-    return cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Unable to open the score '%s'.",fn);
+    return cmDspInstErr(ctx,inst, kSubSysFailDspRC, "Unable to open the score '%s'.",fn);
 
   if( cmScoreIsValid(p->scH) )
   {
@@ -2539,14 +2611,8 @@ cmDspRC_t _cmDspRecdPlayOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
     for(i=0; i<markerCnt; ++i)
       cmRecdPlayRegisterFrag(p->rcdply,i, cmScoreMarkerLabelSymbolId(p->scH,i ));
 
-    const cmChar_t* segFn = cmDspStrcz(inst,kSegFnPrId);
-    const cmChar_t* segLbl= cmDspStrcz(inst,kSegLblPrId);
-    
-    if( cmTextLength(segFn)>0 && cmTextLength(segLbl)>0 )
-    {
-      unsigned segSymId = cmSymTblRegisterSymbol(ctx->stH,segLbl);
-      cmRecdPlayInsertRecord(p->rcdply,segSymId,segFn);
-    }
+    if((rc = _cmDspRecdPlayParseRsrc(ctx,inst,p->rcdply)) != kOkDspRC )
+      rc = cmDspInstErr(ctx,inst,kInstResetFailDspRC,"The 'recdplay' segment pre-load failed.");
 
     p->scLocIdx = cmDspUInt(inst,kScInitLocIdxPrId);
 
@@ -2578,8 +2644,6 @@ cmDspInst_t*  _cmDspRecdPlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
     1,         "maxla",  kMaxLaSecsPrId,  0,0, kInDsvFl   | kDoubleDsvFl | kReqArgDsvFl, "Maximum look-ahead buffer in seconds.",
     1,         "curla",  kCurLaSecsPrId,  0,0, kInDsvFl   | kDoubleDsvFl | kOptArgDsvFl, "Current look-head buffer in seconds.",
     1,         "frate",  kFadeRatePrId,   0,0, kInDsvFl   | kDoubleDsvFl | kOptArgDsvFl, "Fade rate in dB per second.",
-    1,         "segFn",  kSegFnPrId,      0,0, kInDsvFl   | kStrzDsvFl   | kOptArgDsvFl, "Preload an audio segment.",
-    1,         "segLbl", kSegLblPrId,     0,0, kInDsvFl   | kStrzDsvFl   | kOptArgDsvFl, "Score symbol of preloaded audio segment.",
     1,         "initIdx",kScInitLocIdxPrId,0,0,kInDsvFl   | kUIntDsvFl,                  "Score search start location.",
     1,         "index",  kScLocIdxPrId,   0,0, kInDsvFl   | kUIntDsvFl,                "Score follower location index.",
     1,         "cmd",    kCmdPrId,        0,0, kInDsvFl   | kSymDsvFl,                 "on=reset off=stop.",
