@@ -613,29 +613,31 @@ cmScRC_t _cmScParseMarkers( cmSc_t* p, unsigned scoreIdx, const cmChar_t* text, 
   if( cmSymTblIsValid(p->stH) == false )
     return kOkScRC;
 
-  // go to command/id space
-  if((ip = cmTextNextWhiteOrEosC(text)) == NULL )
-    goto errLabel;
-
-  // goto label 
-  if((ip = cmTextNextNonWhiteC(ip)) == NULL )
-    goto errLabel;
-
-  // goto end of label
-  if((ep = cmTextNextWhiteOrEosC(ip)) == NULL )
-    goto errLabel;
-  else
+  for(;(cp = cmTextNextNonWhiteC(cp)) != NULL; cp=ep )
   {
-    unsigned n =  (ep-ip)+1;
-    cmChar_t markTextStr[n+1];
-    strncpy(markTextStr,ip,n);
+    // go to command/id space
+    if((ip = cmTextNextWhiteOrEosC(cp)) == NULL )
+      goto errLabel;
 
-    // for each command code
-    // (there may be more than one character)
-    for(; *cp && !isspace(*cp); ++cp)
+    // goto label 
+    if((ip = cmTextNextNonWhiteC(ip)) == NULL )
+      goto errLabel;
+
+    // goto end of label
+    if((ep = cmTextNextWhiteOrEosC(ip)) == NULL )
+      goto errLabel;
+    else
     {
-      cmMarkScMId_t cmdId = kInvalidScMId;
+      unsigned n =  (ep-ip)+1;
+      cmChar_t markTextStr[n+1];
+      strncpy(markTextStr,ip,n);
+      markTextStr[n] = 0;
 
+      // remove any trailing white space
+      cmTextTrimEnd(markTextStr);
+
+      cmMarkScMId_t cmdId = kInvalidScMId;
+      
       switch( *cp )
       {
         case 'c': cmdId = kRecdBegScMId; break;
@@ -653,6 +655,8 @@ cmScRC_t _cmScParseMarkers( cmSc_t* p, unsigned scoreIdx, const cmChar_t* text, 
       mp->scoreIdx   = scoreIdx;
       mp->csvRowIdx  = rowIdx;
 
+      //printf("%i %c '%s'\n",rowIdx,*cp,markTextStr);
+
       // insert the new mark at the end of the list
       if( p->markList == NULL )
         p->markList = mp;
@@ -665,7 +669,9 @@ cmScRC_t _cmScParseMarkers( cmSc_t* p, unsigned scoreIdx, const cmChar_t* text, 
         ep->link = mp;
       }    
     }
+
   }
+
   return kOkScRC;
 
  errLabel:
