@@ -10,6 +10,7 @@
 #include "cmCtx.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
+#include "cmTime.h"
 #include "cmMidi.h"
 #include "cmMidiPort.h"
 
@@ -507,7 +508,7 @@ void _cmMpMIDISystemReadProc( const MIDIPacketList *pktListPtr, void* readProcRe
 
     double nano = 1e-9 * ( (double) _cmMpRoot.timeBaseInfo.numer) / ((double) _cmMpRoot.timeBaseInfo.denom);
 
-    // so here's the delta in nanoseconds:
+    // so here's the timestamp in nanoseconds:
     double nanoSeconds = ((double) packetPtr->timeStamp) * nano;
 
     // 1000 times that for microSeconds:
@@ -516,13 +517,17 @@ void _cmMpMIDISystemReadProc( const MIDIPacketList *pktListPtr, void* readProcRe
     // BUG BUG BUG: How can multiplying the nanoseconds produce microseconds?
     // Shouldn't the nano to micro conversion be a divide?
 
-    double deltaMicroSecs = microSecs - pp->prevMicroSecs;
+    //double deltaMicroSecs = microSecs - pp->prevMicroSecs;
 
     pp->prevMicroSecs = microSecs;
 
+    cmTimeSpec_t ts;
+    ts.tv_sec  = floor(microSecs / 1000000.0);
+    ts.tv_nsec = (microSecs - ts.tv_sec * 1000000.0) * 1000.0;
+
     assert( pp->inputFl == true );
     
-    cmMpParseMidiData( pp->parserH, (unsigned)deltaMicroSecs, packetPtr->data, packetPtr->length );
+    cmMpParseMidiData( pp->parserH, &ts, packetPtr->data, packetPtr->length );
 
 		packetPtr = MIDIPacketNext(packetPtr);
 	}
