@@ -361,8 +361,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmCtx_t*        cmCtx      = cmDspSysPgmCtx(h);
   cmErr_t         err;
   krRsrc_t        r;
-  bool            fragFl     = false;
-  bool            useWtFl    = true;
+  bool            fragFl     = true;
+  bool            useWtFl    = false;
   unsigned        wtLoopCnt  = 1;                            // 1=play once (-1=loop forever)
   unsigned        wtInitMode = 0;                            // initial wt mode is 'silence'
   unsigned        wtSmpCnt   = floor(cmDspSysSampleRate(h)); // wt length == srate
@@ -397,7 +397,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* mop  = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, r.midiDevice,r.midiOutPort);
   cmDspInst_t* sfp  = cmDspSysAllocInst(h,"ScFol",       NULL,  1, r.scFn, sfBufCnt, sfMaxWndCnt, sfMinVel, sfEnaMeasFl );
   cmDspInst_t* amp  = cmDspSysAllocInst(h,"ActiveMeas",  NULL,  1, 100 );
-  cmDspInst_t* rpp  = cmDspSysAllocInst(h,"RecdPlay",    NULL,  6, 2, r.scFn, recdPlayInitAllocSecs, recdPlayMaxLaSecs, recdPlayCurLaSecs, recdPlayFadeRateDbPerSec );
+  cmDspInst_t* rpp  = cmDspSysAllocInst(h,"RecdPlay",    NULL,  8, 2, r.scFn, recdPlayInitAllocSecs, recdPlayMaxLaSecs, recdPlayCurLaSecs, recdPlayFadeRateDbPerSec, "/Users/kevin/src/cmkc/src/kc/data/seg_118.wav", "118" );
   cmDspInst_t* modp = cmDspSysAllocInst(h,"ScMod",       NULL,  2, r.modFn, "m1" );
   cmDspInst_t* modr = cmDspSysAllocInst(h,"ScMod",       NULL,  2, r.modFn, "m1" );
  
@@ -695,7 +695,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, scp, "sel",    sfp, "index",  NULL );
   cmDspSysInstallCb(h, scp, "sel",    modp,"reset", NULL );
   cmDspSysInstallCb(h, scp, "sel",    modr,"reset", NULL );
-  
+  cmDspSysInstallCb(h, scp, "sel",    rpp, "initIdx", NULL );
+  cmDspSysInstallCb(h, scp, "sel",    prp, "in", NULL );
   //cmDspSysInstallCb(h, reload,"out",  modp, "reload", NULL );
 
 
