@@ -6,6 +6,7 @@
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmRpt.h"
+#include "cmTime.h"
 #include "cmAudioPort.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
