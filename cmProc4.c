@@ -4386,6 +4386,8 @@ cmRC_t         cmRecdPlayInsertRecord(cmRecdPlay* p, unsigned labelSymId, const 
       if( cmAudioFileReadSample(afH,afInfo.frameCnt,chIdx,chCnt,p->frags[i].chArray, &actFrmCnt) != kOkAfRC )
         return cmCtxRtCondition(&p->obj, cmSubSysFailRC, "Read failed on the audio file '%s'.",cmStringNullGuard(wavFn));
 
+      p->frags[i].recdIdx  = actFrmCnt;
+
       return rc;
     }
 
