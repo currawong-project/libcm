@@ -4352,6 +4352,46 @@ cmRC_t         cmRecdPlayEndRecord(   cmRecdPlay* p, unsigned labelSymId )
   return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'end record'.",labelSymId);      
 }
 
+cmRC_t         cmRecdPlayInsertRecord(cmRecdPlay* p, unsigned labelSymId, const cmChar_t* wavFn )
+{
+  cmRC_t rc = cmOkRC;
+  unsigned i;
+
+  for(i=0; i<p->fragCnt; ++i)
+    if( p->frags[i].labelSymId == labelSymId )
+    {
+      cmAudioFileH_t    afH  = cmNullAudioFileH;
+      cmAudioFileInfo_t afInfo;
+      cmRC_t            afRC = kOkAfRC;
+
+      // open the audio file
+      if( cmAudioFileIsValid( afH = cmAudioFileNewOpen(wavFn, &afInfo, &afRC, p->obj.err.rpt )) == false )
+        return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The audio file '%s' could not be opened'.",cmStringNullGuard(wavFn));    
+
+      // ignore blank
+      if( afInfo.frameCnt == 0 )
+        return cmOkRC;
+          
+      // allocate buffer space
+      unsigned j;
+      for(j=0; j<p->chCnt; ++j)
+        p->frags[i].chArray[j] = cmMemResize(cmSample_t,p->frags[i].chArray[j],afInfo.frameCnt);
+
+      p->frags[i].allocCnt = afInfo.frameCnt;
+
+      // read samples into the buffer space
+      unsigned chIdx = 0;
+      unsigned chCnt = cmMin(p->chCnt,afInfo.chCnt);
+      unsigned actFrmCnt = 0;
+      if( cmAudioFileReadSample(afH,afInfo.frameCnt,chIdx,chCnt,&p->frags[i].chArray, &actFrmCnt) != kOkAfRC )
+        return cmCtxRtCondition(&p->obj, cmSubSysFailRC, "Read failed on the audio file '%s'.",cmStringNullGuard(wavFn));
+
+    }
+
+    return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'begin record'.",labelSymId);    
+}
+
+
 cmRC_t         cmRecdPlayBeginPlay(   cmRecdPlay* p, unsigned labelSymId )
 {
   unsigned i;

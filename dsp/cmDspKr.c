@@ -2485,6 +2485,8 @@ enum
   kMaxLaSecsPrId,
   kCurLaSecsPrId,
   kFadeRatePrId,
+  kSegFnPrId,
+  kSegLblPrId,
   kScLocIdxPrId,
   kCmdPrId,
   kInAudioBasePrId
@@ -2537,6 +2539,15 @@ cmDspRC_t _cmDspRecdPlayOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
     for(i=0; i<markerCnt; ++i)
       cmRecdPlayRegisterFrag(p->rcdply,i, cmScoreMarkerLabelSymbolId(p->scH,i ));
 
+    const cmChar_t* segFn = cmDspStrcz(inst,kSegFnPrId);
+    const cmChar_t* segLbl= cmDspStrcz(inst,kSegLblPrId);
+    
+    if( cmTextLength(segFn)>0 && cmTextLength(segLbl)>0 )
+    {
+      unsigned segSymId = cmSymTblRegisterSymbol(ctx->stH,segLbl);
+      cmRecdPlayInsertRecord(p->rcdply,segSymId,segFn);
+    }
+
   }
 
   return rc;
@@ -2565,6 +2576,8 @@ cmDspInst_t*  _cmDspRecdPlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
     1,         "maxla",  kMaxLaSecsPrId,  0,0, kInDsvFl   | kDoubleDsvFl | kReqArgDsvFl, "Maximum look-ahead buffer in seconds.",
     1,         "curla",  kCurLaSecsPrId,  0,0, kInDsvFl   | kDoubleDsvFl | kOptArgDsvFl, "Current look-head buffer in seconds.",
     1,         "frate",  kFadeRatePrId,   0,0, kInDsvFl   | kDoubleDsvFl | kOptArgDsvFl, "Fade rate in dB per second.",
+    1,         "segFn",  kSegFnPrId,      0,0, kInDsvFl   | kStrzDsvFl   | kOptArgDsvFl, "Preload an audio segment.",
+    1,         "segLbl", kSegLblPrId,     0,0, kInDsvFl   | kStrzDsvFl   | kOptArgDsvFl, "Score symbol of preloaded audio segment.",
     1,         "index",  kScLocIdxPrId,   0,0, kInDsvFl   | kUIntDsvFl,                "Score follower location index.",
     1,         "cmd",    kCmdPrId,        0,0, kInDsvFl   | kSymDsvFl,                 "on=reset off=stop.",
     chCnt,     "in",     kInAudioBasePrId,0,1, kInDsvFl   | kAudioBufDsvFl,            "Audio input",
@@ -2587,6 +2600,8 @@ cmDspInst_t*  _cmDspRecdPlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspSetDefaultDouble(ctx,&p->inst, kFadeRatePrId, 0.0, 1.0);
 
   printf("1 max la secs:%f\n",cmDspDouble(&p->inst,kMaxLaSecsPrId));
+
+
 
 
   return &p->inst;
