@@ -27,7 +27,6 @@
 #include "cmDspSys.h"
 #include "cmMath.h"
 
-
 #include "cmAudioFile.h"
 #include "cmFileSys.h"
 #include "cmProcObj.h"
@@ -2487,6 +2486,7 @@ enum
   kFadeRatePrId,
   kSegFnPrId,
   kSegLblPrId,
+  kScInitLocIdxPrId,
   kScLocIdxPrId,
   kCmdPrId,
   kInAudioBasePrId
@@ -2548,6 +2548,8 @@ cmDspRC_t _cmDspRecdPlayOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
       cmRecdPlayInsertRecord(p->rcdply,segSymId,segFn);
     }
 
+    p->scLocIdx = cmDspUInt(inst,kScInitLocIdxPrId);
+
   }
 
   return rc;
@@ -2578,6 +2580,7 @@ cmDspInst_t*  _cmDspRecdPlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
     1,         "frate",  kFadeRatePrId,   0,0, kInDsvFl   | kDoubleDsvFl | kOptArgDsvFl, "Fade rate in dB per second.",
     1,         "segFn",  kSegFnPrId,      0,0, kInDsvFl   | kStrzDsvFl   | kOptArgDsvFl, "Preload an audio segment.",
     1,         "segLbl", kSegLblPrId,     0,0, kInDsvFl   | kStrzDsvFl   | kOptArgDsvFl, "Score symbol of preloaded audio segment.",
+    1,         "initIdx",kScInitLocIdxPrId,0,0,kInDsvFl   | kUIntDsvFl,                  "Score search start location.",
     1,         "index",  kScLocIdxPrId,   0,0, kInDsvFl   | kUIntDsvFl,                "Score follower location index.",
     1,         "cmd",    kCmdPrId,        0,0, kInDsvFl   | kSymDsvFl,                 "on=reset off=stop.",
     chCnt,     "in",     kInAudioBasePrId,0,1, kInDsvFl   | kAudioBufDsvFl,            "Audio input",
@@ -2598,10 +2601,11 @@ cmDspInst_t*  _cmDspRecdPlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspSetDefaultDouble(ctx,&p->inst, kMaxLaSecsPrId,0.0, 2.0);
   cmDspSetDefaultDouble(ctx,&p->inst, kCurLaSecsPrId,0.0, 0.1);
   cmDspSetDefaultDouble(ctx,&p->inst, kFadeRatePrId, 0.0, 1.0);
+  cmDspSetDefaultUInt(  ctx,&p->inst, kScInitLocIdxPrId,0,0);
 
   printf("1 max la secs:%f\n",cmDspDouble(&p->inst,kMaxLaSecsPrId));
 
-
+  
 
 
   return &p->inst;
@@ -2685,7 +2689,7 @@ cmDspRC_t _cmDspRecdPlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
       {
         printf("rewind\n");
         cmRecdPlayRewind(p->rcdply);
-        p->scLocIdx = 0;
+        p->scLocIdx = cmDspUInt(inst,kScInitLocIdxPrId);
       }
       else
         if( cmDspSymbol(inst,kCmdPrId) == p->offSymId )
@@ -2698,9 +2702,16 @@ cmDspRC_t _cmDspRecdPlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
       cmRecdPlaySetLaSecs(p->rcdply, cmDspDouble(inst,kCurLaSecsPrId));
       break;
 
+    case kScInitLocIdxPrId:
+      printf("init-idx:%i\n",cmDspUInt(inst,kScInitLocIdxPrId));
+      break;
+
     case kScLocIdxPrId:
       {
-        unsigned endScLocIdx = cmDspUInt(inst,kScLocIdxPrId) ;
+        unsigned endScLocIdx = cmDspUInt(inst,kScLocIdxPrId);
+
+        if( endScLocIdx < cmDspUInt(inst,kScInitLocIdxPrId) )
+          break;
 
         for(; p->scLocIdx<=endScLocIdx; p->scLocIdx+=1)
         {
@@ -2711,12 +2722,12 @@ cmDspRC_t _cmDspRecdPlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
             switch( mp->markTypeId )
             {
               case kRecdBegScMId:
-                printf("recd-beg\n");
+                printf("recd-beg %s\n",cmSymTblLabel(ctx->stH,mp->labelSymId));
                 cmRecdPlayBeginRecord(p->rcdply, mp->labelSymId );
                 break;
                 
               case kRecdEndScMId:
-                printf("recd-end\n");
+                printf("recd-end %s\n",cmSymTblLabel(ctx->stH,mp->labelSymId));
                 cmRecdPlayEndRecord(p->rcdply, mp->labelSymId );
                 break;
                 
