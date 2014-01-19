@@ -2370,6 +2370,7 @@ cmDspClass_t _cmNanoMapDC;
 typedef struct
 {
   cmDspInst_t inst;
+
 } cmDspNanoMap_t;
 
 cmDspRC_t _cmDspNanoMapSend( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned st, unsigned d0, unsigned d1 )
@@ -2382,6 +2383,8 @@ cmDspRC_t _cmDspNanoMapSend( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned st, un
 
 void _cmDspNanoMapPgm( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned pgm )
 {
+  cmDspNanoMap_t* p = (cmDspNanoMap_t*)inst;
+
   unsigned i;
         
   for(i=0; i<kMidiChCnt; ++i)
@@ -2427,7 +2430,7 @@ cmDspRC_t _cmDspNanoMapReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
 cmDspRC_t _cmDspNanoMapRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
-  //cmDspNanoMap_t* p = (cmDspNanoMap_t*)inst;
+  cmDspNanoMap_t* p = (cmDspNanoMap_t*)inst;
 
   switch( evt->dstVarId )
   {
@@ -2438,7 +2441,7 @@ cmDspRC_t _cmDspNanoMapRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
 
     case kStatusNmId:
       {
-        unsigned status = cmDsvGetUInt(evt->valuePtr);
+        unsigned status = cmDsvGetUInt(evt->valuePtr);        
         if( (status & 0xf0) == kNoteOnMdId )
         {
           unsigned d0 = cmDspUInt(inst,kD0NmId);
@@ -2446,6 +2449,7 @@ cmDspRC_t _cmDspNanoMapRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
           status = (status & 0xf0) + ch;
           cmDspSetUInt(ctx,inst,kStatusNmId,status);
         }
+       
       }
       break;
 
@@ -2501,7 +2505,7 @@ typedef struct
   unsigned    offSymId;
   unsigned    audioOutBaseId;
   unsigned    chCnt;
-  unsigned    scLocIdx;
+  //unsigned    scLocIdx;
 } cmDspRecdPlay_t;
 
 cmDspRC_t _cmDspRecdPlayParseRsrc( cmDspCtx_t* ctx, cmDspInst_t* inst, cmRecdPlay* rcdply )
@@ -2519,7 +2523,7 @@ cmDspRC_t _cmDspRecdPlayParseRsrc( cmDspCtx_t* ctx, cmDspInst_t* inst, cmRecdPla
     path = "";
 
   cmJsonH_t     jsH = cmDspSysPgmRsrcHandle(ctx->dspH);
-  cmJsonNode_t* jnp = cmJsonFindValue(jsH,"recdPlay",NULL, kStringTId);
+  cmJsonNode_t* jnp = cmJsonFindValue(jsH,"recdPlay",NULL, kArrayTId);
 
   if( jnp == NULL || cmJsonIsArray(jnp)==false )
   {
@@ -2585,7 +2589,7 @@ cmDspRC_t _cmDspRecdPlayOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
 
   cmDspRecdPlay_t* p = (cmDspRecdPlay_t*)inst;
 
-  p->scLocIdx = 0;
+  //p->scLocIdx = 0;
 
 
   if((fn = cmDspStrcz(inst,kFnPrId)) == NULL || strlen(fn)==0 )
@@ -2614,7 +2618,7 @@ cmDspRC_t _cmDspRecdPlayOpenScore( cmDspCtx_t* ctx, cmDspInst_t* inst )
     if((rc = _cmDspRecdPlayParseRsrc(ctx,inst,p->rcdply)) != kOkDspRC )
       rc = cmDspInstErr(ctx,inst,kInstResetFailDspRC,"The 'recdplay' segment pre-load failed.");
 
-    p->scLocIdx = cmDspUInt(inst,kScInitLocIdxPrId);
+    //p->scLocIdx = cmDspUInt(inst,kScInitLocIdxPrId);
 
   }
 
@@ -2657,7 +2661,7 @@ cmDspInst_t*  _cmDspRecdPlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   p->offSymId       = cmSymTblId(ctx->stH,"off");
   p->audioOutBaseId = audioOutBase;
   p->chCnt          = chCnt;
-  p->scLocIdx       = 0;
+  //p->scLocIdx       = 0;
 
   printf("0 max la secs:%f\n",cmDspDouble(&p->inst,kMaxLaSecsPrId));
 
@@ -2753,7 +2757,7 @@ cmDspRC_t _cmDspRecdPlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
       {
         printf("rewind\n");
         cmRecdPlayRewind(p->rcdply);
-        p->scLocIdx = cmDspUInt(inst,kScInitLocIdxPrId);
+        //p->scLocIdx = cmDspUInt(inst,kScInitLocIdxPrId);
       }
       else
         if( cmDspSymbol(inst,kCmdPrId) == p->offSymId )
@@ -2777,45 +2781,46 @@ cmDspRC_t _cmDspRecdPlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
         if( endScLocIdx < cmDspUInt(inst,kScInitLocIdxPrId) )
           break;
 
-        for(; p->scLocIdx<=endScLocIdx; p->scLocIdx+=1)
-        {
-          cmScoreLoc_t*    loc = cmScoreLoc(p->scH, p->scLocIdx );
-          cmScoreMarker_t* mp  = loc->markList;
+        cmScoreLoc_t*    loc = cmScoreLoc(p->scH, endScLocIdx );
+        if( loc == NULL )
+          break;
 
-          for(; mp!=NULL; mp=mp->link)
-            switch( mp->markTypeId )
-            {
-              case kRecdBegScMId:
-                printf("recd-beg %s\n",cmSymTblLabel(ctx->stH,mp->labelSymId));
-                cmRecdPlayBeginRecord(p->rcdply, mp->labelSymId );
-                break;
+        cmScoreMarker_t* mp  = loc->markList;
+
+        for(; mp!=NULL; mp=mp->link)
+          switch( mp->markTypeId )
+          {
+            case kRecdBegScMId:
+              printf("recd-beg %s\n",cmSymTblLabel(ctx->stH,mp->labelSymId));
+              cmRecdPlayBeginRecord(p->rcdply, mp->labelSymId );
+              break;
                 
-              case kRecdEndScMId:
-                printf("recd-end %s\n",cmSymTblLabel(ctx->stH,mp->labelSymId));
-                cmRecdPlayEndRecord(p->rcdply, mp->labelSymId );
-                break;
+            case kRecdEndScMId:
+              printf("recd-end %s\n",cmSymTblLabel(ctx->stH,mp->labelSymId));
+              cmRecdPlayEndRecord(p->rcdply, mp->labelSymId );
+              break;
                 
-              case kPlayBegScMId:
-                printf("play-beg\n");
-                cmRecdPlayBeginPlay(p->rcdply, mp->labelSymId );
-                break;
+            case kPlayBegScMId:
+              printf("play-beg\n");
+              cmRecdPlayBeginPlay(p->rcdply, mp->labelSymId );
+              break;
 
-              case kPlayEndScMId:
-                printf("play-end\n");
-                cmRecdPlayEndPlay(p->rcdply, mp->labelSymId );
-                break;
+            case kPlayEndScMId:
+              printf("play-end\n");
+              cmRecdPlayEndPlay(p->rcdply, mp->labelSymId );
+              break;
 
-              case kFadeScMId:
-                printf("fade-beg\n");
-                cmRecdPlayBeginFade(p->rcdply, mp->labelSymId, cmDspDouble(inst,kFadeRatePrId) );
-                break;
+            case kFadeScMId:
+              printf("fade-beg\n");
+              cmRecdPlayBeginFade(p->rcdply, mp->labelSymId, cmDspDouble(inst,kFadeRatePrId) );
+              break;
 
-              default:
-                break;
-            }
-        }
+            default:
+              break;
+          }
+        
 
-        p->scLocIdx = endScLocIdx+1;
+        //p->scLocIdx = endScLocIdx+1;
       }
       break;
   }
