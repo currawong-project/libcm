@@ -518,8 +518,11 @@ void* cmMmAllocate(
        // p->nextId is incremented here
        cmThUIntIncr(&p->nextId,1);
 
+       
        /*
-       if( p->nextId == 2393 )
+         // breakpoint for noticing allocation of memory blocks - see below for
+         // the location to notice reallocations of memory blocks
+       if( p->nextId == 7218 )
        {
          cmErrMsg(&p->err,kOkMmRC,"Breakpoint for memory allocation id:%i.",p->nextId);
        }
@@ -553,11 +556,23 @@ void* cmMmAllocate(
 
      }
      else // a reallocation occurred.
+     {
        if( orgDataPtr == ndp )
        {
          if((rp = _cmMmFindRecd(p,orgDataPtr)) == NULL )
            cmErrMsg(&p->err,kMissingRecdMmRC,"Unable to locate a tracking record associated with reallocation data area pointer:%p.",orgDataPtr);           
+         else
+         {
+           /*
+             // break point for noticing reallocations on a memory block
+           if( rp->uniqueId == 7218 )
+           {
+             cmErrMsg(&p->err,kOkMmRC,"Breakpoint for memory reallocation id:%i.",p->nextId);
+           }
+           */
+         }
        }
+     }
    }
 
    return ndp;
