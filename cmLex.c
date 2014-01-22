@@ -323,19 +323,30 @@ unsigned _cmLexIdentMatcher( cmLex* p, const cmChar_t* cp, unsigned cn, const cm
 
 unsigned _cmLexQStrMatcher( cmLex* p, const cmChar_t* cp, unsigned cn, const cmChar_t* keyStr )
 {
-  cmChar_t qStr[]="\"";
-  unsigned n = strlen(qStr);
-  if( strncmp(qStr,cp,n) == 0 )
+  bool escFl = false;
+  unsigned i = 0;
+  if( cp[i] != '"' )
+    return 0;
+
+  for(i=1; i<cn; ++i)
   {
-    unsigned i;
-    if((i = _cmLexScanTo(cp+n, cn-n, qStr)) == cmInvalidIdx )
+    if( escFl )
     {
-      _cmLexError( p, kMissingEndQuoteLexRC, "Missing string end quote.");
-      return 0;
+      escFl = false;
+      continue;
     }
-    return n+i;
+
+    if( cp[i] == '\\' )
+    {
+      escFl = true;
+      continue;
+    }
+
+    if( cp[i] == '"' )
+      return i+1;    
   }
-  return 0;
+
+  return _cmLexError(p, kMissingEndQuoteLexRC, "Missing string literal end quote.");
 }
 
 unsigned _cmLexQCharMatcher( cmLex* p, const cmChar_t* cp, unsigned cn, const cmChar_t* keyStr )
