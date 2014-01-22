@@ -146,9 +146,14 @@ extern "C" {
   const cmChar_t* cmTextEndOfLineC( const cmChar_t* s );
 
   // Return a pointer to the last non-white character in the string
+  // or NULL if s is NULL or empty.
   cmChar_t*       cmTextLastNonWhiteChar(  const cmChar_t* s );
   const cmChar_t* cmTextLastNonWhiteCharC( const cmChar_t* s );
   
+  // Return a pointer to the last white character in the string
+  // or NULL if s is NULL or empty.
+  cmChar_t*       cmTextLastWhiteChar(  const cmChar_t* s );
+  const cmChar_t* cmTextLastWhiteCharC( const cmChar_t* s );
     
 
 
