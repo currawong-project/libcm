@@ -166,6 +166,11 @@ extern "C" {
   // Remove the last n characters from s by inserting a '\0' at s[ strlen(s)-n ].
   void      cmTextClip(    cmChar_t* s, unsigned n );
 
+  // Trim white space from the begining/end/both of a string
+  cmChar_t* cmTextTrimBegin( cmChar_t* s );
+  cmChar_t* cmTextTrimEnd( cmChar_t* s );
+  cmChar_t* cmTextTrim( cmChar_t* );
+
   // Expand s by copying all bytes past t to t+tn.
   cmChar_t* cmTextExpandS( cmChar_t* s, const cmChar_t* t, unsigned tn );
 

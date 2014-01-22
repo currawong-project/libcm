@@ -539,6 +539,49 @@ void cmTextClip(    cmChar_t* s, unsigned n )
     
 }
 
+cmChar_t* cmTextTrimBegin( cmChar_t* s )
+{
+  if( s==NULL || strlen(s) == 0 )
+    return s;
+
+  cmChar_t* s0 = cmTextNextNonWhite(s);
+
+  // no non-white char's exist
+  if( s0 == NULL )
+  {
+    s[0] = 0;
+    return s;
+  }
+
+  if( s0 != s )
+    cmTextShrinkS(s,s,s0-s);
+
+  return s;
+}
+
+cmChar_t* cmTextTrimEnd( cmChar_t* s )
+{
+  unsigned sn;
+
+  if( s==NULL || (sn = strlen(s))==0)
+    return s;
+
+  cmChar_t* s0 = cmTextLastNonWhiteChar(s);
+
+  if(s0-s+1 < sn )
+    s[s0-s+1] = 0;
+
+
+  return s;
+}
+
+cmChar_t* cmTextTrim( cmChar_t* s)
+{
+  cmTextTrimBegin(s);
+  cmTextTrimEnd(s);
+  return s;
+}
+
 
 cmChar_t* cmTextExpandS( cmChar_t* s, const cmChar_t* t, unsigned tn )
 { return cmVOC_Expand(s,strlen(s)+1,t,tn); }

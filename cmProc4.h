@@ -688,6 +688,8 @@ extern "C" {
 
   cmRC_t         cmRecdPlayBeginRecord( cmRecdPlay* p, unsigned labelSymId );
   cmRC_t         cmRecdPlayEndRecord(   cmRecdPlay* p, unsigned labelSymId );
+  cmRC_t         cmRecdPlayInsertRecord(cmRecdPlay* p, unsigned labelSymId, const cmChar_t* wavFn );
+
   cmRC_t         cmRecdPlayBeginPlay(   cmRecdPlay* p, unsigned labelSymId );
   cmRC_t         cmRecdPlayEndPlay(     cmRecdPlay* p, unsigned labelSymId );
 
