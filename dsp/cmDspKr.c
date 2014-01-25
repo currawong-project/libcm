@@ -2383,7 +2383,7 @@ cmDspRC_t _cmDspNanoMapSend( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned st, un
 
 void _cmDspNanoMapPgm( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned pgm )
 {
-  cmDspNanoMap_t* p = (cmDspNanoMap_t*)inst;
+  //cmDspNanoMap_t* p = (cmDspNanoMap_t*)inst;
 
   unsigned i;
         
@@ -2430,7 +2430,7 @@ cmDspRC_t _cmDspNanoMapReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
 cmDspRC_t _cmDspNanoMapRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
-  cmDspNanoMap_t* p = (cmDspNanoMap_t*)inst;
+  //cmDspNanoMap_t* p = (cmDspNanoMap_t*)inst;
 
   switch( evt->dstVarId )
   {
@@ -3070,7 +3070,7 @@ cmDspRC_t _cmDspSyncRecdCreateFile( cmDspCtx_t* ctx, cmDspInst_t* inst )
     return cmDspInstErr(ctx,&p->inst,kFileSysFailDspRC,"Sync-recd file name generation failed for dir='%s' and prefix='%s'.",cmStringNullGuard(dir),cmStringNullGuard(srFn));
 
   unsigned bits = cmDspUInt(inst,kBitsSrId);
-  if( cmSyncRecdCreate(  ctx->cmCtx, &p->srH, p->srFn, p->aFn, cmDspSampleRate(ctx), p->chCnt, bits ) != kOkSrRC )
+  if( cmSyncRecdCreate(  ctx->cmCtx, &p->srH, p->srFn, p->aFn, cmDspSampleRate(ctx), p->chCnt, bits ) != kOkSyRC )
     return cmDspInstErr(ctx,&p->inst,kSubSysFailDspRC,"Sync-recd file create failed for '%s'.",p->srFn);
 
   p->smpIdx = 0;
@@ -3152,7 +3152,7 @@ cmDspRC_t _cmDspSyncRecdExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   }
 
   if( n>0 && cmSyncRecdIsValid(p->srH ) )
-    if( cmSyncRecdAudioWrite( p->srH, &ctx->ctx->iTimeStamp, p->smpIdx, x, p->chCnt, n ) != kOkSrRC )
+    if( cmSyncRecdAudioWrite( p->srH, &ctx->ctx->iTimeStamp, p->smpIdx, x, p->chCnt, n ) != kOkSyRC )
       return cmDspInstErr(ctx,&p->inst,kSubSysFailDspRC,"Sync-recd audio update failed.");
 
   p->smpIdx += n;
@@ -3179,7 +3179,7 @@ cmDspRC_t _cmDspSyncRecdRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
         //printf("%i %i\n",cmDspUInt(inst,kD1SrId),cmTimeElapsedMicros(&ts,&p->ats));
 
         if( cmSyncRecdIsValid(p->srH ) )
-          if( cmSyncRecdMidiWrite(p->srH, &ts, cmDspUInt(inst,kStatusSrId), cmDspUInt(inst,kD0SrId), cmDspUInt(inst,kD1SrId) ) != kOkSrRC )
+          if( cmSyncRecdMidiWrite(p->srH, &ts, cmDspUInt(inst,kStatusSrId), cmDspUInt(inst,kD0SrId), cmDspUInt(inst,kD1SrId) ) != kOkSyRC )
             return cmDspInstErr(ctx,&p->inst,kSubSysFailDspRC,"Sync-recd MIDI update failed.");
       }
       break;
