@@ -7,7 +7,7 @@
 #include "cmMallocDebug.h"
 #include "cmLex.h"
 #include "cmLinkedHeap.h"
-#include "cmSymTbl.h"
+#include "cmHashTbl.h"
 #include "cmCsv.h"
 #include "cmText.h"
 
@@ -48,9 +48,9 @@ typedef struct cmCsvUdef_str
 typedef struct
 {
   cmErr_t            err;
-  void*              rptDataPtr;     //
-  cmLexH             lexH;           // parsing lexer 
-  cmSymTblH_t        symTblH;        // all XML identifiers and data is stored as a symbol in this table
+  void*              rptDataPtr;   //
+  cmLexH             lexH;         // parsing lexer 
+  cmHashTblH_t       htH;          // hash table handle
   cmLHeapH_t         heapH;
   cmCsvBind_t*       bindPtr;      // base of the binder linked list
   cmCsvCell_t*       curRowPtr;    // used by the parser to track the row being filled
@@ -95,15 +95,15 @@ cmCsvRC_t cmCsvInitialize( cmCsvH_t *hp, cmCtx_t* ctx )
 
   cmErrSetup(&p->err,&ctx->rpt,"CSV");
 
-  // create the symbol table
-  if( cmSymTblIsValid(p->symTblH = cmSymTblCreate(cmSymTblNullHandle,0,ctx)) == false )
+  // create the hash table
+  if( cmHashTblCreate(ctx,&p->htH,8192) != kOkHtRC )
   {
-    rc = _cmCsvError(p,kSymTblErrCsvRC,"Symbol table creation failed.");
+    rc = _cmCsvError(p,kHashTblErrCsvRC,"Hash table creation failed.");
     goto errLabel;
   }
 
   // allocate the linked heap mgr
-  if( cmLHeapIsValid(p->heapH = cmLHeapCreate(1024,ctx)) == false )
+  if( cmLHeapIsValid(p->heapH = cmLHeapCreate(8192,ctx)) == false )
   {
     rc = _cmCsvError(p,kMemAllocErrCsvRC,"Linked heap object allocation failed.");
     goto errLabel;
@@ -161,8 +161,8 @@ cmCsvRC_t cmCsvFinalize(   cmCsvH_t *hp )
   if((lexRC = cmLexFinal(&p->lexH)) != kOkLexRC )
     return _cmCsvError(p,kLexErrCsvRC,"Lexer finalization failed.\nLexer Error:%s",cmLexRcToMsg(lexRC));
 
-  // free the symbol table
-  cmSymTblDestroy(&p->symTblH);
+  // free the hash table
+  cmHashTblDestroy(&p->htH);
 
   // free the handle
   cmMemPtrFree(&hp->h);
@@ -352,8 +352,8 @@ cmCsvRC_t _cmCsvCreateCell( cmCsv_t* p, const char* tokenText, unsigned flags, u
   cmCsvRC_t    rc     = kOkCsvRC;
 
   // register the token text as a symbol
-  if((symId = cmSymTblRegisterSymbol(p->symTblH,tokenText)) == cmInvalidId )
-    return _cmCsvError(p,kSymTblErrCsvRC,"Symbol registration failed. for '%s' on line %i column %i.",tokenText,lexRow,lexCol);
+  if((symId = cmHashTblStoreStr(p->htH,tokenText)) == cmInvalidId )
+    return _cmCsvError(p,kHashTblErrCsvRC,"Symbol registration failed. for '%s' on line %i column %i.",tokenText,lexRow,lexCol);
 
   // allocate a cell
   if((rc = _cmCsvAllocCell(p,symId,flags,cellRow,cellCol,&cp,lexTId)) != kOkCsvRC )
@@ -561,8 +561,8 @@ const char* cmCsvCellSymText(   cmCsvH_t h, unsigned symId )
   cmCsv_t*    p = _cmCsvHandleToPtr(h);
   const char* cp;
 
-  if((cp =  cmSymTblLabel(p->symTblH,symId)) == NULL )
-    _cmCsvError(p,kSymTblErrCsvRC,"The text associated with the symbol '%i' was not found.",symId);
+  if((cp =  cmHashTblStr(p->htH,symId)) == NULL )
+    _cmCsvError(p,kHashTblErrCsvRC,"The text associated with the symbol '%i' was not found.",symId);
 
   return cp;
 }
@@ -573,7 +573,7 @@ cmCsvRC_t   cmCsvCellSymInt(    cmCsvH_t h, unsigned symId, int* vp )
   cmCsv_t*    p  = _cmCsvHandleToPtr(h);
 
   if((cp = cmCsvCellSymText(h,symId)) == NULL )
-    return kSymTblErrCsvRC;
+    return kHashTblErrCsvRC;
 
   if( cmTextToInt(cp,vp,&p->err) != kOkTxRC )
     return _cmCsvError(p,kDataCvtErrCsvRC,"CSV text to int value failed.");
@@ -587,7 +587,7 @@ cmCsvRC_t  cmCsvCellSymUInt(   cmCsvH_t h, unsigned symId, unsigned* vp )
   cmCsv_t*    p = _cmCsvHandleToPtr(h);
 
   if((cp = cmCsvCellSymText(h,symId)) == NULL )
-    return kSymTblErrCsvRC;
+    return kHashTblErrCsvRC;
 
   if( cmTextToUInt(cp,vp,&p->err) != kOkTxRC )
     return _cmCsvError(p,kDataCvtErrCsvRC,"CSV text to uint value failed.");
@@ -601,7 +601,7 @@ cmCsvRC_t   cmCsvCellSymFloat(  cmCsvH_t h, unsigned symId, float* vp )
   cmCsv_t*    p  = _cmCsvHandleToPtr(h);
 
   if((cp = cmCsvCellSymText(h,symId)) == NULL )
-    return kSymTblErrCsvRC;
+    return kHashTblErrCsvRC;
 
   if( cmTextToFloat(cp,vp,&p->err) != kOkTxRC )
     return _cmCsvError(p,kDataCvtErrCsvRC,"CSV text to float value failed.");
@@ -615,7 +615,7 @@ cmCsvRC_t    cmCsvCellSymDouble( cmCsvH_t h, unsigned symId, double* vp )
   cmCsv_t*    p  = _cmCsvHandleToPtr(h);
 
   if((cp = cmCsvCellSymText(h,symId)) == NULL )
-    return kSymTblErrCsvRC;
+    return kHashTblErrCsvRC;
 
   if( cmTextToDouble(cp,vp,&p->err) != kOkTxRC )
     return _cmCsvError(p,kDataCvtErrCsvRC,"CSV text to double value failed.");
@@ -695,8 +695,8 @@ unsigned   cmCsvInsertSymText(   cmCsvH_t h, const char* text )
   cmCsv_t*    p  = _cmCsvHandleToPtr(h);
   unsigned    symId;
 
-  if((symId = cmSymTblRegisterSymbol(p->symTblH,text)) == cmInvalidId )
-    _cmCsvError(p,kSymTblErrCsvRC,"'%s' could not be inserted into the symbol table.",text);
+  if((symId = cmHashTblStoreStr(p->htH,text)) == cmInvalidId )
+    _cmCsvError(p,kHashTblErrCsvRC,"'%s' could not be inserted into the symbol table.",text);
 
   return symId;
 }
@@ -1134,8 +1134,8 @@ cmCsvRC_t  cmCsvWrite( cmCsvH_t h, const char* fn )
       {
         const char* tp;
 
-        if((tp =  cmSymTblLabel(p->symTblH,cp->symId)) == NULL )
-          return _cmCsvError(p,kSymTblErrCsvRC,"Unable to locate the symbol text for cell at row:%i col:%i.",cp->row,cp->col);
+        if((tp = cmHashTblStr(p->htH,cp->symId)) == NULL )
+          return _cmCsvError(p,kHashTblErrCsvRC,"Unable to locate the symbol text for cell at row:%i col:%i.",cp->row,cp->col);
 
         if( cmIsFlag(cp->flags,kTextTMask) )
           fprintf(fp,"\"");
@@ -1179,8 +1179,8 @@ cmCsvRC_t  cmCsvPrint( cmCsvH_t h, unsigned rowCnt )
       {
         const char* tp;
 
-        if((tp =  cmSymTblLabel(p->symTblH,cp->symId)) == NULL )
-          _cmCsvError(p,kSymTblErrCsvRC,"The text associated with the symbol '%i' was not found.",cp->symId);
+        if((tp =  cmHashTblStr(p->htH,cp->symId)) == NULL )
+          _cmCsvError(p,kHashTblErrCsvRC,"The text associated with the symbol '%i' was not found.",cp->symId);
 
         fputs(tp,stdin);
       }

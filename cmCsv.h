@@ -11,7 +11,7 @@ extern "C" {
     kOkCsvRC = 0,
     kMemAllocErrCsvRC,
     kLexErrCsvRC,
-    kSymTblErrCsvRC,
+    kHashTblErrCsvRC,
     kSyntaxErrCsvRC,
     kFileOpenErrCsvRC,
     kFileCreateErrCsvRC,
