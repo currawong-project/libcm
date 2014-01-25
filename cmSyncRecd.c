@@ -11,6 +11,7 @@
 #include "cmSyncRecd.h"
 #include "cmVectOpsTemplateMain.h"
 #include "cmMidi.h"
+
 typedef enum
 {
   kInvalidSrId,
@@ -76,44 +77,44 @@ cmSr_t* _cmSrHtoP( cmSyncRecdH_t h )
   return p;
 }
 
-cmSrRC_t _cmSrWriteCache( cmSr_t* p )
+cmSyRC_t _cmSrWriteCache( cmSr_t* p )
 {
   if( cmFileWrite(p->fH,p->cache,p->ci * sizeof(cmSrRecd_t)) != kOkFileRC )
-    return cmErrMsg(&p->err,kFileFailSrRC,"File write failed.");
+    return cmErrMsg(&p->err,kFileFailSyRC,"File write failed.");
 
   p->fn += p->ci;
   p->ci = 0;
   
-  return kOkSrRC;
+  return kOkSyRC;
 }
 
 
-cmSrRC_t _cmSrFinal( cmSr_t* p )
+cmSyRC_t _cmSrFinal( cmSr_t* p )
 {
-  cmSrRC_t rc = kOkSrRC;
+  cmSyRC_t rc = kOkSyRC;
   
   // write any remaining cache records
   if( cmIsFlag(p->flags,kReadSrFl) == false )
   {
-    if((rc = _cmSrWriteCache(p)) == kOkSrRC )
+    if((rc = _cmSrWriteCache(p)) == kOkSyRC )
     {
       if(cmFileSeek(p->fH,kBeginFileFl,p->offs) != kOkFileRC )
-        rc = cmErrMsg(&p->err,kFileFailSrRC, "File seek fail on file offset positioning.");
+        rc = cmErrMsg(&p->err,kFileFailSyRC, "File seek fail on file offset positioning.");
       else
         if(cmFileWriteUInt(p->fH,&p->fn,1) != kOkFileRC )
-          rc = cmErrMsg(&p->err,kFileFailSrRC, "File write failed on record count.");
+          rc = cmErrMsg(&p->err,kFileFailSyRC, "File write failed on record count.");
     }
   }
 
   // release the audio file object
   if( cmAudioFileIsValid(p->afH) )
     if( cmAudioFileDelete(&p->afH) != kOkAfRC )
-      return cmErrMsg(&p->err,kAudioFileFailSrRC,"Audio file object delete failed.");
+      return cmErrMsg(&p->err,kAudioFileFailSyRC,"Audio file object delete failed.");
 
   // release the sync-recd file object
   if( cmFileIsValid(p->fH) )
     if( cmFileClose(&p->fH) != kOkFileRC )
-      return cmErrMsg(&p->err,kFileFailSrRC,"File close failed.");
+      return cmErrMsg(&p->err,kFileFailSyRC,"File close failed.");
 
   cmMemFree(p->cache);
   cmMemFree(p->map);
@@ -134,27 +135,27 @@ cmSr_t*  _cmSrAlloc( cmCtx_t* ctx, unsigned flags )
   return p;
 }
 
-cmSrRC_t cmSyncRecdCreate( cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn, const cmChar_t* audioFn, double srate, unsigned chCnt, unsigned bits )
+cmSyRC_t cmSyncRecdCreate( cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn, const cmChar_t* audioFn, double srate, unsigned chCnt, unsigned bits )
 {
-  cmSrRC_t rc   = kOkSrRC;
+  cmSyRC_t rc   = kOkSyRC;
   cmRC_t   afRC = kOkAfRC;
 
   assert( audioFn != NULL );
 
-  if((rc = cmSyncRecdFinal(hp)) != kOkSrRC )
+  if((rc = cmSyncRecdFinal(hp)) != kOkSyRC )
     return rc;
 
   cmSr_t* p = _cmSrAlloc(ctx,0);
 
   if( cmFileOpen(&p->fH,srFn,kWriteFileFl,&ctx->rpt) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"Unable to create the sync-recd file '%s'.",cmStringNullGuard(srFn));
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"Unable to create the sync-recd file '%s'.",cmStringNullGuard(srFn));
     goto errLabel;
   }
 
   if( cmAudioFileIsValid(p->afH = cmAudioFileNewCreate(audioFn,srate,bits,chCnt,&afRC,&ctx->rpt))==false)
   {
-    rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Unable to create the sync-recd audio file '%s'.",cmStringNullGuard(audioFn));
+    rc = cmErrMsg(&p->err,kAudioFileFailSyRC,"Unable to create the sync-recd audio file '%s'.",cmStringNullGuard(audioFn));
     goto errLabel;
   }
 
@@ -163,47 +164,47 @@ cmSrRC_t cmSyncRecdCreate( cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn
 
   if( cmFileWriteUInt(p->fH,&fileUUId,1) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"File write failed on UUID.");
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"File write failed on UUID.");
     goto errLabel;
   }
 
   if( cmFileWriteUInt(p->fH,&audioFnCnt,1) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"File write failed on audio file length write count.");
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"File write failed on audio file length write count.");
     goto errLabel;
   }
 
   if( cmFileWriteChar(p->fH,audioFn,audioFnCnt) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"File write failed on audio file string.");
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"File write failed on audio file string.");
     goto errLabel;
   }
 
   if( cmFileTell(p->fH,&p->offs) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"Unable to determine file offset.");
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"Unable to determine file offset.");
     goto errLabel;
   }
 
   if( cmFileWriteUInt(p->fH,&p->fn,1) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"File write failed on initial record count.");
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"File write failed on initial record count.");
     goto errLabel;
   }
 
   hp->h = p;
 
  errLabel:
-  if( rc != kOkSrRC )
+  if( rc != kOkSyRC )
     _cmSrFinal(p);
 
   return rc;
 }
 
 
-cmSrRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn )
+cmSyRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn )
 {
-  cmSrRC_t  rc         = kOkSrRC;
+  cmSyRC_t  rc         = kOkSyRC;
   cmRC_t    afRC       = kOkAfRC;
   unsigned  fileUUId   = cmInvalidId;
   unsigned  audioFnCnt = 0;
@@ -213,26 +214,26 @@ cmSrRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn
   unsigned mcnt = 0;
   unsigned* tiV  = NULL;
 
-  if((rc = cmSyncRecdFinal(hp)) != kOkSrRC )
+  if((rc = cmSyncRecdFinal(hp)) != kOkSyRC )
     return rc;
 
   cmSr_t* p = _cmSrAlloc(ctx,kReadSrFl);
 
   if( cmFileOpen(&p->fH,srFn,kReadFileFl,&ctx->rpt) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"Unable to open the sync-recd file '%s'.",cmStringNullGuard(srFn));
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"Unable to open the sync-recd file '%s'.",cmStringNullGuard(srFn));
     goto errLabel;
   }
 
   if( cmFileReadUInt(p->fH,&fileUUId,1) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"File read failed on UUId.");
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"File read failed on UUId.");
     goto errLabel;
   }
 
   if( cmFileReadUInt(p->fH,&audioFnCnt,1) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"File read failed on audio file name count.");
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"File read failed on audio file name count.");
     goto errLabel;
   }
 
@@ -240,20 +241,20 @@ cmSrRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn
 
   if( cmFileReadChar(p->fH,audioFn,audioFnCnt) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"File read failed on audio file string.");
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"File read failed on audio file string.");
     goto errLabel;
   }
 
   if( cmFileReadUInt(p->fH,&p->fn,1) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"File read failed on record count.");
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"File read failed on record count.");
     goto errLabel;
   }
 
   // store the file offset to the first recd
   if( cmFileTell(p->fH,&p->offs) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"Unable to determine the current file offset.");
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"Unable to determine the current file offset.");
     goto errLabel;
   }
 
@@ -264,7 +265,7 @@ cmSrRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn
     cmSrRecd_t r;
     if( cmFileRead(p->fH,&r,sizeof(r)) != kOkFileRC )
     {
-      rc = cmErrMsg(&p->err,kFileFailSrRC,"Unable to read the record at index %i.");
+      rc = cmErrMsg(&p->err,kFileFailSyRC,"Unable to read the record at index %i.");
       goto errLabel;
     }
 
@@ -288,7 +289,7 @@ cmSrRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn
   // rewind to the begining of the records
   if( cmFileSeek(p->fH,kBeginFileFl,p->offs) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"Unable to seek to first recd offset.");
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"Unable to seek to first recd offset.");
     goto errLabel;
   }
 
@@ -303,7 +304,7 @@ cmSrRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn
   {
     if( cmFileRead(p->fH,p->cache + p->ci,sizeof(cmSrRecd_t)) != kOkFileRC )
     {
-      rc = cmErrMsg(&p->err,kFileFailSrRC,"Unable to read the record at index %i.");
+      rc = cmErrMsg(&p->err,kFileFailSyRC,"Unable to read the record at index %i.");
       goto errLabel;
     }
 
@@ -317,7 +318,7 @@ cmSrRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn
   // rewind to the first recd
   if( cmFileSeek(p->fH,kBeginFileFl,p->offs) != kOkFileRC )
   {
-    rc = cmErrMsg(&p->err,kFileFailSrRC,"Unable to seek to first recd offset.");
+    rc = cmErrMsg(&p->err,kFileFailSyRC,"Unable to seek to first recd offset.");
     goto errLabel;
   }
 
@@ -328,7 +329,7 @@ cmSrRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn
     cmSrRecd_t r;
     if( cmFileRead(p->fH,&r,sizeof(r)) != kOkFileRC )
     {
-      rc = cmErrMsg(&p->err,kFileFailSrRC,"Unable to read the record at index %i.");
+      rc = cmErrMsg(&p->err,kFileFailSyRC,"Unable to read the record at index %i.");
       goto errLabel;
     }
 
@@ -358,7 +359,7 @@ cmSrRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn
   // open the audio file
   if( cmAudioFileIsValid(p->afH = cmAudioFileNewOpen(audioFn,&p->afInfo,&afRC,&ctx->rpt ))==false)
   {
-    rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Unable to open the sync-recd audio file '%s'.",cmStringNullGuard(audioFn));
+    rc = cmErrMsg(&p->err,kAudioFileFailSyRC,"Unable to open the sync-recd audio file '%s'.",cmStringNullGuard(audioFn));
     goto errLabel;
   }
  
@@ -371,22 +372,22 @@ cmSrRC_t cmSyncRecdOpen(   cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn
   cmMemFree(tiV);
   cmMemFree(audioFn);
 
-  if( rc != kOkSrRC )
+  if( rc != kOkSyRC )
     _cmSrFinal(p);
 
   return rc;
 }
 
-cmSrRC_t cmSyncRecdFinal(  cmSyncRecdH_t* hp )
+cmSyRC_t cmSyncRecdFinal(  cmSyncRecdH_t* hp )
 {
-  cmSrRC_t rc = kOkSrRC;
+  cmSyRC_t rc = kOkSyRC;
 
   if( hp==NULL || cmSyncRecdIsValid(*hp)==false)
     return rc;
 
   cmSr_t* p = _cmSrHtoP(*hp);
 
-  if((rc = _cmSrFinal(p)) != kOkSrRC )
+  if((rc = _cmSrFinal(p)) != kOkSyRC )
     return rc;
 
   hp->h = NULL;
@@ -397,9 +398,9 @@ cmSrRC_t cmSyncRecdFinal(  cmSyncRecdH_t* hp )
 bool     cmSyncRecdIsValid( cmSyncRecdH_t h )
 { return h.h != NULL; }
 
-cmSrRC_t cmSyncRecdMidiWrite(  cmSyncRecdH_t h, const cmTimeSpec_t* timestamp, unsigned status, unsigned d0, unsigned d1 )
+cmSyRC_t cmSyncRecdMidiWrite(  cmSyncRecdH_t h, const cmTimeSpec_t* timestamp, unsigned status, unsigned d0, unsigned d1 )
 {
-  cmSrRC_t    rc    = kOkSrRC;
+  cmSyRC_t    rc    = kOkSyRC;
   cmSr_t*     p     = _cmSrHtoP(h);
   cmSrRecd_t* rp    = p->cache + p->ci;
   rp->tid           = kMidiSrId;
@@ -416,9 +417,9 @@ cmSrRC_t cmSyncRecdMidiWrite(  cmSyncRecdH_t h, const cmTimeSpec_t* timestamp, u
   return rc;
 }
 
-cmSrRC_t cmSyncRecdAudioWrite( cmSyncRecdH_t h, const cmTimeSpec_t* timestamp, unsigned smpIdx, const cmSample_t* ch[], unsigned chCnt, unsigned frmCnt )
+cmSyRC_t cmSyncRecdAudioWrite( cmSyncRecdH_t h, const cmTimeSpec_t* timestamp, unsigned smpIdx, const cmSample_t* ch[], unsigned chCnt, unsigned frmCnt )
 {
-  cmSrRC_t    rc    = kOkSrRC;
+  cmSyRC_t    rc    = kOkSyRC;
   cmSr_t*     p     = _cmSrHtoP(h);
   cmSrRecd_t* rp    = p->cache + p->ci;
   rp->tid           = kAudioSrId;
@@ -428,25 +429,25 @@ cmSrRC_t cmSyncRecdAudioWrite( cmSyncRecdH_t h, const cmTimeSpec_t* timestamp, u
   p->ci += 1;
 
   if( p->ci == p->cn )
-    if((rc = _cmSrWriteCache(p)) != kOkSrRC )
+    if((rc = _cmSrWriteCache(p)) != kOkSyRC )
       goto errLabel;
 
   if( cmAudioFileWriteSample(p->afH,frmCnt,chCnt,(cmSample_t**)ch) != kOkAfRC )
-    rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Audio file write failed.");
+    rc = cmErrMsg(&p->err,kAudioFileFailSyRC,"Audio file write failed.");
 
  errLabel:
   return rc;
 }
 
 
-cmSrRC_t cmSyncRecdPrint( cmSyncRecdH_t h )
+cmSyRC_t cmSyncRecdPrint( cmSyncRecdH_t h )
 {
-  cmSrRC_t rc = kOkSrRC;
+  cmSyRC_t rc = kOkSyRC;
   cmSr_t*  p  = _cmSrHtoP(h);
   unsigned i;
 
   if( cmIsFlag(p->flags,kReadSrFl)==false)
-    return cmErrMsg(&p->err,kInvalidOpSrRC,"The 'print' operation is only valid on sync-recd files opened for reading.");
+    return cmErrMsg(&p->err,kInvalidOpSyRC,"The 'print' operation is only valid on sync-recd files opened for reading.");
   
   for(i=0; i<p->cn; ++i)
   {
@@ -457,9 +458,9 @@ cmSrRC_t cmSyncRecdPrint( cmSyncRecdH_t h )
   return rc;
 }
 
-cmSrRC_t cmSyncRecdAudioFile( cmSyncRecdH_t h, const cmChar_t* fn )
+cmSyRC_t cmSyncRecdAudioFile( cmSyncRecdH_t h, const cmChar_t* fn )
 {
-  cmSrRC_t       rc        = kOkSrRC;
+  cmSyRC_t       rc        = kOkSyRC;
   cmSr_t*        p         = _cmSrHtoP(h);
   cmAudioFileH_t afH       = cmNullAudioFileH;
   unsigned       chCnt     = 2;
@@ -474,19 +475,19 @@ cmSrRC_t cmSyncRecdAudioFile( cmSyncRecdH_t h, const cmChar_t* fn )
   chs[1] = buf+frmCnt;
 
   if( cmIsFlag(p->flags,kReadSrFl)==false)
-    return cmErrMsg(&p->err,kInvalidOpSrRC,"The 'audio-file-output' operation is only valid on sync-recd files opened for reading.");
+    return cmErrMsg(&p->err,kInvalidOpSyRC,"The 'audio-file-output' operation is only valid on sync-recd files opened for reading.");
   
   /// Open an audio file for writing
   if(cmAudioFileIsValid(afH = cmAudioFileNewCreate(fn, p->afInfo.srate, p->afInfo.bits, chCnt, &afRC, p->err.rpt))==false)
   {
-    rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Unable to create the synchronized audio file '%s'.",cmStringNullGuard(fn));
+    rc = cmErrMsg(&p->err,kAudioFileFailSyRC,"Unable to create the synchronized audio file '%s'.",cmStringNullGuard(fn));
     goto errLabel;
   }
   
   // rewind the input audio file
   if( cmAudioFileSeek(p->afH,0) != kOkAfRC )
   {
-    rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Seek failed during synchronized audio file output.");
+    rc = cmErrMsg(&p->err,kAudioFileFailSyRC,"Seek failed during synchronized audio file output.");
     goto errLabel;
   }
 
@@ -500,7 +501,7 @@ cmSrRC_t cmSyncRecdAudioFile( cmSyncRecdH_t h, const cmChar_t* fn )
     // read frmCnt samples from the first channel of the input audio file
     if( cmAudioFileReadSample(p->afH, frmCnt, chIdx, 1, chs, &actFrmCnt ) != kOkAfRC )
     {
-      rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Audio file read failed.");
+      rc = cmErrMsg(&p->err,kAudioFileFailSyRC,"Audio file read failed.");
       break;
     }
 
@@ -515,7 +516,7 @@ cmSrRC_t cmSyncRecdAudioFile( cmSyncRecdH_t h, const cmChar_t* fn )
     // write the audio output samples
     if( cmAudioFileWriteSample(afH, frmCnt, chCnt, chs ) != kOkAfRC )
     {
-      rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Synchronized audio file write failed.");
+      rc = cmErrMsg(&p->err,kAudioFileFailSyRC,"Synchronized audio file write failed.");
       break;
     }    
 
@@ -523,12 +524,12 @@ cmSrRC_t cmSyncRecdAudioFile( cmSyncRecdH_t h, const cmChar_t* fn )
 
  errLabel:
   if( cmAudioFileDelete(&afH) != kOkAfRC )
-    rc = cmErrMsg(&p->err,kAudioFileFailSrRC,"Synchronized audio file close failed.");
+    rc = cmErrMsg(&p->err,kAudioFileFailSyRC,"Synchronized audio file close failed.");
 
   return rc;
 }
 
-cmSrRC_t cmSyncRecdTest( cmCtx_t* ctx )
+cmSyRC_t cmSyncRecdTest( cmCtx_t* ctx )
 {
   enum
   {
@@ -536,7 +537,7 @@ cmSrRC_t cmSyncRecdTest( cmCtx_t* ctx )
     kTestFailRC,
   };
 
-  cmSrRC_t rc = kOkSrRC;
+  cmSyRC_t rc = kOkSyRC;
   const cmChar_t* srFn = "/home/kevin/temp/kr/sr/sr0.sr";
   const cmChar_t* aFn  = "/home/kevin/temp/kr/sr/sync_af.aiff";
   cmErr_t err;
@@ -545,7 +546,7 @@ cmSrRC_t cmSyncRecdTest( cmCtx_t* ctx )
   cmErrSetup(&err,&ctx->rpt,"SyncRecdTest");
   
 
-  if((rc = cmSyncRecdOpen(ctx, &srH, srFn )) != kOkSrRC )
+  if((rc = cmSyncRecdOpen(ctx, &srH, srFn )) != kOkSyRC )
   {
     cmErrMsg(&err,kTestFailRC,"Sync-recd open failed.");
     goto errLabel;
@@ -555,7 +556,7 @@ cmSrRC_t cmSyncRecdTest( cmCtx_t* ctx )
   cmSyncRecdAudioFile(srH,aFn);
 
  errLabel:
-  if((rc = cmSyncRecdFinal(&srH)) != kOkSrRC )
+  if((rc = cmSyncRecdFinal(&srH)) != kOkSyRC )
     cmErrMsg(&err,kTestFailRC,"Sync-recd close failed.");
 
   return rc;

@@ -7,26 +7,26 @@ extern "C" {
 
   enum
   {
-    kOkSrRC,
-    kFileFailSrRC,
-    kAudioFileFailSrRC,
-    kInvalidOpSrRC
+    kOkSyRC,
+    kFileFailSyRC,
+    kAudioFileFailSyRC,
+    kInvalidOpSyRC
   };
 
   typedef cmHandle_t cmSyncRecdH_t;
-  typedef cmRC_t     cmSrRC_t;
+  typedef cmRC_t     cmSyRC_t;
   extern cmSyncRecdH_t cmSyncRecdNullHandle;
   
-  cmSrRC_t cmSyncRecdCreate(  cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn, const cmChar_t* audioFn, double srate, unsigned chCnt, unsigned bits );
-  cmSrRC_t cmSyncRecdOpen(    cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn );
-  cmSrRC_t cmSyncRecdFinal(   cmSyncRecdH_t* hp );
+  cmSyRC_t cmSyncRecdCreate(  cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn, const cmChar_t* audioFn, double srate, unsigned chCnt, unsigned bits );
+  cmSyRC_t cmSyncRecdOpen(    cmCtx_t* ctx, cmSyncRecdH_t* hp, const cmChar_t* srFn );
+  cmSyRC_t cmSyncRecdFinal(   cmSyncRecdH_t* hp );
   bool     cmSyncRecdIsValid( cmSyncRecdH_t h );
 
-  cmSrRC_t cmSyncRecdMidiWrite(  cmSyncRecdH_t h, const cmTimeSpec_t* timestamp, unsigned status, unsigned d0, unsigned d1 );
-  cmSrRC_t cmSyncRecdAudioWrite( cmSyncRecdH_t h, const cmTimeSpec_t* timestamp, unsigned smpIdx, const cmSample_t* ch[], unsigned chCnt, unsigned frmCnt );
+  cmSyRC_t cmSyncRecdMidiWrite(  cmSyncRecdH_t h, const cmTimeSpec_t* timestamp, unsigned status, unsigned d0, unsigned d1 );
+  cmSyRC_t cmSyncRecdAudioWrite( cmSyncRecdH_t h, const cmTimeSpec_t* timestamp, unsigned smpIdx, const cmSample_t* ch[], unsigned chCnt, unsigned frmCnt );
   
 
-  cmSrRC_t cmSyncRecdTest( cmCtx_t* ctx );
+  cmSyRC_t cmSyncRecdTest( cmCtx_t* ctx );
 
 #ifdef __cplusplus
 }
