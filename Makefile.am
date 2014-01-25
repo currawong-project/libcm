@@ -6,8 +6,11 @@ cmSRC =
 cmHDR += src/libcm/cmErr.h src/libcm/cmCtx.h src/libcm/cmRpt.h src/libcm/cmGlobal.h src/libcm/cmComplexTypes.h src/libcm/cmFloatTypes.h src/libcm/cmPrefix.h
 cmSRC += src/libcm/cmErr.c src/libcm/cmCtx.c src/libcm/cmRpt.c src/libcm/cmGlobal.c 
 
-cmHDR += src/libcm/cmSerialize.h src/libcm/cmSymTbl.h src/libcm/cmFileSys.h src/libcm/cmFile.h src/libcm/cmMem.h src/libcm/cmTime.h src/libcm/cmPgmOpts.h
-cmSRC += src/libcm/cmSerialize.c src/libcm/cmSymTbl.c src/libcm/cmFileSys.c src/libcm/cmFile.c src/libcm/cmMem.c src/libcm/cmTime.c src/libcm/cmPgmOpts.c
+cmHDR += src/libcm/cmSerialize.h src/libcm/cmSymTbl.h src/libcm/cmHashTbl.h src/libcm/cmFileSys.h src/libcm/cmFile.h 
+cmSRC += src/libcm/cmSerialize.c src/libcm/cmSymTbl.c src/libcm/cmHashTbl.c src/libcm/cmFileSys.c src/libcm/cmFile.c 
+
+cmHDR += src/libcm/cmMem.h src/libcm/cmTime.h src/libcm/cmPgmOpts.h
+cmSRC += src/libcm/cmMem.c src/libcm/cmTime.c src/libcm/cmPgmOpts.c
 
 cmHDR += src/libcm/cmData.h src/libcm/cmLib.h src/libcm/cmText.h src/libcm/cmTextTemplate.h
 cmSRC += src/libcm/cmData.c src/libcm/cmLib.c src/libcm/cmText.c src/libcm/cmTextTemplate.c
@@ -70,6 +73,9 @@ cmSRC += src/libcm/cmProcObj.c src/libcm/cmProc.c src/libcm/cmProc2.c src/libcm/
 
 cmHDR += src/libcm/app/cmOnset.h src/libcm/app/cmTimeLine.h src/libcm/app/cmScore.h src/libcm/app/cmScoreProc.h 
 cmSRC += src/libcm/app/cmOnset.c src/libcm/app/cmTimeLine.c src/libcm/app/cmScore.c src/libcm/app/cmScoreProc.c 
+
+cmHDR += src/libcm/app/cmSdb.h  
+cmSRC += src/libcm/app/cmSdb.c  
 
 cmHDR += src/libcm/app/cmPickup.h src/libcm/cmRbm.h src/libcm/cmTaskMgr.h  src/libcm/cmSyncRecd.h
 cmSRC += src/libcm/app/cmPickup.c src/libcm/cmRbm.c src/libcm/cmTaskMgr.c  src/libcm/cmSyncRecd.c
