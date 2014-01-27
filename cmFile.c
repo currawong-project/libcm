@@ -227,7 +227,8 @@ cmFileRC_t   cmFileByteCountFn( const cmChar_t* fn, cmRpt_t* rpt, unsigned* file
 {
   assert( fileByteCntPtr != NULL );
   cmFileRC_t rc;
-  cmFileH_t  h                                 = cmFileNullHandle;
+  cmFileH_t  h = cmFileNullHandle;
+
   if((rc = cmFileOpen(&h,fn,kReadFileFl,rpt)) != kOkFileRC )
     return rc;
 
