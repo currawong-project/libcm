@@ -35,7 +35,7 @@ extern "C" {
     kOsxFailFsRC,
     kLinuxFailFsRC,
     kInvalidDirFsRC,
-    kGenFileFailFsRC
+    kGenFileFailFsRC,
   };
 
 
