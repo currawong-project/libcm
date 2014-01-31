@@ -710,7 +710,7 @@ cmPoRC_t cmPgmOptParse( cmPgmOptH_t h, unsigned argCnt,  char* argArray[] )
   unsigned    state = kDash;
   _cmPoOpt_t* r     = NULL;
   _cmPoArg_t* a     = NULL;
-  int         i     = 0; // arg index
+  int         i     = 1; // arg index
   int         j     = 0; // arg label character index
 
 

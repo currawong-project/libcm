@@ -2,9 +2,13 @@
 #include "cmGlobal.h"
 #include "cmRpt.h"
 #include "cmErr.h"
+#include "cmCtx.h"
 #include "cmFile.h"
+#include "cmFileSys.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
+#include "cmLinkedHeap.h"
+#include "cmText.h"
 #include <sys/stat.h>
 cmFileH_t cmFileNullHandle = { NULL };
 
@@ -34,9 +38,9 @@ cmFileRC_t _cmFileError( cmFile_t* p, cmFileRC_t rc, int errNumb, const cmChar_t
 
 cmFileRC_t cmFileOpen(    cmFileH_t* hp, const cmChar_t* fn, enum cmFileOpenFlags_t flags, cmRpt_t* rpt )
 {
-  char mode[] = "/0/0/0";
-  cmFile_t* p = NULL;
-  cmErr_t err;
+  char mode[]  = "/0/0/0";
+  cmFile_t*  p = NULL;
+  cmErr_t    err;
   cmFileRC_t rc;
 
   if((rc = cmFileClose(hp)) != kOkFileRC )
@@ -47,21 +51,21 @@ cmFileRC_t cmFileOpen(    cmFileH_t* hp, const cmChar_t* fn, enum cmFileOpenFlag
   hp->h = NULL;
 
   if( cmIsFlag(flags,kReadFileFl) )
-    mode[0]='r';
+    mode[0] = 'r';
   else
     if( cmIsFlag(flags,kWriteFileFl) )
-      mode[0]='w';
+      mode[0] = 'w';
     else
       if( cmIsFlag(flags,kAppendFileFl) )
-        mode[0]='a';
+        mode[0] = 'a';
       else
         cmErrMsg(&err,kInvalidFlagFileRC,"File open flags must contain 'kReadFileFl','kWriteFileFl', or 'kAppendFileFl'.");
   
   if( cmIsFlag(flags,kUpdateFileFl) )
-    mode[1]='+';
+    mode[1] = '+';
 
   // handle requests to use stdin,stdout,stderr
-  FILE*           sfp = NULL;
+  FILE* sfp = NULL;
   if( cmIsFlag(flags,kStdoutFileFl) )
   {
     sfp = stdout;
@@ -107,7 +111,7 @@ cmFileRC_t cmFileOpen(    cmFileH_t* hp, const cmChar_t* fn, enum cmFileOpenFlag
     }
   }
  
-  hp->h    = p;
+  hp->h = p;
 
   return kOkFileRC;
 }
@@ -158,7 +162,7 @@ cmFileRC_t cmFileWrite(   cmFileH_t h, const void* buf, unsigned bufByteCnt )
 cmFileRC_t cmFileSeek(    cmFileH_t h, enum cmFileSeekFlags_t flags, int offsByteCnt )
 {
   cmFile_t* p = _cmFileHandleToPtr(h);
-  unsigned fileflags = 0;
+  unsigned  fileflags = 0;
 
   if( cmIsFlag(flags,kBeginFileFl) )
     fileflags = SEEK_SET;
@@ -171,7 +175,7 @@ cmFileRC_t cmFileSeek(    cmFileH_t h, enum cmFileSeekFlags_t flags, int offsByt
       else
         return cmErrMsg(&p->err,kInvalidFlagFileRC,"Invalid file seek flag on '%s'.",p->fnStr);
   
-  errno = 0;
+  errno  = 0;
   if( fseek(p->fp,offsByteCnt,fileflags) != 0 )
     return _cmFileError(p,kSeekFailFileRC,errno,"File seek failed");
 
@@ -181,9 +185,10 @@ cmFileRC_t cmFileSeek(    cmFileH_t h, enum cmFileSeekFlags_t flags, int offsByt
 cmFileRC_t cmFileTell( cmFileH_t h, long* offsPtr )
 {
   assert( offsPtr != NULL );
-  *offsPtr     = -1;
-  cmFile_t* p  = _cmFileHandleToPtr(h);
-  errno        = 0;
+  *offsPtr    = -1;
+  cmFile_t* p = _cmFileHandleToPtr(h);
+  errno       = 0;
+
   if((*offsPtr = ftell(p->fp)) == -1)
     return _cmFileError(p,kTellFailFileRC,errno,"File tell failed");
   return kOkFileRC;
@@ -222,7 +227,8 @@ cmFileRC_t   cmFileByteCountFn( const cmChar_t* fn, cmRpt_t* rpt, unsigned* file
 {
   assert( fileByteCntPtr != NULL );
   cmFileRC_t rc;
-  cmFileH_t h = cmFileNullHandle;
+  cmFileH_t  h = cmFileNullHandle;
+
   if((rc = cmFileOpen(&h,fn,kReadFileFl,rpt)) != kOkFileRC )
     return rc;
 
@@ -241,8 +247,8 @@ cmFileRC_t cmFileCompare( const cmChar_t* fn0, const cmChar_t* fn1, cmRpt_t* rpt
   cmFileH_t  h0         = cmFileNullHandle;
   cmFileH_t  h1         = cmFileNullHandle;
 
-  char       b0[ bufByteCnt ];
-  char       b1[ bufByteCnt ];
+  char b0[ bufByteCnt ];
+  char b1[ bufByteCnt ];
 
   assert(isEqualPtr != NULL );
   *isEqualPtr = true;
@@ -253,14 +259,14 @@ cmFileRC_t cmFileCompare( const cmChar_t* fn0, const cmChar_t* fn1, cmRpt_t* rpt
   if((rc = cmFileOpen(&h1,fn1,kReadFileFl,rpt)) != kOkFileRC )
     goto errLabel;
 
-  cmFile_t*   p0 = _cmFileHandleToPtr(h0);
-  cmFile_t*   p1 = _cmFileHandleToPtr(h1);
+  cmFile_t* p0 = _cmFileHandleToPtr(h0);
+  cmFile_t* p1 = _cmFileHandleToPtr(h1);
 
   while(1)
   {
     size_t n0 = fread(b0,1,bufByteCnt,p0->fp);
     size_t n1 = fread(b1,1,bufByteCnt,p1->fp);
-    if( n0 != n1 || memcmp(b0,b1,n0)!=0 )
+    if( n0 != n1 || memcmp(b0,b1,n0) != 0 )
     {
       *isEqualPtr = false;
       break;
@@ -285,7 +291,7 @@ const cmChar_t* cmFileName( cmFileH_t h )
 
 cmFileRC_t cmFileFnWrite( const cmChar_t* fn, cmRpt_t* rpt, const void* buf, unsigned bufByteCnt )
 {
-  cmFileH_t h = cmFileNullHandle;
+  cmFileH_t  h = cmFileNullHandle;
   cmFileRC_t rc;
 
   if((rc = cmFileOpen(&h,fn,kWriteFileFl,rpt)) != kOkFileRC )
@@ -305,7 +311,7 @@ cmChar_t*  _cmFileToBuf( cmFileH_t h, unsigned nn, unsigned* bufByteCntPtr )
 
   unsigned  n   = cmFileByteCount(h);
   cmChar_t* buf = NULL;
-  cmFile_t*   p = _cmFileHandleToPtr(h);
+  cmFile_t* p   = _cmFileHandleToPtr(h);
  
 
   // if the file size calculation is ok
@@ -346,7 +352,7 @@ cmChar_t*  _cmFileToBuf( cmFileH_t h, unsigned nn, unsigned* bufByteCntPtr )
 
 cmChar_t* _cmFileFnToBuf( const cmChar_t* fn, cmRpt_t* rpt, unsigned nn, unsigned* bufByteCntPtr  )
 {
-  cmFileH_t h = cmFileNullHandle;
+  cmFileH_t h   = cmFileNullHandle;
   cmChar_t* buf = NULL;
 
   if( cmFileOpen(&h,fn,kReadFileFl | kBinaryFileFl,rpt) != kOkFileRC )
@@ -359,6 +365,128 @@ cmChar_t* _cmFileFnToBuf( const cmChar_t* fn, cmRpt_t* rpt, unsigned nn, unsigne
   
   return buf;
 }
+
+cmFileRC_t    cmFileCopy( 
+    const cmChar_t* srcDir, 
+    const cmChar_t* srcFn, 
+    const cmChar_t* srcExt, 
+    const cmChar_t* dstDir, 
+    const cmChar_t* dstFn, 
+    const cmChar_t* dstExt,
+    cmErr_t*        err)
+{
+  cmFileRC_t      rc        = kOkFileRC;
+  unsigned        byteCnt   = 0;
+  cmChar_t*       buf       = NULL;
+  const cmChar_t* srcPathFn = NULL;
+  const cmChar_t* dstPathFn = NULL;
+
+  // form the source path fn
+  if((srcPathFn = cmFsMakeFn(srcDir,srcFn,srcExt,NULL)) == NULL )
+  {
+    rc = cmErrMsg(err,kFileSysFailFileRC,"The soure file name for dir:%s name:%s ext:%s could not be formed.",cmStringNullGuard(srcDir),cmStringNullGuard(srcFn),cmStringNullGuard(srcExt));
+    goto errLabel;
+  }
+
+  // form the dest path fn
+  if((dstPathFn = cmFsMakeFn(dstDir,dstFn,dstExt,NULL)) == NULL )
+  {
+    rc = cmErrMsg(err,kFileSysFailFileRC,"The destination file name for dir:%s name:%s ext:%s could not be formed.",cmStringNullGuard(dstDir),cmStringNullGuard(dstFn),cmStringNullGuard(dstExt));
+    goto errLabel;
+  }
+
+  // verify that the source exists
+  if( cmFsIsFile(srcPathFn) == false )
+  {
+    rc = cmErrMsg(err,kOpenFailFileRC,"The source file '%s' does not exist.",cmStringNullGuard(srcPathFn));
+    goto errLabel;
+  }
+
+  // read the source file into a buffer
+  if((buf = cmFileFnToBuf(srcPathFn,err->rpt,&byteCnt)) == NULL )
+    rc = cmErrMsg(err,kReadFailFileRC,"Attempt to fill a buffer from '%s' failed.",cmStringNullGuard(srcPathFn));
+  else
+  {
+    // write the file to the output file
+    if( cmFileFnWrite(dstPathFn,err->rpt,buf,byteCnt) != kOkFileRC )
+      rc = cmErrMsg(err,kWriteFailFileRC,"An attempt to write a buffer to '%s' failed.",cmStringNullGuard(dstPathFn));    
+  }
+
+ errLabel:
+  // free the buffer
+  cmMemFree(buf);
+  cmFsFreeFn(srcPathFn);
+  cmFsFreeFn(dstPathFn);
+  return rc;
+
+}
+
+cmFileRC_t cmFileBackup( const cmChar_t* dir, const cmChar_t* name, const cmChar_t* ext, cmErr_t* err )
+{
+  cmFileRC_t      rc      = kOkFileRC;
+  cmChar_t*       newName = NULL;
+  const cmChar_t* newFn   = NULL;
+  unsigned        n       = 0;
+  const cmChar_t* srcFn   = NULL;
+
+  // form the name of the backup file
+  if((srcFn = cmFsMakeFn(dir,name,ext,NULL)) == NULL )
+  {
+    rc = cmErrMsg(err,kFileSysFailFileRC,"Backup source file name formation failed.");
+    goto errLabel;
+  }
+
+  // if the src file does not exist then there is nothing to do
+  if( cmFsIsFile(srcFn) == false )
+    return rc;
+
+  // break the source file name up into dir/fn/ext.
+  cmFileSysPathPart_t* pp = NULL;
+  if((pp = cmFsPathParts(srcFn)) == NULL || pp->fnStr==NULL)
+  {
+    rc = cmErrMsg(err,kFileSysFailFileRC,"The file name '%s' could not be parsed into its parts.",cmStringNullGuard(srcFn));
+    goto errLabel;
+  }
+
+  // iterate until a unique file name is found
+  for(n=0; 1; ++n)
+  {
+    cmFsFreeFn(newFn);
+
+    // generate a new file name
+    newName = cmTsPrintfP(newName,"%s_%i",pp->fnStr,n);
+    
+    // form the new file name into a complete path
+    if((newFn = cmFsMakeFn(pp->dirStr,newName,pp->extStr,NULL)) == NULL )
+    {
+      rc = cmErrMsg(err,kFileSysFailFileRC,"A backup file name could not be formed for the file '%s'.",cmStringNullGuard(newName));
+      goto errLabel;
+    }
+
+    // if the new file name is not already in use ...
+    if( cmFsIsFile(newFn) == false )
+    {
+      // .. then duplicate the file
+      if((rc = cmFileCopy(srcFn,NULL,NULL,newFn,NULL,NULL,err)) != kOkFileRC )
+        rc = cmErrMsg(err,rc,"The file '%s' could not be duplicated as '%s'.",cmStringNullGuard(srcFn),cmStringNullGuard(newFn));
+
+      break;
+    }
+
+
+  }
+
+ errLabel:
+
+  cmFsFreeFn(srcFn);
+  cmFsFreeFn(newFn);
+  cmMemFree(newName);
+  cmFsFreePathParts(pp);
+
+  return rc;
+
+}
+
 
 cmChar_t*  cmFileToBuf( cmFileH_t h, unsigned* bufByteCntPtr )
 { return _cmFileToBuf(h,0,bufByteCntPtr); }

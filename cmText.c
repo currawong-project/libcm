@@ -498,6 +498,26 @@ const cmChar_t* cmTextLastNonWhiteCharC( const cmChar_t* s )
 { return cmTextLastNonWhiteChar(s); }
 
 
+cmChar_t*       cmTextLastWhiteChar(  const cmChar_t* s )
+{
+  unsigned n;
+  if(s==NULL || (n = strlen(s)) == 0 )
+    return NULL;
+
+  cmChar_t* s0 = (cmChar_t*)s + n-1;
+
+  for(; s0>=s; --s0)
+    if( isspace(*s0) )
+      return s0;
+
+  return NULL;
+
+}
+
+const cmChar_t* cmTextLastWhiteCharC( const cmChar_t* s )
+{ return cmTextLastWhiteChar(s); }
+
+
 void cmTextShrinkS( cmChar_t* s, const cmChar_t* t, unsigned tn )
 { cmVOC_Shrink(s,strlen(s)+1,t,tn); }
 

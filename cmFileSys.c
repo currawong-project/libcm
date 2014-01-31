@@ -378,14 +378,13 @@ const cmChar_t* cmFileSysVMakeFn( cmFileSysH_t h, const cmChar_t* dir, const cmC
   va_list         vl_t;
   va_copy(vl_t,vl);
 
-  assert( fn != NULL );
-
   // get prefix directory length
   if( dir != NULL )
     n += strlen(dir) + 1;  // add 1 for ending sep
 
   // get file name length
-  n += strlen(fn);
+  if( fn != NULL )
+    n += strlen(fn);
 
   // get extension length
   if( ext != NULL )
@@ -423,12 +422,13 @@ const cmChar_t* cmFileSysVMakeFn( cmFileSysH_t h, const cmChar_t* dir, const cmC
 
 
   // copy out the file name
-  if(!_cmFileSysConcat(rp,n,pathSep,fn))
-  {
-    assert(0);
-    rc = _cmFileSysError(p,kAssertFailFsRC,0,"Assert failed.");
-    goto errLabel;
-  }
+  if( fn != NULL )
+    if(!_cmFileSysConcat(rp,n,pathSep,fn))
+    {
+      assert(0);
+      rc = _cmFileSysError(p,kAssertFailFsRC,0,"Assert failed.");
+      goto errLabel;
+    }
   
   // copy out the extension
   if( ext != NULL )

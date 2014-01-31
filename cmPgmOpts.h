@@ -198,7 +198,7 @@ extern "C" {
   // Get and set the current result code.
   cmPoRC_t    cmPgmOptRC( cmPgmOptH_t h, cmPoRC_t rc );
 
-  // Returns 'true' only if non- built-in options were selected
+  // Returns 'false' if only built-in options were selected otherwise returns true.
   bool cmPgmOptHandleBuiltInActions( cmPgmOptH_t h, cmRpt_t* rpt );
 
   void cmPgmOptPrintHelp(    cmPgmOptH_t h, cmRpt_t* rpt );

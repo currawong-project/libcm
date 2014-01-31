@@ -27,7 +27,9 @@ extern "C" {
     kHandleInvalidFileRC,
     kStatFailFileRC,
     kBufAllocFailFileRC,
-    kBufTooSmallFileRC
+    kBufTooSmallFileRC,
+    kFileSysFailFileRC,
+
   };
 
   typedef unsigned   cmFileRC_t;
@@ -116,6 +118,28 @@ extern "C" {
   // Same as cmFileToBuf() but accepts a file name argument.
   // 'rpt' is the report object to use for error reporting.
   cmChar_t*  cmFileFnToBuf( const cmChar_t* fn, cmRpt_t* rpt, unsigned* bufByteCntPtr );
+
+
+  // Copy the file named in srcDir/srcFn/srcExt to a file named dstDir/dstFn/dstExt.
+  // Note that srcExt/dstExt may be set to NULL if the file extension is included
+  // in srcFn/dstFn.  Likewise srcFn/dstFn may be set to NULL if the file name
+  // is included in srcDir/dstDir.
+  cmFileRC_t    cmFileCopy( 
+    const cmChar_t* srcDir, 
+    const cmChar_t* srcFn, 
+    const cmChar_t* srcExt, 
+    const cmChar_t* dstDir, 
+    const cmChar_t* dstFn, 
+    const cmChar_t* dstExt,
+    cmErr_t*        err);
+
+
+  // This function creates a backup copy of the file 'fn' by duplicating it into
+  // a file named fn_#.ext where # is an integer which makes the file name unique.
+  // The integers chosen with zero and are incremented until an
+  // unused file name is found in the same directory as 'fn'.
+  // If the file identified by 'fn' is not found then the function returns quietly.
+  cmFileRC_t cmFileBackup( const cmChar_t* dir, const cmChar_t* name, const cmChar_t* ext, cmErr_t* err );
   
   // Allocate and fill a zero terminated string from a file.
   // Set *bufByteCntPtr to count of bytes read into the buffer.=
