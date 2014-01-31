@@ -75,6 +75,7 @@ cmAudioErrRecd _cmAudioFileErrArray[] =
   { kInvalidBitWidthAfRC, "Invalid audio file bit width."},
   { kInvalidFileModeAfRC, "Invalid audio file mode."},
   { kInvalidHandleAfRC,   "Invalid audio file handle."},
+  { kInvalidChCountAfRC,  "Invalid channel index or count."},
   { kUnknownErrAfRC,      "Uknown audio file error."}
 };
 
@@ -696,18 +697,22 @@ cmRC_t     cmAudioFileCreate(  cmAudioFileH_t h, const cmChar_t* fn, double srat
       return rc;
 
   // all audio files are written as AIF's - if the file name is given some other extension then issue a warning
-  if( strlen(fn) && ((pp = cmFsPathParts(fn)) != NULL) )
+  if( fn!=NULL && strlen(fn) && ((pp = cmFsPathParts(fn)) != NULL) )
   {
     unsigned i;
-    unsigned n = strlen(pp->extStr);
+    unsigned n = pp->extStr==NULL ? 0 : strlen(pp->extStr);
     cmChar_t ext[n+1];
-    strcpy(ext,pp->extStr);
 
-    // convert the extension to upper case
-    for(i=0; i<n; ++i)
-      ext[i] = toupper(ext[i]);
+    if( pp->extStr != NULL )
+    {
+      strcpy(ext,pp->extStr);
 
-    if( strcmp(ext,"AIF") && strcmp(ext,"AIFF") )
+      // convert the extension to upper case
+      for(i=0; i<n; ++i)
+        ext[i] = toupper(ext[i]);
+    }
+
+    if( pp->extStr==NULL || (strcmp(ext,"AIF") && strcmp(ext,"AIFF")) )
       cmRptPrintf(p->err.rpt,"The AIF audio file '%s' is being written with a file extension other than 'AIF' or 'AIFF'.",cmStringNullGuard(fn));
       
     cmFsFreePathParts(pp);
@@ -844,6 +849,9 @@ cmRC_t _cmAudioFileReadInt( cmAudioFileH_t h, unsigned totalFrmCnt, unsigned chI
 
   if( rc != kOkAfRC )
     return rc;  
+
+  if( chIdx+chCnt > p->info.chCnt )
+    return _cmAudioFileError(p,kInvalidChCountAfRC);
 
   if( actualFrmCntPtr != NULL )
     *actualFrmCntPtr = 0;

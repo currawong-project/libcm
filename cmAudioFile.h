@@ -37,6 +37,7 @@ extern "C" {
     kInvalidBitWidthAfRC,
     kInvalidFileModeAfRC,
     kInvalidHandleAfRC,
+    kInvalidChCountAfRC,
     kUnknownErrAfRC
   };
 
