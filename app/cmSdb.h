@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
   /*
-    The data for this object is stored in a CSV file with the following column syntax.
+    The CSV file used to initialize a SDB object has the  following column syntax.
     
     Column Name     Type  Description
     ------ -------- ----- -----------------------------------------------------
@@ -46,17 +46,26 @@ extern "C" {
     kOkSdbRC,
     kLHeapFailSdbRC,
     kCsvFailSdbRC,
+    kFileSysFailSdbRC,
+    kAudioFileFailSdbRC,
     kSyntaxErrSdbRC,
     kInvalidRspIdxSdbRC,
-    kChPairNotFoundSdbRC
+    kInvalidSeqIdxSdbRC,
+    kChPairNotFoundSdbRC,
+    kRspEvtNotFoundSdbRC,
+    kAssertFailSdbRC,
+    kInvalidArgSdbRC
   };
 
   typedef cmHandle_t cmSdbH_t;
   typedef cmHandle_t cmSdbResponseH_t;
+  typedef cmHandle_t cmSdbSeqH_t;
 
   typedef cmRC_t     cmSdbRC_t;
-  extern cmSdbH_t cmSdbNullHandle_t;
-  extern cmSdbResponseH_t cmSdbResponseNullHandle_t;
+
+  extern cmSdbH_t         cmSdbNullHandle;
+  extern cmSdbResponseH_t cmSdbResponseNullHandle;
+  extern cmSdbSeqH_t      cmSdbSeqNullHandle;
   
   typedef struct
   {
@@ -77,12 +86,29 @@ extern "C" {
   } cmSdbEvent_t;
 
 
-  cmSdbRC_t cmSdbCreate( cmCtx_t* ctx,  cmSdbH_t* hp, const cmChar_t* audioDir, const cmChar_t* csvFn );
+  // Create an SDB object.  If 'csvFn' is non-NULL then an internal call is made to cmSdbLoad().
+  cmSdbRC_t cmSdbCreate( cmCtx_t* ctx,  cmSdbH_t* hp, const cmChar_t* csvFn, const cmChar_t* audioDir );
+
+  // Release an SDB object previously created via cmSdbCreate().
   cmSdbRC_t cmSdbDestroy( cmSdbH_t* hp );
 
   bool      cmSdbIsValid( cmSdbH_t h );
 
-  cmSdbRC_t cmSdbLoad( cmSdbH_t h, const cmChar_t* csvFn );
+  // Iinitialze the internal database from the CSV file 'csvFn'.
+  cmSdbRC_t cmSdbLoad( cmSdbH_t h, const cmChar_t* csvFn, const cmChar_t* audioDir );
+
+  // Time align all channel pairs by setting the onset times to 
+  // the minimum time among all the pairs and the offset times to
+  // the maximum among all the pairs.  This function is applied to all
+  // the events contained in the sample database.
+  cmSdbRC_t cmSdbSyncChPairs( cmSdbH_t h );
+
+  // Given a sample event unique id return a pointer to the associated record.
+  const cmSdbEvent_t* cmSdbEvent( cmSdbH_t h, unsigned uuid );
+
+  //================================================================================================
+  // Query Related functions
+  //
 
   // Select a set of events from the sample database.
   //
@@ -122,15 +148,23 @@ extern "C" {
   // which case a match will be triggered by fields where
   // the key text is not a substring of the field text.
   //
-  // All query response handles returned from this function
-  // should eventualy be released by the application via a call to
-  // cmSdbResponseFree().  
+  // pitchV[] contains an array of pitch values to match.
+  // The last value in pitchV[] must be kInvalidMidiPitch.
+  // If pitchV == NULL then all pitches match.  Note that
+  // to match non-pitched instruments set set one element
+  // of pitchV[] to -1.
+  //
+  // The application should release all query response handles 
+  // returned from this function via a call to cmSdbResponseFree().  
+  // cmSdbDestroy() will automatically release any response
+  // handles not previously release by cmSdbReponseFree().
   cmSdbRC_t cmSdbSelect( 
     cmSdbH_t         h,
     double           srate,      // event sample rate or 0 to ignore
     const cmChar_t** instrV,     // array of instrument labels to match
     const cmChar_t** srcV,       // array of 'src' labels to match
     const cmChar_t** notesV,     // array of text 'notes' to match
+    const unsigned*  pitchV,     // array of pitches terminated w/ kInvalidMidiPitch
     double           minDurSec,  // min event duration
     double           maxDurSec,  // max event duration or 0 to ignore
     unsigned         minChCnt,   // min ch cnt or 0 to ignore
@@ -155,10 +189,106 @@ extern "C" {
   cmSdbRC_t           cmSdbResponseFree(    cmSdbResponseH_t* rhp );
   void                cmSdbResponsePrint(   cmSdbResponseH_t  rh, cmRpt_t* rpt );
     
-  // Time align all channel pairs by setting the onset times to 
-  // the minimum time among all the pairs and the offset times to
-  // the maximum among all the pairs.
-  cmSdbRC_t cmSdbSyncChPairs( cmSdbH_t h );
+  //================================================================================================
+  // Sequence Related functions
+  //
+  typedef struct
+  {
+    unsigned uuid;     // uuid of sample data base envent.
+    double   begSec;   // Event start time in seconds.
+    double   durSec;   // Event duration in seconds.
+    double   gain;     // Event amplitude scaling factor.
+    unsigned outChIdx; // Output channel index.
+  } cmSdbSeqEvent_t;
+
+  // Generate a random sequence of events with a programmable
+  // density of events per second.
+  //
+  // 'minEvtPerSec' and 'maxEvtPerSec' specify the min and max count of events
+  // which may be initiated per second.
+  //
+  // The application should release all sequence handles 
+  // returned from this function via a call to cmSdbSeqFree().  
+  // cmSdbDestroy() will automatically release any sequence
+  // handles not previously release by cmSdbSeqFree().
+  //
+  // Note that the event selection is done with replacement.
+  // The same event may therefore be selected more than
+  // once.
+  cmSdbRC_t cmSdbSeqRand( 
+    cmSdbResponseH_t rh, 
+    unsigned         seqDurSecs, 
+    unsigned         seqChCnt, 
+    unsigned         minEvtPerSec, 
+    unsigned         maxEvtPerSec, 
+    cmSdbSeqH_t*     shp );
+
+  // Generate a sequence of serial events w/ gapSec seconds
+  // between each event.  Events longer than 'maxEvtDurSec'
+  // seconds are truncated to 'maxEvtDurSec'.
+  cmSdbRC_t cmSdbSeqSerial(
+    cmSdbResponseH_t rh,
+    unsigned         seqChCnt,
+    double           gapSec,    
+    double           maxEvtDurSec,
+    cmSdbSeqH_t*     shp );
+
+  // Generate a chord sequence by randomly selecting one event
+  // from each response handle. 
+  cmSdbRC_t cmSdbSeqChord(
+    cmSdbResponseH_t* rhp,           // one rhp[rn] query resonse per chord note
+    unsigned          rn,            // count of response handles in rhp[].
+    unsigned          seqChCnt,      // output sequence channel count
+    unsigned          maxEvtDurSec,  // maximum event duration or 0 to prevent truncation
+    cmSdbSeqH_t*      shp );
+
+  // Release a sequence.
+  cmSdbRC_t              cmSdbSeqFree( cmSdbSeqH_t* shp );
+
+  // Return the count of sequence events.
+  unsigned               cmSdbSeqCount( cmSdbSeqH_t sh );
+
+  // Return a pointer to a specified cmSdbSeqEvent_t record.
+  // where 0 <= index < cmSdbSeqCount(sh)
+  const cmSdbSeqEvent_t* cmSdbSeqEvent( cmSdbSeqH_t sh, unsigned index );
+
+  // Given a seqence index return the associate cmSdbEvent_t.
+  const cmSdbEvent_t* cmSdbSeqSdbEvent( cmSdbSeqH_t sh, unsigned index );
+
+  // Return the total duration of the sequence in seconds.
+  double              cmSdbSeqDurSeconds( cmSdbSeqH_t sh );
+
+  // Return the sample rate of the first event in the sequence that
+  // has a non-zero sample rate.  There is no guarantee that all
+  // of the other events in the sequence have the same sample rate
+  // unless this was enforced by the query response that the 
+  // sequence was generated from.
+  double              cmSdbSeqSampleRate( cmSdbSeqH_t sh );
+
+  // Generate an audio from a sequence and return it in
+  // a signal vector.
+  cmSdbRC_t cmSdbSeqToAudio( 
+    cmSdbSeqH_t  sh, 
+    unsigned     decayMs,        // decay rate for truncated events
+    double       noiseDb,        // (-70.0) pad signal with white noise to avoid digital silence
+    double       evtNormFact,    // normalize each sample event by normFact / abs(max(x[])) or 0 to skip normalization
+    cmSample_t** signalRef,      // *signalRef[*sigSmpCntRef * sh.chCnt] returned audio signal
+    unsigned*    sigSmpCntRef ); // count of frames in *signalRef
+
+  // Generate an audio file from a sequence vector.
+  cmSdbRC_t cmSdbSeqToAudioFn( 
+    cmSdbSeqH_t  sh, 
+    unsigned     decayMs,     // decay rate for truncated events
+    double       noiseDb,     // (-70.0) pad signal with white noise to avoid digital silence
+    double       evtNormFact, // normalize each sample event by normFact / abs(max(x[])) or 0 to skip normalization
+    double       normFact,    // total signal norm factor or 0.0 to skip normalization
+    const cmChar_t* fn,       // write the output signal to this audio file
+    unsigned bitsPerSample    // audio file bits per sample
+    ); 
+
+
+  // Print a sequence event listing.
+  void                   cmSdbSeqPrint( cmSdbSeqH_t sh, cmRpt_t* rpt );
 
   cmSdbRC_t cmSdbTest( cmCtx_t* ctx );
 
