@@ -310,6 +310,29 @@ unsigned  VECT_OP_FUNC(NormToMax)(    VECT_OP_TYPE* dp, unsigned dn )
   return i;
 }
 
+unsigned VECT_OP_FUNC(NormToAbsMax)(   VECT_OP_TYPE* dp, unsigned dn, VECT_OP_TYPE fact )
+{
+  if( dn == 0 )
+    return cmInvalidIdx;
+
+  unsigned     i  = 0;
+  unsigned     mi = 0;
+  VECT_OP_TYPE mx = fabs(dp[0]);
+
+  for(i=1; i<dn; ++i)
+    if( fabs(dp[i])>mx )
+    {
+      mi = i;
+      mx = fabs(dp[i]);
+    }
+
+  VECT_OP_FUNC(MultVS)(dp,dn,fact/mx);
+  
+  return mi;
+  
+}
+
+
 VECT_OP_TYPE  VECT_OP_FUNC(AlphaNorm)(const VECT_OP_TYPE* sp, unsigned sn, VECT_OP_TYPE alpha )
 {
   double sum = 0;
@@ -1902,6 +1925,15 @@ VECT_OP_TYPE VECT_OP_FUNC(SynthPinkNoise)( VECT_OP_TYPE* dbp, unsigned n, VECT_O
   }
   return *sp;
 }
+
+VECT_OP_TYPE*  VECT_OP_FUNC(LinSpace)( VECT_OP_TYPE* dbp, unsigned dn, VECT_OP_TYPE base, VECT_OP_TYPE limit )
+{
+  unsigned i = 0;
+  for(; i<dn; ++i)
+    dbp[i] = base + i*(limit-base)/(dn-1);
+  return dbp;
+}
+
 
 VECT_OP_TYPE* VECT_OP_FUNC(LinearToDb)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sp, VECT_OP_TYPE mult )
 {

@@ -55,6 +55,9 @@ VECT_OP_TYPE*  VECT_OP_FUNC(VarianceM)(VECT_OP_TYPE* dp,  const VECT_OP_TYPE* sp
 // dp[] ./= max(dp). Returns the index of the max value.
 unsigned  VECT_OP_FUNC(NormToMax)(    VECT_OP_TYPE* dp, unsigned dn );
 
+// db[] .*= fact / abs(max(dp));
+unsigned VECT_OP_FUNC(NormToAbsMax)(   VECT_OP_TYPE* dp, unsigned dn, VECT_OP_TYPE fact );
+
 
 VECT_OP_TYPE  VECT_OP_FUNC(AlphaNorm)(const VECT_OP_TYPE* sp, unsigned sn, VECT_OP_TYPE alpha );
 
@@ -382,6 +385,9 @@ unsigned      VECT_OP_FUNC(SynthPhasor)(    VECT_OP_TYPE* dbp, unsigned dn, unsi
 
 /// Return value should be passed back via delaySmp on the next call.
 VECT_OP_TYPE  VECT_OP_FUNC(SynthPinkNoise)( VECT_OP_TYPE* dbp, unsigned dn, VECT_OP_TYPE delaySmp );
+
+/// Same as Matlab linspace() v[i] = i * (limit-1)/n
+VECT_OP_TYPE*  VECT_OP_FUNC(LinSpace)( VECT_OP_TYPE* dbp, unsigned dn, VECT_OP_TYPE base, VECT_OP_TYPE limit );
 
 VECT_OP_TYPE* VECT_OP_FUNC(LinearToDb)(    VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sp, VECT_OP_TYPE mult );
 VECT_OP_TYPE* VECT_OP_FUNC(dBToLinear)(    VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sp, VECT_OP_TYPE mult );
