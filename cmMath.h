@@ -62,6 +62,9 @@ float              cmFfSwapUIntToFloat( unsigned v );
 unsigned long long cmFfSwapDoubleToULLong( double v );
 double             cmFfSwapULLongToDouble( unsigned long long v );
 
-
-
+//=================================================================
+int      cmRandInt( int min, int max );
+unsigned cmRandUInt( unsigned min, unsigned max );
+float    cmRandFloat( float min, float max );
+double   cmRandDouble( double min, double max );
 #endif

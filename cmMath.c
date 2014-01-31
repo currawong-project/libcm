@@ -391,3 +391,31 @@ double             cmFfSwapULLongToDouble( unsigned long long v )
   u.u = cmSwap64(v);
   return u.f;
 }
+
+int      cmRandInt( int min, int max )
+{
+  assert( min <= max );
+  int offs = max - min;
+  return min + cmMax(0,cmMin(offs,(int)round(offs * (double)rand() / RAND_MAX)));
+}
+
+unsigned cmRandUInt( unsigned min, unsigned max )
+{
+  assert( min <= max );
+  unsigned offs = max - min;
+  return min + cmMax(0,cmMin(offs,(unsigned)round(offs * (double)rand() / RAND_MAX)));
+}
+
+float    cmRandFloat( float min, float max )
+{
+  assert( min <= max );
+  float offs = max - min;
+  return min + cmMax(0,cmMin(offs,(float)(offs * (double)rand() / RAND_MAX)));
+}
+
+double   cmRandDouble( double min, double max )
+{
+  assert( min <= max );
+  double offs = max - min;
+  return min + cmMax(0,cmMin(offs,(offs * (double)rand() / RAND_MAX)));
+}
