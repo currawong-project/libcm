@@ -36,6 +36,7 @@ extern "C" {
     kLinuxFailFsRC,
     kInvalidDirFsRC,
     kGenFileFailFsRC,
+    kAccessFailFsRC
   };
 
 
@@ -64,6 +65,9 @@ extern "C" {
   const cmChar_t* cmFileSysPrefsDir( cmFileSysH_t h ); //< Return the operating system dependent preference data directory for this application.
   const cmChar_t* cmFileSysRsrcDir(  cmFileSysH_t h ); //< Return the operating system dependent application resource directory for this application.
   const cmChar_t* cmFileSysUserDir(  cmFileSysH_t h ); //< Return the operating system dependent user directory for this application.
+
+  // Check if a request to create a file will succeed.
+  bool cmFileSysCanWriteToDir( cmFileSysH_t h, const cmChar_t* dirStr );
 
   // Test the type of a file system object:
   //
@@ -202,6 +206,8 @@ extern "C" {
   const cmChar_t* cmFsPrefsDir();
   const cmChar_t* cmFsRsrcDir();
   const cmChar_t* cmFsUserDir();
+
+  bool            cmFsCanWriteToDir( const cmChar_t* dirStr );
 
   bool            cmFsIsDir(  const cmChar_t* dirStr );
   bool            cmFsIsFile( const cmChar_t* fnStr ); 

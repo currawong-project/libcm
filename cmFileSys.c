@@ -248,6 +248,24 @@ bool _cmFileSysIsDir( cmFs_t* p, const cmChar_t* dirStr )
   return S_ISDIR(s.st_mode);
 }
 
+bool cmFileSysCanWriteToDir( cmFileSysH_t h, const cmChar_t* dirStr )
+{
+  cmFs_t*     p = _cmFileSysHandleToPtr(h);
+  int result;
+
+  errno = 0;
+
+  if((result = access(dirStr,W_OK)) == 0 )
+    return true;
+
+  if( result == EACCES || result==EROFS )
+    return false;
+
+  _cmFileSysError( p, kAccessFailFsRC, errno, "'access' failed on '%s'.",dirStr);
+
+  return false;  
+}
+
 bool cmFileSysIsDir( cmFileSysH_t h, const cmChar_t* dirStr )
 {
   cmFs_t*     p = _cmFileSysHandleToPtr(h);
@@ -1128,6 +1146,9 @@ const cmChar_t*      cmFsRsrcDir()
 
 const cmChar_t*      cmFsUserDir()
 { return cmFileSysUserDir(_cmFsH); }
+
+bool                cmFsCanWriteToDir( const cmChar_t* dirStr )
+{ return cmFileSysCanWriteToDir(_cmFsH,dirStr); }
 
 bool                 cmFsIsDir(  const cmChar_t* dirStr )
 { return cmFileSysIsDir(_cmFsH,dirStr); }
