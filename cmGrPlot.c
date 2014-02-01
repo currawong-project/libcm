@@ -187,7 +187,7 @@ void _cmGrPlotObjSetupCbArg( cmGrPlotCbArg_t* a, cmGrPlotObj_t* op, cmGrPlCbSelI
   cmGrPlObjH_t    oH;
   oH.h = op;
 
-  memset(a,0,sizeof(a));
+  memset(a,0,sizeof(*a));
   a->ctx   = op->p->ctx;
   a->cbArg = op->cbArg;
   a->selId = selId;
