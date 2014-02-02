@@ -892,7 +892,8 @@ cmSdbRC_t  _cmSdbStoreSeqEvent(
   double           limitEvtDurSecs,
   double*          durSecsRef )
 {
-  cmSdbRC_t rc = kOkSdbRC;
+  cmSdbRC_t rc            = kOkSdbRC;
+  double    maxEvtDurSecs = 0;
 
   // retrieve the event record
   const cmSdbEvent_t* ep;
@@ -905,7 +906,6 @@ cmSdbRC_t  _cmSdbStoreSeqEvent(
   cmSdbResponseH_t rh0           = cmSdbResponseNullHandle;
   unsigned         rn0           = 0;
   unsigned         ci            = 0;
-  double           maxEvtDurSecs = 0;
 
   // locate the channel pairs for 'ep'.
   if( seqChCnt>1 && ep->chCnt>1 )
