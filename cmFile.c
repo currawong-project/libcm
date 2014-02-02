@@ -423,11 +423,12 @@ cmFileRC_t    cmFileCopy(
 
 cmFileRC_t cmFileBackup( const cmChar_t* dir, const cmChar_t* name, const cmChar_t* ext, cmErr_t* err )
 {
-  cmFileRC_t      rc      = kOkFileRC;
-  cmChar_t*       newName = NULL;
-  const cmChar_t* newFn   = NULL;
-  unsigned        n       = 0;
-  const cmChar_t* srcFn   = NULL;
+  cmFileRC_t           rc      = kOkFileRC;
+  cmChar_t*            newName = NULL;
+  const cmChar_t*      newFn   = NULL;
+  unsigned             n       = 0;
+  const cmChar_t*      srcFn   = NULL;
+  cmFileSysPathPart_t* pp      = NULL;
 
   // form the name of the backup file
   if((srcFn = cmFsMakeFn(dir,name,ext,NULL)) == NULL )
@@ -441,7 +442,6 @@ cmFileRC_t cmFileBackup( const cmChar_t* dir, const cmChar_t* name, const cmChar
     return rc;
 
   // break the source file name up into dir/fn/ext.
-  cmFileSysPathPart_t* pp = NULL;
   if((pp = cmFsPathParts(srcFn)) == NULL || pp->fnStr==NULL)
   {
     rc = cmErrMsg(err,kFileSysFailFileRC,"The file name '%s' could not be parsed into its parts.",cmStringNullGuard(srcFn));
