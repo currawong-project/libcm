@@ -41,6 +41,7 @@
 #include "cmTimeLine.h"
 #include "cmScore.h"
 #include "cmProc4.h"
+#include "cmProc5.h"
 #include "cmSyncRecd.h"
 
 enum
