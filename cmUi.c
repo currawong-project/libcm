@@ -618,7 +618,7 @@ cmUiRC_t _cmUiCreateCtl( cmUi_t* p, unsigned appId, unsigned panelId, cmUiCId_t 
   else
   {
     if( cmArrayIsValid(ap->ctlArrH) == false || usrId >= cmArrayCount(ap->ctlArrH) )
-      ctl                            = cmArrayClr(cmUiCtl_t,ap->ctlArrH,usrId);
+      ctl = cmArrayClr(cmUiCtl_t,ap->ctlArrH,usrId);
     else
     {
       ctl = cmArrayPtr(cmUiCtl_t,ap->ctlArrH,usrId);
@@ -1501,6 +1501,19 @@ cmUiRC_t cmUiClearPanel( cmUiH_t uiH, unsigned appId, unsigned panelId )
   return rc;
 }
 
+cmUiRC_t cmUiSelectPanel( cmUiH_t uiH, const cmChar_t* label )
+{
+  cmUiRC_t rc = kOkUiRC;
+  cmUi_t*  p  = _cmUiHandleToPtr(uiH);
+
+  
+
+
+  return rc;
+  
+}
+
+
 cmUiRC_t cmUiNextRect(    cmUiH_t uiH, unsigned appId, unsigned panelId, int x, int y, int w, int h )
 {
   cmUi_t*      p  = _cmUiHandleToPtr(uiH);
@@ -2093,6 +2106,29 @@ const cmChar_t* cmUiListEleLabel( cmUiH_t uiH, unsigned appId, unsigned id, unsi
     return NULL;
 
   return cmArrayPtr(cmUiListEle_t, ctl->idArrH, index )->label;
+}
+
+unsigned cmUiListEleLabelToIndex( cmUiH_t uiH, unsigned appId, unsigned id, const cmChar_t* label )
+{
+  cmUi_t*      p  = _cmUiHandleToPtr(uiH);
+  cmUiCtl_t*   ctl;
+  cmUiRC_t     rc;
+  unsigned     i,n;
+
+  if( label == NULL )
+    return cmInvalidIdx;
+
+  if((rc = _cmUiFastFindCtl(p,appId,id,&ctl,true)) != kOkUiRC )
+    return cmInvalidIdx;
+
+  if( cmArrayIsValid( ctl->idArrH )==false || (n = cmArrayCount( ctl->idArrH))==0 )
+    return cmInvalidIdx;
+
+  for(i=0; i<n; ++i)
+    if( cmTextCmp(cmArrayPtr(cmUiListEle_t, ctl->idArrH, i )->label,label) == 0 )
+      return i;
+
+  return cmInvalidIdx;
 }
 
 

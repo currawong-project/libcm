@@ -88,7 +88,7 @@ extern "C" {
     
     4) Come up with a threading model. For example maybe 
     control creation should use a blocking scheme since it is
-    generally to time consuming to do during real-time operation
+    generally too time consuming to do during real-time operation
     anyway.  If the control flow generated from driver event
     callbacks then allows value, but not structural changes,
     then non blocking will be necessary.
@@ -247,6 +247,8 @@ extern "C" {
   // Destroy all the controls in a panel.
   cmUiRC_t cmUiClearPanel( cmUiH_t uiH, unsigned appId, unsigned panelId );
 
+  cmUiRC_t cmUiSelectPanel( cmUiH_t uiH, const cmChar_t* label );
+
   //------------------------------------------------------------------------------------------
   // Location: 
 
@@ -376,6 +378,7 @@ extern "C" {
   unsigned        cmUiListEleCount( cmUiH_t uiH, unsigned appId, unsigned id );
   unsigned        cmUiListEleId(    cmUiH_t uiH, unsigned appId, unsigned id, unsigned index );
   const cmChar_t* cmUiListEleLabel( cmUiH_t uiH, unsigned appId, unsigned id, unsigned index );
+  unsigned        cmUiListEleLabelToIndex( cmUiH_t uiH, unsigned appId, unsigned id, const cmChar_t* label );
 
   // Query/set the current error state.
   cmUiRC_t   cmUiLastRC( cmUiH_t uiH );
