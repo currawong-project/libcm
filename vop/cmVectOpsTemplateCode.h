@@ -2170,7 +2170,7 @@ VECT_OP_TYPE* VECT_OP_FUNC(Filter)(
   if( yn > xn )
     VECT_OP_FUNC(Fill)(y+i,yn-i,0);
 
-  return cmOkRC;
+  return y;
   
 }
 
