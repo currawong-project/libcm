@@ -878,8 +878,16 @@ bool VECT_OP_FUNC(IsClose)( const VECT_OP_TYPE* s0p, const VECT_OP_TYPE* s1p, un
   const VECT_OP_TYPE* ep = s0p + sn;
   for(; s0p < ep; ++s0p,++s1p )
   {
-    double d = abs(*s1p - *s0p);
+    double d = *s1p - *s0p;
     double s = cmMin(*s1p,*s0p);
+
+    // take abs value of d and s
+    if( d < 0 )
+      d *= -1;
+
+    if( s < 0 )
+      s *= -1;
+
     if( d*100.0/s > pct )
       return false;
   }
