@@ -291,6 +291,98 @@ cmDspRC_t _cmDspSysPgm_PlayFile( cmDspSysH_t h, void** userPtrPtr )
 }
 
 
+cmDspRC_t _cmDspSysPgm_MultiOut( cmDspSysH_t h, void** userPtrPtr )
+{
+  cmDspRC_t    rc           = kOkDspRC;
+  double       frqHz        = 440.0;
+  unsigned     chCnt        = 8;
+  unsigned     oneOfN_chCnt = 2;
+  double       offs         = 34612504;
+  cmDspInst_t* aout[chCnt];
+  unsigned     i;
+
+  const char*     fn0   = "media/audio/20110723-Kriesberg/Audio Files/Piano 3_23.wav";
+  const cmChar_t* fn    = cmFsMakeFn(cmFsUserDir(),fn0,NULL,NULL );
+
+  cmDspInst_t* f_phs = cmDspSysAllocInst(h,"Phasor",   NULL,  0 );
+  cmDspInst_t* f_wt  = cmDspSysAllocInst(h,"WaveTable",NULL,  2, ((int)cmDspSysSampleRate(h)), 1 );
+  cmDspInst_t* f_mtr = cmDspSysAllocInst(h,"AMeter",    "File Out",  0);
+
+  cmDspInst_t* f_rew = cmDspSysAllocInst(h,"Button", "Rewind",  2, kButtonDuiId, 1.0 );
+  cmDspInst_t* f_pts = cmDspSysAllocInst(h,"PortToSym", NULL, 1, "on" );
+  cmDspInst_t* f_beg = cmDspSysAllocInst(h,"Scalar", "File Begin",  5, kNumberDuiId, 0.0,  cmDspSysSampleRate(h)*6000.0, 1.0,  offs);
+  cmDspInst_t* f_nam = cmDspSysAllocInst(h,"Fname",    NULL,  3, false,"Audio Files (*.wav,*.aiff,*.aif)\tAudio Files (*.{wav,aiff,aif})",fn);
+
+
+  cmDspInst_t* s_phs = cmDspSysAllocInst(h,"Phasor",    NULL,   2, cmDspSysSampleRate(h), frqHz );
+  cmDspInst_t* s_wt  = cmDspSysAllocInst(h,"WaveTable", NULL,   2, ((int)cmDspSysSampleRate(h)), 4);
+  cmDspInst_t* s_mtr = cmDspSysAllocInst(h,"AMeter",    "Tone Out",  0);
+
+  cmDspInst_t* swtch = cmDspSysAllocInst(h,"1ofN",      NULL,   2, oneOfN_chCnt, 0 );
+
+  for(i=0; i<chCnt; ++i)
+    aout[i] = cmDspSysAllocInst(h,"AudioOut",NULL,   1, i );
+
+  cmDspInst_t*  chck = cmDspSysAllocInst(h,"Checkbox", "Source", 5, "Tone","file","tone", 0.0, 1.0);
+  cmDspInst_t** vol  = cmDspSysAllocInstArray(h,chCnt,"Scalar", "Gain", NULL, 5, kNumberDuiId, 0.0,  10.0, 0.01,  0.0 );
+
+  // check for allocation errors
+  if((rc = cmDspSysLastRC(h)) != kOkDspRC )
+    goto errLabel;
+
+  cmDspSysConnectAudio(     h, s_phs, "out",  s_wt,  "phs" );          // sine phasor -> wave table
+  cmDspSysConnectAudio(     h, s_wt,  "out",  s_mtr, "in" );           // sine wave table -> meter
+  cmDspSysConnectAudio(     h, s_wt,  "out",  swtch, "a-in-1");
+
+  cmDspSysConnectAudio(     h, f_phs, "out", f_wt,  "phs" );          // file phasor -> wave table
+  cmDspSysConnectAudio(     h, f_wt, "out",  f_mtr, "in" );           // file wave table -> meter
+  cmDspSysConnectAudio(     h, f_wt, "out",  swtch, "a-in-0");
+
+  cmDspSysConnectAudio11N1( h, swtch, "a-out", aout, "in",   chCnt );
+  cmDspSysInstallCbN1N1(    h, vol,   "val",   aout, "gain", chCnt );
+
+  cmDspSysInstallCb( h, chck,  "out", swtch, "chidx", NULL );
+  cmDspSysInstallCb( h, f_nam, "out", f_wt,  "fn",    NULL );    
+  cmDspSysInstallCb( h, f_beg, "val", f_wt,  "beg",   NULL ); 
+  cmDspSysInstallCb( h, f_rew, "out", f_pts, "on",    NULL );
+  cmDspSysInstallCb( h, f_pts, "on",  f_beg, "send",  NULL );
+  cmDspSysInstallCb( h, f_pts, "on",  f_nam, "send",  NULL );
+  cmDspSysInstallCb( h, f_pts, "on",  f_wt,  "cmd",   NULL );
+
+ errLabel:
+  return rc;
+}
+
+cmDspRC_t _cmDspSysPgm_MultiIn(cmDspSysH_t h, void** userPtrPtr)
+{
+  int          chCnt = 8;
+  cmDspInst_t* a[chCnt];
+  int i;
+  for(i=0; i<chCnt; ++i)
+    a[i]   = cmDspSysAllocInst( h, "AudioIn", NULL,  1, i );
+  
+  cmDspInst_t* mxp   = cmDspSysAllocInst( h, "AMix",         NULL, chCnt+1, chCnt, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 );   
+  cmDspInst_t* afp   = cmDspSysAllocInst( h, "AudioFileOut", NULL, 2,"/home/kevin/temp/at/test_in.aif",1);
+  cmDspInst_t* aop   = cmDspSysAllocInst( h, "AudioOut",     NULL, 1, 0 );
+
+  // AudioFileOut needs an open message to create the output file
+  cmDspInst_t* btn   = cmDspSysAllocInst( h, "Button",      "open",  2, kButtonDuiId, 1.0 );
+  cmDspSysAssignInstAttrSymbolStr(h, btn, "_reset" );
+  cmDspInst_t* pts = cmDspSysAllocInst(h,"PortToSym", NULL, 1, "open" );
+
+
+  cmDspSysConnectAudioN11N(h, a,   "out", mxp, "in", chCnt );
+  cmDspSysConnectAudio(    h, mxp, "out", afp,  "in0" );
+  cmDspSysConnectAudio(    h, mxp, "out", aop,  "in" );
+
+  cmDspSysInstallCb( h, btn, "sym",  pts, "open", NULL );
+  cmDspSysInstallCb( h, pts, "open", afp, "sel",  NULL );
+
+  
+  return kOkDspRC;
+}
+
+
 cmDspRC_t _cmDspSysPgm_GateDetect( cmDspSysH_t h, void** userPtrPtr )
 {
   bool            useBuiltInFl = true;
@@ -345,6 +437,11 @@ cmDspRC_t _cmDspSysPgm_Record(cmDspSysH_t h, void** userPtrPtr)
   cmDspInst_t* txp   = cmDspSysAllocInst( h, "TextFile",     NULL,       2, 1, "/home/kevin/temp/gate_detect.txt");
   cmDspInst_t* chp   = cmDspSysAllocInst( h, "Scalar",       "Channel",  5, kNumberDuiId, 0.0,  7.0, 1.0,  0.0);
   
+  // AudioFileOut needs an open message to create the output file
+  cmDspInst_t* btn   = cmDspSysAllocInst( h, "Button",      "open",  2, kButtonDuiId, 1.0 );
+  cmDspSysAssignInstAttrSymbolStr(h, btn, "_reset" );
+  cmDspInst_t* pts = cmDspSysAllocInst(h,"PortToSym", NULL, 1, "open" );
+
   for(i=0; i<chCnt; ++i)
   {
     cmChar_t lbl[15];
@@ -357,6 +454,9 @@ cmDspRC_t _cmDspSysPgm_Record(cmDspSysH_t h, void** userPtrPtr)
 
   cmDspSysInstallCb(h, chp, "out", txp, "in-0", NULL);
   
+  cmDspSysInstallCb( h, btn, "sym",  pts, "open", NULL );
+  cmDspSysInstallCb( h, pts, "open", afp, "sel",  NULL );
+
   return kOkDspRC;
 }
 
@@ -2565,6 +2665,8 @@ cmDspRC_t _cmDspSysPgm_Goertzel( cmDspSysH_t h, void** userPtrPtr )
 _cmDspSysPgm_t _cmDspSysPgmArray[] = 
 {
   { "time_line",     _cmDspSysPgm_TimeLine,     NULL, NULL },
+  { "multi-out",     _cmDspSysPgm_MultiOut,     NULL, NULL },
+  { "multi-in",      _cmDspSysPgm_MultiIn,     NULL, NULL },
   { "goertzel",      _cmDspSysPgm_Goertzel,     NULL, NULL },
   { "kr_live",       _cmDspSysPgm_KrLive,       NULL, NULL },
   { "main",          _cmDspSysPgm_Main,         NULL, NULL },
