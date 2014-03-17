@@ -82,6 +82,12 @@ extern "C" {
 #define cmMidiIsStatus( s )   (kNoteOffMdId <= (s) /*&& ((unsigned)(s)) <= kSysRtResetMdId*/ )
 #define cmMidiIsChStatus( s ) (kNoteOffMdId <= (s) && (s) <  kSysExMdId)
 
+#define cmMidiIsNoteOn( s )      ( kNoteOnMdId <= (s) && (s) <= (kNoteOnMdId + kMidiChCnt) )
+#define cmMidiIsNoteOff( s, d1 ) ( cmMidiIsNoteOn(s) && (d1)==0 || kNoteOffMdId <= (s) && (s) <= (kNoteOffMdId + kMidiChCnt) )
+#define cmMidiIsCtl( s )         ( kCtlMdId <= (s) && (s) <= (kCtlMdId + kMidiChCnt) )
+#define cmMidiIsSustainPedal(     s, d0 )    ( kCtlMdId <= (s) && (s) <= (kCtlMdId + kMidiChCnt) && (d0)== kSustainCtlMdId )
+#define cmMidiIsSustainPedalDown( s, d0, d1) ( cmMidiIsSustainPedal(s,d0) && (d1)>=64 )
+#define cmMidiIsSustainPedalUp(   s, d0, d1) ( cmMidiIsSustainPedal(s,d0) && (d1)<64 )
 
   const char*   cmMidiStatusToLabel(     cmMidiByte_t status );
   const char*   cmMidiMetaStatusToLabel( cmMidiByte_t metaStatus );
