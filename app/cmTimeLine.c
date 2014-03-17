@@ -668,11 +668,14 @@ cmTlRC_t _cmTlProcMidiFile( _cmTl_t* p,  _cmTlObj_t* op, cmMidiFileH_t mfH )
     //  printf("%s: bsi:%9i acc:%f smp acc:%f min %s\n", mp->status == kNoteOnMdId?"non":"   ", begSmpIdx, accum, accum / (p->srate * 60),cmStringNullGuard(mfp->obj.name));
 
     // count the note-on messages
-    if( mp->status == kNoteOnMdId )
+    if( cmMidiIsNoteOn(mp->status) )
     {
       durSmpCnt = mp->u.chMsgPtr->durTicks;
       ++mfp->noteOnCnt;
     }
+
+    if( cmMidiIsCtl(mp->status) && cmMidiIsSustainPedal(mp->status,mp->u.chMsgPtr->d0) )
+      durSmpCnt = mp->u.chMsgPtr->durTicks;
 
     // allocate the generic time-line object record
     if((rc = _cmTlAllocRecd2(p, NULL, refOp, begSmpIdx, durSmpCnt, kMidiEvtTlId, mfp->obj.seqId, recdByteCnt, &meop)) != kOkTlRC )
