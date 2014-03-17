@@ -2487,6 +2487,7 @@ enum
   kDirFnId,
   kPatFnId,
   kValFnId,
+  kSendFnId
 };
 
 cmDspClass_t _cmFnameDC;
@@ -2510,6 +2511,8 @@ cmDspInst_t*  _cmDspFnameAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     { "dir",  kDirFnId,  0, 0, kInDsvFl  | kReqArgDsvFl | kBoolDsvFl, "Dir=true Filename=false" },
     { "pat",  kPatFnId,  0, 0, kInDsvFl  | kOptArgDsvFl | kStrzDsvFl, "File pattern string (e.g. HTML Files (*.html)\tImage Files (*.{bmp,gif,jpg,png}))" },
     { "out",  kValFnId,  0, 0, kOutDsvFl | kOptArgDsvFl | kStrzDsvFl, "Current file or directory name." },
+    { "send", kSendFnId, 0, 0, kInDsvFl  | kTypeDsvMask, "Send file name on any msg."},
+
     { NULL, 0, 0, 0, 0 }
   };
 
@@ -2536,6 +2539,10 @@ cmDspRC_t _cmDspFnameRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
 
   switch( evt->dstVarId )
   {
+    case kSendFnId:
+      cmDspSetStrcz(ctx, inst, kValFnId, cmDspStrcz(inst,kValFnId) );
+      break;
+
     case kDirFnId:
     case kPatFnId:
     case kValFnId:
