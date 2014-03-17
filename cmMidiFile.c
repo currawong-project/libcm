@@ -1193,6 +1193,15 @@ void _cmMidFileCalcNoteDurationReleaseNote( _cmMidiVoice_t** listPtrPtr, _cmMidi
   
 }
 
+void  _cmMidiFileCalcNoteDurationsAllocVoice( _cmMidiVoice_t** listPtrPtr, cmMidiTrackMsg_t* mp, bool sustainFl )
+{
+  _cmMidiVoice_t* vp = cmMemAllocZ(_cmMidiVoice_t,1);
+  vp->mp        = mp;
+  vp->sustainFl = sustainFl;
+  vp->link      = *listPtrPtr;
+  *listPtrPtr   = vp;
+}
+
 void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
 {
   _cmMidiFile_t* p;
@@ -1231,8 +1240,12 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
       // set the state of the sustain pedal flags
       sustainFlagV[chIdx] = mp->u.chMsgPtr->d1 >= 64;
 
-      // if the pedal went up ...
-      if( sustainFlagV[chIdx] == false )
+      // if the pedal went down ...
+      if( sustainFlagV[chIdx]  )
+      {
+        _cmMidiFileCalcNoteDurationsAllocVoice( &list, mp, true );
+      }
+      else // ... if the pedal went up
       {
         // ... then release sustaining notes
         _cmMidiVoice_t* pp = NULL;
@@ -1254,11 +1267,7 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
     //
     if( mp->status==kNoteOnMdId && mp->u.chMsgPtr->d1>0 )
     {
-      vp = cmMemAllocZ(_cmMidiVoice_t,1);
-      vp->mp        = mp;
-      vp->sustainFl = false;
-      vp->link      = list;
-      list          = vp;
+      _cmMidiFileCalcNoteDurationsAllocVoice( &list, mp, false );
     }
     else
       //
@@ -1298,7 +1307,10 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
   while( vp != NULL )
   {
     np = vp->link;    
-    cmErrMsg(&p->err,kMissingNoteOffMfRC,"Missing note-off for note-on:%s",cmMidiToSciPitch(vp->mp->u.chMsgPtr->d0,NULL,0));
+
+    if( cmMidiIsNoteOn(vp->mp->status) == false )
+      cmErrMsg(&p->err,kMissingNoteOffMfRC,"Missing note-off for note-on:%s",cmMidiToSciPitch(vp->mp->u.chMsgPtr->d0,NULL,0));
+
     cmMemFree(vp);
     vp = np;
   }
