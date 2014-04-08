@@ -313,6 +313,10 @@ extern "C" {
   // Return a pointer the context record associated with a sub-system
   cmRtSysCtx_t* cmRtSysContext( cmRtSysH_t h, unsigned rtSubIdx );
 
+  // Enable non-block mode. In this mode audio I/O is disabled 
+  // and the DSP callback is made every noBlockSleepMs milliseconds.
+  cmRtRC_t cmRtSysEnableNoBlockMode( cmRtSysH_t h, unsigned rtSubIdx, bool enaFl, unsigned noBlockSleepMs );
+
   // Return the count of audio sub-systems.
   // This is the same as the count of cfg recds passed to cmRtSystemInitialize().
   unsigned cmRtSysSubSystemCount( cmRtSysH_t h );

@@ -51,6 +51,9 @@ typedef struct
   kRtCmdId_t       cmdId;       // written by app thread, read by rt thread
   unsigned         cbEnableFl;  // written by rt thread, read by app thread
 
+  bool             noBlockEnaFl;    // 
+  unsigned         noBlockSleepMs;
+
   double*     iMeterArray;      //  
   double*     oMeterArray;      //
 
@@ -295,8 +298,9 @@ void _cmRtDspExecCallback( _cmRtCfg_t* cp )
   //   1) Buffers associated with disabled input/output channels will be set to NULL in iChArray[]/oChArray[].
   //   2) Buffers associated with channels marked for pass-through will be set to NULL in oChArray[].
   //   3) All samples returned in oChArray[] buffers will be set to zero.
-  cmApBufGetIO(cp->ss.args.inDevIdx,  cp->ctx.iChArray, cp->ctx.iChCnt, &cp->ctx.iTimeStamp, 
-               cp->ss.args.outDevIdx, cp->ctx.oChArray, cp->ctx.oChCnt, &cp->ctx.oTimeStamp  );
+  if( cp->noBlockEnaFl == false )
+    cmApBufGetIO(cp->ss.args.inDevIdx,  cp->ctx.iChArray, cp->ctx.iChCnt, &cp->ctx.iTimeStamp, 
+      cp->ss.args.outDevIdx, cp->ctx.oChArray, cp->ctx.oChCnt, &cp->ctx.oTimeStamp  );
 
 
   // calling this function results in callbacks to _cmRtSysNetRecv()
@@ -344,8 +348,11 @@ void _cmRtDspExecCallback( _cmRtCfg_t* cp )
   }
 
   // advance the audio buffer
-  cmApBufAdvance( cp->ss.args.outDevIdx, kOutApFl );
-  cmApBufAdvance( cp->ss.args.inDevIdx,  kInApFl  );
+  if( cp->noBlockEnaFl == false )
+  {
+    cmApBufAdvance( cp->ss.args.outDevIdx, kOutApFl );
+    cmApBufAdvance( cp->ss.args.inDevIdx,  kInApFl  );
+  }
 
   // handle periodic status messages to the host
   if( (cp->statusUpdateSmpIdx += cp->ss.args.dspFramesPerCycle) >= cp->statusUpdateSmpCnt )
@@ -390,6 +397,7 @@ bool _cmRtThreadCallback(void* arg)
 {
   cmRtRC_t rc;
   _cmRtCfg_t*  cp = (_cmRtCfg_t*)arg;
+  bool noBlockFl = false;
 
   // lock the cmRtSys mutex
   if((rc = cmThreadMutexLock(cp->engMutexH)) != kOkRtRC )
@@ -401,16 +409,22 @@ bool _cmRtThreadCallback(void* arg)
   // runFl is always set except during finalization 
   while( cp->runFl )
   {
+    
 
     // if the buffer is NOT ready or the cmRtSys is disabled
     if(_cmRtBufIsReady(cp) == false || cp->cbEnableFl==false )
     {
       // block on the cond var and unlock the mutex
-      if( cmThreadMutexWaitOnCondVar(cp->engMutexH,false) != kOkRtRC )
+      if( noBlockFl )
+        cmSleepMs(cp->noBlockSleepMs);
+      else
       {
-        cmThreadMutexUnlock(cp->engMutexH);
-        _cmRtError(cp->p,rc,"The cmRtSys cond. var. wait failed.");
-        return false;
+        if( cmThreadMutexWaitOnCondVar(cp->engMutexH,false) != kOkRtRC )
+        {
+          cmThreadMutexUnlock(cp->engMutexH);
+          _cmRtError(cp->p,rc,"The cmRtSys cond. var. wait failed.");
+          return false;
+        }
       }
 
       //
@@ -418,13 +432,14 @@ bool _cmRtThreadCallback(void* arg)
       //
       ++cp->status.wakeupCnt;
     }
+    
+    noBlockFl = cp->noBlockEnaFl;
 
     // be sure we are still enabled and the buffer is still ready
     while( cp->runFl && _cmRtBufIsReady(cp) )
     {
       ++cp->status.audioCbCnt;
         
-
       // make the cmRtSys callback
       _cmRtDspExecCallback( cp ); 
         
@@ -495,7 +510,6 @@ void   _cmRtSysAudioUpdate( cmApAudioPacket_t* inPktArray, unsigned inPktCnt, cm
 
     // transfer incoming/outgoing samples from/to the audio device
     cmApBufUpdate(inPktArray,inPktCnt,outPktArray,outPktCnt);
-
    
     // generate a test signal
     //_cmRtGenSignal( cmApAudioPacket_t* outPktArray, unsigned outPktCnt, bool sineFl );
@@ -513,6 +527,17 @@ void   _cmRtSysAudioUpdate( cmApAudioPacket_t* inPktArray, unsigned inPktCnt, cm
         _cmRtError(cp->p,kMutexErrRtRC,"CmRtSys signal cond. var. failed.");
       
     }
+
+    if( cp->noBlockEnaFl )
+    {
+      cmApBufGetIO(cp->ss.args.inDevIdx,  cp->ctx.iChArray, cp->ctx.iChCnt, &cp->ctx.iTimeStamp, 
+        cp->ss.args.outDevIdx, cp->ctx.oChArray, cp->ctx.oChCnt, &cp->ctx.oTimeStamp  );
+
+      cmApBufAdvance( cp->ss.args.outDevIdx, kOutApFl );
+      cmApBufAdvance( cp->ss.args.inDevIdx,  kInApFl  );
+
+    }
+
   }
 
 }
@@ -895,14 +920,14 @@ cmRtRC_t cmRtSysCfg( cmRtSysH_t h, const cmRtSysSubSys_t* ss, unsigned rtSubIdx 
     cp->syncInputFl = true;
     
   // setup the status record
-  cp->status.hdr.rtSubIdx  = cp->ctx.rtSubIdx;
-  cp->status.iDevIdx   = ss->args.inDevIdx;
-  cp->status.oDevIdx   = ss->args.outDevIdx;
-  cp->status.iMeterCnt = cp->ctx.iChCnt;
-  cp->status.oMeterCnt = cp->ctx.oChCnt;
-  cp->iMeterArray      = cmMemAllocZ( double, cp->status.iMeterCnt );
-  cp->oMeterArray      = cmMemAllocZ( double, cp->status.oMeterCnt );
-  //cp->udpH             = cfg->udpH;
+  cp->status.hdr.rtSubIdx = cp->ctx.rtSubIdx;
+  cp->status.iDevIdx      = ss->args.inDevIdx;
+  cp->status.oDevIdx      = ss->args.outDevIdx;
+  cp->status.iMeterCnt    = cp->ctx.iChCnt;
+  cp->status.oMeterCnt    = cp->ctx.oChCnt;
+  cp->iMeterArray         = cmMemAllocZ( double, cp->status.iMeterCnt );
+  cp->oMeterArray         = cmMemAllocZ( double, cp->status.oMeterCnt );
+  cp->noBlockEnaFl        = false;
 
   // create the real-time system thread
   if((rc = cmThreadCreate( &cp->threadH, _cmRtThreadCallback, cp, ss->args.rpt )) != kOkThRC )
@@ -1236,6 +1261,25 @@ cmRtSysCtx_t* cmRtSysContext( cmRtSysH_t h, unsigned rtSubIdx )
 
   return &p->ssArray[rtSubIdx].ctx;
 }
+
+cmRtRC_t  cmRtSysEnableNoBlockMode( cmRtSysH_t h, unsigned rtSubIdx, bool enaFl, unsigned noBlockSleepMs )
+{
+  cmRt_t* p = _cmRtHandleToPtr(h);
+  cmRtRC_t rc = kOkRtRC;
+
+  if((rc = _cmRtSysVerifyInit(p,true)) != kOkRtRC )
+    return rc;
+
+  if( rtSubIdx >= p->ssCnt )
+    return cmErrMsg(&p->err,kInvalidArgRtRC,"Invalid 'rtSubIdx'. Enable non-block mode failed.");
+  
+  
+  p->ssArray[rtSubIdx].noBlockSleepMs = noBlockSleepMs;
+  p->ssArray[rtSubIdx].noBlockEnaFl   = enaFl;
+
+  return kOkRtRC;
+}
+
 
 unsigned cmRtSysSubSystemCount( cmRtSysH_t h )
 {
