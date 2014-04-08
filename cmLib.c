@@ -160,7 +160,20 @@ unsigned  cmLibOpen(  cmLibH_t h, const cmChar_t* libFn )
 
   if( _cmLibIsNull(lH) )
   {
-    cmErrMsg(&p->err,kOpenFailLibRC,"Library load failed. System Message: %s", _cmLibSysError() );
+    // There is apparently no way to get an error code which indicates that the
+    // file load attempt failed because the file was not a shared library - 
+    // which should not generate an error message - therefore
+    // we must match the end of the the error string returned by dlerror() with 
+    // 'invalid ELF header'.
+    const char* errMsg = _cmLibSysError();
+    const char* s      = "invalid ELF header";
+    unsigned    sn      = strlen(s);
+    unsigned    mn       = strlen(errMsg);
+    if( errMsg!=NULL && mn>sn && strcmp(errMsg+mn-sn,s)==0 )
+      cmErrSetRC(&p->err,kOpenFailLibRC ); // signal error but no error message
+    else
+      cmErrMsg(&p->err,kOpenFailLibRC,"Library load failed. System Message: %s", errMsg );
+
     return cmInvalidId;
   }
   
