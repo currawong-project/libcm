@@ -116,7 +116,7 @@ cmRC_t               cmAudioFileRdOpen(  cmAudioFileRd* p,  unsigned procSmpCnt,
     return cmCtxRtCondition( &p->obj, afRC, "Unable to open the audio file:'%s'", fn );
 
   p->chIdx          = chIdx;
-  p->outN           = procSmpCnt;
+  p->outN           = endFrmIdx==cmInvalidIdx ? p->info.frameCnt : procSmpCnt;
   p->outV           = cmMemResizeZ( cmSample_t, p->outV, p->outN );  
   p->fn             = cmMemResizeZ( cmChar_t,   p->fn,   strlen(fn)+1 );
   strcpy(p->fn,fn);  
