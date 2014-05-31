@@ -3495,6 +3495,7 @@ enum
 {
   kMaxCntMdId,
   kDelayMdId,
+  kClearMdId,
   kInMdId,
   kOutMdId,
 };
@@ -3522,8 +3523,9 @@ cmDspInst_t*  _cmDspMsgDelayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspMsgDelay_t* p = cmDspInstAllocV(cmDspMsgDelay_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl,
     1,   "maxcnt",  kMaxCntMdId,   0, 0,              kUIntDsvFl   | kReqArgDsvFl, "Maximum count of elements in the delay",
     1,   "delay",   kDelayMdId,    0, 0, kInDsvFl   | kDoubleDsvFl | kOptArgDsvFl, "Delay time in millisecond.",
-    1,   "in",      kInMdId,       0, 0, kInDsvFl   | kTypeDsvMask,                "Msg input",
-    1,   "out",     kOutMdId,      0, 0, kOutDsvFl  | kTypeDsvMask,                "Msg input",
+    1,   "clear",   kClearMdId,    0, 0, kInDsvFl   | kTypeDsvMask,                "Clear delay",
+    1,   "in",      kInMdId,       0, 0, kInDsvFl   | kUIntDsvFl,                "Msg input",
+    1,   "out",     kOutMdId,      0, 0, kOutDsvFl  | kUIntDsvFl,                "Msg output",
     0 );
 
   if( p == NULL )
@@ -3626,14 +3628,10 @@ cmDspRC_t  _cmDspMsgDelayInsert( cmDspCtx_t* ctx, cmDspMsgDelay_t* p, unsigned d
   return rc;
 }
 
-cmDspRC_t _cmDspMsgDelayReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+void _cmDspMsgDelayClear(cmDspInst_t* inst )
 {
-  cmDspRC_t        rc = kOkDspRC;
-  cmDspMsgDelay_t* p  = (cmDspMsgDelay_t*)inst;
-
-  if((rc  = cmDspApplyDefault(ctx,inst,kDelayMdId)) == kOkDspRC )
-  {
     unsigned i;
+    cmDspMsgDelay_t* p  = (cmDspMsgDelay_t*)inst;
     unsigned maxCnt = cmDspUInt(inst,kMaxCntMdId);
     p->active = NULL;
     p->avail  = NULL;
@@ -3644,6 +3642,15 @@ cmDspRC_t _cmDspMsgDelayReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
       p->array[i].link = p->avail;
       p->avail         = p->array + i;      
     }
+}
+
+cmDspRC_t _cmDspMsgDelayReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t        rc = kOkDspRC;
+
+  if((rc  = cmDspApplyDefault(ctx,inst,kDelayMdId)) == kOkDspRC )
+  {
+    _cmDspMsgDelayClear(inst);
   }
 
   return rc;  
@@ -3687,6 +3694,10 @@ cmDspRC_t _cmDspMsgDelayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   {
     case kDelayMdId:
       rc =  cmDspSetEvent(ctx,inst,evt);
+      break;
+
+    case kClearMdId:
+      _cmDspMsgDelayClear(inst);
       break;
 
     case  kInMdId:
