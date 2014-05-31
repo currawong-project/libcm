@@ -72,7 +72,7 @@ cmDspClass_t _cmKrDC;
 
 //==========================================================================================================================================
 
-  cmDspInst_t*  _cmDspKrAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+cmDspInst_t*  _cmDspKrAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
   cmDspVarArg_t args[] =
   {
@@ -2443,10 +2443,11 @@ cmDspRC_t _cmDspNanoMapRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
     case kStatusNmId:
       {
         unsigned status = cmDsvGetUInt(evt->valuePtr);        
-        if( (status & 0xf0) == kNoteOnMdId )
+        unsigned stat_no_ch = status & 0xf0;
+        if( stat_no_ch == kNoteOnMdId || stat_no_ch == kNoteOffMdId || stat_no_ch == kCtlMdId  )
         {
-          unsigned d0 = cmDspUInt(inst,kD0NmId);
-          unsigned ch = d0 % 8;
+          //unsigned d0 = cmDspUInt(inst,kD0NmId);
+          unsigned ch = 0; //d0 % 8;
           status = (status & 0xf0) + ch;
           cmDspSetUInt(ctx,inst,kStatusNmId,status);
         }
