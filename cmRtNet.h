@@ -30,6 +30,33 @@ extern "C" {
   extern cmRtNetH_t      cmRtNetNullHandle;
   extern cmRtNetEndptH_t cmRtNetEndptNullHandle;
 
+
+  // selector id's for cmRtNetSyncMsg_t.selId.
+  typedef enum
+  {
+    kHelloSelNetId,         // broadcast msg (label=node label, id=endpt cnt)
+    kNodeSelNetId,          // define remote node  (label=remote node label,  id=endpt cnt)
+    kEndpointSelNetId,      // define remote endpt (label=remote endpt label, id=endpt id)
+    kDoneSelNetId,          // declare all endpts sent
+    kInvalidSelNetId
+  } cmRtNetSelId_t;
+
+
+  // Network synchronization message format.
+  // cmRtNetRC_t.hdr.selId == kNetSyncSelRtid.
+  typedef struct
+  {
+    cmRtSysMsgHdr_t hdr;      // standard cmRtSys msg  header 
+    cmRtNetSelId_t  selId;    // message selector id (See kXXXSelNetId above)
+    const cmChar_t* label;    // node         or endpoint label
+    unsigned        id;       // endptCnt     or endpoint id
+    unsigned        rtSubIdx; // cmInvalidIdx or rtSubIdx
+  } cmRtNetSyncMsg_t;
+
+  // NOTE: Messages passed between cmRtNet nodes during the synchronization 
+  // process use the cmRtNetSyncMsg_t format (w/ the body of label following 
+  // the record.  All other messages use cmRtNetMsg_t (cmRtSysMsg.h) format.
+
   // 'cbFunc' will be called within the context of cmRtNetReceive() to receive
   // incoming network messages.
   cmRtNetRC_t cmRtNetAlloc( cmCtx_t* ctx, cmRtNetH_t* hp, cmUdpCallback_t cbFunc, void* cbArg );
@@ -67,7 +94,7 @@ extern "C" {
   // This function must be polled to receive incoming network messages
   // via the callback funcion 'cbFunc' as passed to cmRtNetAlloc().
   // Note that all messages received via 'cbFunc' will be prefixed with
-  // an cmRtNetMsg_t header (See cmRtSysMsg.h).
+  // an cmRtSysMsgHdr_t header (See cmRtSysMsg.h).
   cmRtNetRC_t cmRtNetReceive( cmRtNetH_t h );
 
   // Get an end point handle for use with cmRtNetSend.

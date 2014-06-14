@@ -6,9 +6,9 @@
 #include "cmMallocDebug.h"
 #include "cmLinkedHeap.h"
 #include "cmUdpPort.h"
+#include "cmRtSysMsg.h"
 #include "cmRtNet.h"
 #include "cmTime.h"
-#include "cmRtSysMsg.h"
 #include "cmText.h"
 
 // flags for cmRtNetNode_t.flags;
@@ -23,15 +23,6 @@ enum
 {
   kReportSyncNetFl = 0x01
 };
-
-typedef enum
-{
-  kHelloSelNetId,         // broadcast msg (label=node label, id=endpt cnt)
-  kNodeSelNetId,          // define remote node  (label=remote node label, id=endpt cnt)
-  kEndpointSelNetId,      // define remote endpt (label=remote endpt label, id=endpt id)
-  kDoneSelNetId,          // declare all endpts sent
-  kInvalidSelNetId
-} cmRtNetSelId_t;
 
 struct cmRtNetNode_str;
 
@@ -72,16 +63,6 @@ typedef struct
   unsigned        udpTimeOutMs;          // UDP time-out period
   cmChar_t*       bcastAddr;             // Network broadcast address
 } cmRtNet_t;
-
-// Network synchronization message format
-typedef struct
-{
-  cmRtSysMsgHdr_t hdr;      // standard cmRtSys msg  header 
-  cmRtNetSelId_t  selId;    // message selector id (See kXXXSelNetId above)
-  const cmChar_t* label;    // node         or endpoint label
-  unsigned        id;       // endptCnt     or endpoint id
-  unsigned        rtSubIdx; // cmInvalidIdx or rtSubIdx
-} cmRtNetSyncMsg_t;
 
 cmRtNetH_t      cmRtNetNullHandle      = cmSTATIC_NULL_HANDLE;
 cmRtNetEndptH_t cmRtNetEndptNullHandle = cmSTATIC_NULL_HANDLE;
@@ -615,8 +596,8 @@ void _cmRtNetRecv( void* cbArg, const char* data, unsigned dataByteCnt, const st
   
   if( _cmRtNetIsSyncModeMsg(data,dataByteCnt))
     _cmRtNetSyncModeRecv(p,data,dataByteCnt,fromAddr);
-  // else
-    p->cbFunc(p->cbArg,data,dataByteCnt,fromAddr);
+  
+  p->cbFunc(p->cbArg,data,dataByteCnt,fromAddr);
   
 }
 
