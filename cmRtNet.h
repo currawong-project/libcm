@@ -48,9 +48,9 @@ extern "C" {
   {
     cmRtSysMsgHdr_t hdr;      // standard cmRtSys msg  header 
     cmRtNetSelId_t  selId;    // message selector id (See kXXXSelNetId above)
-    const cmChar_t* label;    // node         or endpoint label
-    unsigned        id;       // endptCnt     or endpoint id
     unsigned        rtSubIdx; // cmInvalidIdx or rtSubIdx
+    unsigned        id;       // endptCnt     or endpoint id
+    const cmChar_t* label;    // node         or endpoint label
   } cmRtNetSyncMsg_t;
 
   // NOTE: Messages passed between cmRtNet nodes during the synchronization 
