@@ -65,7 +65,9 @@ extern "C" {
   cmRtNetRC_t cmRtNetDoSync( cmRtNetH_t h );
 
   // This function must be polled to receive incoming network messages
-  // via the callback funcion 'cbFunc' as passed to cmRtNetAlloc()
+  // via the callback funcion 'cbFunc' as passed to cmRtNetAlloc().
+  // Note that all messages received via 'cbFunc' will be prefixed with
+  // an cmRtNetMsg_t header (See cmRtSysMsg.h).
   cmRtNetRC_t cmRtNetReceive( cmRtNetH_t h );
 
   // Get an end point handle for use with cmRtNetSend.

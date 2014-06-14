@@ -608,13 +608,14 @@ cmRtNetRC_t  _cmRtNetSyncModeRecv( cmRtNet_t* p, const char* data, unsigned data
   return rc;
 }
 
+// This is called in the context of cmRtNetReceive().
 void _cmRtNetRecv( void* cbArg, const char* data, unsigned dataByteCnt, const struct sockaddr_in* fromAddr )
 {
   cmRtNet_t* p = (cmRtNet_t*)cbArg;
   
   if( _cmRtNetIsSyncModeMsg(data,dataByteCnt))
     _cmRtNetSyncModeRecv(p,data,dataByteCnt,fromAddr);
-  else
+  // else
     p->cbFunc(p->cbArg,data,dataByteCnt,fromAddr);
   
 }
@@ -707,6 +708,7 @@ cmRtNetRC_t cmRtNetReceive( cmRtNetH_t h )
   cmRtNetRC_t rc = kOkNetRC;
   cmRtNet_t*  p  = _cmRtNetHandleToPtr(h);
 
+  // Calling this function results in callbacks to _cmRtNetRecv() (above)
   if( cmUdpGetAvailData(p->udpH, NULL, NULL, NULL ) != kOkUdpRC )
   {
     cmErrMsg(&p->err,kUdpPortFailNetRC,"UDP port query failed.");
