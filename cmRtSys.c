@@ -1146,7 +1146,24 @@ cmRtRC_t  cmRtSysDeliverSegMsg(  cmRtSysH_t h, const void* msgDataPtrArray[], un
   }
   */
 
-  return _cmRtEnqueueMsg(p,p->ssArray[rtSubIdx].htdQueueH,msgDataPtrArray,msgByteCntArray,msgSegCnt,"Host-to-DSP");  
+  // if rtSubIdx == kInvalidIdx then send the msg to all sub-systems 
+  // otherwise send it to the specified sub-system.
+  
+  unsigned i = 0;
+  unsigned n = 1;
+
+  if( rtSubIdx == cmInvalidIdx )
+    n = p->ssCnt;
+
+  for(; i<n; ++i)
+  {
+    unsigned j = rtSubIdx==cmInvalidIdx ? i : rtSubIdx;
+
+    if((rc =  _cmRtEnqueueMsg(p,p->ssArray[j].htdQueueH,msgDataPtrArray,msgByteCntArray,msgSegCnt,"Host-to-DSP")) != kOkRtRC )
+      break;
+  }
+
+  return rc;
 }
 
 cmRtRC_t cmRtSysDeliverMsg( cmRtSysH_t h, const void* msgPtr, unsigned msgByteCnt, unsigned srcNetNodeId )
