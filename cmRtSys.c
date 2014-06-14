@@ -1135,17 +1135,6 @@ cmRtRC_t  cmRtSysDeliverSegMsg(  cmRtSysH_t h, const void* msgDataPtrArray[], un
   if( selId == kUiMstrSelRtId )
     return _cmRtHandleNonSubSysMsg( p, msgDataPtrArray, msgByteCntArray, msgSegCnt );
 
-  /*
-  if( selId == kNetSyncSelRtId )
-  {
-    assert( msgSegCnt==1); 
-    assert( rtSubIdx < p->ssCnt );
-    p->ssArray[rtSubIdx].ctx.srcNetNodeId = srcNetNodeId;
-    p->ssArray[rtSubIdx].ss.cbFunc(&p->ssArray[rtSubIdx].ctx,msgByteCntArray[0],msgDataPtrArray[0]);
-    return kOkRtRC;
-  }
-  */
-
   // if rtSubIdx == kInvalidIdx then send the msg to all sub-systems 
   // otherwise send it to the specified sub-system.
   
