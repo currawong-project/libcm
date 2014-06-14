@@ -18,6 +18,8 @@
 #define DESC_CHAR_CNT (255)
 #define INIT_DEV_CNT  (5)
 
+//#define IMPULSE_FN "/home/kevin/temp/recd0.txt"
+
 enum { kDfltPeriodsPerBuf = 2, kPollfdsArrayCnt=2 };
 
 enum { kInFl=0x01, kOutFl=0x02 };
@@ -50,6 +52,14 @@ typedef struct devRecd_str
 
   cmApSample_t*        iBuf;    // iBuf[ iFpc * iChCnt ]
   cmApSample_t*        oBuf;    // oBuf[ oFpc * oChCnt ]
+
+  unsigned             oBufCnt;  // count of buffers written
+
+#ifdef IMPULSE_FN
+  int*                 recdBuf;
+  unsigned             recdN;
+  unsigned             recdIdx;
+#endif
 
   unsigned             iFpC;    // buffer frames per cycle  (in ALSA this is call period_size)
   unsigned             oFpC;
@@ -447,6 +457,12 @@ void _cmApDevAppend( cmApRoot_t* p, cmApDevRecd_t* drp )
   drp->devIdx  = p->devCnt; // set the device index 
   drp->rootPtr = p;         // set the pointer back to the root
 
+#ifdef IMPULSE_FN
+  drp->recdN   = 44100*2*2;
+  drp->recdBuf = cmMemAllocZ(int,drp->recdN);
+  drp->recdIdx = 0;
+#endif
+
   memcpy(p->devArray + p->devCnt, drp, sizeof(cmApDevRecd_t));
   
   ++p->devCnt;
@@ -597,7 +613,7 @@ void _cmApStateRecover( snd_pcm_t* pcmH, cmApDevRecd_t* drp, bool inputFl  )
 
 // Returns count of frames written on success or < 0 on error;
 // set smpPtr to NULL to write a buffer of silence
-int _cmApWriteBuf( const cmApDevRecd_t* drp, snd_pcm_t* pcmH, const cmApSample_t* sp, unsigned chCnt, unsigned frmCnt, unsigned bits, unsigned sigBits )
+int _cmApWriteBuf( cmApDevRecd_t* drp, snd_pcm_t* pcmH, const cmApSample_t* sp, unsigned chCnt, unsigned frmCnt, unsigned bits, unsigned sigBits )
 {
   int                 err         = 0;
   unsigned            bytesPerSmp = (bits==24 ? 32 : bits)/8;
@@ -641,15 +657,28 @@ int _cmApWriteBuf( const cmApDevRecd_t* drp, snd_pcm_t* pcmH, const cmApSample_t
       case 32:
         {
           int* dp = (int*)obuf;
+
           while( sp < ep )
             *dp++ = (int)(*sp++ * 0x7fffffff);        
+
+#ifdef IMPLUSE_FN
+          int* tmp = (int*)obuf;
+          unsigned ii = 0;
+          if( drp->oBufCnt < 3 )
+            for(; ii<32; ++ii)
+              tmp[ii] = 0x7fffffff;
+#endif
+
         }
         break;
     }
   }
 
+
   // send the bytes to the device
   err = snd_pcm_writei( pcmH, obuf, frmCnt );
+
+  ++drp->oBufCnt;
   
   if( err < 0 )
   {
@@ -670,7 +699,7 @@ int _cmApWriteBuf( const cmApDevRecd_t* drp, snd_pcm_t* pcmH, const cmApSample_t
 
 // Returns frames read on success or < 0 on error.
 // Set smpPtr to NULL to read the incoming buffer and discard it
-int _cmApReadBuf( const cmApDevRecd_t* drp, snd_pcm_t* pcmH, cmApSample_t* smpPtr, unsigned chCnt, unsigned frmCnt, unsigned bits, unsigned sigBits )
+int _cmApReadBuf( cmApDevRecd_t* drp, snd_pcm_t* pcmH, cmApSample_t* smpPtr, unsigned chCnt, unsigned frmCnt, unsigned bits, unsigned sigBits )
 {
   int      err         = 0;
   unsigned bytesPerSmp = (bits==24 ? 32 : bits)/8;
@@ -742,6 +771,14 @@ int _cmApReadBuf( const cmApDevRecd_t* drp, snd_pcm_t* pcmH, cmApSample_t* smpPt
         int  mv = sigBits==24 ? 0x7fffff00 : 0x7fffffff;
         while(dp < ep)
           *dp++ = ((cmApSample_t)*sp++) /  mv;
+
+#ifdef IMPULSE_FN
+        sp = (int*)buf;
+        int* esp = sp + smpCnt;
+        for(; sp<esp && drp->recdIdx < drp->recdN; ++drp->recdIdx)
+          drp->recdBuf[drp->recdIdx] = *sp++;
+#endif
+
       }
       break;
     default:
@@ -1435,6 +1472,7 @@ cmApRC_t      cmApAlsaInitialize( cmRpt_t* rpt, unsigned baseApDevIdx )
 
   } // card loop
 
+
   if( rc == kOkApRC && p->asyncFl==false )
   {
     p->pollfdsCnt      = 0;
@@ -1469,8 +1507,26 @@ cmApRC_t      cmApAlsaFinalize()
   {
     _cmApDevShutdown(p,p->devArray+i,true);
     _cmApDevShutdown(p,p->devArray+i,false);
+
+#ifdef IMPULSE_FN
+    if( p->devArray[i].recdIdx > 0 )
+    {
+      const char* fn = "/home/kevin/temp/recd0.txt";
+      FILE* fp = fopen(fn,"wt");
+      if( fp != NULL )
+      {
+        unsigned j;
+        for(j=0; j<p->devArray[i].recdIdx; ++j)
+          fprintf(fp,"%i\n",p->devArray[i].recdBuf[j]);
+        fclose(fp);
+      }
+    }
+    cmMemFree(p->devArray[i].recdBuf);
+#endif
+
     cmMemPtrFree(&p->devArray[i].iBuf);
     cmMemPtrFree(&p->devArray[i].oBuf);
+  
   }
 
   cmMemPtrFree(&p->pollfds);
@@ -1482,6 +1538,7 @@ cmApRC_t      cmApAlsaFinalize()
 
   recdFree();
   //write_rec(2);
+
 
   return rc;
 }
