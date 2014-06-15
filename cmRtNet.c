@@ -14,9 +14,9 @@
 // flags for cmRtNetNode_t.flags;
 enum
 {
-  kLocalNodeNetFl = 0x01,
+kLocalNodeNetFl = 0x01,
   kValidNodeNetFl = 0x02
-};
+  };
 
 // flags for cmRtNet_t.flags
 enum
@@ -333,6 +333,57 @@ cmRtNetRC_t _cmRtNetFree( cmRtNet_t* p )
 
   cmMemFree(p);
   return rc;
+}
+
+const cmRtNetNode_t* _cmRtNetIndexToRemoteNode( cmRtNet_t* p, unsigned idx )
+{
+  const cmRtNetNode_t* np = p->nodes;
+  unsigned             i  = 0;
+
+  for(; np!=NULL; np=np->link)
+    if( np != p->localNode )
+    {
+      if( i == idx )
+        return np;
+      ++i;
+    }
+
+  return NULL;
+}
+
+const cmRtNetEnd_t*  _cmRtNetIndexToEndpt( const cmRtNetNode_t* np, unsigned endIdx )
+{
+  const cmRtNetEnd_t* ep = np->ends;
+  unsigned            i  = 0;
+
+  for(; ep!=NULL; ep=ep->link,++i)
+    if( i==endIdx )
+      return ep;
+
+  return NULL;
+}
+
+const cmRtNetEnd_t*  _cmRtNetFindEndpt( cmRtNet_t* p, unsigned nodeIdx, unsigned epIdx )
+{
+  const cmRtNetNode_t* np;
+  const cmRtNetEnd_t*  ep;
+
+  if((np = _cmRtNetIndexToRemoteNode( p, nodeIdx )) == NULL )
+    return NULL;
+
+  if((ep = _cmRtNetIndexToEndpt( np, epIdx )) == NULL )
+    return NULL;
+
+  return ep;
+}
+
+
+const cmChar_t* cmRtNetSyncMsgLabel( const cmRtNetSyncMsg_t* m )
+{ 
+  if( m->selId==kNodeSelNetId || m->selId==kEndpointSelNetId )
+    return (const cmChar_t*)(m+1); 
+
+  return "";
 }
 
 cmRtNetRC_t cmRtNetAlloc( cmCtx_t* ctx, cmRtNetH_t* hp, cmUdpCallback_t cbFunc, void* cbArg )
@@ -718,13 +769,9 @@ cmRtNetRC_t cmRtNetEndpointHandle( cmRtNetH_t h, const cmChar_t* nodeLabel, unsi
   return rc;
 }
 
-cmRtNetRC_t cmRtNetSend( cmRtNetH_t h, cmRtNetEndptH_t epH, const void* msg, unsigned msgByteCnt )
+cmRtNetRC_t _cmRtNetSend( cmRtNet_t* p, const cmRtNetEnd_t* ep, const void* msg, unsigned msgByteCnt )
 {
   cmRtNetRC_t     rc = kOkNetRC;
-  cmRtNet_t*      p  = _cmRtNetHandleToPtr(h);
-  cmRtNetEnd_t*   ep = (cmRtNetEnd_t*)epH.h;
- 
-  assert( ep != NULL );
   
   unsigned dN = sizeof(cmRtNetMsg_t) + msgByteCnt; 
   char data[ dN ];
@@ -741,6 +788,16 @@ cmRtNetRC_t cmRtNetSend( cmRtNetH_t h, cmRtNetEndptH_t epH, const void* msg, uns
   return rc;
 }
 
+cmRtNetRC_t cmRtNetSend( cmRtNetH_t h, cmRtNetEndptH_t epH, const void* msg, unsigned msgByteCnt )
+{
+  cmRtNet_t*      p  = _cmRtNetHandleToPtr(h);
+  cmRtNetEnd_t*   ep = (cmRtNetEnd_t*)epH.h;
+ 
+  assert( ep != NULL );
+  return _cmRtNetSend(p,ep,msg,msgByteCnt);
+}
+
+
 cmRtNetRC_t cmRtNetSendByLabels( cmRtNetH_t h, const cmChar_t* nodeLabel, unsigned rtSubIdx, const cmChar_t* endptLabel, const void* msg, unsigned msgByteCnt )
 {
   cmRtNetRC_t     rc  = kOkNetRC;
@@ -752,6 +809,17 @@ cmRtNetRC_t cmRtNetSendByLabels( cmRtNetH_t h, const cmChar_t* nodeLabel, unsign
   return cmRtNetSend(h,epH,msg,msgByteCnt);
 }
 
+cmRtNetRC_t cmRtNetSendByIndex( cmRtNetH_t h, unsigned nodeIdx, unsigned endptIdx, const void* msg, unsigned msgByteCnt )
+{
+  cmRtNet_t* p  = _cmRtNetHandleToPtr(h);
+
+  const cmRtNetEnd_t*  ep;
+
+  if((ep = _cmRtNetFindEndpt(p, nodeIdx, endptIdx )) == NULL )
+    return cmErrMsg(&p->err,kEndNotFoundNetRC,"The endpoint at node index %i endpoint index %i was not found.",nodeIdx,endptIdx);
+
+  return  _cmRtNetSend( p, ep, msg, msgByteCnt );
+}
 
 
 bool cmRtNetReportSyncEnable( cmRtNetH_t h, bool enableFl )
@@ -799,6 +867,79 @@ void   cmRtNetReport( cmRtNetH_t h )
     }
   }
 }
+
+const cmChar_t* cmRtNetLocalNodeLabel( cmRtNetH_t h )
+{
+  cmRtNet_t* p = _cmRtNetHandleToPtr( h );
+  return p->localNode->label;
+}
+
+unsigned        cmRtNetRemoteNodeCount( cmRtNetH_t h )
+{
+  cmRtNet_t*           p  = _cmRtNetHandleToPtr( h );
+  const cmRtNetNode_t* np = p->nodes;
+  unsigned             n  = 0;
+
+  for(; np!=NULL; np=np->link)
+    if( np != p->localNode )
+      ++n;
+
+  return n;
+}
+
+const cmChar_t* cmRtNetRemoteNodeLabel( cmRtNetH_t h, unsigned idx )
+{
+  cmRtNet_t*           p  = _cmRtNetHandleToPtr( h );
+  const cmRtNetNode_t* np;
+
+  if((np = _cmRtNetIndexToRemoteNode( p, idx )) == NULL )
+    return NULL;
+
+  return np->label;
+}
+
+unsigned        cmRtNetRemoteNodeEndPointCount( cmRtNetH_t h, unsigned nodeIdx )
+{
+  const cmRtNetNode_t* np;
+  const cmRtNetEnd_t*  ep;
+  cmRtNet_t*           p  = _cmRtNetHandleToPtr( h );
+  unsigned             n  = 0;
+
+  if((np = _cmRtNetIndexToRemoteNode( p, nodeIdx )) == NULL )
+    return 0;
+
+  for(ep=np->ends; ep!=NULL; ep=ep->link)
+    ++n;
+  
+  return n;
+}
+
+cmRtNetRC_t  cmRtNetRemoteNodeEndPoint( 
+  cmRtNetH_t       h, 
+  unsigned         nodeIdx, 
+  unsigned         epIdx, 
+  const cmChar_t** labelRef,
+  unsigned*        idRef,
+  unsigned*        rsiRef )
+{
+  const cmRtNetEnd_t*  ep;
+  cmRtNet_t*           p  = _cmRtNetHandleToPtr( h );
+
+  if(( ep = _cmRtNetFindEndpt(p, nodeIdx, epIdx )) == NULL )
+  {
+    *labelRef = NULL;
+    *idRef    = cmInvalidId;
+    *rsiRef   = cmInvalidIdx;
+    return kEndNotFoundNetRC;
+  }
+  
+  *labelRef = ep->label;
+  *idRef    = ep->id;
+  *rsiRef   = ep->rtSubIdx;
+
+  return kOkNetRC;
+}
+
 
 
 //==========================================================================

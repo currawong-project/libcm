@@ -53,6 +53,9 @@ extern "C" {
     const cmChar_t* label;    // node         or endpoint label
   } cmRtNetSyncMsg_t;
 
+  const cmChar_t* cmRtNetSyncMsgLabel( const cmRtNetSyncMsg_t* m );
+
+
   // NOTE: Messages passed between cmRtNet nodes during the synchronization 
   // process use the cmRtNetSyncMsg_t format (w/ the body of label following 
   // the record.  All other messages use cmRtNetMsg_t (cmRtSysMsg.h) format.
@@ -107,12 +110,29 @@ extern "C" {
   // of cmRtNetEndpointHandle() and cmRtNetSend().
   cmRtNetRC_t cmRtNetSendByLabels( cmRtNetH_t h, const cmChar_t* nodeLabel, unsigned rtSubIdx, const cmChar_t* endptLabel, const void* msg, unsigned msgByteCnt );
 
+  cmRtNetRC_t cmRtNetSendByIndex( cmRtNetH_t h, unsigned nodeIdx, unsigned endptIdx, const void* msg, unsigned msgByteCnt ); 
+
   // Enable/disable synchronization protocol reporting.
   // Return the previous state of the report sync. flag.
   bool        cmRtNetReportSyncEnable( cmRtNetH_t h, bool enableFl );
   bool        cmRtNetReportSyncIsEnabled( cmRtNetH_t h );
 
+  // Query network configuration. Returns true on success or false if
+  // {nodeIdx, epIdx} does not identify a valid endpoint.
+  const cmChar_t* cmRtNetLocalNodeLabel( cmRtNetH_t h );
+  unsigned        cmRtNetRemoteNodeCount( cmRtNetH_t h );
+  const cmChar_t* cmRtNetRemoteNodeLabel( cmRtNetH_t h, unsigned idx );
+  unsigned        cmRtNetRemoteNodeEndPointCount(   cmRtNetH_t h, unsigned nodeIdx );
+  cmRtNetRC_t     cmRtNetRemoteNodeEndPoint( 
+    cmRtNetH_t       h, 
+    unsigned         nodeIdx, 
+    unsigned         epIdx, 
+    const cmChar_t** labelRef,
+    unsigned*        idRef,
+    unsigned*        rsiRef );
+
   void        cmRtNetReport( cmRtNetH_t h );
+
     
   void        cmRtNetTest( cmCtx_t* ctx, bool mstrFl );
 
