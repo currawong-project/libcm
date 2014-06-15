@@ -5,6 +5,21 @@
 extern "C" {
 #endif
 
+  /*
+   Nodes and Endpoints:
+   ---------------------
+   A node corresponds to a process and owns a socket. It also has a label which is 
+   unique among all other nodes on the network. A node also has a set of application 
+   defined 'endpoints'.  Each endpoint has a label and id that is unique among all 
+   other endpoints on the same node.  Endpoints on different nodes however may share
+   use the same label and id.  Endpoints are used by remote senders to identify 
+   a particular receiver which is sharing the node with other receivers.  Endpoints
+   are therefore analogous to port numbers on sockets.
+
+   See gt/doc/notes.txt for more discussion of cmRtNet.
+   
+   */
+
   enum
   {
     kOkNetRC = cmOkRC,
@@ -62,7 +77,8 @@ extern "C" {
 
   // 'cbFunc' will be called within the context of cmRtNetReceive() to receive
   // incoming network messages.
-  cmRtNetRC_t cmRtNetAlloc( cmCtx_t* ctx, cmRtNetH_t* hp, cmUdpCallback_t cbFunc, void* cbArg );
+  // rtSubIdx is the rtSubIdx of the cmRtSys which owns this cmRtNet.  
+  cmRtNetRC_t cmRtNetAlloc( cmCtx_t* ctx, cmRtNetH_t* hp, unsigned rtSubIdx, cmUdpCallback_t cbFunc, void* cbArg );
   cmRtNetRC_t cmRtNetFree( cmRtNetH_t* hp );
 
   bool      cmRtNetIsValid( cmRtNetH_t h );
@@ -85,7 +101,7 @@ extern "C" {
   // cmRtNetInitialize().
   // Remote nodes will be able to send messages to these endpoints by
   // referring to (nodeLabel/endPtLabel)
-  cmRtNetRC_t cmRtNetRegisterEndPoint( cmRtNetH_t h, unsigned rtSubIdx, const cmChar_t* endPtLabel, unsigned endPtId );
+  cmRtNetRC_t cmRtNetRegisterEndPoint( cmRtNetH_t h, const cmChar_t* endPtLabel, unsigned endPtId );
 
   // Delete all nodes and endpoints.
   cmRtNetRC_t cmRtNetFinalize( cmRtNetH_t h );
@@ -100,15 +116,15 @@ extern "C" {
   // an cmRtSysMsgHdr_t header (See cmRtSysMsg.h).
   cmRtNetRC_t cmRtNetReceive( cmRtNetH_t h );
 
-  // Get an end point handle for use with cmRtNetSend.
-  cmRtNetRC_t cmRtNetEndpointHandle( cmRtNetH_t h, const cmChar_t* nodeLabel, unsigned rtSubIdx, const cmChar_t* endptLabel, cmRtNetEndptH_t* hp );
+  // Get a remote end point handle for use with cmRtNetSend.
+  cmRtNetRC_t cmRtNetEndpointHandle( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* endptLabel, cmRtNetEndptH_t* hp );
 
   // Send a message to a remote endpoint.
   cmRtNetRC_t cmRtNetSend( cmRtNetH_t h, cmRtNetEndptH_t epH, const void* msg, unsigned msgByteCnt );
 
   // Send a message to a remote endpoint. This function is a composite
   // of cmRtNetEndpointHandle() and cmRtNetSend().
-  cmRtNetRC_t cmRtNetSendByLabels( cmRtNetH_t h, const cmChar_t* nodeLabel, unsigned rtSubIdx, const cmChar_t* endptLabel, const void* msg, unsigned msgByteCnt );
+  cmRtNetRC_t cmRtNetSendByLabels( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* endptLabel, const void* msg, unsigned msgByteCnt );
 
   cmRtNetRC_t cmRtNetSendByIndex( cmRtNetH_t h, unsigned nodeIdx, unsigned endptIdx, const void* msg, unsigned msgByteCnt ); 
 
