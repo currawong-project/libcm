@@ -780,7 +780,7 @@ cmRtNetRC_t _cmRtNetSend( cmRtNet_t* p, const cmRtNetEnd_t* ep, const void* msg,
   r->hdr.rtSubIdx     = ep->rtSubIdx;
   r->hdr.selId        = kMsgSelRtId;
   r->endptId          = ep->id;
-  memcpy(data+sizeof(cmRtSysMsgHdr_t),msg,msgByteCnt);
+  memcpy(data+sizeof(cmRtNetMsg_t),msg,msgByteCnt);
   
   if( cmUdpSendTo(p->udpH, data, dN, &ep->np->sockaddr ) != kOkUdpRC )
     return cmErrMsg(&p->err,kUdpPortFailNetRC,"Send to node:%s endpt:%s failed.\n",cmStringNullGuard(ep->np->label),cmStringNullGuard(ep->label));
