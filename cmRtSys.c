@@ -974,7 +974,7 @@ cmRtRC_t cmRtSysCfg( cmRtSysH_t h, const cmRtSysSubSys_t* ss, unsigned rtSubIdx 
 
 
   // allocate the network mgr
-  if( cmRtNetAlloc(p->ctx,&cp->netH, _cmRtSysNetRecv, cp ) != kOkNetRC )
+  if( cmRtNetAlloc(p->ctx,&cp->netH, cp->ctx.rtSubIdx, _cmRtSysNetRecv, cp ) != kOkNetRC )
   {
     rc = _cmRtError(p,kNetErrRtRC,"Network allocation failed.");
     goto errLabel;
@@ -991,7 +991,7 @@ cmRtRC_t cmRtSysCfg( cmRtSysH_t h, const cmRtSysSubSys_t* ss, unsigned rtSubIdx 
   for(j=0; j<ss->endptCnt; ++j)
   {
     cmRtSysNetEndpt_t* ep = ss->endptArray + j;
-    if( cmRtNetRegisterEndPoint( cp->netH, cp->ctx.rtSubIdx, ep->label, ep->id ) != kOkNetRC )
+    if( cmRtNetRegisterEndPoint( cp->netH, ep->label, ep->id ) != kOkNetRC )
     {
       rc = _cmRtError(p,kNetErrRtRC,"Network end point allocation failed on label:%s id:%i.",cmStringNullGuard(ep->label),ep->id);
       goto errLabel;
