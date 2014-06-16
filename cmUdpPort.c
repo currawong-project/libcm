@@ -589,6 +589,14 @@ const cmChar_t* cmUdpAddrToString( cmUdpH_t h, const struct sockaddr_in* addr )
   return p->ntopBuf;
 }
 
+bool  cmUdpAddrIsEqual( const struct sockaddr_in* a0, const struct sockaddr_in* a1 )
+{
+  return a0->sin_family == a1->sin_family 
+    &&   a0->sin_port   == a1->sin_port 
+    &&   memcmp(&a0->sin_addr,&a1->sin_addr,sizeof(a0->sin_addr))==0;
+}
+
+
 const cmChar_t* cmUdpHostName( cmUdpH_t h )
 {
   cmUdp_t* p = _cmUdpHandleToPtr(h);

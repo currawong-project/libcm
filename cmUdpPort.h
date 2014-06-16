@@ -132,6 +132,8 @@ extern "C" {
 
   const cmChar_t*  cmUdpAddrToString( cmUdpH_t h, const struct sockaddr_in* addr );
 
+  bool             cmUdpAddrIsEqual( const struct sockaddr_in* a0, const struct sockaddr_in* a1 );
+
   const cmChar_t* cmUdpHostName( cmUdpH_t h );
 
   
