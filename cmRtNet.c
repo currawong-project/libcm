@@ -282,9 +282,15 @@ cmRtNetRC_t _cmRtNetSerializeSyncMsg( cmRtNet_t* p, const cmRtNetSyncMsg_t* m, v
 
 cmRtNetRC_t _cmRtNetDeserializeSyncMsg( const void* buf, unsigned n, cmRtNetSyncMsg_t* m )
 {
-  assert( n > sizeof(*m));
-  memcpy(m,buf,sizeof(*m));
   const cmRtNetSyncMsg_t* mp = (const cmRtNetSyncMsg_t*)buf;
+  
+  m->hdr.rtSubIdx = mp->hdr.rtSubIdx;
+  m->hdr.selId    = mp->hdr.selId;
+  m->selId        = mp->selId;
+  m->hdrByteCnt   = sizeof(cmRtNetSyncMsg_t);
+  m->rtSubIdx     = mp->rtSubIdx;
+  m->id           = mp->id;
+
   const cmChar_t*   s  = ((const cmChar_t*)(mp)) + mp->hdrByteCnt;
   m->label = cmMemAllocStr(s);
   return kOkNetRC;
