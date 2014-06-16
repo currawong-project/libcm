@@ -1329,10 +1329,24 @@ cmRtRC_t cmRtSysNetReport( cmRtSysH_t h )
   {
     cmRptPrintf(p->err.rpt,"Sub-system:%i\n",i);
     if( cmRtNetIsValid(p->ssArray[i].netH))
-      cmRtNetDoSync(p->ssArray[i].netH);
+      cmRtNetReport(p->ssArray[i].netH);
   }
   return rc;
   
+}
+
+cmRtRC_t cmRtSysNetReportSyncEnable( cmRtSysH_t h, bool enableFl )
+{
+  cmRtRC_t rc = kOkRtRC;
+  cmRt_t*  p  = _cmRtHandleToPtr(h);
+  unsigned i  = 0;
+  for(; i<p->ssCnt; ++i)
+  {
+    cmRptPrintf(p->err.rpt,"Sub-system:%i\n",i);
+    if( cmRtNetIsValid(p->ssArray[i].netH))
+      cmRtNetReportSyncEnable(p->ssArray[i].netH,enableFl);
+  }
+  return rc;
 }
 
 cmRtRC_t cmRtSysNetGetHandle( cmRtSysH_t h, unsigned rtSubIdx, cmRtNetH_t* hp )

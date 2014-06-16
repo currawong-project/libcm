@@ -327,6 +327,7 @@ extern "C" {
   bool     cmRtSysNetIsInitialized( cmRtSysH_t h );
   cmRtRC_t cmRtSysNetDoSync( cmRtSysH_t h );
   cmRtRC_t cmRtSysNetReport( cmRtSysH_t h );
+  cmRtRC_t cmRtSysNetReportSyncEnable( cmRtSysH_t h, bool enableFl );
   cmRtRC_t cmRtSysNetGetHandle( cmRtSysH_t h, unsigned rtSubIdx, cmRtNetH_t* hp );
 
 
