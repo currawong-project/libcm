@@ -63,6 +63,7 @@ extern "C" {
   {
     cmRtSysMsgHdr_t hdr;      // standard cmRtSys msg  header 
     cmRtNetSelId_t  selId;    // message selector id (See kXXXSelNetId above)
+    unsigned        hdrByteCnt; // size of the header record at transmission (used to locate the serialzed label)
     unsigned        rtSubIdx; // cmInvalidIdx or rtSubIdx
     unsigned        id;       // endptCnt     or endpoint id
     const cmChar_t* label;    // node         or endpoint label

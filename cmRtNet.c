@@ -263,7 +263,9 @@ unsigned _cmRtNetNodeEndpointCount( cmRtNetNode_t* np )
 }
 
 unsigned _cmRtNetSyncMsgSerialByteCount( const cmRtNetSyncMsg_t* m )
-{ return sizeof(cmRtNetSyncMsg_t) + (m->label==NULL ? 1 : strlen(m->label) + 1); }
+{ 
+  return sizeof(cmRtNetSyncMsg_t) + (m->label==NULL ? 1 : strlen(m->label) + 1); 
+}
 
 cmRtNetRC_t _cmRtNetSerializeSyncMsg( cmRtNet_t* p, const cmRtNetSyncMsg_t* m, void* buf, unsigned n )
 {
@@ -283,7 +285,7 @@ cmRtNetRC_t _cmRtNetDeserializeSyncMsg( const void* buf, unsigned n, cmRtNetSync
   assert( n > sizeof(*m));
   memcpy(m,buf,sizeof(*m));
   const cmRtNetSyncMsg_t* mp = (const cmRtNetSyncMsg_t*)buf;
-  const cmChar_t*   s  = (const cmChar_t*)(mp+1);
+  const cmChar_t*   s  = ((const cmChar_t*)(mp)) + mp->hdrByteCnt;
   m->label = cmMemAllocStr(s);
   return kOkNetRC;
 }
@@ -297,6 +299,7 @@ cmRtNetRC_t _cmRtNetSendSyncMsg( cmRtNet_t* p, cmRtNetNode_t* np, cmRtNetSelId_t
   m.hdr.rtSubIdx = cmInvalidIdx;
   m.hdr.selId    = kNetSyncSelRtId;
   m.selId        = selId;
+  m.hdrByteCnt   = sizeof(cmRtNetSyncMsg_t);
   m.label        = msgLabel;
   m.id           = msgId;
   m.rtSubIdx     = msgRtSubIdx;
@@ -524,7 +527,7 @@ cmRtNetRC_t  _cmRtNetSendEndpointReplyMsg( cmRtNet_t* p, cmRtNetNode_t* np, cmRt
 bool    _cmRtNetIsSyncModeMsg( const void* data, unsigned dataByteCnt )
 {
   cmRtNetSyncMsg_t* m = (cmRtNetSyncMsg_t*)data;
-  return dataByteCnt >= sizeof(cmRtNetSyncMsg_t) && m->hdr.selId == kNetSyncSelRtId;
+  return dataByteCnt >= sizeof(cmRtSysMsgHdr_t) && m->hdr.selId == kNetSyncSelRtId;
 }
 
 // When the network message recieve function (See cmRtNetAlloc() 'cbFunc') 
@@ -673,7 +676,6 @@ void _cmRtNetRecv( void* cbArg, const char* data, unsigned dataByteCnt, const st
   else
   {
     // All non-sync messages arriving here are prefixed by a cmRtNetMsg_t header - fill in the source addr here.
-
     // NOTE: the source addr could be filled in by the sender but this would increase the size
     // of the msg.  Instead we choose the more time consuming method of looking up the
     // soure node here - hmmmm????.
