@@ -1341,11 +1341,9 @@ cmRtRC_t cmRtSysNetReportSyncEnable( cmRtSysH_t h, bool enableFl )
   cmRt_t*  p  = _cmRtHandleToPtr(h);
   unsigned i  = 0;
   for(; i<p->ssCnt; ++i)
-  {
-    cmRptPrintf(p->err.rpt,"Sub-system:%i\n",i);
     if( cmRtNetIsValid(p->ssArray[i].netH))
       cmRtNetReportSyncEnable(p->ssArray[i].netH,enableFl);
-  }
+
   return rc;
 }
 
