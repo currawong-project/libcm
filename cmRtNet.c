@@ -97,15 +97,24 @@ void _cmRtNetRpt( cmRtNet_t* p, const cmChar_t* fmt, ... )
   va_end(vl);
 }
 
-cmRtNetNode_t* _cmRtNetFindNode( cmRtNet_t* p, const cmChar_t* label )
+cmRtNetNode_t* _cmRtNetFindNode( cmRtNet_t* p, const cmChar_t* label, unsigned* idxRef )
 {
   if( label == NULL )
     return NULL;
 
+  if( idxRef != NULL )
+    *idxRef = cmInvalidIdx;
+
   cmRtNetNode_t* np = p->nodes;
-  for(; np!=NULL; np=np->link)
+  unsigned i;
+  for(i=0; np!=NULL; np=np->link,++i)
     if( strcmp(label,np->label)==0)
+    {
+      if( idxRef != NULL )
+        *idxRef = i;
+
       return np;
+    }
 
   return NULL;
 }
@@ -190,8 +199,8 @@ cmRtNetRC_t _cmRtNetCreateNode( cmRtNet_t* p, const cmChar_t* label, unsigned rt
   if( cmTextIsEmpty(label) )
     return cmErrMsg(&p->err,kInvalidLabelNetRC,"A null or blank node label was encountered.");
 
-  if((np = _cmRtNetFindNode(p,label)) != NULL )
-    cmErrWarnMsg(&p->err,kDuplLabelNetRC,"The node label '%s' is already in use.",cmStringNullGuard(label));
+  if((np = _cmRtNetFindNode(p,label,NULL)) != NULL )
+    cmErrWarnMsg(&p->err,kOkNetRC/*kDuplLabelNetRC*/,"The node label '%s' is being reused.",cmStringNullGuard(label));
   else
   {
     np           = cmMemAllocZ(cmRtNetNode_t,1);
@@ -569,7 +578,7 @@ cmRtNetRC_t  _cmRtNetSyncModeRecv( cmRtNet_t* p, const char* data, unsigned data
   {
     case kHelloSelNetId:    
       // if this is a response to a broadcast from the local node then ignore it
-      if(m.label!=NULL && p->localNode->label!=NULL && (np = _cmRtNetFindNode(p,m.label)) != NULL && strcmp(p->localNode->label,m.label)==0 )
+      if(m.label!=NULL && p->localNode->label!=NULL && (np = _cmRtNetFindNode(p,m.label,NULL)) != NULL && strcmp(p->localNode->label,m.label)==0 )
       {
         const cmChar_t* fromAddrStr  = cmUdpAddrToString(p->udpH,fromAddr);
         const cmChar_t* localAddrStr = cmUdpAddrToString(p->udpH,cmUdpLocalAddr(p->udpH));
@@ -794,12 +803,6 @@ cmRtNetRC_t cmRtNetReceive( cmRtNetH_t h )
   return rc;
 }
 
-unsigned cmRtNetAddrToNodeIndex( cmRtNetH_t h, const struct sockaddr_in* a )
-{
-  cmRtNet_t* p = _cmRtNetHandleToPtr(h);
-  return _cmRtNetAddrToNodeIndex(p,a);
-}
-
 
 cmRtNetRC_t cmRtNetEndpointHandle( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* endptLabel, cmRtNetEndptH_t* hp )
 {
@@ -808,7 +811,7 @@ cmRtNetRC_t cmRtNetEndpointHandle( cmRtNetH_t h, const cmChar_t* nodeLabel, cons
   cmRtNetNode_t* np;
   cmRtNetEnd_t*  ep;
 
-  if(( np = _cmRtNetFindNode(p,nodeLabel)) == NULL )
+  if(( np = _cmRtNetFindNode(p,nodeLabel,NULL)) == NULL )
     return cmErrMsg(&p->err,kNodeNotFoundNetRC,"The node '%s' was not found.",cmStringNullGuard(nodeLabel));
 
 
@@ -964,6 +967,22 @@ unsigned        cmRtNetRemoteNodeCount( cmRtNetH_t h )
       ++n;
 
   return n;
+}
+
+unsigned cmRtNetAddrToNodeIndex( cmRtNetH_t h, const struct sockaddr_in* a )
+{
+  cmRtNet_t* p = _cmRtNetHandleToPtr(h);
+  return _cmRtNetAddrToNodeIndex(p,a);
+}
+
+unsigned        cmRtNetRemoteNodeIndex( cmRtNetH_t h, const cmChar_t* label )
+{
+  cmRtNet_t* p  = _cmRtNetHandleToPtr( h );
+  unsigned   idx = cmInvalidIdx;
+
+  _cmRtNetFindNode(p,label,&idx);
+    
+  return idx;
 }
 
 const cmChar_t* cmRtNetRemoteNodeLabel( cmRtNetH_t h, unsigned idx )

@@ -49,11 +49,11 @@ extern "C" {
   // selector id's for cmRtNetSyncMsg_t.selId.
   typedef enum
   {
-    kHelloSelNetId,         // broadcast msg (label=node label, id=endpt cnt)
-    kNodeSelNetId,          // define remote node  (label=remote node label,  id=endpt cnt)
-    kEndpointSelNetId,      // define remote endpt (label=remote endpt label, id=endpt id)
-    kDoneSelNetId,          // declare all endpts sent
-    kInvalidSelNetId
+    kHelloSelNetId,         // 0 broadcast msg (label=node label, id=endpt cnt)
+    kNodeSelNetId,          // 1 define remote node  (label=remote node label,  id=endpt cnt)
+    kEndpointSelNetId,      // 2 define remote endpt (label=remote endpt label, id=endpt id)
+    kDoneSelNetId,          // 3 declare all endpts sent
+    kInvalidSelNetId        // 4
   } cmRtNetSelId_t;
 
 
@@ -117,8 +117,6 @@ extern "C" {
   // an cmRtSysMsgHdr_t header (See cmRtSysMsg.h).
   cmRtNetRC_t cmRtNetReceive( cmRtNetH_t h );
 
-  // Return the index of the node associated with sockaddr_in.
-  unsigned    cmRtNetAddrToNodeIndex( cmRtNetH_t h, const struct sockaddr_in* a );
 
   // Get a remote end point handle for use with cmRtNetSend.
   cmRtNetRC_t cmRtNetEndpointHandle( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* endptLabel, cmRtNetEndptH_t* hp );
@@ -150,6 +148,8 @@ extern "C" {
   // {nodeIdx, epIdx} does not identify a valid endpoint.
   const cmChar_t* cmRtNetLocalNodeLabel( cmRtNetH_t h );
   unsigned        cmRtNetRemoteNodeCount( cmRtNetH_t h );
+  unsigned        cmRtNetAddrToNodeIndex( cmRtNetH_t h, const struct sockaddr_in* a );
+  unsigned        cmRtNetRemoteNodeIndex( cmRtNetH_t h, const cmChar_t* label );
   const cmChar_t* cmRtNetRemoteNodeLabel( cmRtNetH_t h, unsigned idx );
   unsigned        cmRtNetRemoteNodeEndPointCount(   cmRtNetH_t h, unsigned nodeIdx );
   cmRtNetRC_t     cmRtNetRemoteNodeEndPoint( 
