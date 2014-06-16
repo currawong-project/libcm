@@ -116,17 +116,29 @@ extern "C" {
   // an cmRtSysMsgHdr_t header (See cmRtSysMsg.h).
   cmRtNetRC_t cmRtNetReceive( cmRtNetH_t h );
 
+  // Return the index of the node associated with sockaddr_in.
+  unsigned    cmRtNetAddrToNodeIndex( cmRtNetH_t h, const struct sockaddr_in* a );
+
   // Get a remote end point handle for use with cmRtNetSend.
   cmRtNetRC_t cmRtNetEndpointHandle( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* endptLabel, cmRtNetEndptH_t* hp );
 
+  bool        cmRtNetEndpointIsValid( cmRtNetEndptH_t endPtH );
+
+  // Given an endpoint handle return the id/label of the associated endpoint.
+  unsigned        cmRtNetEndpointId( cmRtNetEndptH_t endPtH );
+  const cmChar_t* cmRtNetEndpointLabel( cmRtNetEndptH_t endPtH );
+
   // Send a message to a remote endpoint.
-  cmRtNetRC_t cmRtNetSend( cmRtNetH_t h, cmRtNetEndptH_t epH, const void* msg, unsigned msgByteCnt );
+  // Note that srcEndPtId is used only to inform the receiver of the endpoint
+  // of the transmitter. It is not used in any part of the transmit or receive
+  // process.
+  cmRtNetRC_t cmRtNetSend( cmRtNetH_t h, unsigned srcEndPtId, cmRtNetEndptH_t epH, const void* msg, unsigned msgByteCnt );
 
   // Send a message to a remote endpoint. This function is a composite
   // of cmRtNetEndpointHandle() and cmRtNetSend().
-  cmRtNetRC_t cmRtNetSendByLabels( cmRtNetH_t h, const cmChar_t* nodeLabel, const cmChar_t* endptLabel, const void* msg, unsigned msgByteCnt );
+  cmRtNetRC_t cmRtNetSendByLabels( cmRtNetH_t h, unsigned srcEndPtId, const cmChar_t* nodeLabel, const cmChar_t* endptLabel, const void* msg, unsigned msgByteCnt );
 
-  cmRtNetRC_t cmRtNetSendByIndex( cmRtNetH_t h, unsigned nodeIdx, unsigned endptIdx, const void* msg, unsigned msgByteCnt ); 
+  cmRtNetRC_t cmRtNetSendByIndex( cmRtNetH_t h, unsigned srcEndPtId, unsigned dstNodeIdx, unsigned dstEndptIdx, const void* msg, unsigned msgByteCnt ); 
 
   // Enable/disable synchronization protocol reporting.
   // Return the previous state of the report sync. flag.
