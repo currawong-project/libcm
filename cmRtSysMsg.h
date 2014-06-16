@@ -97,10 +97,14 @@ extern "C" {
 
   typedef struct
   {
-    cmRtSysMsgHdr_t hdr;
-    unsigned        endptId;
+    cmRtSysMsgHdr_t    hdr;         // hdr.rtSubIdx = dest rtSubIdx
+                                    // hdr.selId    = msg contents
+    unsigned           dstEndPtId;  //              = dest endpoint
+    unsigned           srcEndPtId;  //              = src endpoint id
+    unsigned           srcNodeIdx;  //              = src node index (filled in by receiving cmRtNet mgr)
     // char msg[ msgByteCnt ]
   } cmRtNetMsg_t;
+
 
 #ifdef __cplusplus
 }
