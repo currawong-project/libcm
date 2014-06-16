@@ -1120,10 +1120,10 @@ bool     cmThPtrCAS(   void*    addr, void*    old, void*    neww )
 #endif
 
 #ifdef OS_LINUX
-#ifdef OSX_VER_10_5
-  return  __sync_bool_compare_and_swap((int*)addr,(int)old,(int)neww); 
-#else
+#ifdef OS_64
   return  __sync_bool_compare_and_swap((long long*)addr, (long long)old, (long long)neww); 
+#else
+  return  __sync_bool_compare_and_swap((int*)addr,(int)old,(int)neww); 
 #endif
 #endif
 }
