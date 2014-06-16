@@ -191,16 +191,18 @@ cmRtNetRC_t _cmRtNetCreateNode( cmRtNet_t* p, const cmChar_t* label, unsigned rt
     return cmErrMsg(&p->err,kInvalidLabelNetRC,"A null or blank node label was encountered.");
 
   if((np = _cmRtNetFindNode(p,label)) != NULL )
-    return cmErrMsg(&p->err,kDuplLabelNetRC,"The node label '%s' is already in use.",cmStringNullGuard(label));
-  
-  np           = cmMemAllocZ(cmRtNetNode_t,1);
-  np->label    = cmMemAllocStr(label);
+    cmErrWarnMsg(&p->err,kDuplLabelNetRC,"The node label '%s' is already in use.",cmStringNullGuard(label));
+  else
+  {
+    np           = cmMemAllocZ(cmRtNetNode_t,1);
+    np->label    = cmMemAllocStr(label);
+  }
 
   if( saddr != NULL )
     np->sockaddr = *saddr;
 
   np->rtSubIdx = rtSubIdx;
-  np->addr     = addr==NULL ? NULL : cmMemAllocStr(addr);
+  np->addr     = addr==NULL ? NULL : cmMemResizeStr(np->addr,addr);
   np->port     = port;
   np->flags    = flags;
   np->endPtCnt = endPtCnt;
