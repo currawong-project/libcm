@@ -829,7 +829,7 @@ extern "C" {
   //------------------------------------------------------------------------------------------------------------
   // Write a binary matrix file in the format acceppted by the octave function readBinFile.m
 
-  typedef struct
+  typedef struct cmBinMtxFile_str
   {
     cmObj      obj;
     cmFileH_t  fh;
