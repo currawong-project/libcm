@@ -8,6 +8,7 @@
 #include "cmLinkedHeap.h"
 #include "cmFloatTypes.h"
 #include "cmComplexTypes.h"
+#include "cmFile.h"
 #include "cmFileSys.h"
 #include "cmJson.h"
 #include "cmSymTbl.h"
@@ -16,11 +17,12 @@
 #include "cmProcObj.h"
 #include "cmProcTemplate.h"
 #include "cmMath.h"
-#include "cmProc.h"
-#include "cmVectOps.h"
 #include "cmTime.h"
 #include "cmMidi.h"
 #include "cmMidiFile.h"
+#include "cmProc.h"
+#include "cmProc2.h"
+#include "cmVectOps.h"
 #include "cmTimeLine.h"
 #include "cmScore.h"
 #include "cmProc4.h"
@@ -4546,3 +4548,297 @@ cmRC_t         cmRecdPlayExec( cmRecdPlay* p, const cmSample_t** iChs, cmSample_
   return cmOkRC;
 }
 
+//=======================================================================================================================
+
+cmFrqTrk* cmFrqTrkAlloc( cmCtx* c, cmFrqTrk* p, const cmFrqTrkArgs_t* a )
+{
+  cmFrqTrk* op = cmObjAlloc(cmFrqTrk,c,p);
+
+  op->bmf = cmBinMtxFileAlloc(c,NULL,NULL);
+
+  if( cmFrqTrkInit(op,a) != cmOkRC )
+    cmFrqTrkFree(&op);
+
+  return op;
+
+}
+
+cmRC_t    cmFrqTrkFree( cmFrqTrk** pp )
+{
+  cmRC_t rc = cmOkRC;
+
+  if( pp==NULL || *pp==NULL )
+    return rc;
+
+  cmFrqTrk* p = *pp;
+  if((rc = cmFrqTrkFinal(p)) != cmOkRC )
+    return rc;
+
+  cmMemFree(p->ch);
+  cmMemFree(p->dbM);
+  cmMemFree(p->pkiV);
+  cmMemFree(p->dbV);
+  cmBinMtxFileFree(&p->bmf);
+  cmObjFree(pp);
+  return rc;
+
+}
+
+cmRC_t    cmFrqTrkInit( cmFrqTrk* p, const cmFrqTrkArgs_t* a )
+{
+  cmRC_t rc;
+  if((rc = cmFrqTrkFinal(p)) != cmOkRC )
+    return rc;
+
+  p->a         = *a;
+  p->ch        = cmMemResizeZ(cmFrqTrkCh_t,p->ch,a->chCnt );
+  p->hN        = cmMax(1,a->wndSecs * a->srate / a->hopSmpCnt );
+  p->bN        = p->a.binCnt;
+  p->dbM       = cmMemResizeZ(cmReal_t,p->dbM,p->hN*p->bN);
+  p->hi        = 0;
+  p->dbV       = cmMemResizeZ(cmReal_t,p->dbV,p->bN);
+  p->pkiV      = cmMemResizeZ(unsigned,p->pkiV,p->bN);
+  p->deadN_max = a->maxTrkDeadSec * a->srate / a->hopSmpCnt;
+  p->minTrkN   = a->minTrkSec * a->srate / a->hopSmpCnt;
+  p->nextTrkId = 0;
+
+  if( a->logFn != NULL )
+  {
+    if( cmBinMtxFileInit(p->bmf, a->logFn ) != cmOkRC )
+       cmCtxRtCondition(&p->obj, cmSubSysFailRC, "Log file open failed on '%s'.",cmStringNullGuard(a->logFn));
+  }
+
+  return rc;
+}
+
+cmRC_t    cmFrqTrkFinal( cmFrqTrk* p )
+{
+  cmRC_t   rc = cmOkRC;
+  cmBinMtxFileFinal(p->bmf);
+  return rc;
+}
+
+// Return an available channel record or NULL if all channel records are in use.
+cmFrqTrkCh_t* _cmFrqTrkFindAvailCh( cmFrqTrk* p )
+{
+  unsigned i;
+  for(i=0; i<p->a.chCnt; ++i)
+    if( p->ch[i].activeFl == false )
+      return p->ch + i;
+
+  return NULL;
+}
+
+unsigned _cmFrqTrkActiveChCount( cmFrqTrk* p )
+{
+  unsigned n = 0;
+  unsigned i;
+  for(i=0; i<p->a.chCnt; ++i)
+    if( p->ch[i].activeFl )
+      ++n;
+
+  return n;
+}
+
+void _cmFrqTrkWriteLog( cmFrqTrk* p )
+{
+  unsigned n;
+
+  if( cmBinMtxFileIsValid(p->bmf) == false )
+    return;
+
+  if((n = _cmFrqTrkActiveChCount(p)) > 0 )
+  {
+    unsigned  i,j;
+    unsigned  nn  = n*4;
+    cmReal_t* v   = cmMemAllocZ(cmReal_t,nn);
+    cmReal_t* idV = v + n * 0;
+    cmReal_t* hzV = v + n * 1;
+    cmReal_t* dbV = v + n * 2;
+    cmReal_t* stV = v + n * 3;
+
+    for(i=0,j=0; i<p->a.chCnt; ++i)
+      if( p->ch[i].activeFl )
+      {
+        assert(j < n);
+
+        idV[j] = p->ch[i].id;
+        hzV[j] = p->ch[i].hz;
+        dbV[j] = p->ch[i].db;
+        stV[j] = p->ch[i].dN;
+
+        ++j;
+      }
+    
+    cmBinMtxFileExecR(p->bmf, v, nn );
+  }
+}
+
+void _cmFrqTrkPrintChs( const cmFrqTrk* p )
+{
+  unsigned i;
+  for(i=0; i<p->a.chCnt; ++i)
+  {
+    cmFrqTrkCh_t* c = p->ch + i;
+    printf("%i : %i tN:%i hz:%f db:%f\n",i,c->activeFl,c->tN,c->hz,c->db);
+  }
+}
+
+// Used to sort the channels into descending dB order.
+int _cmFrqTrkChCompare( const void* p0, const void* p1 )
+{  return ((cmFrqTrkCh_t*)p0)->db - ((cmFrqTrkCh_t*)p1)->db; }
+
+
+// Return the index of the peak associated with pkiV[i] which best matches the tracker 'c'
+// or cmInvalidIdx if no valid peaks were found.
+// pkiV[ pkN ] holds the indexes into dbV[] and hzV[] which are peaks.
+// Some elements of pkiV[] may be set to cmInvalidIdx if the associated peak has already
+// been selected by another tracker.
+unsigned _cmFrqTrkFindPeak( cmFrqTrk* p, const cmFrqTrkCh_t* c, const cmReal_t* dbV, const cmReal_t* hzV, unsigned* pkiV, unsigned pkN )
+{
+  unsigned i,pki;
+  cmReal_t d_max = p->a.pkThreshDb;
+  unsigned d_idx = cmInvalidIdx;
+
+  cmReal_t hz_min = c->hz * pow(2,-p->a.stRange/12.0);
+  cmReal_t hz_max = c->hz * pow(2,-p->a.stRange/12.0);
+
+  // find the peak with the most energy inside the frequency range hz_min to hz_max.
+  for(i=0; i<pkN; ++i)
+    if( ((pki = pkiV[i]) != cmInvalidIdx) && hz_min <= hzV[pki] && hzV[pki] <= hz_max && dbV[pki]>d_max )      
+    {
+      d_max= dbV[pki];
+      d_idx = i;      
+    }
+
+  return d_idx;
+}
+
+// Extend the existing trackers
+void _cmFrqTrkUpdateChs( cmFrqTrk* p, const cmReal_t* dbV, const cmReal_t* hzV, unsigned* pkiV, unsigned pkN )
+{
+  unsigned i; 
+
+  // sort the channels in descending order
+  qsort(p->ch,p->a.chCnt,sizeof(cmFrqTrkCh_t),_cmFrqTrkChCompare);
+
+  // for each active channel
+  for(i=0; i<p->a.chCnt; ++i)
+  {
+    cmFrqTrkCh_t* c = p->ch + i;
+
+    if( c->activeFl )
+    {
+      unsigned pki;
+
+      // if no matching peak was found to tracker 'c'.
+      if((pki = _cmFrqTrkFindPeak(p,c,dbV,hzV,pkiV,pkN)) == cmInvalidIdx )
+      {
+        c->dN += 1;
+        c->tN += 1;
+
+        if( c->dN >= p->deadN_max )
+          c->activeFl = false;
+      }
+      else // ... update the tracker using the matching peak
+      {
+        unsigned j = pkiV[pki];
+        c->dN = 0;
+        c->db = dbV[ j ];
+        c->hz = hzV[ j ];
+        c->tN += 1;
+        pkiV[pki] = cmInvalidIdx;  // mark the peak as unavailable.
+      }
+    }
+  }
+}
+
+// Return the index into pkiV[] of the maximum energy peak in dbV[] 
+// that is also above kAtkThreshDb.
+unsigned _cmFrqTrkMaxEnergyPeakIndex( const cmFrqTrk* p, const cmReal_t* dbV, const unsigned* pkiV, unsigned pkN )
+{
+  cmReal_t mv = p->a.pkAtkThreshDb;
+  unsigned mi = cmInvalidIdx;
+  unsigned i;
+
+  for(i=0; i<pkN; ++i)
+    if( pkiV[i] != cmInvalidIdx && dbV[pkiV[i]] >= mv )
+    {
+      mi = i;
+      mv = dbV[pkiV[i]];
+    }
+      
+  return mi;
+}
+
+// start new trackers
+void _cmFrqTrkNewChs( cmFrqTrk* p, const cmReal_t* dbV, const cmReal_t* hzV, unsigned* pkiV, unsigned pkN )
+{
+
+  while(1)
+  {
+    unsigned db_max_idx;
+    cmFrqTrkCh_t* c;
+
+    if((c = _cmFrqTrkFindAvailCh(p)) == NULL )
+      break;
+    
+    if((db_max_idx = _cmFrqTrkMaxEnergyPeakIndex(p,dbV,pkiV,pkN)) == cmInvalidIdx )
+      break;
+
+    c->activeFl = true;
+    c->tN       = 1;
+    c->dN       = 0;
+    c->hz       = hzV[ pkiV[ db_max_idx ] ];
+    c->db       = dbV[ pkiV[ db_max_idx ] ];
+    c->id       = p->nextTrkId++;
+
+    pkiV[ db_max_idx ] = cmInvalidIdx;    
+  }
+
+}
+
+
+cmRC_t cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, const cmReal_t* hzV )
+{
+  cmRC_t   rc = cmOkRC;
+
+  // convert magV to Decibels
+  cmVOR_AmplitudeToDb(p->dbV,p->bN,magV);
+  
+  // copy p->dbV to dbM[hi,:] 
+  cmVOR_CopyN(p->dbM + p->hi, p->hN, p->bN, p->dbV, 1 );
+
+  // increment hi
+  p->hi = (p->hi + 1) % p->hN;
+
+  // Form the spectral magnitude profile by taking the mean over time
+  // of the last hN magnitude vectors
+  cmVOR_MeanM(p->dbV, p->dbM, p->hN, p->bN, 0);
+
+  // set the indexes of the peaks above pkThreshDb in i0[]
+  unsigned pkN = cmVOR_PeakIndexes(p->pkiV, p->bN, p->dbV, p->bN, p->a.pkThreshDb );
+
+  // extend the existing trackers
+  _cmFrqTrkUpdateChs(p, p->dbV, hzV, p->pkiV, pkN );
+
+  // create new trackers
+  _cmFrqTrkNewChs(p,p->dbV,hzV,p->pkiV,pkN);
+  
+  return rc;
+}
+
+void  cmFrqTrkPrint( cmFrqTrk* p )
+{
+  printf("srate:         %f\n",p->a.srate);
+  printf("chCnt:         %i\n",p->a.chCnt);
+  printf("binCnt:        %i\n",p->a.binCnt);
+  printf("hopSmpCnt:     %i\n",p->a.hopSmpCnt);
+  printf("stRange:       %f\n",p->a.stRange);
+  printf("wndSecs:       %f (%i)\n",p->a.wndSecs,p->hN);
+  printf("minTrkSec:     %f (%i)\n",p->a.minTrkSec,p->minTrkN);
+  printf("maxTrkDeadSec: %f (%i)\n",p->a.maxTrkDeadSec,p->deadN_max);
+  printf("pkThreshDb:    %f\n",p->a.pkThreshDb);
+  printf("pkAtkThreshDb: %f\n",p->a.pkAtkThreshDb);
+
+}
