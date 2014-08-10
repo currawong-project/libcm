@@ -38,6 +38,12 @@ VECT_OP_TYPE  VECT_OP_FUNC(MeanN)(    const VECT_OP_TYPE* sp, unsigned sn, unsig
 // Set 'dim' to 0 to return mean of columns else return mean of rows.
 VECT_OP_TYPE*  VECT_OP_FUNC(MeanM)(    VECT_OP_TYPE* dp, const VECT_OP_TYPE* sp, unsigned srn, unsigned scn, unsigned dim );
 
+// Take the mean of the first 'cnt' element of each column/row of a matrix.
+// Set 'dim' to 0 to return mean of columns else return mean of rows.
+// If 'cnt' is greater than the number of elements in the column/row then 'cnt' is
+// reduced to the number of elements in the column/row.
+VECT_OP_TYPE*  VECT_OP_FUNC(MeanM2)(    VECT_OP_TYPE* dp, const VECT_OP_TYPE* sp, unsigned srn, unsigned scn, unsigned dim, unsigned cnt );
+
 // Find the mean of the  data points returned by srcFuncPtr(argPtr,i) and return it in dp[dim].
 // 'dim' is both the size of dp[] and the length of each data point returned by srcFuncPtr().
 // srcFuncPtr() will be called 'cnt' times but it may return NULL on some calls if the associated
@@ -467,7 +473,7 @@ unsigned VECT_OP_FUNC(BarkMap)(unsigned* binIdxV, unsigned* cntV, unsigned bandC
 /// maskMtx[ bandCnt, binCnt ] - result matrix
 /// binHz - freq resolution of the output filters.
 /// stSpread - Semi-tone spread above and below each center frequency (stSpread*2) is the total bandwidth. 
-///            (Only used if 
+///            (Only used if lowHzV or uprHzV are NULL)
 /// lowHz[ bandCnt ] - set of upper frequency limits for each band.
 /// ctrHz[ bandCnt ] set to the center value in Hz for each band
 /// uprHz[ bandCnt ] - set of lower frequency limits for each band.
@@ -607,4 +613,8 @@ VECT_OP_TYPE VECT_OP_FUNC(PtToLineDistance)( VECT_OP_TYPE x0, VECT_OP_TYPE y0, V
 void VECT_OP_FUNC(Lsq1)(const VECT_OP_TYPE* x, const VECT_OP_TYPE* y, unsigned n, VECT_OP_TYPE* b0, VECT_OP_TYPE* b1 );
 
 
-
+/// Given the points x0[xy0N],y0[xy0N] fill y1[i] with the interpolated value of y0[] at
+/// x1[i].  Note that x0[] and x1[] must be increasing monotonic.
+/// This function is similar to the octave interp1() function.
+void VECT_OP_FUNC(Interp1)(VECT_OP_TYPE* y1, const VECT_OP_TYPE* x1, unsigned xy1N, const VECT_OP_TYPE* x0, const VECT_OP_TYPE* y0, unsigned xy0N );
+ 

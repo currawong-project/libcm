@@ -235,6 +235,21 @@ VECT_OP_TYPE*  VECT_OP_FUNC(MeanM)(    VECT_OP_TYPE* dp, const VECT_OP_TYPE* sp,
   return dp;
 }
 
+VECT_OP_TYPE*  VECT_OP_FUNC(MeanM2)(    VECT_OP_TYPE* dp, const VECT_OP_TYPE* sp, unsigned srn, unsigned scn, unsigned dim, unsigned cnt )
+{
+  unsigned i;
+  unsigned cn     = dim == 0 ? scn : srn;
+  unsigned rn     = dim == 0 ? srn : scn;
+  unsigned inc    = dim == 0 ? srn : 1;
+  unsigned stride = dim == 0 ? 1   : srn;
+  unsigned d0     = 0;
+
+  for(i=0; i<cn; ++i, d0+=inc)
+    dp[i] = VECT_OP_FUNC(MeanN)(sp + d0, cmMin(rn,cnt), stride );
+
+  return dp;
+}
+
 VECT_OP_TYPE*  VECT_OP_FUNC(Mean2)(   VECT_OP_TYPE* dp, const VECT_OP_TYPE* (*srcFuncPtr)(void* arg, unsigned idx ), unsigned D, unsigned N, void* argPtr )
 {
   unsigned i,n;
@@ -3242,5 +3257,32 @@ void VECT_OP_FUNC(Lsq1)(const VECT_OP_TYPE* x, const VECT_OP_TYPE* y, unsigned n
 
 
 
+void VECT_OP_FUNC(Interp1)(VECT_OP_TYPE* y1, const VECT_OP_TYPE* x1, unsigned xy1N, const VECT_OP_TYPE* x0, const VECT_OP_TYPE* y0, unsigned xy0N )
+{
+  unsigned i,j;
+
+  // for each output value
+  for(i=0,j=0; i<xy1N; ++i)
+  {
+    // x1[] and x0[] are increasing monotonic therefore j should never
+    // have to decrease
+    for(; j<xy0N-1; ++j)
+    {
+      // if x1[i] is between x0[j] and x0[j+1]
+      if( x0[j] <= x1[i] && x1[i] < x0[j+1] )
+      {
+        // interpolate y0[j] based on the distance beteen x0[j] and x1[i].
+        y1[i] = y0[j] + (y0[j+1]-y0[j]) * ((x1[i] - x0[j]) / (x0[j+1] - x0[j]));
+        break;
+      }
+    }
+
+    if( j == xy0N-1 )
+      y1[i] = y0[xy0N-1];
+    
+  }
+}
 
 #endif
+
+
