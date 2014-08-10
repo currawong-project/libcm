@@ -26,7 +26,8 @@ extern "C" {
   /// set p to NULL to dynamically allocate the object
   /// fn and chIdx are optional - set fn to NULL to allocate the reader without opening a file.
   /// If fn is valid then chIdx must also be valid.
-  /// Set 'endSmpIdx' to cmInvalidIdx to not limit the range of samples returned.
+  /// Set 'endSmpIdx' to cmInvalidIdx to return the entire signal in cmAudioFileRdRead().
+  /// Set 'endSmpIdx' to 0 to return all samples between 0 and the end of the file.
   cmAudioFileRd*     cmAudioFileRdAlloc( cmCtx* c, cmAudioFileRd* p, unsigned procSmpCnt, const char* fn, unsigned chIdx, unsigned begSmpIdx, unsigned endSmpIdx );
   cmRC_t             cmAudioFileRdFree(  cmAudioFileRd** p );
   cmRC_t             cmAudioFileRdOpen(  cmAudioFileRd* p, unsigned procSmpCnt,  const cmChar_t* fn, unsigned chIdx, unsigned begSmpIdx, unsigned endSmpIdx ); 

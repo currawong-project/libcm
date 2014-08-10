@@ -124,7 +124,7 @@ cmRC_t               cmAudioFileRdOpen(  cmAudioFileRd* p,  unsigned procSmpCnt,
   p->lastReadFrmCnt = 0;
   p->eofFl          = false;
   p->begFrmIdx      = begFrmIdx;
-  p->endFrmIdx      = endFrmIdx;
+  p->endFrmIdx      = endFrmIdx==0 ? p->info.frameCnt : endFrmIdx;
   p->curFrmIdx      = p->begFrmIdx;
 
   if( p->begFrmIdx > 0 )
