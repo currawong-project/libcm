@@ -23,6 +23,7 @@
 #include "cmMidi.h"
 #include "cmProc2.h"
 
+
 //------------------------------------------------------------------------------------------------------------
 cmArray* cmArrayAllocate( cmCtx* c, cmArray* ap, unsigned eleCnt, unsigned eleByteCnt, unsigned flags )
 {
@@ -3658,6 +3659,1515 @@ cmRC_t   cmNmfExec( cmNmf_t* p, const cmReal_t* vM, unsigned cn )
   return rc;
 }
 
+//------------------------------------------------------------------------------------------------------------
+
+cmRC_t _cmVectArrayAppend( cmVectArray_t* p, const void* v, unsigned typeByteCnt, unsigned valCnt )
+{
+  cmRC_t            rc      = cmSubSysFailRC;
+  cmVectArrayVect_t* ep      = NULL;
+  unsigned          byteCnt = typeByteCnt * valCnt;
+
+  if( byteCnt == 0 || v == NULL )
+    return rc;
+
+  // verify that all vectors written to this vector array contain the same data type.
+  if( (cmIsFlag(p->flags,kFloatVaFl) && typeByteCnt!=sizeof(float)) ||  (cmIsFlag(p->flags,kDoubleVaFl) && typeByteCnt!=sizeof(double)))  
+    return cmCtxRtCondition(&p->obj,cmInvalidArgRC,"All data stored to a cmVectArray_t must be a consistent type.");
+
+  // allocate space for the link record
+  if((ep = cmMemAllocZ(cmVectArrayVect_t,1)) == NULL )
+    goto errLabel;
+
+  // allocate space for the vector data
+  if((ep->u.v = cmMemAlloc(char,typeByteCnt*valCnt)) == NULL )
+    goto errLabel;
+
+  // append the link recd to the end of the  element list
+  if( p->ep != NULL )
+    p->ep->link = ep;
+  else
+  {
+    p->bp = ep;
+    p->cur = p->bp;
+  }
+
+  p->ep = ep;
+
+  // store the length of the vector
+  ep->n = valCnt;
+
+  // copy in the vector data
+  memcpy(ep->u.v,v,byteCnt);
+
+  // track the number of vectors stored
+  p->vectCnt += 1;
+
+  // track the longest data vector
+  if( valCnt > p->maxEleCnt )
+    p->maxEleCnt = valCnt;
+
+  rc = cmOkRC;
+
+ errLabel:
+  if(rc != cmOkRC )
+  {
+    cmMemFree(ep->u.v);
+    cmMemFree(ep);    
+  }
+
+  return rc;
+}
+
+cmVectArray_t* cmVectArrayAlloc( cmCtx* ctx, unsigned flags )
+{
+  cmRC_t rc = cmOkRC;
+  cmVectArray_t* p = cmObjAlloc(cmVectArray_t,ctx,NULL);
+
+  assert(p != NULL);
+
+
+  switch( flags & (kFloatVaFl | kDoubleVaFl | kSampleVaFl | kRealVaFl ) )
+  {
+    case kFloatVaFl:
+      p->flags |= kFloatVaFl;
+      p->typeByteCnt = sizeof(float);
+      break;
+
+    case kDoubleVaFl:
+      p->flags |= kDoubleVaFl;
+      p->typeByteCnt = sizeof(double);
+      break;
+
+    case kSampleVaFl:
+      if( sizeof(cmSample_t) == sizeof(float) )
+        p->flags |= kFloatVaFl;
+      else
+      {
+        if( sizeof(cmSample_t) == sizeof(double))
+          p->flags |= kDoubleVaFl;
+        else
+          rc = cmCtxRtCondition(&p->obj,cmInvalidArgRC,"The size of the cmSample_t is not consistent with float or double."); 
+      }
+      p->typeByteCnt = sizeof(cmSample_t);
+      break;
+
+    case kRealVaFl:
+      if( sizeof(cmReal_t) == sizeof(float) )
+        p->flags |= kFloatVaFl;
+      else
+      {
+        if( sizeof(cmReal_t) == sizeof(double))
+          p->flags |= kDoubleVaFl;
+        else
+          rc = cmCtxRtCondition(&p->obj,cmInvalidArgRC,"The size of the cmReal_t is not consistent with float or double."); 
+      }
+      p->typeByteCnt = sizeof(cmReal_t);
+      break;
+
+    default:
+      rc = cmCtxRtCondition(&p->obj,cmInvalidArgRC,"The vector array value type flag was not recognized.");
+  }
+
+  
+
+ if(rc != cmOkRC)
+    cmVectArrayFree(&p);
+
+  return p;      
+}
+
+cmVectArray_t* cmVectArrayAllocFromFile(cmCtx* ctx, const char* fn )
+{
+  cmRC_t         rc  = cmOkRC;
+  FILE*          fp  = NULL;
+  char*          buf = NULL;
+  cmVectArray_t* p   = NULL;
+  unsigned       hn  = 4;
+  unsigned       hdr[hn];
+  
+    // create the file
+  if((fp = fopen(fn,"rb")) == NULL )
+  {
+    rc = cmCtxRtCondition(&ctx->obj,cmSystemErrorRC,"The vector array file '%s' could not be opened.",cmStringNullGuard(fn));
+    goto errLabel;
+  }
+
+  if( fread(hdr,sizeof(unsigned),hn,fp) != hn )
+  {
+    rc = cmCtxRtCondition(&ctx->obj,cmSystemErrorRC,"The vector array file header could not be read from '%s'.",cmStringNullGuard(fn));
+    goto errLabel;
+  }
+
+
+  unsigned       flags       = hdr[0];
+  unsigned       typeByteCnt = hdr[1];
+  unsigned       vectCnt     = hdr[2];
+  unsigned       maxEleCnt   = hdr[3];
+  unsigned       i;
+
+  buf    = cmMemAlloc(char,maxEleCnt*typeByteCnt);
+
+
+  if((p = cmVectArrayAlloc(ctx, flags )) == NULL )
+    goto errLabel;
+
+  for(i=0; i<vectCnt; ++i)
+  {
+    unsigned vn;
+    if( fread(&vn,sizeof(unsigned),1,fp) != 1 )
+    {
+      rc = cmCtxRtCondition(&p->obj,cmSystemErrorRC,"The vector array file element count read failed on vector index:%i in '%s'.",i,cmStringNullGuard(fn));
+      goto errLabel;
+    }
+
+    assert( vn <= maxEleCnt );
+
+    if( fread(buf,typeByteCnt,vn,fp) != vn )
+    {
+      rc = cmCtxRtCondition(&p->obj,cmSystemErrorRC,"The vector array data read failed on vector index:%i in '%s'.",i,cmStringNullGuard(fn));
+      goto errLabel;
+    }
+
+    if((rc = _cmVectArrayAppend(p,buf, typeByteCnt, vn )) != cmOkRC )
+    {
+      rc = cmCtxRtCondition(&p->obj,rc,"The vector array data store failed on vector index:%i in '%s'.",i,cmStringNullGuard(fn));
+      goto errLabel;
+    }
+    
+  }
+  
+
+ errLabel:
+  
+  if( fp != NULL )
+    fclose(fp);
+
+  cmMemFree(buf);
+
+  if(rc != cmOkRC && p != NULL) 
+    cmVectArrayFree(&p);
+ 
+  return p;
+
+}
+
+
+cmRC_t cmVectArrayFree(    cmVectArray_t** pp )
+{
+  cmRC_t rc = cmOkRC;
+
+  if( pp == NULL || *pp == NULL )
+    return rc;
+
+  cmVectArray_t*     p  = *pp;
+
+  if((rc = cmVectArrayClear(p)) != cmOkRC )
+    return rc;
+
+  cmMemFree(p->tempV);
+  cmObjFree(pp);
+
+  return rc;
+}
+
+cmRC_t cmVectArrayClear(   cmVectArray_t* p )
+{
+  cmVectArrayVect_t* ep = p->bp;
+  while( ep!=NULL )
+  {
+    cmVectArrayVect_t* np = ep->link;
+
+    cmMemFree(ep->u.v);
+    cmMemFree(ep);
+    
+    ep = np;
+  }
+
+  p->bp        = NULL;
+  p->ep        = NULL;
+  p->maxEleCnt = 0;
+  p->vectCnt   = 0;
+
+  return cmOkRC;
+}
+
+unsigned cmVectArrayCount( const cmVectArray_t* p )
+{ return p->vectCnt; }
+
+/*
+unsigned cmVectArrayEleCount( const cmVectArray_t* p )
+{
+  cmVectArrayVect_t* ep = p->bp;
+  unsigned n = 0;
+  for(; ep!=NULL; ep=ep->link )
+    n += ep->n;
+
+  return n;
+}
+*/
+
+
+cmRC_t cmVectArrayAppendS( cmVectArray_t* p, const cmSample_t* v, unsigned vn )
+{ return  _cmVectArrayAppend(p,v,sizeof(v[0]),vn); }
+
+cmRC_t cmVectArrayAppendR( cmVectArray_t* p, const cmReal_t* v, unsigned vn )
+{ return  _cmVectArrayAppend(p,v,sizeof(v[0]),vn); }
+
+cmRC_t cmVectArrayAppendF( cmVectArray_t* p, const float* v,      unsigned vn )
+{ return  _cmVectArrayAppend(p,v,sizeof(v[0]),vn); }
+
+cmRC_t cmVectArrayAppendD( cmVectArray_t* p, const double* v,     unsigned vn )
+{ return  _cmVectArrayAppend(p,v,sizeof(v[0]),vn); }
+
+cmRC_t cmVectArrayAppendI( cmVectArray_t* p, const int* v, unsigned vn )
+{
+  p->tempV = cmMemResize(double,p->tempV,vn);
+  unsigned i;
+  for(i=0; i<vn; ++i)
+    p->tempV[i] = v[i];
+
+  cmRC_t rc = cmVectArrayAppendD(p,p->tempV,vn);
+
+  return rc;  
+}
+
+cmRC_t cmVectArrayAppendU( cmVectArray_t* p, const unsigned* v, unsigned vn )
+{
+  p->tempV = cmMemResize(double,p->tempV,vn);
+  unsigned i;
+  for(i=0; i<vn; ++i)
+    p->tempV[i] = v[i];
+
+  cmRC_t rc = cmVectArrayAppendD(p,p->tempV,vn);
+  return rc;  
+}
+
+cmRC_t cmVectArrayWrite( cmVectArray_t* p, const char* fn )
+{
+  cmRC_t             rc  = cmOkRC;
+  FILE*              fp  = NULL;
+  cmVectArrayVect_t* ep;
+  unsigned           i;
+  unsigned           hn  = 4;
+  unsigned           hdr[hn];
+
+  hdr[0] = p->flags;
+  hdr[1] = p->typeByteCnt;
+  hdr[2] = p->vectCnt;
+  hdr[3] = p->maxEleCnt;
+
+  // create the file
+  if((fp = fopen(fn,"wb")) == NULL )
+    return cmCtxRtCondition(&p->obj,cmSystemErrorRC,"The vector array file '%s' could not be created.",cmStringNullGuard(fn));
+
+  // write the header
+  if( fwrite(hdr,sizeof(unsigned),hn,fp) != hn )
+  {
+    rc = cmCtxRtCondition(&p->obj,cmSystemErrorRC,"Vector array file header write failed in '%s'.",cmStringNullGuard(fn));
+    goto errLabel;
+  }
+
+  // write each vector element
+  for(ep=p->bp,i=0; ep!=NULL; ep=ep->link,++i)
+  {
+    // write the count of data values in the vector
+    if( fwrite(&ep->n,sizeof(ep->n),1,fp) != 1 )
+    {
+      rc = cmCtxRtCondition(&p->obj,cmSystemErrorRC,"Vector array file write failed on element header %i in '%s'.",i,cmStringNullGuard(fn));
+      goto errLabel;
+    }
+      
+    // write the vector
+    if(fwrite(ep->u.v,p->typeByteCnt,ep->n,fp) != ep->n )
+    {
+      rc = cmCtxRtCondition(&p->obj,cmSystemErrorRC,"Vector array file write failed on data vector %i in '%s'.",i,cmStringNullGuard(fn));
+      goto errLabel;
+    }
+  }
+  
+
+ errLabel:
+  if( fp != NULL )
+    fclose(fp);
+  return rc;
+}
+
+unsigned cmVectArrayForEachS( cmVectArray_t* p, unsigned idx, unsigned cnt, cmVectArrayForEachFuncS_t func, void* arg )
+{
+  cmVectArrayVect_t* ep = p->bp;
+  unsigned           i  = 0;
+  unsigned           n  = 0;
+
+  // for each sub-array 
+  for(; ep!=NULL && n<cnt; ep=ep->link )
+  {
+    // if the cur sub-array is in the range of idx:idx+cnt
+    if( i <= idx && idx < i + ep->n )
+    {
+      unsigned j = idx - i;            // starting idx into cur sub-array
+      assert(j<ep->n);
+      unsigned m = cmMin(ep->n - j,cnt-n); // cnt of ele's to send from cur sub-array
+
+      // do callback
+      if( func(arg, idx, ep->u.sV + j, m ) != cmOkRC )
+        break;
+
+      idx += m;
+      n   += m;
+    }
+
+    i += ep->n;
+    
+  }
+  return n;
+}
+
+cmRC_t cmVectArrayWriteVectorS( cmCtx* ctx, const char* fn, const cmSample_t* v, unsigned  vn )
+{
+  cmRC_t        rc = cmOkRC;
+  cmVectArray_t* p;
+
+  if((p = cmVectArrayAlloc(ctx,kSampleVaFl)) == NULL )
+    return cmCtxRtCondition(&ctx->obj,cmSubSysFailRC,"Unable to allocate an cmVectArray_t in cmVectArrayWriteVectorS().");
+
+  if((rc = cmVectArrayAppendS(p,v,vn)) != cmOkRC )
+  {
+    rc = cmCtxRtCondition(&p->obj,rc,"Vector append failed in cmVectArrayWriteVectorS().");
+    goto errLabel;
+  }
+    
+  if((rc = cmVectArrayWrite(p,fn)) != cmOkRC )
+    rc = cmCtxRtCondition(&p->obj,rc,"Vector array write failed in cmVectArrayWriteVectorS().");
+
+ errLabel:
+  if((rc = cmVectArrayFree(&p)) != cmOkRC )
+    rc = cmCtxRtCondition(&ctx->obj,rc,"Free failed on cmVectArrayFree() in cmVectArrayWriteVectorS().");
+
+  return rc;
+}
+
+cmRC_t cmVectArrayWriteMatrixS( cmCtx* ctx, const char* fn, const cmSample_t* m, unsigned  rn, unsigned cn )
+{
+  cmRC_t        rc = cmOkRC;
+  cmVectArray_t* p;
+  unsigned       i;
+
+  if((p = cmVectArrayAlloc(ctx,kSampleVaFl)) == NULL )
+    return cmCtxRtCondition(&ctx->obj,cmSubSysFailRC,"Unable to allocate an cmVectArray_t in cmVectArrayWriteVectorS().");
+
+  for(i=0; i<cn; ++i)
+  {
+    if((rc = cmVectArrayAppendS(p,m + (i*rn), rn)) != cmOkRC )
+    {
+      rc = cmCtxRtCondition(&p->obj,rc,"Vector append failed in cmVectArrayWriteVectorS().");
+      goto errLabel;
+    }
+    
+  }
+
+  if((rc = cmVectArrayWrite(p,fn)) != cmOkRC )
+    rc = cmCtxRtCondition(&p->obj,rc,"Vector array write failed in cmVectArrayWriteVectorS().");
+
+ errLabel:
+  if((rc = cmVectArrayFree(&p)) != cmOkRC )
+    rc = cmCtxRtCondition(&ctx->obj,rc,"Free failed on cmVectArrayFree() in cmVectArrayWriteVectorS().");
+
+  return rc;
+
+}
+
+
+cmRC_t cmVectArrayWriteVectorI( cmCtx* ctx, const char* fn, const int* v,        unsigned  vn )
+{
+  cmRC_t        rc = cmOkRC;
+  cmVectArray_t* p;
+
+  if((p = cmVectArrayAlloc(ctx,kIntVaFl)) == NULL )
+    return cmCtxRtCondition(&ctx->obj,cmSubSysFailRC,"Unable to allocate an cmVectArray_t in cmVectArrayWriteVectorS().");
+
+  if((rc = cmVectArrayAppendI(p,v,vn)) != cmOkRC )
+  {
+    rc = cmCtxRtCondition(&p->obj,rc,"Vector append failed in cmVectArrayWriteVectorS().");
+    goto errLabel;
+  }
+    
+  if((rc = cmVectArrayWrite(p,fn)) != cmOkRC )
+    rc = cmCtxRtCondition(&p->obj,rc,"Vector array write failed in cmVectArrayWriteVectorS().");
+
+  errLabel:
+  if((rc = cmVectArrayFree(&p)) != cmOkRC )
+    rc = cmCtxRtCondition(&ctx->obj,rc,"Free failed on cmVectArrayFree() in cmVectArrayWriteVectorS().");
+
+  return rc;
+}
+
+
+cmRC_t cmVectArrayWriteMatrixI( cmCtx* ctx, const char* fn, const int* m, unsigned  rn, unsigned cn )
+{
+  cmRC_t         rc = cmOkRC;
+  cmVectArray_t* p;
+  unsigned       i;
+
+  if((p = cmVectArrayAlloc(ctx,kIntVaFl)) == NULL )
+    return cmCtxRtCondition(&ctx->obj,cmSubSysFailRC,"Unable to allocate an cmVectArray_t in cmVectArrayWriteVectorI().");
+
+  for(i=0; i<cn; ++i)
+  {
+    if((rc = cmVectArrayAppendI(p,m + (i*rn), rn)) != cmOkRC )
+    {
+      rc = cmCtxRtCondition(&p->obj,rc,"Vector append failed in cmVectArrayWriteVectorI().");
+      goto errLabel;
+    }
+    
+  }
+
+  if((rc = cmVectArrayWrite(p,fn)) != cmOkRC )
+    rc = cmCtxRtCondition(&p->obj,rc,"Vector array write failed in cmVectArrayWriteVectorI().");
+
+ errLabel:
+  if((rc = cmVectArrayFree(&p)) != cmOkRC )
+    rc = cmCtxRtCondition(&ctx->obj,rc,"Free failed on cmVectArrayFree() in cmVectArrayWriteVectorI().");
+
+  return rc;
+
+}
+
+
+cmRC_t cmVectArrayForEachTextFuncS( void* arg, unsigned idx, const cmSample_t* xV, unsigned xN )
+{
+  assert(0);
+  return cmOkRC;
+}
+
+
+cmRC_t cmVectArrayRewind( cmVectArray_t* p )
+{
+  p->cur = p->bp;
+  return cmOkRC;
+}
+
+cmRC_t cmVectArrayAdvance( cmVectArray_t* p, unsigned n )
+{
+  unsigned i;
+  for(i=0; i<n; ++i)
+  {
+    if( p->cur == NULL )
+      break;
+
+    p->cur = p->cur->link;
+  }
+      
+  return cmOkRC;
+  
+}
+
+bool   cmVectArrayIsEOL( const cmVectArray_t* p )
+{ return p->cur == NULL; }
+
+
+unsigned cmVectArrayEleCount(   const cmVectArray_t* p )
+{
+  if( p->cur == NULL )
+    return 0;
+  return p->cur->n;
+}
+
+
+
+cmRC_t cmVectArrayGetF( cmVectArray_t* p, float* v, unsigned* vnRef )
+{
+  assert( cmIsFlag(p->flags,kFloatVaFl) );
+
+  if( cmVectArrayIsEOL(p) )
+    return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArray get failed because the state is EOL.");
+
+  unsigned n = cmMin(*vnRef,p->cur->n);
+
+  cmVOF_Copy(v,n,p->cur->u.fV);
+
+  *vnRef = n;
+
+  return cmOkRC;
+}
+
+cmRC_t cmVectArrayGetD( cmVectArray_t* p, double* v, unsigned* vnRef )
+{
+  assert( cmIsFlag(p->flags,kDoubleVaFl) );
+
+  if( cmVectArrayIsEOL(p) )
+    return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArray get failed because the state is EOL.");
+
+  unsigned n = cmMin(*vnRef,p->cur->n);
+
+  cmVOD_Copy(v,n,p->cur->u.dV);
+
+  *vnRef = n;
+
+  return cmOkRC;
+}
+
+cmRC_t cmVectArrayGetI( cmVectArray_t* p, int* v, unsigned* vnRef )
+{
+  if( cmVectArrayIsEOL(p) )
+    return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArray get failed because the state is EOL.");
+
+  unsigned n = cmMin(*vnRef,p->cur->n);
+  unsigned i;
+
+  if( cmIsFlag(p->flags,kDoubleVaFl) )
+  {
+    for(i=0; i<n; ++i)
+      v[i] = (int)(p->cur->u.dV[i]);
+  }
+  else
+  {
+    if( cmIsFlag(p->flags,kFloatVaFl) )
+    {
+      for(i=0; i<n; ++i)
+        v[i] = (int)(p->cur->u.fV[i]);
+    }
+    else
+    {
+      assert(0);
+    }
+  }
+
+  *vnRef = n;
+
+  return cmOkRC;
+}
+
+cmRC_t cmVectArrayGetU( cmVectArray_t* p, unsigned* v, unsigned* vnRef )
+{
+  if( cmVectArrayIsEOL(p) )
+    return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArray get failed because the state is EOL.");
+
+  unsigned n = cmMin(*vnRef,p->cur->n);
+  unsigned i;
+
+  if( cmIsFlag(p->flags,kDoubleVaFl) )
+  {
+    for(i=0; i<n; ++i)
+      v[i] = (unsigned)(p->cur->u.dV[i]);
+  }
+  else
+  {
+    if( cmIsFlag(p->flags,kFloatVaFl) )
+    {
+      for(i=0; i<n; ++i)
+        v[i] = (unsigned)(p->cur->u.fV[i]);
+    }
+    else
+    {
+      assert(0);     
+    }
+  }
+
+  *vnRef = n;
+
+  return cmOkRC;
+}
+
+unsigned cmVectArrayVectEleCount( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt )
+{
+  unsigned n = 0;
+
+  cmVectArrayVect_t* pos = p->cur;
+
+  if( cmVectArrayRewind(p) != cmOkRC )
+    goto errLabel;
+  
+  if( cmVectArrayAdvance(p,groupIdx) != cmOkRC )
+    goto errLabel;
+
+  while( !cmVectArrayIsEOL(p) )
+  {
+    n += cmVectArrayEleCount(p);
+    
+    if(cmVectArrayAdvance(p,groupCnt) != cmOkRC )
+      goto errLabel;
+  }
+
+ errLabel:
+  p->cur = pos;
+
+  return n;
+  
+}
+
+cmRC_t   cmVectArrayFormVectF( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, float** vRef, unsigned* vnRef )
+{
+  cmRC_t rc = cmOkRC;
+
+  *vRef = NULL;
+  *vnRef = 0;
+
+  unsigned N = cmVectArrayVectEleCount(p,groupIdx,groupCnt);
+
+  if( N == 0 )
+    return rc;
+
+  float*             v   = cmMemAllocZ(float,N);
+  unsigned           i   = 0;
+  cmVectArrayVect_t* pos = p->cur;
+
+  if( cmVectArrayRewind(p) != cmOkRC )
+    goto errLabel;
+  
+  if( cmVectArrayAdvance(p,groupIdx) != cmOkRC )
+    goto errLabel;
+
+  while( !cmVectArrayIsEOL(p) )
+  {
+    unsigned n = cmVectArrayEleCount(p);
+
+    assert(i+n <= N);
+
+    cmVectArrayGetF(p,v+i,&n);
+
+    i += n;
+
+    cmVectArrayAdvance(p,groupCnt);
+  }
+
+  *vRef = v;
+  *vnRef = i;
+
+ errLabel:
+
+  p->cur = pos;
+
+  return rc;
+}
+
+cmRC_t   cmVectArrayFormVectColF( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, unsigned colIdx, float** vRef, unsigned* vnRef )
+{
+  cmRC_t rc = cmOkRC;
+
+  *vRef = NULL;
+  *vnRef = 0;
+
+  // assume there will be one output element for each group
+  unsigned N = cmVectArrayCount(p)/groupCnt + 1;
+
+  if( N == 0 )
+    return rc;
+
+  float*             v   = cmMemAllocZ(float,N);
+  unsigned           i   = 0;
+  cmVectArrayVect_t* pos = p->cur;
+
+  if( cmVectArrayRewind(p) != cmOkRC )
+    goto errLabel;
+  
+  if( cmVectArrayAdvance(p,groupIdx) != cmOkRC )
+    goto errLabel;
+
+  while( i<N && !cmVectArrayIsEOL(p) )
+  {
+    unsigned tn = cmVectArrayEleCount(p);
+    float   tv[tn];
+
+    // read the sub-vector
+    cmVectArrayGetF(p,tv,&tn);
+
+    // store the output value
+    if( colIdx < tn )
+    {
+      v[i] = tv[colIdx];
+
+      i += 1;
+    }
+
+    cmVectArrayAdvance(p,groupCnt);
+  }
+
+  *vRef = v;
+  *vnRef = i;
+
+ errLabel:
+
+  p->cur = pos;
+
+  return rc;
+}
+
+
+cmRC_t   cmVectArrayFormVectColU( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, unsigned colIdx, unsigned** vRef, unsigned* vnRef )
+{
+  cmRC_t rc = cmOkRC;
+
+  *vRef = NULL;
+  *vnRef = 0;
+
+  // assume there will be one output element for each group
+  unsigned N = cmVectArrayCount(p)/groupCnt + 1;
+
+  if( N == 0 )
+    return rc;
+
+  unsigned*          v   = cmMemAllocZ(unsigned,N);
+  unsigned           i   = 0;
+  cmVectArrayVect_t* pos = p->cur;
+
+  if( cmVectArrayRewind(p) != cmOkRC )
+    goto errLabel;
+  
+  if( cmVectArrayAdvance(p,groupIdx) != cmOkRC )
+    goto errLabel;
+
+  while( i<N && !cmVectArrayIsEOL(p) )
+  {
+    unsigned tn = cmVectArrayEleCount(p);
+    unsigned tv[tn];
+
+    // read the sub-vector
+    cmVectArrayGetU(p,tv,&tn);
+
+    assert( colIdx < tn );
+
+    // store the output value
+    if( colIdx < tn )
+      v[i++] = tv[colIdx];
+
+    cmVectArrayAdvance(p,groupCnt);
+  }
+
+  *vRef = v;
+  *vnRef = i;
+
+ errLabel:
+
+  p->cur = pos;
+
+  return rc;
+}
+
+cmRC_t cmVectArrayTest( cmCtx* ctx, const char* fn )
+{
+  cmRC_t         rc    = cmOkRC;
+  cmVectArray_t* p     = NULL;
+  unsigned       flags = kSampleVaFl;
+  cmSample_t     v[]   = { 0, 1, 2, 3, 4, 5 };
+
+  if( fn == NULL || strlen(fn)==0 )
+    return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Invalid test output file name.");
+
+  if( (p = cmVectArrayAlloc(ctx,flags)) == NULL )
+    return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"The vectory array object allocation failed.");
+  
+  if( cmVectArrayAppendS(p,v,1) != cmOkRC )
+  {
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Vector append 1 failed.");
+    goto errLabel;
+  }
+
+  if( cmVectArrayAppendS(p,v+1,2) != cmOkRC )
+  {
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Vector append 2 failed.");
+    goto errLabel;
+  }
+
+  if( cmVectArrayAppendS(p,v+3,3) != cmOkRC )
+  {
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Vector append 3 failed.");
+    goto errLabel;
+  }
+  
+  if( cmVectArrayWrite(p,fn) != cmOkRC )
+  {
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Vector array write failed.");
+    goto errLabel;
+  }
+
+  //cmVectArrayForEachS(p,0,cmVectArrayEleCount(p),cmVectArrayForEachTextFuncS,&ctx->printRpt);
+  
+  if( cmVectArrayFree(&p) != cmOkRC )
+  {
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"The vectory array release failed.");
+    goto errLabel;
+  }
+
+
+  if((p = cmVectArrayAllocFromFile(ctx, fn )) == NULL )
+  {
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArray alloc from file failed.");
+    goto errLabel;
+  }
+
+  
+  while(!cmVectArrayIsEOL(p))
+  {
+    unsigned n = cmVectArrayEleCount(p);
+    cmSample_t v[n];
+    
+
+    if( cmVectArrayGetS(p,v,&n) != cmOkRC )
+    {
+      rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArrayGetS() failed.");
+      goto errLabel;
+    }
+
+    cmVOS_PrintL("v:",NULL,1,n,v);
+    
+    cmVectArrayAdvance(p,1);
+  }
+  
+
+ errLabel:
+  if( cmVectArrayFree(&p) != cmOkRC )
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"The vectory array release failed.");
+
+  return rc;
+}
+
+
+//-----------------------------------------------------------------------------------------------------------------------
+
+cmWhFilt* cmWhFiltAlloc( cmCtx* c, cmWhFilt* p, unsigned binCnt, cmReal_t binHz, cmReal_t coeff, cmReal_t maxHz )
+{
+  cmWhFilt* op = cmObjAlloc(cmWhFilt,c,p);
+
+  if( binCnt > 0 )
+    if( cmWhFiltInit(op,binCnt,binHz,coeff,maxHz) != cmOkRC )
+      cmWhFiltFree(&op);
+
+  return op;
+
+}
+
+cmRC_t    cmWhFiltFree( cmWhFilt** pp )
+{
+  cmRC_t rc = cmOkRC;
+
+  if( pp==NULL || *pp==NULL )
+    return rc;
+
+  cmWhFilt* p = *pp;
+  if((rc = cmWhFiltFinal(p)) != cmOkRC )
+    return rc;
+
+  cmMemFree(p->whM);
+  cmMemFree(p->whiV);
+  cmMemFree(p->iV);
+  cmObjFree(pp);
+  return rc;
+
+}
+
+cmRC_t    cmWhFiltInit( cmWhFilt* p, unsigned binCnt, cmReal_t binHz, cmReal_t coeff, cmReal_t maxHz )
+{
+  cmRC_t rc;
+  if((rc = cmWhFiltFinal(p)) != cmOkRC )
+    return rc;
+
+  p->binCnt = binCnt;
+  p->binHz  = binHz;
+  p->bandCnt = maxHz == 0 ? 34 : ceil(log10(maxHz/229.0 + 1) * 21.4 - 1)-1;
+
+  if( p->bandCnt <= 0 )
+    return cmCtxRtCondition(&p->obj, cmInvalidArgRC, "Max. Hz too low to form any frequency bands.");
+
+  cmReal_t flV[ p->bandCnt ];
+  cmReal_t fcV[ p->bandCnt ];
+  cmReal_t fhV[ p->bandCnt ];
+  int i;
+
+  for(i=0; i<p->bandCnt; ++i)
+  {
+    fcV[i] = 229.0 * (pow(10.0,(i+2)/21.4) - 1.0);
+    flV[i] = i==0 ? 0 : fcV[i-1];
+  }
+
+  for(i=0; i<p->bandCnt-1; ++i)
+    fhV[i] = fcV[i+1];
+
+  fhV[p->bandCnt-1] = fcV[p->bandCnt-1] + (fcV[p->bandCnt-1] - fcV[p->bandCnt-2]);
+
+  //cmVOR_PrintL("flV",NULL,1,p->bandCnt,flV);
+  //cmVOR_PrintL("fcV",NULL,1,p->bandCnt,fcV);
+  //cmVOR_PrintL("fhV",NULL,1,p->bandCnt,fhV);
+
+  cmReal_t* tM  = cmMemAlloc(cmReal_t,p->bandCnt * p->binCnt);
+  p->whM = cmMemResizeZ(cmReal_t,p->whM,p->binCnt * p->bandCnt);
+  p->iV  = cmMemResizeZ(cmReal_t,p->iV,p->binCnt);
+
+  // generate the bin index values
+  for(i=0; i<p->binCnt; ++i)
+    p->iV[i] = i;
+
+  cmReal_t stSpread = 0; // set stSpread to 0 to use flV/fhV[]
+  cmVOR_TriangleMask(tM, p->bandCnt, p->binCnt, fcV, p->binHz, stSpread, flV, fhV );
+  cmVOR_Transpose(p->whM, tM, p->bandCnt, p->binCnt );
+  cmMemFree(tM);
+
+  //cmVOR_PrintL("whM",NULL,p->bandCnt,p->binCnt,p->whM);
+
+  unsigned whiN = p->bandCnt+2;
+  p->whiV = cmMemResizeZ(cmReal_t,p->whiV,whiN);
+
+  for(i=0; i<whiN; ++i)
+  {
+    if( i == 0 )
+      p->whiV[i] = 0; 
+    else
+      if( i == whiN-1 )
+        p->whiV[i] = fhV[p->bandCnt-1]/binHz;
+      else
+        p->whiV[i] = fcV[i-1]/binHz;
+  }
+
+  //cmVOR_PrintL("whiV",NULL,1,whiN,p->whiV);
+  
+  return rc;
+}
+
+cmRC_t    cmWhFiltFinal( cmWhFilt* p )
+{ return cmOkRC; }
+
+cmRC_t    cmWhFiltExec( cmWhFilt* p, const cmReal_t* xV, cmReal_t* yV, unsigned xyN )
+{
+  assert( xyN == p->binCnt);
+
+  cmRC_t   rc   = cmOkRC;
+  unsigned whiN = p->bandCnt + 2;
+
+  unsigned mbi = cmMin(xyN, floor(p->whiV[whiN-1]));
+  
+  // calculate the level in each band to form a composite filter
+  cmReal_t  y0V[ whiN ];
+  cmReal_t* b0V = y0V + 1;
+  cmVOR_MultVVM(b0V, p->bandCnt, xV, p->binCnt, p->whM );
+
+  //cmVOR_PrintL("b0V",NULL,1,p->bandCnt,b0V);
+
+  // apply a non-linear expansion function to each band
+  // (BEWARE: zeros in b0V will generate Inf's)
+  cmVOR_PowVS(b0V,p->bandCnt,p->coeff-1);
+
+  //cmVOR_PrintL("b0V",NULL,1,p->bandCnt,b0V);
+
+  // add edge values to the filter
+  y0V[0]      = b0V[0];
+  y0V[whiN-1] = b0V[p->bandCnt-1];
+  
+  //cmVOR_PrintL("y0V",NULL,1,whiN,y0V);
+
+  cmVOR_Interp1(yV,p->iV,p->binCnt,p->whiV,y0V,whiN);
+
+  cmVOR_Fill(yV+mbi,xyN-mbi,1.0);
+
+  //cmVOR_PrintL("yV",NULL,1,p->binCnt,yV);
+
+  cmVOR_MultVV(yV,xyN,xV);
+
+  return rc;
+}
+
+//-----------------------------------------------------------------------------------------------------------------------
+
+cmFrqTrk* cmFrqTrkAlloc( cmCtx* c, cmFrqTrk* p, const cmFrqTrkArgs_t* a )
+{
+  cmFrqTrk* op = cmObjAlloc(cmFrqTrk,c,p);
+
+  op->logVa   = cmVectArrayAlloc(c,kRealVaFl);
+  op->levelVa = cmVectArrayAlloc(c,kRealVaFl);
+  op->specVa  = cmVectArrayAlloc(c,kRealVaFl);
+
+  op->wf  = cmWhFiltAlloc(c,NULL,0,0,0,0);
+
+  if( a != NULL )
+    if( cmFrqTrkInit(op,a) != cmOkRC )
+      cmFrqTrkFree(&op);
+
+  return op;
+
+}
+
+cmRC_t    cmFrqTrkFree( cmFrqTrk** pp )
+{
+  cmRC_t rc = cmOkRC;
+
+  if( pp==NULL || *pp==NULL )
+    return rc;
+
+  cmFrqTrk* p = *pp;
+  if((rc = cmFrqTrkFinal(p)) != cmOkRC )
+    return rc;
+
+  unsigned i;
+  for(i=0; i<p->a.chCnt; ++i)
+  {
+    cmMemFree(p->ch[i].dbV);
+    cmMemFree(p->ch[i].hzV);
+  }
+
+  cmMemFree(p->ch);
+  cmMemFree(p->dbM);
+  cmMemFree(p->pkiV);
+  cmMemFree(p->dbV);
+  cmVectArrayFree(&p->logVa);
+  cmVectArrayFree(&p->levelVa);
+  cmVectArrayFree(&p->specVa);
+  cmWhFiltFree(&p->wf);
+  cmMemFree(p->logFn);
+  cmMemFree(p->levelFn);
+  cmMemFree(p->specFn);
+  cmObjFree(pp);
+  return rc;
+
+}
+
+cmRC_t    cmFrqTrkInit( cmFrqTrk* p, const cmFrqTrkArgs_t* a )
+{
+  cmRC_t rc;
+  if((rc = cmFrqTrkFinal(p)) != cmOkRC )
+    return rc;
+
+  p->a         = *a;
+  p->ch        = cmMemResizeZ(cmFrqTrkCh_t,p->ch,a->chCnt );
+  p->hN        = cmMax(1,a->wndSecs * a->srate / a->hopSmpCnt );
+  p->sN        = p->hN;
+  p->bN        = p->a.binCnt;
+  p->dbM       = cmMemResizeZ(cmReal_t,p->dbM,p->hN*p->bN);
+  p->hi        = 0;
+  p->fN        = 0;
+  p->dbV       = cmMemResizeZ(cmReal_t,p->dbV,p->bN);
+  p->pkiV      = cmMemResizeZ(unsigned,p->pkiV,p->bN);
+  p->deadN_max = a->maxTrkDeadSec * a->srate / a->hopSmpCnt;
+  p->minTrkN   = a->minTrkSec * a->srate / a->hopSmpCnt;
+  p->nextTrkId = 1;
+
+  if( a->logFn != NULL )
+    p->logFn = cmMemResizeStr(p->logFn,a->logFn);
+
+  if( a->levelFn != NULL )
+    p->levelFn = cmMemResizeStr(p->levelFn,a->levelFn);
+
+  if( a->specFn != NULL )
+    p->specFn = cmMemResizeStr(p->specFn,a->specFn);
+
+  p->binHz       = a->srate / ((p->a.binCnt-1)*2);
+
+  cmReal_t whFiltCoeff = 0.33;
+  if(cmWhFiltInit(p->wf,p->a.binCnt,p->binHz,whFiltCoeff,a->srate/2) != cmOkRC )
+    cmCtxRtCondition(&p->obj, cmSubSysFailRC, "Whitening filter intitialization failed.");
+
+  unsigned i;
+  for(i=0; i<p->a.chCnt; ++i)
+  {
+    p->ch[i].dbV = cmMemResizeZ(cmReal_t,p->ch[i].dbV,p->sN);
+    p->ch[i].hzV = cmMemResizeZ(cmReal_t,p->ch[i].hzV,p->sN);
+  }
+
+  return rc;
+}
+
+cmRC_t    cmFrqTrkFinal( cmFrqTrk* p )
+{
+  cmRC_t   rc = cmOkRC;
+
+  if( p->logFn != NULL )
+    cmVectArrayWrite(p->logVa,p->logFn);
+
+  if( p->levelFn != NULL )
+    cmVectArrayWrite(p->levelVa,p->levelFn);
+
+  if( p->specFn != NULL )
+    cmVectArrayWrite(p->specVa,p->specFn);
+
+  cmWhFiltFinal(p->wf);
+  return rc;
+}
+
+// Return an available channel record or NULL if all channel records are in use.
+cmFrqTrkCh_t* _cmFrqTrkFindAvailCh( cmFrqTrk* p )
+{
+  unsigned i;
+  for(i=0; i<p->a.chCnt; ++i)
+    if( p->ch[i].activeFl == false )
+      return p->ch + i;
+
+  return NULL;
+}
+
+
+// Estimate the peak frequency by parabolic interpolotion into hzV[p->a.binCnt]
+void _cmFrqTrkMagnToHz( cmFrqTrk* p, const cmReal_t* dbV, unsigned* pkiV, unsigned pkN, cmReal_t* hzV )
+{
+  unsigned i;
+  for(i=0; i<pkN; ++i)
+    if( pkiV[i] != cmInvalidIdx )
+    {
+      unsigned pki  = pkiV[i];
+      cmReal_t y0   = pki>0             ? dbV[ pki-1 ] : dbV[pki];
+      cmReal_t y1   =                     dbV[ pki   ];
+      cmReal_t y2   = pki<p->a.binCnt-1 ? dbV[ pki+1 ] : dbV[pki];
+      cmReal_t den  = y0 - (2.*y1) + y2;
+      cmReal_t offs = den==0 ? 0 : 0.5 * ((y0 - y2) / den);
+      hzV[pki] = p->binHz * (pki+offs);
+    }
+}
+
+unsigned _cmFrqTrkActiveChCount( cmFrqTrk* p )
+{
+  unsigned n = 0;
+  unsigned i;
+  for(i=0; i<p->a.chCnt; ++i)
+    if( p->ch[i].activeFl )
+      ++n;
+
+  return n;
+}
+
+void _cmFrqTrkWriteLevel( cmFrqTrk* p, const cmReal_t* dbV, const cmReal_t* hzV, unsigned bN )
+{
+  if( p->levelFn != NULL )
+  {
+    double          maxHz     = 5000.0;
+    unsigned        maxBinIdx = cmMin(bN,maxHz / p->binHz);
+    unsigned        vn        = 3;
+    cmReal_t        v[vn];
+    unsigned        idx       = cmVOR_MaxIndex(dbV,maxBinIdx,1);
+    v[0] = cmVOR_Mean(dbV,maxBinIdx);
+    v[1] = dbV[idx];
+    v[2] = hzV[idx];
+  
+    cmVectArrayAppendR(p->levelVa,v,vn);
+  }
+
+}
+
+void _cmFrqTrkWriteLog( cmFrqTrk* p )
+{
+  unsigned n;
+  cmReal_t* vb = NULL;
+
+  if( p->logFn == NULL )
+    return;
+
+  if((n = _cmFrqTrkActiveChCount(p)) > 0 )
+  {
+    unsigned  i,j;
+
+    // sn = count of elements in the summary sub-vector
+    unsigned  sn  = 3;
+
+    // each active channel will emit 6 values
+    unsigned  nn  = 1 + n*6 + sn;
+
+    // allocate the row vector
+    vb   = cmMemResize(cmReal_t,vb,nn);
+
+    // row format
+    // [ nn idV[n] hzV[n] ... hsV[n] smV[sn]  ]
+    // n = (nn - (1 + sn)) / 6
+
+    *vb = nn; // the first element in the vector contains the length of the row
+
+    cmReal_t* v    = vb + 1;
+
+    // setup the base pointer to each sub-vector
+    cmReal_t* idV = v + n * 0;
+    cmReal_t* hzV = v + n * 1;
+    cmReal_t* dbV = v + n * 2;
+    cmReal_t* stV = v + n * 3;
+    cmReal_t* dsV = v + n * 4;
+    cmReal_t* hsV = v + n * 5;
+    cmReal_t* smV = v + n * 6; // summary information
+
+    smV[0] = p->newTrkCnt;
+    smV[1] = p->curTrkCnt;
+    smV[2] = p->deadTrkCnt;
+
+    // for each active channel
+    for(i=0,j=0; i<p->a.chCnt; ++i)
+      if( p->ch[i].activeFl )
+      {
+        assert(j < n);
+
+        // elements of each sub-vector associated with a given
+        // index refer to the same track record - element i therefore
+        // refers to active track index i.
+        idV[j] = p->ch[i].id;
+        hzV[j] = p->ch[i].hz;
+        dbV[j] = p->ch[i].db;
+        stV[j] = p->ch[i].dN;
+        dsV[j] = p->ch[i].db_std;
+        hsV[j] = p->ch[i].hz_std;
+        ++j;
+      }
+    
+    cmVectArrayAppendR(p->logVa, vb, nn );
+  }
+
+  cmMemFree(vb);
+
+}
+
+void _cmFrqTrkPrintChs( const cmFrqTrk* p )
+{
+  unsigned i;
+  for(i=0; i<p->a.chCnt; ++i)
+  {
+    cmFrqTrkCh_t* c = p->ch + i;
+    printf("%i : %i tN:%i hz:%f db:%f\n",i,c->activeFl,c->tN,c->hz,c->db);
+  }
+}
+
+// Used to sort the channels into descending dB order.
+int _cmFrqTrkChCompare( const void* p0, const void* p1 )
+{  return ((cmFrqTrkCh_t*)p0)->db - ((cmFrqTrkCh_t*)p1)->db; }
+
+
+// Return the index of the peak associated with pkiV[i] which best matches the tracker 'c'
+// or cmInvalidIdx if no valid peaks were found.
+// pkiV[ pkN ] holds the indexes into dbV[] and hzV[] which are peaks.
+// Some elements of pkiV[] may be set to cmInvalidIdx if the associated peak has already
+// been selected by another tracker.
+unsigned _cmFrqTrkFindPeak( cmFrqTrk* p, const cmFrqTrkCh_t* c, const cmReal_t* dbV, const cmReal_t* hzV, unsigned* pkiV, unsigned pkN )
+{
+  unsigned i,pki;
+  cmReal_t d_max = p->a.pkThreshDb;
+  unsigned d_idx = cmInvalidIdx;
+
+  cmReal_t hz_min = c->hz * pow(2,-p->a.stRange/12.0);
+  cmReal_t hz_max = c->hz * pow(2, p->a.stRange/12.0);
+
+  // find the peak with the most energy inside the frequency range hz_min to hz_max.
+  for(i=0; i<pkN; ++i)
+    if( ((pki = pkiV[i]) != cmInvalidIdx) && hz_min <= hzV[pki] && hzV[pki] <= hz_max && dbV[pki]>d_max )      
+    {
+      d_max= dbV[pki];
+      d_idx = i;      
+    }
+
+  return d_idx;
+}
+
+void _cmFrqTrkScoreChs( cmFrqTrk* p )
+{
+  unsigned i;
+  for(i=0; i<p->a.chCnt; ++i)
+    if( p->ch[i].activeFl )
+    {
+      cmFrqTrkCh_t* c = p->ch + i;
+
+      c->dbV[ c->si ] = c->db;
+      c->hzV[ c->si ] = c->hz;
+      c->si  = (c->si + 1) % p->sN;
+      c->sn += 1;
+
+      unsigned n = cmMin(c->sn,p->sN);
+
+      c->db_mean = cmVOR_Mean(c->dbV,n);
+      c->db_std  = sqrt(cmVOR_Variance( c->dbV,n,&c->db_mean));
+      c->hz_mean = cmVOR_Mean(c->hzV,n);
+      c->hz_std  = sqrt(cmVOR_Variance( c->hzV,n,&c->hz_mean));
+    }
+}
+
+// Extend the existing trackers
+void _cmFrqTrkExtendChs( cmFrqTrk* p, const cmReal_t* dbV, const cmReal_t* hzV, unsigned* pkiV, unsigned pkN )
+{
+  unsigned i; 
+
+  p->curTrkCnt = 0;
+  p->deadTrkCnt = 0;
+
+  // sort the channels in descending order
+  qsort(p->ch,p->a.chCnt,sizeof(cmFrqTrkCh_t),_cmFrqTrkChCompare);
+
+  // for each active channel
+  for(i=0; i<p->a.chCnt; ++i)
+  {
+    cmFrqTrkCh_t* c = p->ch + i;
+
+    if( c->activeFl )
+    {
+      unsigned pki;
+
+      // find the best peak to extend tracker 'c'.
+      if((pki = _cmFrqTrkFindPeak(p,c,dbV,hzV,pkiV,pkN)) == cmInvalidIdx )
+      {
+        // no valid track was found to extend tracker 'c'
+        c->dN += 1;
+        c->tN += 1;
+
+        if( c->dN >= p->deadN_max )
+        {
+          c->activeFl = false;
+          p->deadTrkCnt += 1;
+        }
+      }
+      else // ... update the tracker using the matching peak
+      {
+        unsigned j = pkiV[pki];
+        c->dN = 0;
+        c->db = dbV[ j ];
+        c->hz = hzV[ j ];
+        c->tN += 1;
+        pkiV[pki] = cmInvalidIdx;  // mark the peak as unavailable.
+        p->curTrkCnt += 1;
+      }
+    }
+  }
+}
+
+// disable peaks which are within 'stRange' semitones of the frequency of active trackers.
+void _cmFrqTrkDisableClosePeaks( cmFrqTrk* p, const cmReal_t* dbV, const cmReal_t* hzV, unsigned* pkiV, unsigned pkN )
+{
+  unsigned i;
+  for(i=0; i<p->a.chCnt; ++i)
+  {
+    const cmFrqTrkCh_t* c      = p->ch + i;
+
+    if( !c->activeFl )
+      continue;
+
+    cmReal_t            hz_min = c->hz * pow(2,-p->a.stRange/12.0);
+    cmReal_t            hz_max = c->hz * pow(2, p->a.stRange/12.0);
+    unsigned            j;
+
+    // find all peaks within the frequency range hz_min to hz_max.
+    for(j=0; j<pkN; ++j)
+      if( pkiV[j] != cmInvalidIdx && hz_min <= c->hz && c->hz <= hz_max )      
+        pkiV[j] = cmInvalidIdx;
+          
+  }
+}
+
+// Return the index into pkiV[] of the maximum energy peak in dbV[] 
+// that is also above kAtkThreshDb.
+unsigned _cmFrqTrkMaxEnergyPeakIndex( const cmFrqTrk* p, const cmReal_t* dbV, const cmReal_t* hzV, const unsigned* pkiV, unsigned pkN )
+{
+  cmReal_t mv = p->a.pkAtkThreshDb;
+  unsigned mi = cmInvalidIdx;
+  unsigned i;
+
+  for(i=0; i<pkN; ++i)
+    if( pkiV[i] != cmInvalidIdx && dbV[pkiV[i]] >= mv && hzV[pkiV[i]] < p->a.pkAtkMaxHz )
+    {
+      mi = i;
+      mv = dbV[pkiV[i]];
+    }
+      
+  return mi;
+}
+
+// start new trackers
+void _cmFrqTrkNewChs( cmFrqTrk* p, const cmReal_t* dbV, const cmReal_t* hzV, unsigned* pkiV, unsigned pkN )
+{
+
+  p->newTrkCnt = 0;
+
+  while(1)
+  {
+    unsigned db_max_idx;
+    cmFrqTrkCh_t* c;
+
+    // find an inactive channel
+    if((c = _cmFrqTrkFindAvailCh(p)) == NULL )
+      break;
+    
+    // find the largest peak that is above pkAtkThreshDb && less than pkAtkHz.
+    if((db_max_idx = _cmFrqTrkMaxEnergyPeakIndex(p,dbV,hzV,pkiV,pkN)) == cmInvalidIdx )
+      break;
+
+    // activate a new channel
+    c->activeFl = true;
+    c->tN       = 1;
+    c->dN       = 0;
+    c->hz       = hzV[ pkiV[ db_max_idx ] ];
+    c->db       = dbV[ pkiV[ db_max_idx ] ];
+    c->id       = p->nextTrkId++;
+    c->si       = 0;
+    c->sn       = 0;
+
+    // mark the peak as unavailable
+    pkiV[ db_max_idx ] = cmInvalidIdx;    
+
+    p->newTrkCnt += 1;
+  }
+
+}
+
+
+cmRC_t cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, const cmReal_t* hertzV )
+{
+  cmRC_t   rc = cmOkRC;
+  cmReal_t hzV[ p->bN ];
+
+  cmReal_t powV[ p->bN ];
+  //cmReal_t whV[ p->bN];
+  cmVOR_MultVVV(powV,p->bN,magV,magV);
+  cmWhFiltExec(p->wf,powV,p->dbV,p->bN);
+
+  // convert magV to Decibels
+  //cmVOR_AmplToDbVV(p->dbV,p->bN, magV, -200.0);
+
+  
+  // copy p->dbV to dbM[hi,:] 
+  cmVOR_CopyN(p->dbM + p->hi, p->bN, p->hN, p->dbV, 1 );
+  //cmVOR_CopyN(p->dbM + p->hi, p->bN, p->hN, whV, 1 );
+
+  // increment hi
+  p->hi = (p->hi + 1) % p->hN;
+
+  // Form the spectral magnitude profile by taking the mean over time
+  // of the last hN magnitude vectors
+  cmVOR_MeanM2(p->dbV, p->dbM, p->hN, p->bN, 0, cmMin(p->fN+1,p->hN));
+  //cmVOR_MeanM(p->dbV, p->dbM, p->hN, p->bN, 0);
+
+  if( p->fN >= p->hN )
+  {
+    // set the indexes of the peaks above pkThreshDb in i0[]
+    unsigned pkN = cmVOR_PeakIndexes(p->pkiV, p->bN, p->dbV, p->bN, p->a.pkThreshDb );
+
+    // 
+    _cmFrqTrkMagnToHz(p, p->dbV, p->pkiV, pkN, hzV );
+
+    // extend the existing trackers
+    _cmFrqTrkExtendChs(p, p->dbV, hzV, p->pkiV, pkN );
+
+    //_cmFrqTrkDisableClosePeaks(p, p->dbV,  hzV, p->pkiV, pkN );
+
+    // create new trackers
+    _cmFrqTrkNewChs(p,p->dbV,hzV,p->pkiV,pkN);
+  
+    _cmFrqTrkScoreChs(p);
+
+    // write the log file
+    _cmFrqTrkWriteLog(p);
+
+    // write the spectrum output file
+    if( p->specFn != NULL )
+      cmVectArrayAppendR(p->specVa,p->dbV,p->bN);
+
+    // write the the level file
+    _cmFrqTrkWriteLevel(p,p->dbV,hzV,p->bN);
+  }
+
+  p->fN += 1;
+
+  return rc;
+}
+
+void  cmFrqTrkPrint( cmFrqTrk* p )
+{
+  printf("srate:         %f\n",p->a.srate);
+  printf("chCnt:         %i\n",p->a.chCnt);
+  printf("binCnt:        %i\n",p->a.binCnt);
+  printf("hopSmpCnt:     %i\n",p->a.hopSmpCnt);
+  printf("stRange:       %f\n",p->a.stRange);
+  printf("wndSecs:       %f (%i)\n",p->a.wndSecs,p->hN);
+  printf("minTrkSec:     %f (%i)\n",p->a.minTrkSec,p->minTrkN);
+  printf("maxTrkDeadSec: %f (%i)\n",p->a.maxTrkDeadSec,p->deadN_max);
+  printf("pkThreshDb:    %f\n",p->a.pkThreshDb);
+  printf("pkAtkThreshDb: %f\n",p->a.pkAtkThreshDb);
+
+}
+
 
 //------------------------------------------------------------------------------------------------------------
 cmSpecDist_t* cmSpecDistAlloc( cmCtx* ctx,cmSpecDist_t* ap, unsigned procSmpCnt, double srate, unsigned wndSmpCnt, unsigned hopFcmt, unsigned olaWndTypeId  )
@@ -3691,6 +5201,8 @@ cmRC_t cmSpecDistFree( cmSpecDist_t** pp )
 
 cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsigned wndSmpCnt, unsigned hopFcmt, unsigned olaWndTypeId  )
 {
+  cmFrqTrkArgs_t fta;
+
   cmRC_t rc;
   if((rc = cmSpecDistFinal(p)) != cmOkRC )
     return rc;
@@ -3709,8 +5221,27 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
   p->uprSlope     = 0.0;
   p->lwrSlope     = 2.0;
 
-  p->pva = cmPvAnlAlloc(p->obj.ctx, NULL, procSmpCnt, srate, wndSmpCnt, p->hopSmpCnt, flags );
-  p->pvs = cmPvSynAlloc(p->obj.ctx, NULL, procSmpCnt, srate, wndSmpCnt, p->hopSmpCnt, olaWndTypeId );
+  p->pva = cmPvAnlAlloc(  p->obj.ctx, NULL, procSmpCnt, srate, wndSmpCnt, p->hopSmpCnt, flags );
+  p->pvs = cmPvSynAlloc(  p->obj.ctx, NULL, procSmpCnt, srate, wndSmpCnt, p->hopSmpCnt, olaWndTypeId );
+
+  fta.srate         = srate;
+  fta.chCnt         = 20;       
+  fta.binCnt        = p->pva->binCnt;
+  fta.hopSmpCnt     = p->pva->hopSmpCnt;
+  fta.stRange       = 0.25;
+  fta.wndSecs       = 0.5;
+  fta.minTrkSec     = 0.25;
+  fta.maxTrkDeadSec = 0.25;
+  fta.pkThreshDb    = 0.2; //-110.0;
+  fta.pkAtkThreshDb = 0.9; //-60.0;
+  fta.pkAtkMaxHz    = 10000;
+  fta.logFn         = "/home/kevin/temp/frqtrk/trk_log.va";
+  fta.levelFn       = "/home/kevin/temp/frqtrk/level.va";
+  fta.specFn        = "/home/kevin/temp/frqtrk/spec.va";
+
+  p->ft  = cmFrqTrkAlloc( p->obj.ctx, NULL, &fta );
+  cmFrqTrkPrint(p->ft);
+
 
   p->spcBwHz   = cmMin(srate/2,10000);
   p->spcSmArg  = 0.05;
@@ -3740,7 +5271,7 @@ cmRC_t cmSpecDistFinal(cmSpecDist_t* p )
   cmRC_t rc = cmOkRC;
   cmPvAnlFree(&p->pva);
   cmPvSynFree(&p->pvs);
-
+  cmFrqTrkFree(&p->ft);
   return rc;
 }
 
@@ -3928,6 +5459,8 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
   if( cmPvAnlExec( p->pva, sp, sn ) )
   {
     cmReal_t X1m[p->pva->binCnt]; 
+
+    cmFrqTrkExec(p->ft, p->pva->magV, p->pva->phsV, NULL );
 
     cmVOR_AmplToDbVV(X1m, p->pva->binCnt, p->pva->magV, -1000.0 );
    
@@ -4301,3 +5834,6 @@ cmRC_t cmBinMtxFileRead( cmCtx_t* ctx, const cmChar_t* fn, unsigned mRowCnt, uns
   
   
 }
+
+
+

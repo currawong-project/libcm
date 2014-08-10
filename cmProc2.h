@@ -765,6 +765,238 @@ extern "C" {
 
 
   //------------------------------------------------------------------------------------------------------------
+  // cmVectArray buffers row vectors of arbitrary lenght in  memory.
+  // The buffers may then be access using the cmVectArrayGetXXX() functions.
+  // The entire contents of the file may be written to a file using atVectArrayWrite().
+  // The file may then be read in back into memory using cmVectArrayAllocFromFile()
+  // or in octave via readVectArray.m.
+  // A rectantular matrix in memory may be written to a VectArray file in one operation
+  // via the function cmVectArrayWriteMatrixXXX(). 
+
+  typedef struct cmVectArrayVect_str
+  {
+    unsigned n;  // length of this vector in values (not bytes)
+
+    union           
+    {
+      char*        v;  // raw memory vector pointer
+      double*     dV;  // dV[n] vector of doubles  
+      float*      fV;  // fV[n] vecotr of floats
+      cmSample_t* sV;  // sV[n] vector of cmSample_t
+    } u;
+
+    struct cmVectArrayVect_str* link; // link to next element record
+
+  } cmVectArrayVect_t;
+
+  enum
+  {
+    kFloatVaFl  = 0x01,
+    kDoubleVaFl = 0x02,
+    kSampleVaFl = 0x04,
+    kRealVaFl   = 0x08,
+    kIntVaFl    = 0x02,  // int and uint is converted to double
+    kUIntVaFl   = 0x02   // 
+  };
+
+  typedef struct
+  {
+    cmObj              obj;
+    cmVectArrayVect_t* bp;         // first list element
+    cmVectArrayVect_t* ep;         // last list element
+    unsigned           vectCnt;     // count of elements in linked list
+    unsigned           flags;      // data vector type (See: kFloatVaFl, kDoubleVaFl, ... )
+    unsigned           typeByteCnt; // size of a single data vector value (e.g. 4=float 8=double)
+    unsigned           maxEleCnt; // length of the longest data vector
+    double*            tempV;
+    cmVectArrayVect_t* cur;
+  } cmVectArray_t;
+
+  // Flags must be set to one of the kXXXVAFl flag values.
+  cmVectArray_t* cmVectArrayAlloc( cmCtx* ctx, unsigned flags );
+  cmVectArray_t* cmVectArrayAllocFromFile(cmCtx* ctx, const char* fn );
+
+  cmRC_t cmVectArrayFree(    cmVectArray_t** pp );
+
+  // Release all the stored vectors but do not release the object.
+  cmRC_t cmVectArrayClear(   cmVectArray_t* p );
+
+  // Return the count of vectors contained in the vector array.
+  cmRC_t cmVectArrayCount(   const cmVectArray_t* p );
+
+  // Store a new vector by appending it to the end of the internal vector list.
+  cmRC_t cmVectArrayAppendS( cmVectArray_t* p, const cmSample_t* v, unsigned vn );
+  cmRC_t cmVectArrayAppendR( cmVectArray_t* p, const cmReal_t* v,   unsigned vn );
+  cmRC_t cmVectArrayAppendF( cmVectArray_t* p, const float* v,      unsigned vn );
+  cmRC_t cmVectArrayAppendD( cmVectArray_t* p, const double* v,     unsigned vn );
+  cmRC_t cmVectArrayAppendI( cmVectArray_t* p, const int* v,        unsigned vn );
+  cmRC_t cmVectArrayAppendU( cmVectArray_t* p, const unsigned* v,   unsigned vn );
+
+  // Write a vector array in a format that can be read by readVectArray.m.
+  cmRC_t cmVectArrayWrite(   cmVectArray_t* p, const char* fn );
+
+  typedef cmRC_t (*cmVectArrayForEachFuncS_t)( void* arg, unsigned idx, const cmSample_t* xV, unsigned xN );
+  unsigned cmVectArrayForEachS( cmVectArray_t* p, unsigned idx, unsigned cnt, cmVectArrayForEachFuncS_t func, void* arg ); 
+
+  cmRC_t cmVectArrayWriteVectorS( cmCtx* ctx, const char* fn, const cmSample_t* v, unsigned  vn );
+  cmRC_t cmVectArrayWriteVectorI( cmCtx* ctx, const char* fn, const int* v,        unsigned  vn );
+
+  // Write the column-major matrix m[rn,cn] to the file 'fn'. Note that the matrix is transposed as it is 
+  // written and therefore will be read back as a 'cn' by 'rn' matrix.
+  cmRC_t cmVectArrayWriteMatrixS( cmCtx* ctx, const char* fn, const cmSample_t* m, unsigned  rn, unsigned cn );
+  cmRC_t cmVectArrayWriteMatrixI( cmCtx* ctx, const char* fn, const int*        m, unsigned  rn, unsigned cn );
+
+
+  cmRC_t   cmVectArrayRewind(   cmVectArray_t* p );
+  cmRC_t   cmVectArrayAdvance(  cmVectArray_t* p, unsigned n );
+  bool     cmVectArrayIsEOL(    const cmVectArray_t* p );
+  unsigned cmVectArrayEleCount( const cmVectArray_t* p );
+  cmRC_t   cmVectArrayGetF(     cmVectArray_t* p, float* v,      unsigned* vnRef );
+  cmRC_t   cmVectArrayGetD(     cmVectArray_t* p, double* v,     unsigned* vnRef );
+  cmRC_t   cmVectArrayGetI(     cmVectArray_t* p, int* v,        unsigned* vnRef );
+  cmRC_t   cmVectArrayGetU(     cmVectArray_t* p, unsigned* v,   unsigned* vnRef );
+
+  // If a vector array is composed of repeating blocks of 'groupCnt' sub-vectors 
+  // where the concatenated ith sub-vectors in each group form a single super-vector then
+  // this function will return the super-vector.  Use cmMemFree(*vRef) to release
+  // the returned super-vector.
+  cmRC_t   cmVectArrayFormVectF( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, float** vRef, unsigned* vnRef );
+
+  cmRC_t   cmVectArrayFormVectColF( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, unsigned colIdx, float**    vRef, unsigned* vnRef );
+  cmRC_t   cmVectArrayFormVectColU( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, unsigned colIdx, unsigned** vRef, unsigned* vnRef );
+  cmRC_t   cmVectArrayTest( cmCtx* ctx, const char* fn );  
+
+
+#if CM_FLOAT_SMP == 1
+#define cmVectArrayGetS cmVectArrayGetF
+#define cmVectArrayFormVectS cmVectArrayFormVectF
+#else
+#define cmVectArrayGetS cmVectArrayGetD
+#define cmVectArrayFormVectS cmVectArrayFormVectD
+#endif
+
+  //-----------------------------------------------------------------------------------------------------------------------
+  // Spectral whitening filter.
+  // Based on: Klapuri, A., 2006: Multiple fundamental frequency estimation by summing
+  //  harmonic amplitudes.
+
+  typedef struct
+  {
+    cmObj     obj;
+    unsigned  binCnt;  // 
+    cmReal_t  binHz;   //
+    unsigned  bandCnt; //
+    cmReal_t  coeff;   //
+    cmReal_t* whiV;    // whiV[bandCnt+2] - fractional bin index of each center frequency 
+    cmReal_t* whM;     // whM[binCnt,bandCnt]
+    cmReal_t* iV;      // iV[ binCnt ] - working memory
+  } cmWhFilt;
+
+  cmWhFilt* cmWhFiltAlloc( cmCtx* c, cmWhFilt* p, unsigned binCnt, cmReal_t binHz, cmReal_t coeff, cmReal_t maxHz );
+  cmRC_t    cmWhFiltFree( cmWhFilt** pp );
+  cmRC_t    cmWhFiltInit( cmWhFilt* p, unsigned binCnt, cmReal_t binHz, cmReal_t coeff, cmReal_t maxHz );
+  cmRC_t    cmWhFiltFinal( cmWhFilt* p );
+  cmRC_t    cmWhFiltExec( cmWhFilt* p, const cmReal_t* xV, cmReal_t* yV, unsigned xyN );
+
+  //-----------------------------------------------------------------------------------------------------------------------
+
+  typedef struct
+  {
+    double      srate;          // system sample rate
+    unsigned    chCnt;          // tracking channel count
+    unsigned    binCnt;         // count of spectrum elements passed in each call to cmFrqTrkExec()
+    unsigned    hopSmpCnt;      // phase vocoder hop count in samples
+    cmReal_t    stRange;        // maximum allowable semi-tones between a tracker and a peak
+    cmReal_t    wndSecs;        // duration of the  
+    cmReal_t    minTrkSec;      // minimum track length before track is considered stable
+    cmReal_t    maxTrkDeadSec;  // maximum length of time a tracker may fail to connect to a peak before being declared disconnected.
+    cmReal_t    pkThreshDb;     // minimum amplitide in Decibels of a selected spectral peak.
+    cmReal_t    pkAtkThreshDb;  // minimum amplitude in Decibels for the first frame of a new track.
+    cmReal_t    pkAtkMaxHz;     // maximum frequency for a new track.
+    const char* logFn;          // log file name or NULL if no file is to be written
+    const char* levelFn;        // level file name or NULL if no file is to be written
+    const char* specFn;         // spectrum file name or NULL if no file is to be written
+
+  } cmFrqTrkArgs_t;
+
+  typedef struct
+  {
+    bool     activeFl; 
+    unsigned id;
+    unsigned tN;   // age of this track in frames
+    unsigned dN;   // count of consecutive times this ch has not connected 
+    cmReal_t hz;   // current center frequency
+    cmReal_t db;   // current magnitude
+
+    cmReal_t* dbV; // dbV[]
+    cmReal_t* hzV; // hzV[]  
+    unsigned  si;
+    unsigned  sn;
+    
+    cmReal_t db_mean;
+    cmReal_t db_std;
+    cmReal_t hz_mean;
+    cmReal_t hz_std;
+
+  } cmFrqTrkCh_t;
+
+  struct cmBinMtxFile_str;
+
+  typedef struct cmFrqTrk_str
+  {
+    cmObj         obj;
+    cmFrqTrkArgs_t  a;
+    cmFrqTrkCh_t*  ch;  // ch[ a.chCnt ]
+    unsigned       hN;  // count of magnitude buffer frames 
+    unsigned       sN;  // count of frames in channel statistics buffers
+    unsigned       bN;  // count of bins in peak matrices
+    cmReal_t*     dbM;  // dbM[ hN, bN ]
+    unsigned       hi;  // next row of dbM to fill
+    unsigned       fN;  // total count of frames processed.
+    cmReal_t      binHz;
+
+    cmReal_t*     dbV;
+    unsigned*     pkiV;
+    unsigned      deadN_max; // max. count of hops a tracker may fail to connect before being set to inactive
+    unsigned      minTrkN;   // minimum track length in hops
+    unsigned      nextTrkId;
+
+    unsigned      newTrkCnt;
+    unsigned      curTrkCnt;
+    unsigned      deadTrkCnt;
+
+    cmWhFilt*      wf;
+
+    cmVectArray_t* logVa;
+    cmVectArray_t* levelVa;
+    cmVectArray_t* specVa;
+    
+    cmChar_t*      logFn;
+    cmChar_t*      levelFn;
+    cmChar_t*      specFn;
+
+  } cmFrqTrk;
+
+  //
+  // 1. Calculate the mean spectral magnitude profile over the last hN frames.
+  // 2. Locate the peaks in the profile.
+  // 3. Allow each active tracker to select the closest peak to extend its life.
+  //     a) The distance between the trackers current location and a given
+  //        peak is measured based on magnitude and frequency over time.
+  //     b) There is a frequency range limit outside of which a given track-peak
+  //        connection may not go.
+  //     c) There is an amplitude threshold below which a track may not fall.
+
+  cmFrqTrk* cmFrqTrkAlloc( cmCtx* c, cmFrqTrk* p, const cmFrqTrkArgs_t* a );
+  cmRC_t    cmFrqTrkFree( cmFrqTrk** pp );
+  cmRC_t    cmFrqTrkInit( cmFrqTrk* p, const cmFrqTrkArgs_t* a );
+  cmRC_t    cmFrqTrkFinal( cmFrqTrk* p );
+  cmRC_t    cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, const cmReal_t* hzV );
+  void      cmFrqTrkPrint( cmFrqTrk* p );
+
+
+
+  //------------------------------------------------------------------------------------------------------------
 
   enum
   {
@@ -787,6 +1019,8 @@ extern "C" {
 
     cmPvAnl*  pva;
     cmPvSyn*  pvs;
+
+    cmFrqTrk* ft;
     
     unsigned mode;
     double   thresh;
@@ -868,6 +1102,9 @@ extern "C" {
   // Use cmBinMtxFileSize() to determine the buffer size prior to calling this function.
   // colCntV[colCnt] is optional.
   cmRC_t cmBinMtxFileRead( cmCtx_t* ctx, const cmChar_t* fn, unsigned rowCnt, unsigned colCnt, unsigned eleByteCnt, void* buf, unsigned* colCntV );
+
+
+
 
 #ifdef __cplusplus
 }
