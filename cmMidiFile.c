@@ -1413,6 +1413,37 @@ bool cmMidiFileIsNull( cmMidiFileH_t h )
 void cmMidiFileTestPrint( void* printDataPtr, const char* fmt, va_list vl )
 { vprintf(fmt,vl); }
 
+
+void cmMidiFilePrintControlNumbers( cmCtx_t* ctx, const char* fn )
+{
+  cmMidiFileH_t h = cmMidiFileNullHandle;
+  cmMfRC_t rc;
+
+  if((rc = cmMidiFileOpen(fn, &h, ctx )) != kOkMfRC )
+  {
+    cmErrMsg(&ctx->err,rc,"MIDI file open failed on '%s'.",fn);
+    goto errLabel;
+  }
+
+  const cmMidiTrackMsg_t** mm;
+  unsigned n = cmMidiFileMsgCount(h);
+  if((mm = cmMidiFileMsgArray(h)) != NULL )
+  {
+    unsigned j;
+    for(j=0; j<n; ++j)
+    {
+      const cmMidiTrackMsg_t* m = mm[j];
+      
+      if(  m->status == kCtlMdId && m->u.chMsgPtr->d0==66 )
+        printf("%i %i\n",m->u.chMsgPtr->d0,m->u.chMsgPtr->d1);
+    }
+  }
+
+ errLabel:
+  cmMidiFileClose(&h);
+
+}
+
 void cmMidiFileTest( const char* fn, cmCtx_t* ctx )
 {
   cmMfRC_t      rc;
@@ -1427,7 +1458,9 @@ void cmMidiFileTest( const char* fn, cmCtx_t* ctx )
   if(1)
   {
     //cmMidiFilePrint(h,cmMidiFileTrackCount(h)-1,&ctx->rpt);
-    cmMidiFilePrint(h,cmInvalidIdx,&ctx->rpt);
+    //cmMidiFilePrint(h,cmInvalidIdx,&ctx->rpt);
+    cmMidiFilePrintControlNumbers(ctx, fn );
+
   }
   if( 0 )
   {
