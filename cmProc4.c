@@ -4492,7 +4492,10 @@ cmRC_t         cmRecdPlayExec( cmRecdPlay* p, const cmSample_t** iChs, cmSample_
 
   // copy first block to end of LA buffer
   for(i=0; i<chCnt; ++i)
-    cmVOS_Copy(p->laChs[i]+p->laSmpIdx,n0,iChs[i] + srcOffs);
+    if( iChs[i] == NULL )
+      cmVOS_Zero(p->laChs[i]+p->laSmpIdx,n0);
+    else
+      cmVOS_Copy(p->laChs[i]+p->laSmpIdx,n0,iChs[i] + srcOffs);
 
   p->laSmpIdx += n0;
 
@@ -4500,7 +4503,10 @@ cmRC_t         cmRecdPlayExec( cmRecdPlay* p, const cmSample_t** iChs, cmSample_
   {
     // copy second block to begin of LA buffer
     for(i=0; i<chCnt; ++i)
-      cmVOS_Copy(p->laChs[i],n1,iChs[i] + srcOffs + n0);
+      if( iChs[i] == NULL )
+        cmVOS_Zero(p->laChs[i],n1);
+      else
+        cmVOS_Copy(p->laChs[i],n1,iChs[i] + srcOffs + n0);
 
     p->laSmpIdx = n1; 
 
@@ -4517,7 +4523,10 @@ cmRC_t         cmRecdPlayExec( cmRecdPlay* p, const cmSample_t** iChs, cmSample_
     unsigned n = cmMin(fp->allocCnt - fp->recdIdx,smpCnt);
     unsigned i;
     for(i=0; i<p->chCnt; ++i)
-      cmVOS_Copy(fp->chArray[i] + fp->recdIdx, n, iChs[i] );
+      if( iChs[i] == NULL )
+        cmVOS_Zero(fp->chArray[i] + fp->recdIdx, n );
+      else
+        cmVOS_Copy(fp->chArray[i] + fp->recdIdx, n, iChs[i] );
 
     fp->recdIdx += n;
 
@@ -4536,7 +4545,8 @@ cmRC_t         cmRecdPlayExec( cmRecdPlay* p, const cmSample_t** iChs, cmSample_
     unsigned i;
 
     for(i=0; i<p->chCnt; ++i)
-      cmVOS_MultVVS(oChs[i],n,fp->chArray[i] + fp->playIdx,gain);
+      if( oChs[i] != NULL )
+        cmVOS_MultVVS(oChs[i],n,fp->chArray[i] + fp->playIdx,gain);
 
     fp->playIdx += n;
 
