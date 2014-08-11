@@ -844,8 +844,8 @@ extern "C" {
   // Write the column-major matrix m[rn,cn] to the file 'fn'. Note that the matrix is transposed as it is 
   // written and therefore will be read back as a 'cn' by 'rn' matrix.
   cmRC_t cmVectArrayWriteMatrixS( cmCtx* ctx, const char* fn, const cmSample_t* m, unsigned  rn, unsigned cn );
+  cmRC_t cmVectArrayWriteMatrixR( cmCtx* ctx, const char* fn, const cmReal_t*   m, unsigned  rn, unsigned cn );
   cmRC_t cmVectArrayWriteMatrixI( cmCtx* ctx, const char* fn, const int*        m, unsigned  rn, unsigned cn );
-
 
   cmRC_t   cmVectArrayRewind(   cmVectArray_t* p );
   cmRC_t   cmVectArrayAdvance(  cmVectArray_t* p, unsigned n );
@@ -899,6 +899,13 @@ extern "C" {
   cmRC_t    cmWhFiltExec( cmWhFilt* p, const cmReal_t* xV, cmReal_t* yV, unsigned xyN );
 
   //-----------------------------------------------------------------------------------------------------------------------
+  typedef enum
+  {
+    kNoStateFrqTrkId,
+    kAtkFrqTrkId,
+    kSusFrqTrkId,
+    kDcyFrqTrkId
+  } cmFrqTrkAttenStateId_t;
 
   typedef struct
   {
@@ -912,10 +919,17 @@ extern "C" {
     cmReal_t    maxTrkDeadSec;  // maximum length of time a tracker may fail to connect to a peak before being declared disconnected.
     cmReal_t    pkThreshDb;     // minimum amplitide in Decibels of a selected spectral peak.
     cmReal_t    pkAtkThreshDb;  // minimum amplitude in Decibels for the first frame of a new track.
-    cmReal_t    pkAtkMaxHz;     // maximum frequency for a new track.
+    cmReal_t    pkMaxHz;        // maximum frequency to track
+    cmReal_t    whFiltCoeff;
+
+    cmReal_t    attenThresh;
+    cmReal_t    attenGain; 
+    cmReal_t    attenAtkSec;   
+
     const char* logFn;          // log file name or NULL if no file is to be written
     const char* levelFn;        // level file name or NULL if no file is to be written
     const char* specFn;         // spectrum file name or NULL if no file is to be written
+    const char* attenFn;
 
   } cmFrqTrkArgs_t;
 
@@ -938,6 +952,11 @@ extern "C" {
     cmReal_t hz_mean;
     cmReal_t hz_std;
 
+    cmReal_t score;
+
+    cmFrqTrkAttenStateId_t state;
+    int      attenPhsIdx;
+    cmReal_t attenGain;
   } cmFrqTrkCh_t;
 
   struct cmBinMtxFile_str;
@@ -965,15 +984,20 @@ extern "C" {
     unsigned      curTrkCnt;
     unsigned      deadTrkCnt;
 
+    cmReal_t*     aV;
+    int           attenPhsMax;
+
     cmWhFilt*      wf;
 
     cmVectArray_t* logVa;
     cmVectArray_t* levelVa;
     cmVectArray_t* specVa;
-    
+    cmVectArray_t* attenVa;
+
     cmChar_t*      logFn;
     cmChar_t*      levelFn;
     cmChar_t*      specFn;
+    cmChar_t*      attenFn;
 
   } cmFrqTrk;
 

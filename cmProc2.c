@@ -4076,6 +4076,35 @@ cmRC_t cmVectArrayWriteMatrixS( cmCtx* ctx, const char* fn, const cmSample_t* m,
 
 }
 
+cmRC_t cmVectArrayWriteMatrixR( cmCtx* ctx, const char* fn, const cmReal_t* m, unsigned  rn, unsigned cn )
+{
+  cmRC_t        rc = cmOkRC;
+  cmVectArray_t* p;
+  unsigned       i;
+
+  if((p = cmVectArrayAlloc(ctx,kRealVaFl)) == NULL )
+    return cmCtxRtCondition(&ctx->obj,cmSubSysFailRC,"Unable to allocate an cmVectArray_t in cmVectArrayWriteVectorR().");
+
+  for(i=0; i<cn; ++i)
+  {
+    if((rc = cmVectArrayAppendR(p,m + (i*rn), rn)) != cmOkRC )
+    {
+      rc = cmCtxRtCondition(&p->obj,rc,"Vector append failed in cmVectArrayWriteVectorR().");
+      goto errLabel;
+    }
+    
+  }
+
+  if((rc = cmVectArrayWrite(p,fn)) != cmOkRC )
+    rc = cmCtxRtCondition(&p->obj,rc,"Vector array write failed in cmVectArrayWriteVectorR().");
+
+ errLabel:
+  if((rc = cmVectArrayFree(&p)) != cmOkRC )
+    rc = cmCtxRtCondition(&ctx->obj,rc,"Free failed on cmVectArrayFree() in cmVectArrayWriteVectorR().");
+
+  return rc;
+
+}
 
 cmRC_t cmVectArrayWriteVectorI( cmCtx* ctx, const char* fn, const int* v,        unsigned  vn )
 {
@@ -4602,6 +4631,7 @@ cmRC_t    cmWhFiltInit( cmWhFilt* p, unsigned binCnt, cmReal_t binHz, cmReal_t c
   cmMemFree(tM);
 
   //cmVOR_PrintL("whM",NULL,p->bandCnt,p->binCnt,p->whM);
+  //cmVectArrayWriteMatrixR(p->obj.ctx, "/home/kevin/temp/frqtrk/whM.va", p->whM, p->binCnt, p->bandCnt );
 
   unsigned whiN = p->bandCnt+2;
   p->whiV = cmMemResizeZ(cmReal_t,p->whiV,whiN);
@@ -4618,6 +4648,7 @@ cmRC_t    cmWhFiltInit( cmWhFilt* p, unsigned binCnt, cmReal_t binHz, cmReal_t c
   }
 
   //cmVOR_PrintL("whiV",NULL,1,whiN,p->whiV);
+  //cmVectArrayWriteMatrixR(p->obj.ctx, "/home/kevin/temp/frqtrk/whiV.va", p->whiV, whiN, 1 );
   
   return rc;
 }
@@ -4641,8 +4672,14 @@ cmRC_t    cmWhFiltExec( cmWhFilt* p, const cmReal_t* xV, cmReal_t* yV, unsigned 
 
   //cmVOR_PrintL("b0V",NULL,1,p->bandCnt,b0V);
 
+  // BEWARE: zeros in b0V will generate Inf's when sent 
+  // through the cmVOR_PowVS() function.
+  int i;
+  for(i=0; i<p->bandCnt; ++i)
+    if( b0V[i] < 0.000001 )
+      b0V[i] =  0.000001;
+
   // apply a non-linear expansion function to each band
-  // (BEWARE: zeros in b0V will generate Inf's)
   cmVOR_PowVS(b0V,p->bandCnt,p->coeff-1);
 
   //cmVOR_PrintL("b0V",NULL,1,p->bandCnt,b0V);
@@ -4673,6 +4710,7 @@ cmFrqTrk* cmFrqTrkAlloc( cmCtx* c, cmFrqTrk* p, const cmFrqTrkArgs_t* a )
   op->logVa   = cmVectArrayAlloc(c,kRealVaFl);
   op->levelVa = cmVectArrayAlloc(c,kRealVaFl);
   op->specVa  = cmVectArrayAlloc(c,kRealVaFl);
+  op->attenVa = cmVectArrayAlloc(c,kRealVaFl);
 
   op->wf  = cmWhFiltAlloc(c,NULL,0,0,0,0);
 
@@ -4706,9 +4744,11 @@ cmRC_t    cmFrqTrkFree( cmFrqTrk** pp )
   cmMemFree(p->dbM);
   cmMemFree(p->pkiV);
   cmMemFree(p->dbV);
+  cmMemFree(p->aV);
   cmVectArrayFree(&p->logVa);
   cmVectArrayFree(&p->levelVa);
   cmVectArrayFree(&p->specVa);
+  cmVectArrayFree(&p->attenVa);
   cmWhFiltFree(&p->wf);
   cmMemFree(p->logFn);
   cmMemFree(p->levelFn);
@@ -4727,8 +4767,9 @@ cmRC_t    cmFrqTrkInit( cmFrqTrk* p, const cmFrqTrkArgs_t* a )
   p->a         = *a;
   p->ch        = cmMemResizeZ(cmFrqTrkCh_t,p->ch,a->chCnt );
   p->hN        = cmMax(1,a->wndSecs * a->srate / a->hopSmpCnt );
-  p->sN        = p->hN;
-  p->bN        = p->a.binCnt;
+  p->sN        = 4*p->hN;
+  p->binHz       = a->srate / ((p->a.binCnt-1)*2);
+  p->bN        = cmMin( p->a.binCnt, ceil(p->a.pkMaxHz / p->binHz ));
   p->dbM       = cmMemResizeZ(cmReal_t,p->dbM,p->hN*p->bN);
   p->hi        = 0;
   p->fN        = 0;
@@ -4737,7 +4778,9 @@ cmRC_t    cmFrqTrkInit( cmFrqTrk* p, const cmFrqTrkArgs_t* a )
   p->deadN_max = a->maxTrkDeadSec * a->srate / a->hopSmpCnt;
   p->minTrkN   = a->minTrkSec * a->srate / a->hopSmpCnt;
   p->nextTrkId = 1;
-
+  p->aV        = cmMemResizeZ(cmReal_t,p->aV,p->a.binCnt);
+  p->attenPhsMax    = cmMax(3,a->attenAtkSec * a->srate / a->hopSmpCnt );
+  
   if( a->logFn != NULL )
     p->logFn = cmMemResizeStr(p->logFn,a->logFn);
 
@@ -4747,10 +4790,11 @@ cmRC_t    cmFrqTrkInit( cmFrqTrk* p, const cmFrqTrkArgs_t* a )
   if( a->specFn != NULL )
     p->specFn = cmMemResizeStr(p->specFn,a->specFn);
 
-  p->binHz       = a->srate / ((p->a.binCnt-1)*2);
+  if( a->attenFn != NULL )
+    p->attenFn = cmMemResizeStr(p->attenFn,a->attenFn);
 
-  cmReal_t whFiltCoeff = 0.33;
-  if(cmWhFiltInit(p->wf,p->a.binCnt,p->binHz,whFiltCoeff,a->srate/2) != cmOkRC )
+
+  if(cmWhFiltInit(p->wf,p->bN,p->binHz,p->a.whFiltCoeff,p->a.pkMaxHz) != cmOkRC )
     cmCtxRtCondition(&p->obj, cmSubSysFailRC, "Whitening filter intitialization failed.");
 
   unsigned i;
@@ -4776,6 +4820,9 @@ cmRC_t    cmFrqTrkFinal( cmFrqTrk* p )
   if( p->specFn != NULL )
     cmVectArrayWrite(p->specVa,p->specFn);
 
+  if( p->attenFn != NULL )
+    cmVectArrayWrite(p->attenVa,p->attenFn);
+
   cmWhFiltFinal(p->wf);
   return rc;
 }
@@ -4792,7 +4839,7 @@ cmFrqTrkCh_t* _cmFrqTrkFindAvailCh( cmFrqTrk* p )
 }
 
 
-// Estimate the peak frequency by parabolic interpolotion into hzV[p->a.binCnt]
+// Estimate the peak frequency by parabolic interpolotion into hzV[p->bN]
 void _cmFrqTrkMagnToHz( cmFrqTrk* p, const cmReal_t* dbV, unsigned* pkiV, unsigned pkN, cmReal_t* hzV )
 {
   unsigned i;
@@ -4802,10 +4849,15 @@ void _cmFrqTrkMagnToHz( cmFrqTrk* p, const cmReal_t* dbV, unsigned* pkiV, unsign
       unsigned pki  = pkiV[i];
       cmReal_t y0   = pki>0             ? dbV[ pki-1 ] : dbV[pki];
       cmReal_t y1   =                     dbV[ pki   ];
-      cmReal_t y2   = pki<p->a.binCnt-1 ? dbV[ pki+1 ] : dbV[pki];
+      cmReal_t y2   = pki<p->bN-1       ? dbV[ pki+1 ] : dbV[pki];
       cmReal_t den  = y0 - (2.*y1) + y2;
       cmReal_t offs = den==0 ? 0 : 0.5 * ((y0 - y2) / den);
       hzV[pki] = p->binHz * (pki+offs);
+
+      //if( hzV[pki] < 0 )
+      //{
+      //  printf("%f : %f %f %f : %f %f\n",hzV[pki],y0,y1,y2,den,offs);
+      //}
     }
 }
 
@@ -4853,15 +4905,15 @@ void _cmFrqTrkWriteLog( cmFrqTrk* p )
     // sn = count of elements in the summary sub-vector
     unsigned  sn  = 3;
 
-    // each active channel will emit 6 values
-    unsigned  nn  = 1 + n*6 + sn;
+    // each active channel will emit 7 values
+    unsigned  nn  = 1 + n*7 + sn;
 
     // allocate the row vector
     vb   = cmMemResize(cmReal_t,vb,nn);
 
     // row format
     // [ nn idV[n] hzV[n] ... hsV[n] smV[sn]  ]
-    // n = (nn - (1 + sn)) / 6
+    // n = (nn - (1 + sn)) / 7
 
     *vb = nn; // the first element in the vector contains the length of the row
 
@@ -4874,7 +4926,8 @@ void _cmFrqTrkWriteLog( cmFrqTrk* p )
     cmReal_t* stV = v + n * 3;
     cmReal_t* dsV = v + n * 4;
     cmReal_t* hsV = v + n * 5;
-    cmReal_t* smV = v + n * 6; // summary information
+    cmReal_t* agV = v + n * 6;
+    cmReal_t* smV = v + n * 7; // summary information
 
     smV[0] = p->newTrkCnt;
     smV[1] = p->curTrkCnt;
@@ -4895,6 +4948,7 @@ void _cmFrqTrkWriteLog( cmFrqTrk* p )
         stV[j] = p->ch[i].dN;
         dsV[j] = p->ch[i].db_std;
         hsV[j] = p->ch[i].hz_std;
+        agV[j] = p->ch[i].attenGain;
         ++j;
       }
     
@@ -4964,7 +5018,92 @@ void _cmFrqTrkScoreChs( cmFrqTrk* p )
       c->db_std  = sqrt(cmVOR_Variance( c->dbV,n,&c->db_mean));
       c->hz_mean = cmVOR_Mean(c->hzV,n);
       c->hz_std  = sqrt(cmVOR_Variance( c->hzV,n,&c->hz_mean));
+
+      c->score = c->db / ((cmMin(0.1,c->db_std) + cmMin(0.1,c->hz_std))/2);
     }
+}
+
+void _cmFrqTrkApplyAtten( cmFrqTrk* p, cmReal_t* aV, cmReal_t gain, cmReal_t hz )
+{
+  int       cbi = cmMin(p->a.binCnt,cmMax(0,round(hz/p->binHz)));
+  cmReal_t  map[] = { .25, .5, 1, .5, .25 };
+  int       mapN = sizeof(map)/sizeof(map[0]);
+  int       j;
+
+  int ai = cbi - mapN/2;
+
+  for(j=0; j<mapN; ++j,++ai)
+    if( 0 <= ai && ai < p->a.binCnt )
+      aV[ai] *=  1.0 - (map[j] * gain);
+    
+}
+
+void _cmFrqTrkUpdateFilter( cmFrqTrk* p )
+{
+  unsigned i;
+  cmVOR_Fill(p->aV,p->a.binCnt,1.0);
+  
+  for(i=0; i<p->a.chCnt; ++i)
+    if( p->ch[i].activeFl )
+    {
+      cmFrqTrkCh_t* c = p->ch + i;
+      // 
+      if( c->score >= p->a.attenThresh && c->state == kNoStateFrqTrkId )
+      {
+        c->attenPhsIdx = 0;
+        c->state  = kAtkFrqTrkId;        
+      }
+
+      switch( c->state )
+      {
+        case kNoStateFrqTrkId:
+          break;
+
+        case kAtkFrqTrkId:
+          if( c->attenPhsIdx < p->attenPhsMax )
+          {
+            _cmFrqTrkApplyAtten(p, p->aV, c->attenGain, c->hz);
+          }
+
+          c->attenPhsIdx += 1;
+          if( c->attenPhsIdx >= p->attenPhsMax )
+            c->state = kSusFrqTrkId;
+          break;
+
+        case kSusFrqTrkId:
+
+          if( c->dN > 0 )
+          {
+            if( c->attenPhsIdx > 0 )
+            {
+              c->attenPhsIdx -= 1;
+              c->attenGain = cmMin(1.0,p->a.attenGain * c->attenPhsIdx / p->attenPhsMax);
+            }
+          }
+
+          _cmFrqTrkApplyAtten(p,p->aV, c->attenGain, c->hz);   
+
+          if( c->dN >= p->deadN_max )
+            c->state = kDcyFrqTrkId;
+
+          break;
+
+        case kDcyFrqTrkId:
+          if( c->attenPhsIdx > 0 )
+          {
+            c->attenPhsIdx -= 1;
+            c->attenGain = cmMin(1.0,p->a.attenGain * c->attenPhsIdx / p->attenPhsMax);
+            _cmFrqTrkApplyAtten(p,p->aV, c->attenGain, c->hz);   
+          }          
+          
+          if( c->attenPhsIdx == 0 )
+            c->activeFl = false;
+
+          break;
+      }
+    }
+  
+
 }
 
 // Extend the existing trackers
@@ -4996,7 +5135,9 @@ void _cmFrqTrkExtendChs( cmFrqTrk* p, const cmReal_t* dbV, const cmReal_t* hzV, 
 
         if( c->dN >= p->deadN_max )
         {
-          c->activeFl = false;
+          if( c->attenPhsIdx == 0 )
+            c->activeFl = false;
+
           p->deadTrkCnt += 1;
         }
       }
@@ -5046,7 +5187,7 @@ unsigned _cmFrqTrkMaxEnergyPeakIndex( const cmFrqTrk* p, const cmReal_t* dbV, co
   unsigned i;
 
   for(i=0; i<pkN; ++i)
-    if( pkiV[i] != cmInvalidIdx && dbV[pkiV[i]] >= mv && hzV[pkiV[i]] < p->a.pkAtkMaxHz )
+    if( pkiV[i] != cmInvalidIdx && dbV[pkiV[i]] >= mv && hzV[pkiV[i]] < p->a.pkMaxHz )
     {
       mi = i;
       mv = dbV[pkiV[i]];
@@ -5084,6 +5225,11 @@ void _cmFrqTrkNewChs( cmFrqTrk* p, const cmReal_t* dbV, const cmReal_t* hzV, uns
     c->si       = 0;
     c->sn       = 0;
 
+    c->score       = 0;
+    c->state       = kNoStateFrqTrkId;
+    c->attenPhsIdx = cmInvalidIdx;
+    c->attenGain   = 1.0;
+
     // mark the peak as unavailable
     pkiV[ db_max_idx ] = cmInvalidIdx;    
 
@@ -5111,6 +5257,21 @@ cmRC_t cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, co
   cmVOR_CopyN(p->dbM + p->hi, p->bN, p->hN, p->dbV, 1 );
   //cmVOR_CopyN(p->dbM + p->hi, p->bN, p->hN, whV, 1 );
 
+  if( 1 )
+  {
+    cmReal_t powV[ p->bN ];
+    cmVOR_MultVVV(powV,p->bN,magV,magV);
+    cmWhFiltExec(p->wf,powV,p->dbV,p->bN);
+  }
+  else
+  {
+    // convert magV to Decibels
+    cmVOR_AmplToDbVV(p->dbV,p->bN, magV, -200.0);
+  }
+
+  // copy p->dbV to dbM[hi,:] 
+  cmVOR_CopyN(p->dbM + p->hi, p->bN, p->hN, p->dbV, 1 );
+
   // increment hi
   p->hi = (p->hi + 1) % p->hN;
 
@@ -5124,7 +5285,7 @@ cmRC_t cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, co
     // set the indexes of the peaks above pkThreshDb in i0[]
     unsigned pkN = cmVOR_PeakIndexes(p->pkiV, p->bN, p->dbV, p->bN, p->a.pkThreshDb );
 
-    // 
+    // generate the peak frequencies from the magnitude
     _cmFrqTrkMagnToHz(p, p->dbV, p->pkiV, pkN, hzV );
 
     // extend the existing trackers
@@ -5135,7 +5296,11 @@ cmRC_t cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, co
     // create new trackers
     _cmFrqTrkNewChs(p,p->dbV,hzV,p->pkiV,pkN);
   
+    //
     _cmFrqTrkScoreChs(p);
+
+    // 
+    _cmFrqTrkUpdateFilter(p);
 
     // write the log file
     _cmFrqTrkWriteLog(p);
@@ -5143,6 +5308,10 @@ cmRC_t cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, co
     // write the spectrum output file
     if( p->specFn != NULL )
       cmVectArrayAppendR(p->specVa,p->dbV,p->bN);
+
+    // write the atten output file
+    if( p->attenFn != NULL )
+      cmVectArrayAppendR(p->attenVa,p->aV,p->bN);
 
     // write the the level file
     _cmFrqTrkWriteLevel(p,p->dbV,hzV,p->bN);
@@ -5157,7 +5326,7 @@ void  cmFrqTrkPrint( cmFrqTrk* p )
 {
   printf("srate:         %f\n",p->a.srate);
   printf("chCnt:         %i\n",p->a.chCnt);
-  printf("binCnt:        %i\n",p->a.binCnt);
+  printf("binCnt:        %i (bN=%i)\n",p->a.binCnt,p->bN);
   printf("hopSmpCnt:     %i\n",p->a.hopSmpCnt);
   printf("stRange:       %f\n",p->a.stRange);
   printf("wndSecs:       %f (%i)\n",p->a.wndSecs,p->hN);
@@ -5225,19 +5394,26 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
   p->pvs = cmPvSynAlloc(  p->obj.ctx, NULL, procSmpCnt, srate, wndSmpCnt, p->hopSmpCnt, olaWndTypeId );
 
   fta.srate         = srate;
-  fta.chCnt         = 20;       
+  fta.chCnt         = 50;       
   fta.binCnt        = p->pva->binCnt;
   fta.hopSmpCnt     = p->pva->hopSmpCnt;
   fta.stRange       = 0.25;
-  fta.wndSecs       = 0.5;
+  fta.wndSecs       = 0.25;
   fta.minTrkSec     = 0.25;
   fta.maxTrkDeadSec = 0.25;
-  fta.pkThreshDb    = 0.2; //-110.0;
-  fta.pkAtkThreshDb = 0.9; //-60.0;
-  fta.pkAtkMaxHz    = 10000;
+  fta.pkThreshDb    = 0.1; //-110.0;
+  fta.pkAtkThreshDb = 0.5; //-60.0;
+  fta.pkMaxHz       = 10000;
+  fta.whFiltCoeff   = 0.33;
+
+  fta.attenThresh = 900.0;
+  fta.attenGain   = 0.9; 
+  fta.attenAtkSec = 0.1;  
+
   fta.logFn         = "/home/kevin/temp/frqtrk/trk_log.va";
   fta.levelFn       = "/home/kevin/temp/frqtrk/level.va";
   fta.specFn        = "/home/kevin/temp/frqtrk/spec.va";
+  fta.attenFn       = "/home/kevin/temp/frqtrk/atten.va";
 
   p->ft  = cmFrqTrkAlloc( p->obj.ctx, NULL, &fta );
   cmFrqTrkPrint(p->ft);
@@ -5462,8 +5638,12 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
 
     cmFrqTrkExec(p->ft, p->pva->magV, p->pva->phsV, NULL );
 
-    cmVOR_AmplToDbVV(X1m, p->pva->binCnt, p->pva->magV, -1000.0 );
-   
+    // apply the freq track suppression filter
+    cmVOR_MultVVV(X1m, p->pva->binCnt,p->pva->magV,p->ft->aV );
+
+    //cmVOR_AmplToDbVV(X1m, p->pva->binCnt, p->pva->magV, -1000.0 );
+   cmVOR_AmplToDbVV(X1m, p->pva->binCnt, X1m, -1000.0 );
+
     switch( p->mode )
     {
       case kBypassModeSdId:
