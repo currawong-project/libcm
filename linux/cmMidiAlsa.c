@@ -561,11 +561,12 @@ cmMpRC_t cmMpFinalize()
     }
 
     // stop the queue
-    if((arc = snd_seq_stop_queue(p->h,p->alsa_queue, NULL)) < 0 )
-    {
-      rc = _cmMpErrMsg(&p->err,kSysErrMpRC,arc,"ALSA queue stop failed.");
-      goto errLabel;
-    }
+    if( p->h != NULL )
+      if((arc = snd_seq_stop_queue(p->h,p->alsa_queue, NULL)) < 0 )
+      {
+        rc = _cmMpErrMsg(&p->err,kSysErrMpRC,arc,"ALSA queue stop failed.");
+        goto errLabel;
+      }
 
     // release the alsa queue
     if( p->alsa_queue != -1 )
