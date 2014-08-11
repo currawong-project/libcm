@@ -2715,26 +2715,37 @@ cmDspRC_t _cmDspRecdPlayExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
   for(i=0; i<p->chCnt; ++i)
   {
-    if( i==0 )
-      n  = cmDspAudioBufSmpCount(ctx,inst,kInAudioBasePrId+i,0);
-    else
-    { assert( n == cmDspAudioBufSmpCount(ctx,inst,kInAudioBasePrId+i,0)); }
-
-    x[i] = cmDspAudioBuf(ctx,inst,kInAudioBasePrId+i,0);
-
-    if( x[i] != NULL )
+    if( cmDspIsAudioInputConnected(ctx,inst,kInAudioBasePrId+i) == false )
     {
-      y[i] = cmDspAudioBuf(ctx,inst,p->audioOutBaseId+i,0);
-
-      if( y[i] != NULL )
-      {
-        assert( n == cmDspAudioBufSmpCount(ctx,inst,p->audioOutBaseId+i,0));
-
-        cmVOS_Zero(y[i],n);
-
-        actChCnt += 1;
+      x[i] = NULL;
+      y[i] = NULL;
+    }
+    else
+    {
+      if( i==0 )
+        n  = cmDspAudioBufSmpCount(ctx,inst,kInAudioBasePrId+i,0);
+      else
+      { 
+        
+        assert( n == cmDspAudioBufSmpCount(ctx,inst,kInAudioBasePrId+i,0)); 
       }
       
+      x[i] = cmDspAudioBuf(ctx,inst,kInAudioBasePrId+i,0);
+      
+      if( x[i] != NULL )
+      {
+        y[i] = cmDspAudioBuf(ctx,inst,p->audioOutBaseId+i,0);
+
+        if( y[i] != NULL )
+        {
+          assert( n == cmDspAudioBufSmpCount(ctx,inst,p->audioOutBaseId+i,0));
+
+          cmVOS_Zero(y[i],n);
+
+          actChCnt += 1;
+        }
+      
+      }
     }
   }
 
