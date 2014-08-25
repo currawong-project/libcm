@@ -5023,11 +5023,43 @@ void _cmFrqTrkScoreChs( cmFrqTrk* p )
     }
 }
 
+// Generate a filter that is wider for higher frequencies than lower frequencies.
+unsigned _cmFrqTrkFillMap( cmFrqTrk* p, cmReal_t* map, unsigned maxN, cmReal_t hz )
+{
+  assert( maxN % 2 == 1 );
+
+  unsigned i;
+  cmReal_t maxHz = p->a.srate/2;
+  unsigned mapN  = cmMin(maxN,ceil(hz/maxHz * maxN));
+
+  if( mapN % 2 == 0 )
+    mapN += 1;
+
+  mapN = cmMin(maxN,mapN);
+
+  unsigned   N = floor(mapN/2);
+
+  double COEFF = 0.3;
+
+  for(i=0; i<N; ++i)
+  {
+    map[i] = pow(((double)i+1)/(N+1),COEFF);
+    map[mapN-(i+1)] = map[i];
+  }
+
+  map[N] = 1.0;
+  return mapN;
+}
+
 void _cmFrqTrkApplyAtten( cmFrqTrk* p, cmReal_t* aV, cmReal_t gain, cmReal_t hz )
 {
   int       cbi = cmMin(p->a.binCnt,cmMax(0,round(hz/p->binHz)));
-  cmReal_t  map[] = { .25, .5, 1, .5, .25 };
-  int       mapN = sizeof(map)/sizeof(map[0]);
+  //cmReal_t  map[] = { .25, .5, 1, .5, .25 };
+  //int       mapN = sizeof(map)/sizeof(map[0]);
+
+  unsigned  maxN = 30;  // must be odd
+  cmReal_t  map[ maxN ];
+  int       mapN = _cmFrqTrkFillMap(p, map, maxN, hz );
   int       j;
 
   int ai = cbi - mapN/2;
@@ -5062,6 +5094,9 @@ void _cmFrqTrkUpdateFilter( cmFrqTrk* p )
         case kAtkFrqTrkId:
           if( c->attenPhsIdx < p->attenPhsMax )
           {
+
+            c->attenGain = cmMin(1.0,p->a.attenGain * c->attenPhsIdx / p->attenPhsMax);
+
             _cmFrqTrkApplyAtten(p, p->aV, c->attenGain, c->hz);
           }
 
@@ -5238,23 +5273,33 @@ void _cmFrqTrkNewChs( cmFrqTrk* p, const cmReal_t* dbV, const cmReal_t* hzV, uns
 
 }
 
+void _cmFrqTrkApplyFrqBias( cmFrqTrk* p, cmReal_t* xV )
+{
+  // 1+2*([0:.01:1].^4)
+  unsigned i;
+  for(i=0; i<p->bN; ++i)
+    xV[i] =  cmMax(0.0, (20*log10( cmMax(xV[i]/1.5,0.00001)) + 100.0)/100.0);
+
+}
+
 
 cmRC_t cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, const cmReal_t* hertzV )
 {
   cmRC_t   rc = cmOkRC;
   cmReal_t hzV[ p->bN ];
 
-  cmReal_t powV[ p->bN ];
-  //cmReal_t whV[ p->bN];
-  cmVOR_MultVVV(powV,p->bN,magV,magV);
-  cmWhFiltExec(p->wf,powV,p->dbV,p->bN);
+  //cmReal_t powV[ p->bN ];
+  //cmReal_t yV[ p->bN];
+
+  //cmVOR_MultVVV(powV,p->bN,magV,magV);
+  //cmWhFiltExec(p->wf,powV,p->dbV,p->bN);
 
   // convert magV to Decibels
   //cmVOR_AmplToDbVV(p->dbV,p->bN, magV, -200.0);
 
   
   // copy p->dbV to dbM[hi,:] 
-  cmVOR_CopyN(p->dbM + p->hi, p->bN, p->hN, p->dbV, 1 );
+  //cmVOR_CopyN(p->dbM + p->hi, p->bN, p->hN, p->dbV, 1 );
   //cmVOR_CopyN(p->dbM + p->hi, p->bN, p->hN, whV, 1 );
 
   if( 1 )
@@ -5262,6 +5307,7 @@ cmRC_t cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, co
     cmReal_t powV[ p->bN ];
     cmVOR_MultVVV(powV,p->bN,magV,magV);
     cmWhFiltExec(p->wf,powV,p->dbV,p->bN);
+    _cmFrqTrkApplyFrqBias(p,p->dbV);
   }
   else
   {
@@ -5302,6 +5348,7 @@ cmRC_t cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, co
     // 
     _cmFrqTrkUpdateFilter(p);
 
+    /*
     // write the log file
     _cmFrqTrkWriteLog(p);
 
@@ -5315,6 +5362,7 @@ cmRC_t cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, co
 
     // write the the level file
     _cmFrqTrkWriteLevel(p,p->dbV,hzV,p->bN);
+    */
   }
 
   p->fN += 1;
@@ -5337,12 +5385,107 @@ void  cmFrqTrkPrint( cmFrqTrk* p )
 
 }
 
+//------------------------------------------------------------------------------------------------------------
+cmFbCtl_t*  cmFbCtlAlloc( cmCtx* c, cmFbCtl_t* ap, const cmFbCtlArgs_t* a )
+{
+  cmFbCtl_t* p = cmObjAlloc( cmFbCtl_t, c, ap );
+
+  p->sva = cmVectArrayAlloc(c,kRealVaFl);
+  p->uva = cmVectArrayAlloc(c,kRealVaFl);
+
+  if( a != NULL )
+  {
+    if( cmFbCtlInit( p, a ) != cmOkRC )
+      cmFbCtlFree(&p);
+  }
+
+  return p;
+
+}
+
+cmRC_t    cmFbCtlFree( cmFbCtl_t** pp )
+{
+  if( pp == NULL || *pp == NULL )
+    return cmOkRC;
+
+  cmFbCtl_t* p = *pp;
+  
+  cmVectArrayWrite(p->sva, "/home/kevin/temp/frqtrk/fb_ctl_s.va");
+  cmVectArrayWrite(p->uva, "/home/kevin/temp/frqtrk/fb_ctl_u.va");
+
+  cmMemFree(p->bM);
+  cmMemFree(p->rmsV);
+  cmVectArrayFree(&p->sva);
+  cmVectArrayFree(&p->uva);
+  cmObjFree(pp);
+  return cmOkRC;
+
+}
+
+cmRC_t    cmFbCtlInit( cmFbCtl_t* p, const cmFbCtlArgs_t* a )
+{
+  cmRC_t rc;
+  if((rc = cmFbCtlFinal(p)) != cmOkRC )
+    return rc;
+
+  double binHz = a->srate / ((a->binCnt-1)*2);
+
+  p->a      = *a;
+  p->frmCnt = (a->bufMs * a->srate / 1000.0) /a->hopSmpCnt;
+  p->binCnt = cmMin(p->a.binCnt, a->maxHz/binHz);
+  p->bM     = cmMemResizeZ(cmReal_t, p->bM,   p->binCnt*p->frmCnt);
+  p->rmsV   = cmMemResizeZ(cmReal_t, p->rmsV, p->frmCnt);
+  p->sV     = cmMemResizeZ(cmReal_t, p->sV,   p->binCnt);
+  p->uV     = cmMemResizeZ(cmReal_t, p->uV,   p->binCnt);
+
+  printf("cmFbCtl: frmCnt:%i binCnt:%i \n",p->frmCnt,p->binCnt);
+  return rc;
+}
+
+cmRC_t    cmFbCtlFinal(cmFbCtl_t* p )
+{ return cmOkRC; }
+
+cmRC_t    cmFbCtlExec( cmFbCtl_t* p, const cmReal_t* x0V )
+{
+  unsigned i;
+  cmRC_t rc = cmOkRC;
+
+  cmReal_t xV[ p->binCnt ];
+  cmVOR_AmplToDbVV(xV, p->binCnt, x0V, -1000.0 );
+
+  cmVOR_Shift( p->rmsV, p->frmCnt, -1, 0 );
+  p->rmsV[0] = cmVOR_Mean(xV,p->binCnt);
+
+  cmVOR_CopyN(p->bM + p->bfi, p->binCnt, p->frmCnt, xV, 1 );
+
+  p->bfi  = (p->bfi + 1) % p->frmCnt;
+  p->bfN  = cmMin(p->bfN+1,p->frmCnt);
+  
+  for(i=0; i<p->binCnt; ++i)
+  {
+    const cmReal_t* v = p->bM + i * p->frmCnt;
+    cmReal_t u = cmVOR_Mean(v, p->bfN );
+    cmReal_t s = sqrt(cmVOR_Variance(v, p->bfN,&u));
+
+    
+
+    p->sV[i] = (0.0002 - s);
+    p->uV[i] = u;
+  }
+ 
+
+  cmVectArrayAppendR(p->sva,p->sV,p->binCnt);
+  cmVectArrayAppendR(p->uva,p->uV,p->binCnt);
+
+  return rc;
+}
 
 //------------------------------------------------------------------------------------------------------------
 cmSpecDist_t* cmSpecDistAlloc( cmCtx* ctx,cmSpecDist_t* ap, unsigned procSmpCnt, double srate, unsigned wndSmpCnt, unsigned hopFcmt, unsigned olaWndTypeId  )
 {
   cmSpecDist_t* p = cmObjAlloc( cmSpecDist_t, ctx, ap );
 
+  p->oSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
 
   if( procSmpCnt != 0 )
   {
@@ -5362,6 +5505,7 @@ cmRC_t cmSpecDistFree( cmSpecDist_t** pp )
   cmSpecDist_t* p = *pp;
   
   cmSpecDistFinal(p);
+  cmVectArrayFree(&p->oSpecVa);
   cmMemPtrFree(&p->hzV);
   cmObjFree(pp);
   return cmOkRC;
@@ -5402,13 +5546,13 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
   fta.minTrkSec     = 0.25;
   fta.maxTrkDeadSec = 0.25;
   fta.pkThreshDb    = 0.1; //-110.0;
-  fta.pkAtkThreshDb = 0.5; //-60.0;
-  fta.pkMaxHz       = 10000;
+  fta.pkAtkThreshDb = 0.4; //-60.0;
+  fta.pkMaxHz       = 20000;
   fta.whFiltCoeff   = 0.33;
 
   fta.attenThresh = 900.0;
-  fta.attenGain   = 0.9; 
-  fta.attenAtkSec = 0.1;  
+  fta.attenGain   = 1.0; 
+  fta.attenAtkSec = 0.25;  
 
   fta.logFn         = "/home/kevin/temp/frqtrk/trk_log.va";
   fta.levelFn       = "/home/kevin/temp/frqtrk/level.va";
@@ -5418,6 +5562,14 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
   p->ft  = cmFrqTrkAlloc( p->obj.ctx, NULL, &fta );
   cmFrqTrkPrint(p->ft);
 
+  cmFbCtlArgs_t fba;
+  fba.srate = srate;
+  fba.binCnt = p->pva->binCnt;
+  fba.hopSmpCnt = p->hopSmpCnt;
+  fba.bufMs = 500;
+  fba.maxHz = 5000;
+
+  p->fbc  = cmFbCtlAlloc( p->obj.ctx, NULL, &fba );
 
   p->spcBwHz   = cmMin(srate/2,10000);
   p->spcSmArg  = 0.05;
@@ -5438,16 +5590,19 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
 
   //p->bypOut = cmMemResizeZ(cmSample_t, p->bypOut, procSmpCnt );
 
-
   return rc;
 }
 
 cmRC_t cmSpecDistFinal(cmSpecDist_t* p )
 {
   cmRC_t rc = cmOkRC;
+
+  cmVectArrayWrite(p->oSpecVa, "/home/kevin/temp/frqtrk/oSpec.va");
+
   cmPvAnlFree(&p->pva);
   cmPvSynFree(&p->pvs);
   cmFrqTrkFree(&p->ft);
+  cmFbCtlFree(&p->fbc);
   return rc;
 }
 
@@ -5493,7 +5648,6 @@ void _cmSpecDistBasicMode(cmSpecDist_t* p, cmReal_t* X1m, unsigned binCnt, cmRea
       X1m[i] -= (p->lwrSlope*d);
     else
       X1m[i] -= (p->uprSlope*d);
-
   }
 
 }
@@ -5604,9 +5758,6 @@ void _cmSpecDistAmpEnvMode( cmSpecDist_t* p, cmReal_t* X1m )
   cmReal_t mx = cmVOR_Max(X1m,p->pva->binCnt,1);
   p->aeSmMax  = (mx * smCoeff) + (p->aeSmMax * (1.0-smCoeff));
 
-
-
-
   cmReal_t a = cmVOR_Mean(X1m,p->pva->binCnt);
   
   p->ae = (a * smCoeff) + (p->ae * (1.0-smCoeff));
@@ -5636,13 +5787,16 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
   {
     cmReal_t X1m[p->pva->binCnt]; 
 
-    cmFrqTrkExec(p->ft, p->pva->magV, p->pva->phsV, NULL );
+    cmReal_t u0 = cmVOR_Mean(p->pva->magV,p->pva->binCnt);
+
+    //cmFrqTrkExec(p->ft, p->pva->magV, p->pva->phsV, NULL );
 
     // apply the freq track suppression filter
-    cmVOR_MultVVV(X1m, p->pva->binCnt,p->pva->magV,p->ft->aV );
+    //cmVOR_MultVVV(X1m, p->pva->binCnt,p->pva->magV, p->ft->aV );
 
-    //cmVOR_AmplToDbVV(X1m, p->pva->binCnt, p->pva->magV, -1000.0 );
-   cmVOR_AmplToDbVV(X1m, p->pva->binCnt, X1m, -1000.0 );
+    cmVOR_AmplToDbVV(X1m, p->pva->binCnt, p->pva->magV, -1000.0 );
+    //cmVOR_AmplToDbVV(X1m, p->pva->binCnt, X1m, -1000.0 );
+
 
     switch( p->mode )
     {
@@ -5683,8 +5837,38 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
       default:
         break;
     }
+
+    //cmVectArrayAppendR(p->oSpecVa,X1m,p->pva->binCnt);
     
     cmVOR_DbToAmplVV(X1m, p->pva->binCnt, X1m );
+
+
+    // run and apply the tracker/supressor
+    cmFrqTrkExec(p->ft, X1m, p->pva->phsV, NULL );
+    cmVOR_MultVV(X1m, p->pva->binCnt,p->ft->aV );
+
+
+    cmReal_t idb = 20*log10(u0);
+    cmReal_t u1 = cmVOR_Mean(X1m,p->pva->binCnt);
+
+    if( idb > -150.0 )
+    {
+      p->ogain = u0/u1;
+    }
+    else
+    {
+      cmReal_t a0 = 0.9;
+      p->ogain *= a0;
+    }
+
+    //cmReal_t v[] = { u0, u1, idb, 20*log10(u1), p->ogain };
+    //unsigned vn = sizeof(v)/sizeof(v[0]);
+    //cmVectArrayAppendR(p->oSpecVa,v,vn);
+
+    cmVOR_MultVS(X1m,p->pva->binCnt,cmMin(4.0,p->ogain));
+
+
+    //cmFbCtlExec(p->fbc,X1m);
 
     cmPvSynExec(p->pvs, X1m, p->pva->phsV );
   

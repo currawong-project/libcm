@@ -1018,7 +1018,38 @@ extern "C" {
   cmRC_t    cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, const cmReal_t* hzV );
   void      cmFrqTrkPrint( cmFrqTrk* p );
 
+  //------------------------------------------------------------------------------------------------------------
 
+  typedef struct
+  {
+    double   srate;
+    unsigned binCnt;
+    unsigned hopSmpCnt;
+    unsigned bufMs;
+    cmReal_t maxHz;
+  } cmFbCtlArgs_t;
+
+  typedef struct
+  {
+    cmObj          obj;
+    cmFbCtlArgs_t  a;
+    unsigned       binCnt;
+    unsigned       frmCnt;
+    cmReal_t*      bM;           // bM[ frmCnt, binCnt ];
+    unsigned       bfi;          // current buffer frame (column) index
+    unsigned       bfN;          // currrent count of frames in the buffer
+    cmReal_t*      rmsV;         // rmsV[ frmCnt ];   
+    cmReal_t*      sV;           // sV[ binCnt ]
+    cmReal_t*      uV;
+    cmVectArray_t* sva;
+    cmVectArray_t* uva;
+  } cmFbCtl_t;
+
+  cmFbCtl_t* cmFbCtlAlloc( cmCtx* c, cmFbCtl_t* p, const cmFbCtlArgs_t* a );
+  cmRC_t     cmFbCtlFree( cmFbCtl_t** pp );
+  cmRC_t     cmFbCtlInit( cmFbCtl_t* p, const cmFbCtlArgs_t* a );
+  cmRC_t     cmFbCtlFinal(cmFbCtl_t* p );
+  cmRC_t     cmFbCtlExec( cmFbCtl_t* p, const cmReal_t* xV );
 
   //------------------------------------------------------------------------------------------------------------
 
@@ -1045,7 +1076,8 @@ extern "C" {
     cmPvSyn*  pvs;
 
     cmFrqTrk* ft;
-    
+    cmFbCtl_t*  fbc;
+
     unsigned mode;
     double   thresh;
 
@@ -1073,6 +1105,9 @@ extern "C" {
     cmReal_t  aeMin;
     cmReal_t  aeMax;
     cmReal_t  aeUnit;
+
+    cmVectArray_t* oSpecVa;
+    cmReal_t ogain;
 
   } cmSpecDist_t;
 
