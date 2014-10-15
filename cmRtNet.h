@@ -1,5 +1,5 @@
-#ifndef cmNet_h
-#define cmNet_h
+#ifndef cmRtNet_h
+#define cmRtNet_h
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,7 +12,7 @@ extern "C" {
    unique among all other nodes on the network. A node also has a set of application 
    defined 'endpoints'.  Each endpoint has a label and id that is unique among all 
    other endpoints on the same node.  Endpoints on different nodes however may share
-   use the same label and id.  Endpoints are used by remote senders to identify 
+   the same label and id.  Endpoints are used by remote senders to identify 
    a particular receiver which is sharing the node with other receivers.  Endpoints
    are therefore analogous to port numbers on sockets.
 
