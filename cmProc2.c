@@ -5582,7 +5582,7 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
   fta.attenFn       = "/home/kevin/temp/frqtrk/atten.va";
 
   p->ft  = cmFrqTrkAlloc( p->obj.ctx, NULL, &fta );
-  cmFrqTrkPrint(p->ft);
+  //cmFrqTrkPrint(p->ft);
 
   cmFbCtlArgs_t fba;
   fba.srate = srate;
@@ -5905,7 +5905,7 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
 
 
     // run and apply the tracker/supressor
-    cmFrqTrkExec(p->ft, X1m, p->pva->phsV, NULL ); 
+    //cmFrqTrkExec(p->ft, X1m, p->pva->phsV, NULL ); 
     //cmVOR_MultVV(X1m, p->pva->binCnt,p->ft->aV );
 
 
