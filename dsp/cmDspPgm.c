@@ -1378,8 +1378,8 @@ cmDspRC_t _cmDspSysPgm_PickupFxFile( cmDspSysH_t h, void** userPtrPtr )
   bool            cfFbFl    = true;
   unsigned        sgShapeId = 2;
   const cmChar_t* afn       = "/home/kevin/media/audio/gate_detect/gate_detect0.aif";
-  unsigned        abeg[]    = { 9.842046, 18.838291, 27.007957, 35.562079, 45.461793, 52.920218, 60.436312, 68.913543};
-  unsigned        aend[]    = {11.399088, 20.645229, 28.891786, 37.311349, 47.287954, 54.131251, 62.473923, 72.142964};
+  double        abeg[]    = { 9.842046, 18.838291, 27.007957, 35.562079, 45.461793, 52.920218, 60.436312, 68.913543};
+  double        aend[]    = {11.399088, 20.645229, 28.891786, 37.311349, 47.287954, 54.131251, 62.473923, 72.142964};
   bool            cfBypassFl  = false;
   unsigned        i;
   
