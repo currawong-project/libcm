@@ -2,7 +2,7 @@
 /// Vector operations interface.
 
 /// Setting fieldWidth or decPltCnt to to negative values result in fieldWidth == 10 or decPlCnt == 4
-void          VECT_OP_FUNC(Printf)( cmRpt_t* rpt, unsigned rn, unsigned cn, const VECT_OP_TYPE* dbp, unsigned fieldWidth, unsigned decPlCnt, const char* fmt, unsigned flags );
+void          VECT_OP_FUNC(Printf)( cmRpt_t* rpt, unsigned rn, unsigned cn, const VECT_OP_TYPE* dbp, int fieldWidth, int decPlCnt, const char* fmt, unsigned flags );
 void          VECT_OP_FUNC(Print)(  cmRpt_t* rpt, unsigned rn, unsigned cn, const VECT_OP_TYPE* dbp );
 void          VECT_OP_FUNC(PrintE)( cmRpt_t* rpt, unsigned rn, unsigned cn, const VECT_OP_TYPE* dbp );
 
