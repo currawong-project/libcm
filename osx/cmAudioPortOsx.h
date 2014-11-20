@@ -23,6 +23,8 @@ extern "C" {
   cmApRC_t      cmApOsxDeviceStop(  unsigned devIdx );
   bool          cmApOsxDeviceIsStarted( unsigned devIdx );
 
+  void          cmApOsxTest( cmRpt_t* );
+
 #ifdef __cplusplus
 }
 #endif
