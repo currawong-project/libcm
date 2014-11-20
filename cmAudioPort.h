@@ -38,6 +38,7 @@ extern "C" {
     kSysErrApRC,
     kInvalidDevIdApRC,
     kAudioPortFileFailApRC,
+    kParamRangeErrorApRC,
     kThreadFailApRC
   };
 
