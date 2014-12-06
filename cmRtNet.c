@@ -1082,14 +1082,14 @@ void  cmRtNetTest( cmCtx_t* ctx, bool mstrFl )
   char            c;
   _cmRtNetTest_t  t;
   const unsigned  rtSubIdx      = 0;
-  cmUdpPort_t     port          = 5876;
+  cmUdpPort_t     port          = 5346;
   _cmRtNetTest_t* p             = &t;
   cmRtNetRC_t     rc            = kOkNetRC;
   const cmChar_t* localHostStr  = mstrFl  ? "master"    : "slave";
   const cmChar_t* localEndpStr  = mstrFl  ? "master_ep" : "slave_ep";
   const cmChar_t* remoteHostStr = !mstrFl ? "master"    : "slave";
   const cmChar_t* remoteEndpStr = !mstrFl ? "master_ep" : "slave_ep";
-  const cmChar_t* bcastAddr     = "192.168.15.255";
+  const cmChar_t* bcastAddr     = "192.168.1.255";
   cmRtNetEndptH_t eH            = cmRtNetEndptNullHandle;
   unsigned        srcEndPtId    = cmInvalidId;
 
