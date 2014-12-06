@@ -592,7 +592,7 @@ void _cmUdpNetTestCb2( void* cbArg, cmUdpNetH_t h, const char* data, unsigned da
 }
 
 
-const cmChar_t* _cmUdpNetTestGetOpt( int argc, char* argv[], const char* opt )
+const cmChar_t* _cmUdpNetTestGetOpt( int argc, const char* argv[], const char* opt )
 {
   unsigned i;
   for(i=0; i<argc; ++i)
@@ -602,7 +602,7 @@ const cmChar_t* _cmUdpNetTestGetOpt( int argc, char* argv[], const char* opt )
   return NULL;
 }
 
-cmRC_t cmUdpNetTest( cmCtx_t* ctx, int argc, char* argv[] )
+cmRC_t cmUdpNetTest( cmCtx_t* ctx, int argc, const char* argv[] )
 {
   cmUdpNetH_t     h          = cmUdpNetNullHandle;
   cmJsonH_t       jsH        = cmJsonNullHandle;

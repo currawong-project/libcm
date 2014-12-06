@@ -134,7 +134,7 @@ cmUnRC_t cmUdpNetReceive(  cmUdpNetH_t h, unsigned* msgCntPtr );
 cmUnRC_t cmUdpNetPrintNodes( cmUdpNetH_t h, cmRpt_t* rpt );
 void     cmUdpNetReport( cmUdpNetH_t h, cmRpt_t* rpt );
 
-cmRC_t cmUdpNetTest( cmCtx_t* ctx, int argc, char* argv[] );
+cmRC_t cmUdpNetTest( cmCtx_t* ctx, int argc, const char* argv[] );
 
 #ifdef __cplusplus
 }
