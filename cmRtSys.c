@@ -419,7 +419,7 @@ bool _cmRtThreadCallback(void* arg)
         cmSleepMs(cp->noBlockSleepMs);
       else
       {
-        if( cmThreadMutexWaitOnCondVar(cp->engMutexH,false) != kOkRtRC )
+        if( (rc = cmThreadMutexWaitOnCondVar(cp->engMutexH,false)) != kOkRtRC )
         {
           cmThreadMutexUnlock(cp->engMutexH);
           _cmRtError(cp->p,rc,"The cmRtSys cond. var. wait failed.");

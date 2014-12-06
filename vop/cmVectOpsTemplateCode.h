@@ -13,7 +13,7 @@ void          VECT_OP_FUNC(VPrint)( cmRpt_t* rpt, const char* fmt, ... )
   va_end(vl);
 }
 
-void          VECT_OP_FUNC(Printf)( cmRpt_t* rpt, unsigned rowCnt, unsigned colCnt, const VECT_OP_TYPE* sbp, unsigned fieldWidth, unsigned decPlCnt, const char* fmt, unsigned flags )
+void          VECT_OP_FUNC(Printf)( cmRpt_t* rpt, unsigned rowCnt, unsigned colCnt, const VECT_OP_TYPE* sbp, int fieldWidth, int decPlCnt, const char* fmt, unsigned flags )
 {
   unsigned cci;
   unsigned outColCnt = 10;
@@ -1287,8 +1287,12 @@ VECT_OP_TYPE* VECT_OP_FUNC(LUInverse)(VECT_OP_TYPE* dp, int_lap_t* ipiv, int drn
   // Calculate the NB factor for LWORK - 
   // The two args are length of string args 'funcNameStr' and ' '.
   // It is not clear how many 'n' args are requred so all are passed set to 'drn'
+#ifdef OS_OSX
+   int nb = ilaenv_(&ispec, funcNameStr, " ", &n1,&n2,&n3,&n4 );
+#else
   int nb = ilaenv_(&ispec, funcNameStr, " ", &n1,&n2,&n3,&n4, strlen(funcNameStr), 1 );
-
+#endif
+  
   VECT_OP_TYPE w[drn * nb];    // allocate working memory
   int_lap_t    info;
 

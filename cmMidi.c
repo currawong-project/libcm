@@ -245,7 +245,7 @@ cmMidiByte_t    cmSciPitchToMidi( const char* sciPitchStr )
 
   unsigned rv =  (octave*12) + idx + 12;
   
-  if( 0 <= rv && rv <= 127 )
+  if( rv <= 127 )
     return rv;
 
   return kInvalidMidiPitch;

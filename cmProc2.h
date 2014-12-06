@@ -902,6 +902,7 @@ extern "C" {
   typedef enum
   {
     kNoStateFrqTrkId,
+    kDlyFrqTrkId,
     kAtkFrqTrkId,
     kSusFrqTrkId,
     kDcyFrqTrkId
@@ -924,6 +925,7 @@ extern "C" {
 
     cmReal_t    attenThresh;
     cmReal_t    attenGain; 
+    cmReal_t    attenDlySec;
     cmReal_t    attenAtkSec;   
 
     const char* logFn;          // log file name or NULL if no file is to be written
@@ -985,6 +987,7 @@ extern "C" {
     unsigned      deadTrkCnt;
 
     cmReal_t*     aV;
+    int           attenDlyPhsMax;
     int           attenPhsMax;
 
     cmWhFilt*      wf;
@@ -1106,8 +1109,19 @@ extern "C" {
     cmReal_t  aeMax;
     cmReal_t  aeUnit;
 
-    cmVectArray_t* oSpecVa;
     cmReal_t ogain;
+
+    unsigned phaseModIndex;
+
+    unsigned       fi;          // total count of frames processed by cmSpecDistExec()
+    unsigned       hN;
+    unsigned       hi;
+    cmReal_t*      iSpecM;      // iSpecMtx[hN binN]
+    cmReal_t*      iSpecV;      // mean of rows of iSpecM 
+    cmVectArray_t* iSpecVa;     
+    cmReal_t*      oSpecM;      // oSpecMtx[hN binN]
+    cmReal_t*      oSpecV;      // mean of rows of oSpecM
+    cmVectArray_t* oSpecVa;
 
   } cmSpecDist_t;
 

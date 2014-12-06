@@ -4779,6 +4779,7 @@ cmRC_t    cmFrqTrkInit( cmFrqTrk* p, const cmFrqTrkArgs_t* a )
   p->minTrkN   = a->minTrkSec * a->srate / a->hopSmpCnt;
   p->nextTrkId = 1;
   p->aV        = cmMemResizeZ(cmReal_t,p->aV,p->a.binCnt);
+  p->attenDlyPhsMax = cmMax(3,a->attenDlySec * a->srate / a->hopSmpCnt );
   p->attenPhsMax    = cmMax(3,a->attenAtkSec * a->srate / a->hopSmpCnt );
   
   if( a->logFn != NULL )
@@ -5019,7 +5020,11 @@ void _cmFrqTrkScoreChs( cmFrqTrk* p )
       c->hz_mean = cmVOR_Mean(c->hzV,n);
       c->hz_std  = sqrt(cmVOR_Variance( c->hzV,n,&c->hz_mean));
 
-      c->score = c->db / ((cmMin(0.1,c->db_std) + cmMin(0.1,c->hz_std))/2);
+      //c->score = c->db / ((cmMax(0.1,c->db_std) + cmMax(0.1,c->hz_std))/2);
+
+      c->score = c->db - (c->db_std * 5) - (c->hz_std/50);
+
+      //printf("%f %f %f %f %f\n",c->db,cmMin(0.1,c->db_std),c->hz,cmMin(0.1,c->hz_std),c->score);
     }
 }
 
@@ -5082,8 +5087,9 @@ void _cmFrqTrkUpdateFilter( cmFrqTrk* p )
       // 
       if( c->score >= p->a.attenThresh && c->state == kNoStateFrqTrkId )
       {
+        //printf("%f\n",c->score);
         c->attenPhsIdx = 0;
-        c->state  = kAtkFrqTrkId;        
+        c->state       = kDlyFrqTrkId;        
       }
 
       switch( c->state )
@@ -5091,8 +5097,16 @@ void _cmFrqTrkUpdateFilter( cmFrqTrk* p )
         case kNoStateFrqTrkId:
           break;
 
+        case kDlyFrqTrkId:
+          c->attenPhsIdx += 1;
+
+          if( c->attenPhsIdx >= p->attenDlyPhsMax && c->dN == 0 )
+            c->state = kAtkFrqTrkId;          
+
+          break;
+
         case kAtkFrqTrkId:
-          if( c->attenPhsIdx < p->attenPhsMax )
+          if( c->attenPhsIdx < p->attenDlyPhsMax + p->attenPhsMax )
           {
 
             c->attenGain = cmMin(1.0,p->a.attenGain * c->attenPhsIdx / p->attenPhsMax);
@@ -5101,7 +5115,7 @@ void _cmFrqTrkUpdateFilter( cmFrqTrk* p )
           }
 
           c->attenPhsIdx += 1;
-          if( c->attenPhsIdx >= p->attenPhsMax )
+          if( c->attenPhsIdx >= p->attenDlyPhsMax + p->attenPhsMax )
             c->state = kSusFrqTrkId;
           break;
 
@@ -5275,7 +5289,7 @@ void _cmFrqTrkNewChs( cmFrqTrk* p, const cmReal_t* dbV, const cmReal_t* hzV, uns
 
 void _cmFrqTrkApplyFrqBias( cmFrqTrk* p, cmReal_t* xV )
 {
-  // 1+2*([0:.01:1].^4)
+  // convert to decibel scale (0.0 - 100.0) and then scale to (0.0 to 1.0)
   unsigned i;
   for(i=0; i<p->bN; ++i)
     xV[i] =  cmMax(0.0, (20*log10( cmMax(xV[i]/1.5,0.00001)) + 100.0)/100.0);
@@ -5318,20 +5332,20 @@ cmRC_t cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, co
   // copy p->dbV to dbM[hi,:] 
   cmVOR_CopyN(p->dbM + p->hi, p->bN, p->hN, p->dbV, 1 );
 
-  // increment hi
+  // increment hi to next column to fill in dbM[]
   p->hi = (p->hi + 1) % p->hN;
 
-  // Form the spectral magnitude profile by taking the mean over time
-  // of the last hN magnitude vectors
+  // Set dbV[] to spectral magnitude profile by taking the mean over time
+  // of the last hN magnitude vectors 
   cmVOR_MeanM2(p->dbV, p->dbM, p->hN, p->bN, 0, cmMin(p->fN+1,p->hN));
   //cmVOR_MeanM(p->dbV, p->dbM, p->hN, p->bN, 0);
 
   if( p->fN >= p->hN )
   {
-    // set the indexes of the peaks above pkThreshDb in i0[]
+    // set pkiV[] to the indexes of the peaks above pkThreshDb in i0[]
     unsigned pkN = cmVOR_PeakIndexes(p->pkiV, p->bN, p->dbV, p->bN, p->a.pkThreshDb );
 
-    // generate the peak frequencies from the magnitude
+    // set hzV[] to the peak frequencies assoc'd with peaks at dbV[ pkiV[] ].
     _cmFrqTrkMagnToHz(p, p->dbV, p->pkiV, pkN, hzV );
 
     // extend the existing trackers
@@ -5485,6 +5499,7 @@ cmSpecDist_t* cmSpecDistAlloc( cmCtx* ctx,cmSpecDist_t* ap, unsigned procSmpCnt,
 {
   cmSpecDist_t* p = cmObjAlloc( cmSpecDist_t, ctx, ap );
 
+  p->iSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
   p->oSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
 
   if( procSmpCnt != 0 )
@@ -5505,8 +5520,13 @@ cmRC_t cmSpecDistFree( cmSpecDist_t** pp )
   cmSpecDist_t* p = *pp;
   
   cmSpecDistFinal(p);
+  cmVectArrayFree(&p->iSpecVa);
   cmVectArrayFree(&p->oSpecVa);
   cmMemPtrFree(&p->hzV);
+  cmMemPtrFree(&p->iSpecM);
+  cmMemPtrFree(&p->oSpecM);
+  cmMemPtrFree(&p->iSpecV);
+  cmMemPtrFree(&p->oSpecV);
   cmObjFree(pp);
   return cmOkRC;
 
@@ -5523,6 +5543,7 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
   unsigned flags = 0;
 
 
+  p->srate        = srate;
   p->wndSmpCnt    = wndSmpCnt;
   p->hopSmpCnt    = (unsigned)floor(wndSmpCnt/hopFcmt);
   p->procSmpCnt   = procSmpCnt;
@@ -5550,9 +5571,10 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
   fta.pkMaxHz       = 20000;
   fta.whFiltCoeff   = 0.33;
 
-  fta.attenThresh = 900.0;
-  fta.attenGain   = 1.0; 
-  fta.attenAtkSec = 0.25;  
+  fta.attenThresh = 0.4;
+  fta.attenGain   = 0.5; 
+  fta.attenDlySec = 1.0;
+  fta.attenAtkSec = 1.0;  
 
   fta.logFn         = "/home/kevin/temp/frqtrk/trk_log.va";
   fta.levelFn       = "/home/kevin/temp/frqtrk/level.va";
@@ -5560,7 +5582,7 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
   fta.attenFn       = "/home/kevin/temp/frqtrk/atten.va";
 
   p->ft  = cmFrqTrkAlloc( p->obj.ctx, NULL, &fta );
-  cmFrqTrkPrint(p->ft);
+  //cmFrqTrkPrint(p->ft);
 
   cmFbCtlArgs_t fba;
   fba.srate = srate;
@@ -5587,6 +5609,15 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
   p->aeMin  = 1000;
   p->aeMax  = -1000;
 
+  
+  double histSecs = 0.05;
+  p->hN      = cmMax(1,histSecs * p->srate / p->hopSmpCnt );
+  p->iSpecM  = cmMemResizeZ(cmReal_t,p->iSpecM,p->hN*p->pva->binCnt);
+  p->oSpecM  = cmMemResizeZ(cmReal_t,p->oSpecM,p->hN*p->pva->binCnt);
+  p->iSpecV  = cmMemResizeZ(cmReal_t,p->iSpecV,      p->pva->binCnt);
+  p->oSpecV  = cmMemResizeZ(cmReal_t,p->oSpecV,      p->pva->binCnt);
+  p->hi      = 0;
+
 
   //p->bypOut = cmMemResizeZ(cmSample_t, p->bypOut, procSmpCnt );
 
@@ -5597,6 +5628,7 @@ cmRC_t cmSpecDistFinal(cmSpecDist_t* p )
 {
   cmRC_t rc = cmOkRC;
 
+  cmVectArrayWrite(p->iSpecVa, "/home/kevin/temp/frqtrk/iSpec.va");
   cmVectArrayWrite(p->oSpecVa, "/home/kevin/temp/frqtrk/oSpec.va");
 
   cmPvAnlFree(&p->pva);
@@ -5777,25 +5809,56 @@ void _cmSpecDistAmpEnvMode( cmSpecDist_t* p, cmReal_t* X1m )
 
 }
 
+void _cmSpecDistPhaseMod( cmSpecDist_t* p, cmReal_t* phsV, unsigned binCnt )
+{
+  unsigned i;
+  cmReal_t offs =  sin( 0.1 * 2.0 * M_PI * (p->phaseModIndex++) / (p->srate/p->hopSmpCnt) );
+
+  //printf("offs %f %i %i %f\n",offs,p->phaseModIndex,p->hopSmpCnt,p->srate);
+
+  cmReal_t new_phs = phsV[0] + offs;
+  for(i=0; i<binCnt-1; ++i)
+  {
+    while( new_phs > M_PI )
+      new_phs -= 2.0*M_PI;
+
+    while( new_phs < -M_PI )
+      new_phs += 2.0*M_PI;
+
+    cmReal_t d = phsV[i+1] - phsV[i];
+
+    phsV[i] = new_phs;
+
+    new_phs += d;    
+  }
+  
+}
+
 cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
 {
 
   assert( sn == p->procSmpCnt );
+
+  bool recordFl = false;
 
   // cmPvAnlExec() returns true when it calc's a new spectral output frame
   if( cmPvAnlExec( p->pva, sp, sn ) )
   {
     cmReal_t X1m[p->pva->binCnt]; 
 
+    // take the mean of the the input magntitude spectrum
     cmReal_t u0 = cmVOR_Mean(p->pva->magV,p->pva->binCnt);
 
-    //cmFrqTrkExec(p->ft, p->pva->magV, p->pva->phsV, NULL );
-
-    // apply the freq track suppression filter
-    //cmVOR_MultVVV(X1m, p->pva->binCnt,p->pva->magV, p->ft->aV );
+    if(recordFl)
+    {
+      // store a time windowed average of the input spectrum to p->iSpecV
+      cmVOR_CopyN(p->iSpecM + p->hi, p->pva->binCnt, p->hN, X1m, 1 );
+      cmVOR_MeanM2(p->iSpecV, p->iSpecM, p->hN, p->pva->binCnt, 0, cmMin(p->fi+1,p->hN));
+    }
 
     cmVOR_AmplToDbVV(X1m, p->pva->binCnt, p->pva->magV, -1000.0 );
     //cmVOR_AmplToDbVV(X1m, p->pva->binCnt, X1m, -1000.0 );
+
 
 
     switch( p->mode )
@@ -5838,22 +5901,25 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
         break;
     }
 
-    //cmVectArrayAppendR(p->oSpecVa,X1m,p->pva->binCnt);
-    
     cmVOR_DbToAmplVV(X1m, p->pva->binCnt, X1m );
 
 
     // run and apply the tracker/supressor
-    cmFrqTrkExec(p->ft, X1m, p->pva->phsV, NULL );
-    cmVOR_MultVV(X1m, p->pva->binCnt,p->ft->aV );
+    //cmFrqTrkExec(p->ft, X1m, p->pva->phsV, NULL ); 
+    //cmVOR_MultVV(X1m, p->pva->binCnt,p->ft->aV );
 
 
+    // convert the mean input magnitude to db
     cmReal_t idb = 20*log10(u0);
+    
+    // get the mean output magnitude spectra
     cmReal_t u1 = cmVOR_Mean(X1m,p->pva->binCnt);
 
     if( idb > -150.0 )
     {
-      p->ogain = u0/u1;
+      // set the output gain such that the mean output magnitude
+      // will match the mean input magnitude
+      p->ogain = u0/u1;  
     }
     else
     {
@@ -5861,17 +5927,34 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
       p->ogain *= a0;
     }
 
-    //cmReal_t v[] = { u0, u1, idb, 20*log10(u1), p->ogain };
-    //unsigned vn = sizeof(v)/sizeof(v[0]);
-    //cmVectArrayAppendR(p->oSpecVa,v,vn);
-
     cmVOR_MultVS(X1m,p->pva->binCnt,cmMin(4.0,p->ogain));
 
 
     //cmFbCtlExec(p->fbc,X1m);
 
+    //cmReal_t v[ p->pva->binCnt ];
+    //cmVOR_Copy(v,p->pva->binCnt,p->pva->phsV);
+    //_cmSpecDistPhaseMod(p, v, p->pva->binCnt );
+
+    
+    if(recordFl)
+    {
+
+      // store a time windowed average of the output spectrum to p->iSpecV
+      cmVOR_CopyN(p->oSpecM + p->hi, p->pva->binCnt, p->hN, X1m, 1 );
+      cmVOR_MeanM2(p->oSpecV, p->oSpecM, p->hN, p->pva->binCnt, 0, cmMin(p->fi+1,p->hN));
+      
+      // store iSpecV and oSpecV to iSpecVa and oSpecVa to create debugging files
+      cmVectArrayAppendR(p->iSpecVa,p->iSpecV,p->pva->binCnt);
+      cmVectArrayAppendR(p->oSpecVa,p->oSpecV,p->pva->binCnt);
+
+      p->hi = (p->hi + 1) % p->hN;
+    }
+    
+
     cmPvSynExec(p->pvs, X1m, p->pva->phsV );
   
+    p->fi += 1;
   }
  
   return cmOkRC;

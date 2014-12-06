@@ -1504,7 +1504,7 @@ cmUiRC_t cmUiClearPanel( cmUiH_t uiH, unsigned appId, unsigned panelId )
 cmUiRC_t cmUiSelectPanel( cmUiH_t uiH, const cmChar_t* label )
 {
   cmUiRC_t rc = kOkUiRC;
-  cmUi_t*  p  = _cmUiHandleToPtr(uiH);
+  //cmUi_t*  p  = _cmUiHandleToPtr(uiH);
 
   
 
