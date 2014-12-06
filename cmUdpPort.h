@@ -27,7 +27,8 @@ extern "C" {
     kBufTooSmallUdpRC,
     kHostNameFailUdpRC,
     kInvalidPortNumbUdpRC,
-    kTimeOutUdpRC
+    kTimeOutUdpRC,
+    kTestFailUdpRC
   };
 
   typedef cmRC_t         cmUdpRC_t;
@@ -136,7 +137,8 @@ extern "C" {
 
   const cmChar_t* cmUdpHostName( cmUdpH_t h );
 
-  
+  cmUdpRC_t cmUdpTest( cmCtx_t* ctx, const char* remoteIpAddr, cmUdpPort_t port );
+  cmUdpRC_t cmUdpTestV( cmCtx_t* ctx, unsigned argc, const char* argv[]);
 
 #ifdef __cplusplus
 }

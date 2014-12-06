@@ -612,3 +612,91 @@ const cmChar_t* cmUdpHostName( cmUdpH_t h )
   p->hnameBuf[HOST_NAME_MAX] = 0;
   return p->hnameBuf;
 }
+
+//=======================================================================================
+void cmUdpCallbackTest( void* cbArg, const char* data, unsigned dataByteCnt, const struct sockaddr_in* fromAddr )
+{
+  printf("%s\n",data);
+}
+
+
+cmUdpRC_t cmUdpTest( cmCtx_t* ctx, const char* remoteIpAddr, cmUdpPort_t port )
+{
+  cmUdpRC_t rc             = kOkUdpRC;
+  cmUdpH_t  h              = cmUdpNullHandle;
+  cmErr_t*  err            = &ctx->err;
+  unsigned  recvBufByteCnt = 4096;
+  unsigned  recvTimeOutMs  = 50;
+  unsigned  udpFlags       = kNonBlockingUdpFl | kBroadcastUdpFl | kNoQueueUdpFl;
+  unsigned  strN           = 1024;
+  char      str[ strN ];
+  struct sockaddr_in addr;
+
+  // allocate the UDP port
+  if((rc = cmUdpAlloc(ctx, &h )) != kOkUdpRC )
+    return cmErrMsg(err,rc,"UDP port allocate failed.");
+
+  // initialize the UDP port
+  if((rc = cmUdpInit( h, port, udpFlags, cmUdpCallbackTest, NULL, NULL, 0, recvBufByteCnt, recvTimeOutMs )) != kOkUdpRC )
+  {
+    rc = cmErrMsg(err,rc,"UPD port initialzation failed.");
+    goto errLabel;
+  }
+
+  // convert the IP address to a sockaddr_in
+  if((rc = cmUdpInitAddr(h, remoteIpAddr, port, &addr )) != kOkUdpRC )
+  {
+    rc = cmErrMsg(err,rc,"IP address conversion failed.");
+    goto errLabel;
+  }
+
+
+  // start up the UDP port listening thread
+  if((rc = cmUdpEnableListen(h, true )) != kOkUdpRC )
+  {
+    rc = cmErrMsg(err,rc,"UDP port switch to listen mode failed.");
+    goto errLabel;
+  }
+
+  printf("q=quit");
+
+  while(1)
+  {
+    printf("$");
+    fflush(stdout);
+    scanf("%s",str);
+
+    if( strlen(str) > 0 )
+    {
+      if( strcmp(str,"q")==0 )
+        break;
+
+      if((rc = cmUdpSendTo(h,str,strlen(str)+1,&addr)) != kOkUdpRC )
+      {
+        rc = cmErrMsg(err,rc,"UDP send failed.");
+        goto errLabel;
+      }
+    }
+  }
+
+
+  errLabel:
+    if((rc = cmUdpFree(&h)) != kOkUdpRC )
+      rc = cmErrMsg(err,rc,"UDP port free failed.");
+
+    return rc;
+}
+
+
+cmUdpRC_t cmUdpTestV( cmCtx_t* ctx, unsigned argc, const char* argv[])
+{
+  if( argc < 3 )
+    return cmErrMsg(&ctx->err,kTestFailUdpRC,"cmUdpTestV usage: argv[1]=<IP Addr> argv[2]=<Socket Port Number>");
+
+  const char* ipAddr = argv[1];
+  cmUdpPort_t port   = atoi(argv[2]);
+
+  cmRptPrintf(&ctx->rpt,"UDP Test Sending To: %s port:%i\n",ipAddr,port);
+
+  return cmUdpTest(ctx,ipAddr,port);
+}
