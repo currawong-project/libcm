@@ -690,11 +690,11 @@ cmUdpRC_t cmUdpTest( cmCtx_t* ctx, const char* remoteIpAddr, cmUdpPort_t port )
 
 cmUdpRC_t cmUdpTestV( cmCtx_t* ctx, unsigned argc, const char* argv[])
 {
-  if( argc < 3 )
-    return cmErrMsg(&ctx->err,kTestFailUdpRC,"cmUdpTestV usage: argv[1]=<IP Addr> argv[2]=<Socket Port Number>");
+  if( argc != 2 )
+    return cmErrMsg(&ctx->err,kTestFailUdpRC,"cmUdpTestV usage: argv[0]=<IP Addr> argv[1]=<Socket Port Number>");
 
-  const char* ipAddr = argv[1];
-  cmUdpPort_t port   = atoi(argv[2]);
+  const char* ipAddr = argv[0];
+  cmUdpPort_t port   = atoi(argv[1]);
 
   cmRptPrintf(&ctx->rpt,"UDP Test Sending To: %s port:%i\n",ipAddr,port);
 
