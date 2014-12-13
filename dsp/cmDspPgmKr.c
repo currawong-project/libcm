@@ -783,10 +783,10 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
     cmDspSysConnectAudio(h, eqHpf_3, "out", eqMx_3,  "in-2");
   }
 
-  cmDspSysConnectAudio(h, useInputEqFl ? ai0p : eqMx_0, "out", mx0p, "in-0" );  // eqmix -> input mix
-  cmDspSysConnectAudio(h, useInputEqFl ? ai1p : eqMx_1, "out", mx1p, "in-0" );
-  cmDspSysConnectAudio(h, useInputEqFl ? ai2p : eqMx_2, "out", mx0p, "in-1" );
-  cmDspSysConnectAudio(h, useInputEqFl ? ai3p : eqMx_3, "out", mx1p, "in-1" );
+  cmDspSysConnectAudio(h, useInputEqFl ? eqMx_0 : ai0p, "out", mx0p, "in-0" );  // eqmix -> input mix
+  cmDspSysConnectAudio(h, useInputEqFl ? eqMx_1 : ai1p, "out", mx1p, "in-0" );
+  cmDspSysConnectAudio(h, useInputEqFl ? eqMx_2 : ai2p, "out", mx0p, "in-1" );
+  cmDspSysConnectAudio(h, useInputEqFl ? eqMx_3 : ai3p, "out", mx1p, "in-1" );
 
   if( useWtFl )
   {
