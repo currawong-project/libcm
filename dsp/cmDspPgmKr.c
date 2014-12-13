@@ -383,6 +383,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   bool     useWtFl      = false;
   bool     useChain1Fl  = true;
   bool     useInputEqFl = false;
+  bool     useInCompFl  = true;
+
   unsigned wtLoopCnt    = 1;    // 1=play once (-1=loop forever)
   unsigned wtInitMode   = 0;    // initial wt mode is 'silence'
   unsigned wtSmpCnt     = floor(cmDspSysSampleRate(h)); // wt length == srate
@@ -420,7 +422,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   double          apfQ          = 1.0;
   double          apfGain       = 1.0;
 
-  /*
+
+  // input compressor default parameters
   bool            cmpBypassFl  = false;
   double          cmpInGain    = 3.0;
   double          cmpThreshDb  = -40.0;
@@ -430,8 +433,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   double          cmpMakeup    = 1.0;
   double          cmpWndMaxMs  = 1000.0;
   double          cmpWndMs     = 200.0;
-  */
-
+ 
   memset(&r,0,sizeof(r));
   cmErrSetup(&err,&cmCtx->rpt,"Kr Timeline");
 
@@ -465,13 +467,17 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* eqMx_3 = useInputEqFl ? cmDspSysAllocInst( h, "AMix",      NULL, 4, 3, eqMixGain, eqMixGain, eqMixGain) : NULL;
 
 
-  cmDspInst_t* mx0p = cmDspSysAllocInst( h, "AMix",      NULL, 3, 2, 1.0, 1.0);
-  cmDspInst_t* mx1p = cmDspSysAllocInst( h, "AMix",      NULL, 3, 2, 1.0, 1.0);
+  cmDspInst_t* mx0p = cmDspSysAllocInst( h, "AMix",      NULL, 3, 2, 0.5, 0.5);
+  cmDspInst_t* mx1p = cmDspSysAllocInst( h, "AMix",      NULL, 3, 2, 0.5, 0.5);
 
+  cmDspInst_t* ci0p = NULL;
+  cmDspInst_t* ci1p = NULL;
 
-  //cmDspInst_t* ci0p = cmDspSysAllocInst(h,"Compressor",  NULL,  8, cmpBypassFl, cmpThreshDb, cmpRatio_num, cmpAtkMs, cmpRlsMs, cmpMakeup, cmpWndMs, cmpWndMaxMs ); 
-  //cmDspInst_t* ci1p = cmDspSysAllocInst(h,"Compressor",  NULL,  8, cmpBypassFl, cmpThreshDb, cmpRatio_num, cmpAtkMs, cmpRlsMs, cmpMakeup, cmpWndMs, cmpWndMaxMs ); 
-
+  if( useInCompFl )
+  {
+    ci0p = cmDspSysAllocInst(h,"Compressor",  NULL,  8, cmpBypassFl, cmpThreshDb, cmpRatio_num, cmpAtkMs, cmpRlsMs, cmpMakeup, cmpWndMs, cmpWndMaxMs ); 
+    ci1p = cmDspSysAllocInst(h,"Compressor",  NULL,  8, cmpBypassFl, cmpThreshDb, cmpRatio_num, cmpAtkMs, cmpRlsMs, cmpMakeup, cmpWndMs, cmpWndMaxMs ); 
+  }
 
   cmDspInst_t* tlp  = cmDspSysAllocInst(h,"TimeLine",    "tl",  2, r.tlFn, r.tlPrefixPath );
   cmDspInst_t* scp  = cmDspSysAllocInst(h,"Score",       "sc",  1, r.scFn );
@@ -519,8 +525,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
     mix1 = cmDspSysAllocInst(h,"AMix",        NULL,   3, 2, 1.0, 1.0 );
   }
 
-  /*
-  if( useCmpFl )
+  if( useInCompFl )
   {
     cmDspSysNewPage(h,"InComp");
 
@@ -566,7 +571,6 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
     cmDspSysInstallCb(h, ci1p,      "env", cmp1_mtr, "in", NULL );
 
   }
-  */
 
   cmDspInst_t* apf0 =  cmDspSysAllocInst(h,"BiQuadEq",NULL, 5, apfBypassFl, apfModeSymId, apfF0hz+0, apfQ, apfGain  ); 
   cmDspInst_t* apf1 =  cmDspSysAllocInst(h,"BiQuadEq",NULL, 5, apfBypassFl, apfModeSymId, apfF0hz+100.0, apfQ, apfGain  ); 
@@ -636,6 +640,8 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* afop    = cmDspSysAllocInst(h,"AudioFileOut",NULL,    2, r.recordDir,2);
   cmDspInst_t* mi0p    = cmDspSysAllocInst(h,"AMeter","In 0",  0);
   cmDspInst_t* mi1p    = cmDspSysAllocInst(h,"AMeter","In 1",  0);
+  cmDspInst_t* mi2p    = cmDspSysAllocInst(h,"AMeter","In 2",  0);
+  cmDspInst_t* mi3p    = cmDspSysAllocInst(h,"AMeter","In 3",  0);
 
 
   //--------------- Preset controls
@@ -752,6 +758,11 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   // Audio connections
   cmDspSysConnectAudio(h, php,  "out",   wtp,  "phs" );     // phs -> wt
 
+  cmDspSysConnectAudio( h, ai0p, "out", mi0p, "in");
+  cmDspSysConnectAudio( h, ai1p, "out", mi1p, "in");
+  cmDspSysConnectAudio( h, ai2p, "out", mi2p, "in");
+  cmDspSysConnectAudio( h, ai3p, "out", mi3p, "in");
+
   if( useInputEqFl )
   {
     cmDspSysConnectAudio(h, ai0p,    "out", eqLpf_0, "in" );     // ain->eq
@@ -796,14 +807,24 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
     cmDspSysConnectAudio(h, au0Sw,  "a-out", rpp,   "in-0");    // sw  -> rcdply
     cmDspSysConnectAudio(h, au0Sw,  "a-out", c0.kr0,"in"  );    // sw  -> kr
     //cmDspSysConnectAudio(h, au0Sw,  "a-out", c0.kr1,"in"  );    // sw  -> kr
-    cmDspSysConnectAudio(h, au0Sw,  "a-out",  mi0p,  "in" );    // sw  -> meter  
+    //cmDspSysConnectAudio(h, au0Sw,  "a-out",  mi0p,  "in" );    // sw  -> meter  
   }
   else
   {
     cmDspSysConnectAudio(h, mx0p,  "out", rpp,   "in-0");    // sw  -> rcdply
-    cmDspSysConnectAudio(h, mx0p,   "out",   c0.kr0, "in" ); // ain -> sw
-    //cmDspSysConnectAudio(h, mx0p,   "out",   c0.kr1, "in" ); // ain -> sw
-    cmDspSysConnectAudio(h, mx0p,   "out",   mi0p,  "in" );     
+
+
+    if( useInCompFl )
+    {
+      cmDspSysConnectAudio(h, mx0p,   "out",   ci0p,   "in" ); // ain -> in compress
+      cmDspSysConnectAudio(h, ci0p,   "out",   c0.kr0, "in" );
+    }
+    else
+    {
+      cmDspSysConnectAudio(h, mx0p,   "out",   c0.kr0, "in" ); // ain -> sw
+    }
+
+    //cmDspSysConnectAudio(h, mx0p,   "out",   mi0p,  "in" );     
   }
 
   if( fragFl )
@@ -837,14 +858,23 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
       cmDspSysConnectAudio(h, au1Sw,  "a-out", rpp,   "in-1");    // sw  -> rcdply
       cmDspSysConnectAudio(h, au1Sw,  "a-out", c1.kr0,"in"  );    // sw  -> kr
       //cmDspSysConnectAudio(h, au1Sw,  "a-out", c1.kr1,"in"  );    // sw  -> kr
-      cmDspSysConnectAudio(h, au1Sw,  "a-out",  mi1p,  "in" );    // sw  -> meter 
+      //cmDspSysConnectAudio(h, au1Sw,  "a-out",  mi1p,  "in" );    // sw  -> meter 
     }
     else
     {
       cmDspSysConnectAudio(h, mx1p,  "out", rpp,   "in-1");    // sw  -> rcdply
-      cmDspSysConnectAudio(h, mx1p,   "out",   c1.kr0, "in" ); // ain -> sw
-      //cmDspSysConnectAudio(h, mx1p,   "out",   c1.kr1, "in" ); // ain -> sw
-      cmDspSysConnectAudio(h, mx1p,   "out",   mi1p,  "in" );
+
+      if( useInCompFl )
+      {
+        cmDspSysConnectAudio(h, mx1p,   "out",   ci1p,   "in" ); // ain -> in compress
+        cmDspSysConnectAudio(h, ci1p,   "out",   c1.kr0, "in" );
+      }
+      else
+      {
+        cmDspSysConnectAudio(h, mx1p,   "out",   c1.kr0, "in" ); // ain -> sw
+      }
+
+      //cmDspSysConnectAudio(h, mx1p,   "out",   mi1p,  "in" );
     }
 
     if( fragFl )
