@@ -1161,7 +1161,7 @@ cmDspRC_t _cmDspSysConnAudio( cmDsp_t* p, cmDspInst_t* srcInstPtr, unsigned srcV
   //cmSample_t* srcDataPtr;
 
   if( srcInstPtr == NULL )
-    return cmErrMsg(&p->err,kInstNotFoundDspRC,"The audio connection process was passed a NULL source processor instance pointer for connection to '%s'.",cmStringNullGuard(dstInstPtr->classPtr->labelStr));
+    return cmErrMsg(&p->err,kInstNotFoundDspRC,"The audio connection process was passed a NULL source processor instance pointer for connection to '%s' Destination Instance:%s.",cmStringNullGuard(dstInstPtr->classPtr->labelStr),cmStringNullGuard(cmSymTblLabel(p->stH,dstInstPtr->symId)));
 
   if( dstInstPtr == NULL )
     return cmErrMsg(&p->err,kInstNotFoundDspRC,"The audio connection process was passed a NULL destination processor instance pointer for connection from '%s'.",cmStringNullGuard(srcInstPtr->classPtr->labelStr));
@@ -1203,7 +1203,7 @@ cmDspRC_t cmDspSysConnectAudio( cmDspSysH_t h, cmDspInst_t* srcInstPtr, const cm
     return cmErrMsg(&p->err,kInstNotFoundDspRC,"The audio connection process was passed a NULL source and destination processor instance.");
 
   if( srcInstPtr == NULL )
-    return cmErrMsg(&p->err,kInstNotFoundDspRC,"The audio connection process was passed a NULL source processor instance pointer for connection to '%s'.",cmStringNullGuard(dstInstPtr->classPtr->labelStr));
+    return cmErrMsg(&p->err,kInstNotFoundDspRC,"The audio connection process was passed a NULL source processor instance pointer for connection to '%s' Destination Instance:%s.",cmStringNullGuard(dstInstPtr->classPtr->labelStr),cmStringNullGuard(cmSymTblLabel(p->stH,dstInstPtr->symId)));
 
   if( dstInstPtr == NULL )
     return cmErrMsg(&p->err,kInstNotFoundDspRC,"The audio connection process was passed a NULL destination processor instance pointer for connection from '%s'.",cmStringNullGuard(srcInstPtr->classPtr->labelStr));
