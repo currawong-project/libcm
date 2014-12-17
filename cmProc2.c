@@ -5499,8 +5499,8 @@ cmSpecDist_t* cmSpecDistAlloc( cmCtx* ctx,cmSpecDist_t* ap, unsigned procSmpCnt,
 {
   cmSpecDist_t* p = cmObjAlloc( cmSpecDist_t, ctx, ap );
 
-  p->iSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
-  p->oSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
+  //p->iSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
+  //p->oSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
 
   if( procSmpCnt != 0 )
   {
@@ -5520,8 +5520,8 @@ cmRC_t cmSpecDistFree( cmSpecDist_t** pp )
   cmSpecDist_t* p = *pp;
   
   cmSpecDistFinal(p);
-  cmVectArrayFree(&p->iSpecVa);
-  cmVectArrayFree(&p->oSpecVa);
+  //cmVectArrayFree(&p->iSpecVa);
+  //cmVectArrayFree(&p->oSpecVa);
   cmMemPtrFree(&p->hzV);
   cmMemPtrFree(&p->iSpecM);
   cmMemPtrFree(&p->oSpecM);
@@ -5581,8 +5581,7 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
   fta.specFn        = "/home/kevin/temp/frqtrk/spec.va";
   fta.attenFn       = "/home/kevin/temp/frqtrk/atten.va";
 
-  p->ft  = cmFrqTrkAlloc( p->obj.ctx, NULL, &fta );
-  //cmFrqTrkPrint(p->ft);
+  //p->ft  = cmFrqTrkAlloc( p->obj.ctx, NULL, &fta );
 
   cmFbCtlArgs_t fba;
   fba.srate = srate;
@@ -5591,7 +5590,7 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
   fba.bufMs = 500;
   fba.maxHz = 5000;
 
-  p->fbc  = cmFbCtlAlloc( p->obj.ctx, NULL, &fba );
+  //p->fbc  = cmFbCtlAlloc( p->obj.ctx, NULL, &fba );
 
   p->spcBwHz   = cmMin(srate/2,10000);
   p->spcSmArg  = 0.05;
@@ -5628,13 +5627,13 @@ cmRC_t cmSpecDistFinal(cmSpecDist_t* p )
 {
   cmRC_t rc = cmOkRC;
 
-  cmVectArrayWrite(p->iSpecVa, "/home/kevin/temp/frqtrk/iSpec.va");
-  cmVectArrayWrite(p->oSpecVa, "/home/kevin/temp/frqtrk/oSpec.va");
+  //cmVectArrayWrite(p->iSpecVa, "/home/kevin/temp/frqtrk/iSpec.va");
+  //cmVectArrayWrite(p->oSpecVa, "/home/kevin/temp/frqtrk/oSpec.va");
 
   cmPvAnlFree(&p->pva);
   cmPvSynFree(&p->pvs);
-  cmFrqTrkFree(&p->ft);
-  cmFbCtlFree(&p->fbc);
+  //cmFrqTrkFree(&p->ft);
+  //cmFbCtlFree(&p->fbc);
   return rc;
 }
 
@@ -5945,8 +5944,8 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
       cmVOR_MeanM2(p->oSpecV, p->oSpecM, p->hN, p->pva->binCnt, 0, cmMin(p->fi+1,p->hN));
       
       // store iSpecV and oSpecV to iSpecVa and oSpecVa to create debugging files
-      cmVectArrayAppendR(p->iSpecVa,p->iSpecV,p->pva->binCnt);
-      cmVectArrayAppendR(p->oSpecVa,p->oSpecV,p->pva->binCnt);
+      //cmVectArrayAppendR(p->iSpecVa,p->iSpecV,p->pva->binCnt);
+      //cmVectArrayAppendR(p->oSpecVa,p->oSpecV,p->pva->binCnt);
 
       p->hi = (p->hi + 1) % p->hN;
     }
