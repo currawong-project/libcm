@@ -233,3 +233,37 @@ void testKb2()
 
   reset_keypress();
 }
+
+
+// Based on: // From: http://www.flipcode.com/archives/_kbhit_for_Linux.shtml
+
+int cmIsKeyWaiting()
+{
+  static const int STDIN       = 0;
+  static bool      initialized = false;
+  struct timeval   timeout;
+  fd_set           rdset;
+
+  if (! initialized)
+  {
+    // Use termios to turn off line buffering
+    struct termios term;
+    tcgetattr(STDIN, &term);
+    term.c_lflag &= ~ICANON;
+    tcsetattr(STDIN, TCSANOW, &term);
+    setbuf(stdin, NULL);
+    initialized = true;
+  }
+
+
+  FD_ZERO(&rdset);
+  FD_SET(STDIN, &rdset);
+  timeout.tv_sec  = 0;
+  timeout.tv_usec = 0;
+
+  // time out immediately if STDIN is not ready.
+  return select(STDIN + 1, &rdset, NULL, NULL, &timeout);
+
+}
+
+
