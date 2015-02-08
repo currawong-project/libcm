@@ -288,7 +288,7 @@ extern "C" {
     2) Because each note of a chord is spread out over multiple locations, and 
     there is no way to indicate that a note in the chord is already 'in-use'.  
     If a MIDI note which is part of the chord is repeated, in error, it will 
-    apear to be correct (a positive match will be assigned to
+    appear to be correct (a positive match will be assigned to
     the second (and possible successive notes)). 
   */
 
