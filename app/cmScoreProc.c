@@ -42,17 +42,17 @@ typedef struct _cmScMeas_t
 
 typedef struct
 {
-  cmErr_t         err;
-  cmCtx*          ctx;
-  cmScH_t         scH;
-  const cmChar_t* tlFn;
-  cmTlH_t         tlH;
-  cmJsonH_t       jsH;
-  unsigned*       dynArray;
-  unsigned        dynCnt;
-  double          srate;
-  cmScMeas*       meas;
-  cmScMatcher*    match;
+  cmErr_t         err;          // score proc object error state
+  cmCtx*          ctx;          // application context
+  cmScH_t         scH;          // score object
+  const cmChar_t* tlFn;         // time-line filename
+  cmTlH_t         tlH;          // time-line object
+  cmJsonH_t       jsH;          // 
+  unsigned*       dynArray;     // dynArray[dynCnt] dynamics reference array
+  unsigned        dynCnt;       // 
+  double          srate;        // 
+  cmScMeas*       meas;         // performance analyzer 
+  cmScMatcher*    match;        // score follower
 
   cmTlMarker_t*   curMarkPtr;
   _cmScMeas_t*    list_beg;
@@ -471,6 +471,9 @@ cmSpRC_t _cmScoreGenAllMeasurements(cmCtx_t* ctx, cmSp_t* sp, const cmChar_t* ou
 
   return rc;
 }
+
+
+//==================================================================================================
 
 unsigned cmScoreProc(cmCtx_t* ctx)
 {
