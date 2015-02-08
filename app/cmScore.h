@@ -92,6 +92,8 @@ extern "C" {
     unsigned     line;         // Line number of this event in the score file.
   } cmScoreEvt_t;
 
+  // A 'set' is a collection of events that are grouped in time and all marked with a given attribute.
+  // (e.g. eveness, tempo, dynamcs ... )
   typedef struct cmScoreSet_str
   {
     unsigned               varId;      // See kXXXVarScId flags above
