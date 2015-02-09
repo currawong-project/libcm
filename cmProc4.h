@@ -244,7 +244,7 @@ extern "C" {
   // Score location record. 
   typedef struct
   {
-    unsigned        evtCnt;       // 
+    unsigned        evtCnt;       // count of score events at this location (i.e. a chord will have more than one event at a given location)
     cmScMatchEvt_t* evtV;         // evtV[evtCnt]
     unsigned        scLocIdx;     // scH score location index
     int             barNumb;      // bar number of this location
@@ -312,13 +312,13 @@ extern "C" {
 
   typedef struct
   {
-    unsigned locIdx;
-    unsigned scEvtIdx;
-    unsigned mni;
-    unsigned smpIdx;
-    unsigned pitch;
-    unsigned vel;
-    unsigned flags;
+    unsigned locIdx;    // index into cmScMatch_t.loc[]
+    unsigned scEvtIdx;  // score event index 
+    unsigned mni;       // index of the performed MIDI event associated with this score location
+    unsigned smpIdx;    // sample time index of performed MIDI event
+    unsigned pitch;     // performed pitch 
+    unsigned vel;       // performed velocity
+    unsigned flags;     // smTruePosFl | smFalsePosFl 
   } cmScMatcherResult_t;
 
   struct cmScMatcher_str;
@@ -380,7 +380,7 @@ extern "C" {
   cmRC_t       cmScMatcherReset( cmScMatcher* p, unsigned scLocIdx );
 
   // Slide a score window 'hopCnt' times, beginning at 'bli' (an
-  // index int p->mp->loc[]) looking for the best match to p->midiBuf[].  
+  // index into p->mp->loc[]) looking for the best match to p->midiBuf[].  
   // The score window contain scWndN (p->mp->mcn-1) score locations.
   // Returns the index into p->mp->loc[] of the start of the best
   // match score window. The score associated

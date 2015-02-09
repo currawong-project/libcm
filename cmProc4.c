@@ -2363,7 +2363,8 @@ void cmScMatcherPrint( cmScMatcher* p )
   unsigned esli       = 0;
   unsigned i,j,k;
 
-  // get first/last scLocIdx from res[]
+  // get first/last scLocIdx from res[] - this is the range of
+  // score events that the score matcher has identified
   for(i=0; i<p->ri; ++i)
     if( p->res[i].locIdx != cmInvalidIdx )
     {
@@ -2382,15 +2383,16 @@ void cmScMatcherPrint( cmScMatcher* p )
     aan += lp->evtCnt;
   }
 
-  // allocate an array off 'aan' print records
+  // allocate an array of 'aan' print records
   cmScMatcherPrint_t* a  = cmMemAllocZ(cmScMatcherPrint_t,aan);
 
-  // fill a[] note and bar events from cmScoreLoc()
+  // fill the cmScMatcherPrint_t array with note and bar events from the score
   for(i=bsli; i<=esli; ++i)
   {
     unsigned      scLocIdx = i;
     cmScoreLoc_t* lp       = cmScoreLoc(p->mp->scH, scLocIdx );
 
+    // for each score event which occurs at this location
     for(j=0; j<lp->evtCnt; ++j)
     {
       assert( an < aan );
@@ -2399,6 +2401,7 @@ void cmScMatcherPrint( cmScMatcher* p )
       cmScMatcherPrint_t* pp = a + an;
 
       an += 1;
+      
       
       switch( ep->type )
       {
@@ -2420,6 +2423,12 @@ void cmScMatcherPrint( cmScMatcher* p )
 
   }
 
+  //
+  // a[an] now contains a record for each note and bar event in the
+  // time range associated with the score matcher's result array.
+  //
+
+
   // for each result record
   for(i=0; i<p->ri; ++i)
   {
@@ -2428,7 +2437,7 @@ void cmScMatcherPrint( cmScMatcher* p )
     // if this result recd matched a score event
     if( cmIsFlag(rp->flags,kSmTruePosFl) )
     {
-      // locate the matching score event
+      // locate the matching score event in a[an]
       for(k=0; k<an; ++k)
         if( a[k].scLocIdx==p->mp->loc[rp->locIdx].scLocIdx && a[k].pitch==rp->pitch )
         {
@@ -2512,6 +2521,9 @@ void cmScMatcherPrint( cmScMatcher* p )
     }
   }
   
+  printf("sloc bar  mni  ptch flag\n");
+  printf("---- ---- ---- ---- ----\n");
+
   for(i=0; i<an; ++i)
   {
     printf("%4i %4i %4i %4s %c%c%c\n",a[i].scLocIdx,a[i].barNumb,a[i].mni,
