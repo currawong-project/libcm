@@ -20,33 +20,23 @@
 #include "cmProcObj.h"
 #include "cmProc4.h"
 
-enum
-{
-  kOkSpRC,
-  kJsonFailSpRC,
-  kScoreFailSpRC,
-  kTimeLineFailSpRC,
-  kScoreMatchFailSpRC,
-  kFileFailSpRC,
-  kProcFailSpRC
-};
-
 typedef enum
 {
-  kBeginSectionSpId,
-  kEndSectionSpId
+  kBeginSectionSpId,  // tlObjPtr points to a cmTlMarker_t object.
+  kEndSectionSpId,    // tlObjPtr is NULL.
+  kNoteOnSpId,        // tlObjPtr points to a cmTlMidiEvt_t note-on object.
+  kFailSpId           // tlObjPtr points to a cmTlMarker_t object (This section score tracking failed.)
 } cmScoreProcSelId_t;
 
 struct cmSp_str;
 
-typedef cmSpRC_t (*cmScoreProcCb_t)( void* arg, struct cmSp_str* p, cmScoreProcSelId_t id, cmTlMarker_t* curMarkPtr );
+typedef cmSpRC_t (*cmScoreProcCb_t)( void* arg, struct cmSp_str* p, cmScoreProcSelId_t id, cmTlObj_t* tlObjPtr );
 
 typedef struct cmSp_str
 {
   cmErr_t         err;          // score proc object error state
   cmCtx*          ctx;          // application context
   cmScH_t         scH;          // score object
-  const cmChar_t* tlFn;         // time-line filename
   cmTlH_t         tlH;          // time-line object
   cmJsonH_t       jsH;          // 
   unsigned*       dynArray;     // dynArray[dynCnt] dynamics reference array
@@ -54,8 +44,8 @@ typedef struct cmSp_str
   double          srate;        // 
   cmScMatcher*    match;        // score follower
 
-  cmScMatcherCb_t  matchCb;     // score follower callback
-  cmScoreProcCb_t  procCb;      // score processor callback
+  cmScoreProcCb_t  procCb;      // score processor callback - called whenever a new 'marker' section or note-on is about to be processed
+  cmScMatcherCb_t  matchCb;     // score follower callback  - called whenever the score follower detects a matched event
   void*            cbArg;       // callback arg. for both matchCb and procCb.
 
 } cmSp_t;
@@ -81,7 +71,13 @@ cmSpRC_t _cmJsonReadDynArray( cmJsonH_t jsH, unsigned** dynArray, unsigned* dynC
   return kOkSpRC;  
 }
 
-cmSpRC_t _cmScoreProcInit( cmCtx_t* ctx, cmSp_t* p, const cmChar_t* rsrcFn, cmScoreProcCb_t procCb, cmScMatcherCb_t matchCb, void* cbArg  )
+cmSpRC_t _cmScoreProcInit( 
+  cmCtx_t*        ctx, 
+  cmSp_t*         p, 
+  const cmChar_t* rsrcFn, 
+  cmScoreProcCb_t procCb, 
+  cmScMatcherCb_t matchCb, 
+  void*           cbArg  )
 {
   cmSpRC_t        rc     = kOkSpRC;
   const cmChar_t* scFn   = NULL;
@@ -143,7 +139,7 @@ cmSpRC_t _cmScoreProcInit( cmCtx_t* ctx, cmSp_t* p, const cmChar_t* rsrcFn, cmSc
     goto errLabel;
   }
 
-  p->ctx  = cmCtxAlloc(NULL, &ctx->rpt, cmLHeapNullHandle, cmSymTblNullHandle );
+  p->ctx     = cmCtxAlloc(NULL, &ctx->rpt, cmLHeapNullHandle, cmSymTblNullHandle );
   p->matchCb = matchCb;
   p->procCb  = procCb;
   p->cbArg   = cbArg;
@@ -153,6 +149,8 @@ cmSpRC_t _cmScoreProcInit( cmCtx_t* ctx, cmSp_t* p, const cmChar_t* rsrcFn, cmSc
 }
 
 
+// This function iterates through each sequence and advances
+// to each 'begin-marker' position.  
 cmSpRC_t _cmScoreProcProcess(cmCtx_t* ctx, cmSp_t* sp)
 {
   cmSpRC_t rc     = kOkSpRC;
@@ -199,13 +197,6 @@ cmSpRC_t _cmScoreProcProcess(cmCtx_t* ctx, cmSp_t* sp)
 
       cmRptPrintf(&ctx->rpt,"Processing loc:%i seq:%i %s %s\n",locPtr->index,seqId,cmStringNullGuard(markPtr->obj.name),cmStringNullGuard(markPtr->text));
 
-      // inform the score processor that we are about to start a new section
-      if( sp->procCb( sp->cbArg, sp, kBeginSectionSpId, markPtr ) != kOkSpRC )
-      {
-        cmErrMsg(&sp->err,kProcFailSpRC,"The score process object failed on reset.");
-        continue;
-      }
-
       // reset the score matcher to begin searching at the bar location
       if( cmScMatcherReset(sp->match, locPtr->index ) != cmOkRC )
       {
@@ -213,7 +204,15 @@ cmSpRC_t _cmScoreProcProcess(cmCtx_t* ctx, cmSp_t* sp)
         continue;
       }
 
-      cmTlObj_t* o1p = o0p;
+      // inform the score processor that we are about to start a new section
+      if( sp->procCb( sp->cbArg, sp, kBeginSectionSpId, o0p ) != kOkSpRC )
+      {
+        cmErrMsg(&sp->err,kProcFailSpRC,"The score process object failed on reset.");
+        continue;
+      }
+
+      cmTlObj_t* o1p   = o0p;
+      bool       errFl = false;
 
       // as long as more MIDI events are available get the next MIDI msg 
       while( (rc == kOkSpRC) && (o1p = cmTimeLineNextTypeObj(sp->tlH, o1p, seqId, kMidiEvtTlId )) != NULL )
@@ -225,9 +224,11 @@ cmSpRC_t _cmScoreProcProcess(cmCtx_t* ctx, cmSp_t* sp)
         if( mep->obj.seqSmpIdx != cmInvalidIdx && mep->obj.seqSmpIdx > markEndSmpIdx )
           break;
         
-        // if the time line MIDI msg a note-on
+        // if the time line MIDI msg is a note-on
         if( mep->msg->status == kNoteOnMdId )
         {
+          sp->procCb( sp->cbArg, sp, kNoteOnSpId,  o1p );
+
           cmRC_t cmRC = cmScMatcherExec(sp->match, mep->obj.seqSmpIdx, mep->msg->status, mep->msg->u.chMsgPtr->d0, mep->msg->u.chMsgPtr->d1, NULL );
 
           switch( cmRC )
@@ -240,12 +241,15 @@ cmSpRC_t _cmScoreProcProcess(cmCtx_t* ctx, cmSp_t* sp)
 
             case cmInvalidArgRC: // p->eli was not set correctly
               rc = cmErrMsg(&sp->err,kScoreMatchFailSpRC,"The score matcher failed due to an invalid argument.");
-              goto errLabel;
+              errFl = true;
               break;
 
             case cmSubSysFailRC: // scan resync failed
               rc = cmErrMsg(&sp->err,kScoreMatchFailSpRC,"The score matcher failed on resync.");
-              cmScMatcherPrint(sp->match);
+
+              sp->procCb( sp->cbArg, sp, kFailSpId, o0p );
+
+              //cmScMatcherPrint(sp->match);
               //goto errLabel;
               break;
 
@@ -258,6 +262,11 @@ cmSpRC_t _cmScoreProcProcess(cmCtx_t* ctx, cmSp_t* sp)
       // inform the score processor that we done processing a section
       if( sp->procCb( sp->cbArg, sp, kEndSectionSpId, NULL ) != kOkSpRC )
         cmErrMsg(&sp->err,kProcFailSpRC,"The score process object failed on reset.");
+
+      // error flag is used to break out of the loop after the 'end-section' is called
+      // so that the user defined processes has a chance to clean-up 
+      if( errFl )
+        goto errLabel;
 
       rc = kOkSpRC;
     }
@@ -477,7 +486,7 @@ void _cmSpMatchMeasCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
 }
 
 // measurement proc callback
-cmSpRC_t  _cmSpProcMeasCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlMarker_t* curMarkPtr )
+cmSpRC_t  _cmSpProcMeasCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlObj_t* tlObjPtr )
 {
   cmSpRC_t         rc = kOkSpRC;
   _cmSpMeasProc_t* m = (_cmSpMeasProc_t*)arg;
@@ -490,10 +499,16 @@ cmSpRC_t  _cmSpProcMeasCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlMar
       if( cmScMeasReset(m->meas) != cmOkRC )
         rc = cmErrMsg(&sp->err,kScoreMatchFailSpRC,"The score performance evaluation object failed on reset.");
 
-      m->curMarkPtr = curMarkPtr;
+      m->curMarkPtr = cmTimeLineMarkerObjPtr(sp->tlH,tlObjPtr);
+      break;
+
+    case kNoteOnSpId:
       break;
 
     case kEndSectionSpId:
+      break;
+
+    case kFailSpId:
       break;
   }
 
@@ -559,54 +574,211 @@ cmSpRC_t _cmScoreProcGenAllMeasurementsMain(cmCtx_t* ctx)
 }
 
 //==================================================================================================
+typedef struct cmSpAssoc_str
+{
+  unsigned              scEvtIdx; // score event index
+  unsigned              tlUid;    // time-line MIDI note-on object id
+  struct cmSpAssoc_str* link;
+} cmSpAssoc_t;
+
+typedef struct cmSpNoteMap_str
+{
+  unsigned                tlUid; // time-line MIDI note-on object id
+  unsigned                mni;  // assocated 'mni' returned in a cmScMatcherResult_t record
+  struct cmSpNoteMap_str* link;
+} cmSpNoteMap_t;
+
 typedef struct
 {
-  cmSp_t* sp; 
-} cmSpPerfProc_t;
+  cmCtx_t*       ctx;
+  cmSp_t*        sp; 
+  unsigned       mni;
+  bool           failFl;
+  cmJsonH_t      jsH;
+  cmJsonNode_t*  sectObj;
+  cmJsonNode_t*  array;
 
-void _cmSpMatchPerfCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
+  cmSpAssoc_t*   bap;  
+  cmSpAssoc_t*   eap;
+  cmSpNoteMap_t* bmp;
+  cmSpNoteMap_t* emp;
+
+  
+} cmSpAssocProc_t;
+
+void _cmSpMatchAssocCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
 {
-  cmSpPerfProc_t* m = (cmSpPerfProc_t*)arg;
+  cmSpAssocProc_t* m   = (cmSpAssocProc_t*)arg;
+
+  
+  if( cmJsonCreateFilledObject(m->jsH, m->array,
+      "mni",      kIntTId, rp->mni,
+      "scEvtIdx", kIntTId, rp->scEvtIdx,
+      "flags",    kIntTId, rp->flags, 
+      NULL ) == NULL )
+  {
+    cmErrMsg(&m->ctx->err,kJsonFailSpRC,"JSON association record create failed.");
+  }
+  
+  //cmScoreEvt_t*    sep = rp->scEvtIdx == -1 ? NULL : cmScoreEvt( m->sp->scH, rp->scEvtIdx );
+  //printf("%3i loc:%4i pitch=%3i %3i  flags=0x%x\n",rp->mni,rp->locIdx,rp->pitch,sep==NULL ? -1 : sep->pitch,rp->flags );
   
 }
 
-cmSpRC_t  _cmSpProcPerfCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlMarker_t* curMarkPtr )
+cmSpRC_t  _cmSpProcAssocCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlObj_t* tlObjPtr )
 {
-  cmSpPerfProc_t* m = (cmSpPerfProc_t*)arg;
+  cmSpRC_t         rc = kOkSpRC;
+  cmSpAssocProc_t* m  = (cmSpAssocProc_t*)arg;
 
+  switch( id )
+  {
+    case kBeginSectionSpId:
+      {
+        cmTlMarker_t* markPtr = cmTimeLineMarkerObjPtr( sp->tlH, tlObjPtr );
+        assert( markPtr != NULL );
+        m->mni    = 0;
+        m->failFl = false;
+
+        // insert a section object
+        if((m->sectObj = cmJsonInsertPairObject(m->jsH, cmJsonRoot(m->jsH), "section" )) == NULL )
+        {
+          rc = cmErrMsg(&m->ctx->err,kJsonFailSpRC,"Section insert failed on seq:%i '%s' : '%s'.", tlObjPtr->seqId, cmStringNullGuard(tlObjPtr->text),cmStringNullGuard(markPtr->text));
+          goto errLabel; 
+        }
+
+        // set the section time-line UID
+        if( cmJsonInsertPairInt(m->jsH, m->sectObj,"markerUid", tlObjPtr->uid ) != kOkJsRC )
+        {
+          rc = cmErrMsg(&m->ctx->err,kJsonFailSpRC,"Marker uid field insert failed on seq:%i '%s' : '%s'.", tlObjPtr->seqId, cmStringNullGuard(tlObjPtr->text),cmStringNullGuard(markPtr->text));
+          goto errLabel;           
+        }
+
+        // create an array to hold the assoc results
+        if(( m->array = cmJsonInsertPairArray(m->jsH, m->sectObj, "array")) == NULL )
+        {
+          rc = cmErrMsg(&m->ctx->err,kJsonFailSpRC,"Marker array field insert failed on seq:%i '%s' : '%s'.", tlObjPtr->seqId, cmStringNullGuard(tlObjPtr->text),cmStringNullGuard(markPtr->text));
+          goto errLabel;           
+        }          
+      }
+      break;
+
+    case kEndSectionSpId:
+      {
+        while( m->bmp != NULL )
+        {
+          cmSpNoteMap_t* nmp = m->bmp->link;
+          cmMemFree(m->bmp);
+          m->bmp = nmp;
+        }
+      
+        m->bmp = NULL;
+        m->emp = NULL;
+
+        if( cmJsonInsertPairInt( m->jsH, m->sectObj, "failFl", m->failFl ) != kOkJsRC )
+        {
+          rc = cmErrMsg(&m->ctx->err,kJsonFailSpRC,"JSON fail flag insert failed.");
+          goto errLabel;
+        }
+        
+      }
+      break;
+
+    case kNoteOnSpId:
+      {
+        // create a cmSpNoteMap_t record ...
+        cmSpNoteMap_t* map = cmMemAllocZ(cmSpNoteMap_t,1);
+        map->tlUid = tlObjPtr->uid;
+        map->mni   = m->mni;
+
+        // .. and insert it in the note-map list
+        if( m->emp == NULL )
+        {
+          m->bmp = map;
+          m->emp = map;
+        }
+        else
+        {
+          m->emp->link = map;
+          m->emp       = map;
+        }
+
+        m->mni += 1;
+      }
+      break;
+
+    case kFailSpId:
+      m->failFl = true;
+      break;
+
+  }
+
+ errLabel:
+  return rc;
 }
 
-cmSpRC_t _cmScoreProcGenPerfMain(cmCtx_t* ctx)
+cmSpRC_t _cmScoreProcGenAssocMain(cmCtx_t* ctx)
 {
-  const cmChar_t* rsrcFn = "/home/kevin/.kc/time_line.js";
-  const cmChar_t* outFn  = "/home/kevin/src/cmkc/src/kc/data/meas0.js";
-
-  cmSpRC_t        rc     = kOkSpRC;
-  cmSpPerfProc_t* m      = cmMemAllocZ(cmSpPerfProc_t,1);
-  cmSp_t          s;
-  cmSp_t*         sp     = &s;
+  const cmChar_t*  rsrcFn = "/home/kevin/.kc/time_line.js";
+  const cmChar_t*  outFn  = "/home/kevin/src/cmkc/src/kc/data/assoc0.js";
+  cmSpRC_t         rc     = kOkSpRC;
+  cmSpAssocProc_t* m      = cmMemAllocZ(cmSpAssocProc_t,1);
+  cmSp_t           s;
+  cmSp_t*          sp     = &s;
 
   memset(sp,0,sizeof(s));
 
-  cmRptPrintf(&ctx->rpt,"Score Performance Start\n");
+  m->ctx = ctx;
+
+  cmRptPrintf(&ctx->rpt,"Score Association Start\n");
+
+  // create a JSON object to hold the results
+  if( cmJsonInitialize(&m->jsH, ctx ) != kOkJsRC )
+  {
+    cmErrMsg(&m->ctx->err,kJsonFailSpRC,"Score association JSON output object create failed.");
+    goto errLabel;
+  }
+
+  // create the JSON root object
+  if( cmJsonCreateObject(m->jsH, NULL ) == NULL )
+  {
+    cmErrMsg(&m->ctx->err,kJsonFailSpRC,"Create JSON root object.");
+    goto errLabel;
+  }
 
   // initialize the score processor
-  if((rc = _cmScoreProcInit(ctx,sp,rsrcFn,_cmSpProcPerfCb,_cmSpMatchPerfCb,m)) != kOkSpRC )
+  if((rc = _cmScoreProcInit(ctx,sp,rsrcFn,_cmSpProcAssocCb,_cmSpMatchAssocCb, m)) != kOkSpRC )
     goto errLabel;
 
   m->sp = sp;
 
+  // store the time-line and score file name
+  if( cmJsonInsertPairs(m->jsH, cmJsonRoot(m->jsH), 
+      "tlFn",    kStringTId, cmTimeLineFileName( sp->tlH),
+      "scoreFn", kStringTId, cmScoreFileName( sp->scH ),
+      NULL ) != kOkJsRC )
+  {
+    cmErrMsg(&m->ctx->err,kJsonFailSpRC,"File name JSON field insertion failed.");
+    goto errLabel;
+  }
+
   // run the score processor
   _cmScoreProcProcess(ctx,sp);
 
-  // write the results of the performance evaluation
-  if((rc = _cmScWriteMeasFile(ctx, sp, m, outFn )) != kOkSpRC )
-    cmErrMsg(&sp->err,kFileFailSpRC,"The measurement output did not complete without errors."); 
+  cmRptPrintf(&ctx->rpt,"Writing results to '%s'.",outFn);
 
-  //cmScorePrint(sp.scH,&ctx->rpt);
-  //cmScorePrintLoc(sp.scH);
+  // write the results to a JSON file
+  if(cmJsonWrite(m->jsH, NULL, outFn ) != kOkJsRC )
+  {
+    cmErrMsg(&m->ctx->err,kJsonFailSpRC,"Score association output file write failed.");
+    goto errLabel;
+  }
  
  errLabel:
+  if( cmJsonFinalize(&m->jsH) != kOkJsRC )
+  {
+    cmErrMsg(&m->ctx->err,kJsonFailSpRC,"JSON finalize failed.");
+  }
+
   _cmScoreProcFinal(sp);
 
   cmMemFree(m);
@@ -625,7 +797,8 @@ cmSpRC_t cmScoreProc(cmCtx_t* ctx)
 {
   cmSpRC_t rc = kOkSpRC;
 
-  _cmScoreProcGenAllMeasurementsMain(ctx);
+  //_cmScoreProcGenAllMeasurementsMain(ctx);
+  _cmScoreProcGenAssocMain(ctx);
 
   return rc;
   
