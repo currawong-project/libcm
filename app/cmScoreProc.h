@@ -7,6 +7,18 @@ extern "C" {
 
   typedef unsigned cmSpRC_t;
 
+  enum
+  {
+    kOkSpRC,
+    kJsonFailSpRC,
+    kScoreFailSpRC,
+    kTimeLineFailSpRC,
+    kScoreMatchFailSpRC,
+    kFileFailSpRC,
+    kProcFailSpRC
+  };
+
+
   cmSpRC_t  cmScoreProc(cmCtx_t* ctx );
 
 #ifdef __cplusplus
