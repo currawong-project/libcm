@@ -18,35 +18,79 @@
 #include "cmTakeSeqBldr.h"
 
 
-typedef struct cmNoteTsb_str
+// Map a score event to a MIDI event. 
+typedef struct cmScTrkMidiTsb_str
 {
   unsigned mni;      // midi note index as an offset from the take marker
   unsigned scEvtIdx; // score event index this not is assoc'd with or -1 if it did not match
   unsigned flags;    // flags from cmScMatcherResult_t 
-} cmNoteTsb_t;
+} cmScTrkMidiTsb_t;
 
-typedef struct cmTakeTsb_str
+
+// Score Tracking info. from a single take (time-line marker)
+typedef struct cmScTrkTakeTsb_str
 {
-  unsigned     markerUid;  // marker time line uid assoc'd with this take
-  cmNoteTsb_t* noteV;      // noteV[noteN] score to midi file map recd. array.
-  unsigned     noteN;  
-  bool         failFl;
-} cmTakeTsb_t;
+  unsigned          markerUid;  // marker time line uid assoc'd with this take
+  cmScTrkMidiTsb_t* midiV;      // midiV[midiN] score to midi file map recd. array.
+  unsigned          midiN;  
+  bool              failFl;
+} cmScTrkTakeTsb_t;
+
+enum 
+{
+  kNoteTsbFl   = 0x01,
+  kPedalTsbFl  = 0x02,
+  kEnableTsbFl = 0x04
+};
+
+// 
+typedef struct cmMidiEvt_str
+{  
+  unsigned              srcId;     // marker uid or -1 if this event was manually inserted
+  unsigned              flags;     // note | pedal | enable  
+  struct cmMidiEvt_str* ref;       // previous MIDI event in time
+  unsigned              offsetSmp; // time offset from *ref
+  unsigned              durSmp;    // duration of this MIDI event
+  unsigned              d0;        // d0 MIDI channel msg data.
+  unsigned              d1;        // d1 MIDI channel msg data
+  struct cmMidiEvt_str* link;      // pointer to next MIDI event in list
+} cmMidiEvt_t;
+
+// This record represents a note or pedal score event 
+typedef struct cmScEvtTsb_str
+{
+  unsigned     flags;    // note | pedal
+  unsigned     scEvtIdx; // score event index (into scH)
+  cmMidiEvt_t* evtList;  // list of alternate MIDI events which may render this event
+} cmScEvtTsb_t;
+
+// This record contains all the score events and and score synchronized MIDI events
+// associated with a given take.  Each call to cmTakeSeqBldrLoadTake() creates
+// one of these records.
+typedef struct cmTakeScEvtArrayTsb_str
+{
+  unsigned      tlMarkerUid; // time-line marker uid associated with this take
+  cmScEvtTsb_t* scEvtV;      // scEvtV[scEvtN] array of score events contained by this take  
+  unsigned      scEvtN;      // count of score events in this take 
+} cmTakeScEvtArrayTsb_t;
 
 typedef struct
 {
-  cmCtx_t         ctx;
-  cmErr_t         err;
-  cmJsonH_t       jsH;
-  const cmChar_t* tlFn;
-  const cmChar_t* scFn;
-  const cmChar_t* tlPrefixPath;
+  cmCtx_t         ctx;          // application context
+  cmErr_t         err;          // internal error object
+  cmJsonH_t       jsH;          // JSON tree used to hold score tracker info.
+  const cmChar_t* tlFn;         // time line filename
+  const cmChar_t* scFn;         // score file name
+  const cmChar_t* tlPrefixPath; // path to time line audio and MIDI files
+  cmTlH_t         tlH;          // time-line handle
+  cmScH_t         scH;          // score handle
 
-  cmTakeTsb_t*    takeV;  // takeV[ takeN ]
-  unsigned        takeN;
+  cmScTrkTakeTsb_t*  scTrkTakeV;  // score tracker scTrkTakeV[ scTrkTakeN ]
+  unsigned           scTrkTakeN;  
   
-  cmTlH_t        tlH;
-  cmScH_t         scH;
+  cmTakeScEvtArrayTsb_t* takes;   // list of scEvt arrays used by this sequence 
+  cmTakeScEvtArrayTsb_t* manual;  // list of manually inserted MIDI events
+  
 
 } cmTsb_t;
 
@@ -69,10 +113,10 @@ cmTsbRC_t _cmTsbScoreTrkFree( cmTsb_t* p )
     goto errLabel;
   }
   
-  for(i=0; i<p->takeN; ++i)
-    cmMemPtrFree(&p->takeV[i].noteV);
+  for(i=0; i<p->scTrkTakeN; ++i)
+    cmMemPtrFree(&p->scTrkTakeV[i].midiV);
 
-  cmMemPtrFree(&p->takeV);
+  cmMemPtrFree(&p->scTrkTakeV);
 
   if( cmTimeLineFinalize(&p->tlH) != kOkTlRC )
     rc = cmErrMsg(&p->err,kTimeLineFailTsbRC,"Time line object finalize failed.");
@@ -131,13 +175,13 @@ cmTsbRC_t _cmTsbLoadScoreTrkFile( cmTsb_t* p, const cmChar_t* scoreTrkFn )
   }
 
   // count of take records
-  p->takeN = cmJsonChildCount(tkArrObj);
+  p->scTrkTakeN = cmJsonChildCount(tkArrObj);
 
   // array of take records
-  p->takeV  = cmMemAllocZ(cmTakeTsb_t,p->takeN);
+  p->scTrkTakeV  = cmMemAllocZ(cmScTrkTakeTsb_t,p->scTrkTakeN);
 
   // for each take record
-  for(i=0; i<p->takeN; ++i)
+  for(i=0; i<p->scTrkTakeN; ++i)
   {
     cmJsonNode_t* takeObj    = NULL;
     cmJsonNode_t* noteArrObj = NULL;
@@ -152,8 +196,8 @@ cmTsbRC_t _cmTsbLoadScoreTrkFile( cmTsb_t* p, const cmChar_t* scoreTrkFn )
 
     // parse the take record
     if((jsRC = cmJsonMemberValues( takeObj, &errMsg,
-          "markerUid",kIntTId,   &p->takeV[i].markerUid,
-          "failFl",   kIntTId,   &p->takeV[i].failFl,
+          "markerUid",kIntTId,   &p->scTrkTakeV[i].markerUid,
+          "failFl",   kIntTId,   &p->scTrkTakeV[i].failFl,
           "array",    kArrayTId, &noteArrObj,
           0)) != kOkJsRC )
     {
@@ -166,13 +210,13 @@ cmTsbRC_t _cmTsbLoadScoreTrkFile( cmTsb_t* p, const cmChar_t* scoreTrkFn )
     }
 
     // get the count of note records
-    p->takeV[i].noteN = cmJsonChildCount(noteArrObj);
+    p->scTrkTakeV[i].midiN = cmJsonChildCount(noteArrObj);
     
     // allocate a note record array for this take
-    p->takeV[i].noteV = cmMemAllocZ(cmNoteTsb_t, p->takeV[i].noteN);
+    p->scTrkTakeV[i].midiV = cmMemAllocZ(cmScTrkMidiTsb_t, p->scTrkTakeV[i].midiN);
 
     // for each note record
-    for(j=0; j<p->takeV[i].noteN; ++j)
+    for(j=0; j<p->scTrkTakeV[i].midiN; ++j)
     {
       cmJsonNode_t* noteObj = NULL;
       
@@ -185,9 +229,9 @@ cmTsbRC_t _cmTsbLoadScoreTrkFile( cmTsb_t* p, const cmChar_t* scoreTrkFn )
 
       // parse the note record
       if((jsRC = cmJsonMemberValues( noteObj, &errMsg,
-            "mni",      kIntTId, &p->takeV[i].noteV[j].mni,
-            "scEvtIdx", kIntTId, &p->takeV[i].noteV[j].scEvtIdx,
-            "flags",    kIntTId, &p->takeV[i].noteV[j].flags,
+            "mni",      kIntTId, &p->scTrkTakeV[i].midiV[j].mni,
+            "scEvtIdx", kIntTId, &p->scTrkTakeV[i].midiV[j].scEvtIdx,
+            "flags",    kIntTId, &p->scTrkTakeV[i].midiV[j].flags,
             0)) != kOkJsRC )
       {
         if( jsRC == kNodeNotFoundJsRC && errMsg != NULL )
@@ -205,6 +249,30 @@ cmTsbRC_t _cmTsbLoadScoreTrkFile( cmTsb_t* p, const cmChar_t* scoreTrkFn )
     rc = _cmTsbScoreTrkFree(p);
 
   return rc;
+}
+
+// Return the count of score events inside a given marker.
+unsigned _cmTsbScoreTrkMarkerEventCount( cmTsb_t* p, unsigned markUid )
+{
+  unsigned i,j;
+  unsigned minScEvtIdx = INT_MAX;
+  unsigned maxScEvtIdx = 0;
+
+  for(i=0; i<p->scTrkTakeN; ++i)
+    for(j=0; j<p->scTrkTakeV[i].midiN; ++j)
+    {
+      if( p->scTrkTakeV[i].midiV[j].scEvtIdx < minScEvtIdx )
+        minScEvtIdx = p->scTrkTakeV[i].midiV[j].scEvtIdx;
+
+      if( p->scTrkTakeV[i].midiV[j].scEvtIdx > maxScEvtIdx )
+        maxScEvtIdx = p->scTrkTakeV[i].midiV[j].scEvtIdx;
+    }
+
+  if( maxScEvtIdx < minScEvtIdx )
+    return 0;
+
+  return (maxScEvtIdx - minScEvtIdx) + 1;
+  
 }
 
 cmTsbRC_t cmTakeSeqBldrAlloc( cmCtx_t* ctx, cmTakeSeqBldrH_t* hp )
@@ -286,7 +354,77 @@ cmTsbRC_t cmTakeSeqBldrInitialize( cmTakeSeqBldrH_t h, const cmChar_t* scoreTrkF
 
 cmTsbRC_t cmTakeSeqBldrLoadTake( cmTakeSeqBldrH_t h, unsigned tlMarkUid, bool overwriteFL )
 {
-  cmTsbRC_t rc = kOkTsbRC;
+  cmTsbRC_t       rc   = kOkTsbRC;
+  cmTsb_t*        p    = _cmTsbHandleToPtr(h);
+  cmTlMarker_t*   mark = NULL;
+  cmTlMidiFile_t* mf   = NULL;
+  cmMidiFileH_t   mfH  = cmMidiFileNullHandle;
+  
+  // get a pointer to the time-line marker object
+  if((mark = cmTlMarkerObjPtr( p->tlH, cmTimeLineIdToObj( p->tlH, cmInvalidId, tlMarkUid))) == NULL )
+  {
+    rc = cmErrMsg(&p->err,kInvalidArgTsbRC,"The time-line marker uid '%i' is not valid.",tlMarkUid);
+    goto errLabel;
+  }
+
+  // get the name of the MIDI file which contains the marker
+  if((mf = cmTimeLineMidiFileAtTime( p->tlH, mark->obj.seqId, mark->obj.seqSmpIdx )) == NULL )
+  {
+    rc = cmErrMsg(&p->err,kInvalidArgTsbRC,"The time-line marker '%i' does not intersect with a MIDI file.",tlMarkUid);
+    goto errLabel;
+  }
+
+  // open the MIDI file
+  if( cmMidiFileOpen( cmMidiFileName(mf->h), &mfH, &p->ctx ) != kOkMfRC )
+  {
+    rc = cmErrMsg(&p->err,kInvalidArgTsbRC,"The MIDI file '%s' could not be opened.", cmStringNullGuard(cmMidiFileName(mf->h)));
+    goto errLabel;
+  }
+
+  // convert the dtick field to absolute sample indexes
+  cmMidiFileTickToSamples( mfH, cmTimeLineSampleRate(p->tlH), true );
+  
+  // calculate MIDI note and pedal durations (see cmMidiChMsg_t.durTicks)
+  cmMidiFileCalcNoteDurations( mfH );
+  
+  // convert the marker beg/end sample position to be relative to the MIDI file start time
+  unsigned                 bsi = mark->obj.seqSmpIdx - mf->obj.seqSmpIdx;
+  unsigned                 esi = mark->obj.seqSmpIdx + mark->obj.durSmpCnt - mf->obj.seqSmpIdx;
+  unsigned                 i   = 0;
+  unsigned                 n   = cmMidiFileMsgCount(mfH);
+  const cmMidiTrackMsg_t** a   = cmMidiFileMsgArray(mfH);
+  
+  // seek to the first MIDI msg after bsi
+  for(i=0; i<n; ++i)
+    if( a[i]->dtick >= bsi )
+      break;
+
+  if( i == n )
+  {
+    rc = cmErrMsg(&p->err,kInvalidArgTsbRC,"No MIDI events were found in the marker.");
+    goto errLabel;
+  }
+
+  // for each MIDI message between bsi and esi
+  for(; i<n && a[i]->dtick < esi; ++i)
+  {
+    const cmMidiTrackMsg_t* m = a[i];
+    switch( m->status )
+    {
+      case kNoteOffMdId:
+      case kNoteOnMdId:
+      case kCtlMdId:
+        
+        break;
+    }
+  }
+
+
+  
+ errLabel:
+  if( cmMidiFileClose(&mfH) != kOkMfRC )
+    rc = cmErrMsg(&p->err,kMidiFileFailTsbRC,"MIDI file close failed.");
+  
   return rc;
 }
 

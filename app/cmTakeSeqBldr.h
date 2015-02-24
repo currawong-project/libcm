@@ -12,7 +12,9 @@ extern "C" {
     kJsonFailTsbRC,
     kParseFailTsbRC,
     kTimeLineFailTsbRC,
-    kScoreFailTsbRC
+    kScoreFailTsbRC,
+    kInvalidArgTsbRC,
+    kMidiFileFailTsbRC
   };
 
   typedef cmRC_t     cmTsbRC_t;
@@ -47,7 +49,7 @@ extern "C" {
   cmTsbRC_t cmTakeSeqBldrInsertScoreNotes( cmTakeSeqBldrH_t h, unsigned begScEvtIdx, unsigned endScEvtId );
   cmTsbRC_t cmTakeSeqBldrRemoveScoreNotes( cmTakeSeqBldrH_t h, unsigned begScEvtIdx, unsigned endScEvtId );
 
-  enum { kMarkTsbFl = 0x01, kTlNoteTsbFl=0x02, kScoreNoteTsbFl = 0x04, kPedalTsbFl = 0x08 };
+  //enum { kMarkTsbFl = 0x01, kTlNoteTsbFl=0x02, kScoreNoteTsbFl = 0x04, kPedalTsbFl = 0x08 };
   cmTsbRC_t cmTakeSeqBldrSelectEnable( cmTakeSeqBldrH_t h, unsigned flags, unsigned id, bool selectFl );
   cmTsbRC_t cmTakeSeqBldrEnableNote( cmTakeSeqBldrH_t h, unsigned ssqId, bool enableFl );
 
