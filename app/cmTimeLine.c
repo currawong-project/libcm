@@ -131,7 +131,7 @@ unsigned _cmTlIdLabelToId( _cmTl_t* p, const cmChar_t* label )
 // cast a generic object to a midi file object
 cmTlMidiFile_t*  _cmTlMidiFileObjPtr(  _cmTl_t* p, cmTlObj_t* op, bool errFl )
 { 
-  if( op->typeId != kMidiFileTlId )
+  if( op==NULL || op->typeId != kMidiFileTlId )
   {
     if( errFl && p != NULL)
       cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");
@@ -144,7 +144,7 @@ cmTlMidiFile_t*  _cmTlMidiFileObjPtr(  _cmTl_t* p, cmTlObj_t* op, bool errFl )
 // cast a generic object to a midi event object
 cmTlMidiEvt_t*   _cmTlMidiEvtObjPtr(   _cmTl_t* p, cmTlObj_t* op, bool errFl )
 { 
-  if( op->typeId != kMidiEvtTlId )
+  if( op==NULL || op->typeId != kMidiEvtTlId )
   {
     if( errFl && p != NULL )
       cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");
@@ -157,7 +157,7 @@ cmTlMidiEvt_t*   _cmTlMidiEvtObjPtr(   _cmTl_t* p, cmTlObj_t* op, bool errFl )
 // case a generic object to an audio file object
 cmTlAudioFile_t* _cmTlAudioFileObjPtr( _cmTl_t* p, cmTlObj_t* op, bool errFl )
 { 
-  if( op->typeId != kAudioFileTlId )
+  if( op==NULL || op->typeId != kAudioFileTlId )
   {
     if( errFl && p != NULL)
       cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");
@@ -170,7 +170,7 @@ cmTlAudioFile_t* _cmTlAudioFileObjPtr( _cmTl_t* p, cmTlObj_t* op, bool errFl )
 // cast a generic object an audio event object to 
 cmTlAudioEvt_t*  _cmTlAudioEvtObjPtr(  _cmTl_t* p, cmTlObj_t* op, bool errFl )
 { 
-  if( op->typeId != kAudioEvtTlId )
+  if( op==NULL || op->typeId != kAudioEvtTlId )
   {
     if( errFl && p != NULL)
       cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");
@@ -183,7 +183,7 @@ cmTlAudioEvt_t*  _cmTlAudioEvtObjPtr(  _cmTl_t* p, cmTlObj_t* op, bool errFl )
 // cast a generic object to a marker object
 cmTlMarker_t*    _cmTlMarkerObjPtr(    _cmTl_t* p, cmTlObj_t* op, bool errFl )
 { 
-  if( op->typeId != kMarkerTlId )
+  if( op==NULL || op->typeId != kMarkerTlId )
   {
     if( errFl && p != NULL)
       cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");

@@ -161,7 +161,7 @@ extern "C" {
 
   // Same as cmTimeLineXXXObjPtr() but does not generate an error when
   // 'op' does not point to the correct type. These function quietly
-  // return NULL if the requested type does not match.
+  // return NULL if the requested type does not match or 'op' == NULL.
   cmTlMidiFile_t*  cmTlMidiFileObjPtr(  cmTlH_t h, cmTlObj_t* op );
   cmTlAudioFile_t* cmTlAudioFileObjPtr( cmTlH_t h, cmTlObj_t* op );
   cmTlMidiEvt_t*   cmTlMidiEvtObjPtr(   cmTlH_t h, cmTlObj_t* op );
