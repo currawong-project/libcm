@@ -88,16 +88,17 @@ extern "C" {
 
   enum
   {
-    kOkMfRC = cmOkRC,    // 0
-    kFileFailMfRC,       // 1
-    kNotAMidiFileMfRC,   // 7
-    kMemAllocFailMfRC,   // 8
-    kFileCorruptMfRC,    // 9
-    kMissingEoxMfRC,     // 10 
-    kUnknownMetaIdMfRC,  // 11
-    kInvalidHandleMfRC,  // 12
-    kMissingNoteOffMfRC, // 13
-    kInvalidStatusMfRC   // 14
+    kOkMfRC = cmOkRC,    //  0
+    kFileFailMfRC,       //  1
+    kNotAMidiFileMfRC,   //  2
+    kMemAllocFailMfRC,   //  3
+    kFileCorruptMfRC,    //  4
+    kMissingEoxMfRC,     //  5 
+    kUnknownMetaIdMfRC,  //  6
+    kInvalidHandleMfRC,  //  7 
+    kMissingNoteOffMfRC, //  8
+    kInvalidStatusMfRC,  //  9
+    kSustainPedalMfRC    // 10
   };
 
   extern cmMidiFileH_t cmMidiFileNullHandle;
