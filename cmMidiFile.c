@@ -1212,10 +1212,11 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
   if( p->msgN == 0 )
     return;
 
-  unsigned        mi   = cmInvalidId;
-  _cmMidiVoice_t* list = NULL;             // list of active voices
-  _cmMidiVoice_t* vp   = NULL;
-  bool            sustainFlagV[ kMidiChCnt ];
+  unsigned          mi                  = cmInvalidId;
+  _cmMidiVoice_t*   list                = NULL; // list of active voices
+  _cmMidiVoice_t*   vp                  = NULL;
+  cmMidiTrackMsg_t* sustainPedalDownMsg = NULL;
+  bool              sustainFlagV[ kMidiChCnt ];
 
   // clear the sustain pedal flag
   for(mi=0; mi<kMidiChCnt; ++mi)
@@ -1228,6 +1229,10 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
     // update the duration of the sounding notes
     for(vp = list; vp!=NULL; vp=vp->link)
       vp->durTicks += mp->dtick;    
+
+    // update the sustain pedal duration
+    if( sustainPedalDownMsg != NULL )
+      ((cmMidiChMsg_t*)(sustainPedalDownMsg->u.chMsgPtr))->durTicks += mp->dtick;  // cast away const
 
     //
     // If this is sustain pedal msg
@@ -1243,10 +1248,25 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
       // if the pedal went down ...
       if( sustainFlagV[chIdx]  )
       {
+
+        if( sustainPedalDownMsg != NULL )
+        {
+          // TODO:  the correct way to handle this is to maintain multiple sustain pedals 
+          cmErrMsg(&p->err,kSustainPedalMfRC,"Sustain pedal down with no intervening sustain pedal up.");
+        }
+        else
+        {
+          sustainPedalDownMsg = mp;
+          ((cmMidiChMsg_t*)(sustainPedalDownMsg->u.chMsgPtr))->durTicks = 0;  // cast away const
+        }
+
         _cmMidiFileCalcNoteDurationsAllocVoice( &list, mp, true );
       }
       else // ... if the pedal went up
       {
+
+        sustainPedalDownMsg = NULL;
+
         // ... then release sustaining notes
         _cmMidiVoice_t* pp = NULL;
         for(vp=list; vp != NULL; )
