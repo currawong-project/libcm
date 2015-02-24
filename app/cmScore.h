@@ -13,7 +13,8 @@ extern "C" {
     kInvalidIdxScRC,
     kTimeLineFailScRC,
     kInvalidDynRefCntScRC,
-    kMidiFileFailScRC
+    kMidiFileFailScRC,
+    kPedalInvalidScRC
   };
 
   enum
@@ -31,7 +32,8 @@ extern "C" {
     kBarEvtScId,
     kPgmEvtScId,
     kCtlEvtScId,
-    kNonEvtScId
+    kNonEvtScId,
+    kPedalEvtScId
   };
 
   // Flags used by cmScoreEvt_t.flags
@@ -42,7 +44,9 @@ extern "C" {
     kTempoScFl   = 0x004,        // This note is marked for tempo measurement
     kSkipScFl    = 0x008,        // This isn't a real event (e.g. tied note) skip over it
     kGraceScFl   = 0x010,        // This is a grace note
-    kInvalidScFl = 0x020         // This note has a calculated time
+    kInvalidScFl = 0x020,        // This note has a calculated time
+    kPedalDnFl   = 0x040,        // This is a pedal down event (pitch holds the pedal id and durSecs holds the time the pedal will remain down.)
+    kPedalUpFl   = 0x080         // This is a pedal up event (pitch holds the pedal id)
   };
 
 
@@ -79,7 +83,7 @@ extern "C" {
     double       durSecs;      // Duration in seconds
     unsigned     index;        // Index of this event in the event array.
     unsigned     locIdx;       // Index of the location containing this event
-    cmMidiByte_t pitch;        // MIDI pitch of this note
+    cmMidiByte_t pitch;        // MIDI pitch of this note or the MIDI pedal id of pedal down/up msg (64=sustain 65=sostenuto 66=soft)
     unsigned     flags;        // Attribute flags for this event
     unsigned     dynVal;       // Dynamcis value pppp to ffff (1 to 11) for this note.
     double       frac;         // Note's time value for tempo and non-grace evenness notes.

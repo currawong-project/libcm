@@ -35,6 +35,8 @@ enum
   kTypeLabelColScIdx = 3,
   kDSecsColScIdx     = 4,
   kSecsColScIdx      = 5,
+  kD0ColScIdx        = 9,
+  kD1ColScIdx        = 10,
   kPitchColScIdx     = 11,
   kBarColScIdx       = 13,
   kSkipColScIdx      = 14,
@@ -1222,6 +1224,10 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
   double      secs;
   double      cur_secs   = 0;
 
+  const unsigned pedalBaseMidiId = 64;
+  const unsigned pedalN = 3;
+  cmScoreEvt_t*  pedalV[] = { NULL,NULL,NULL };
+
   p->sectList = cmMemAllocZ(cmScSect_t,1); // section zero
   
   //_cmScNewSet(p); // preallocate the first set
@@ -1293,20 +1299,72 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
       case kNonEvtScId:  // parse note-on events
         if((rc =  _cmScParseNoteOn(p, i, p->array, j, barNumb, barNoteIdx )) == kOkScRC )
         {
+          // this note was successfully parsed so time has advanced
           secs =  p->array[j].secs;
 
+          // if this note was not assigned time a time then set it
           if( p->array[j].secs == DBL_MAX )
+          {
             p->array[j].secs = cur_secs;
+            // note that 'secs' is now set to DBL_MAX so cur_secs will not be updated on this row iteration
+          }
 
+          // if this note was marked to skip then don't advance j (and thereby
+          // write over this scEvt with the next note). ...
           if( cmIsFlag(p->array[j].flags,kSkipScFl) == false )
           {
-            p->array[j].index = j;
+            p->array[j].index = j;   // ... otherwise advance j
             ++j;
           }
 
           ++barNoteIdx;
         }
         break;
+        
+      case kCtlEvtScId:
+        {
+          unsigned d0 = cmCsvCellUInt( p->cH,i,kD0ColScIdx);
+          unsigned d1 = cmCsvCellUInt( p->cH,i,kD1ColScIdx);
+
+          // if this is a pedal event
+          if( pedalBaseMidiId <= d0 && d0 < pedalBaseMidiId + pedalN )
+          {
+            bool     pedalDnFl = d1 >= 64;
+            unsigned pedalIdx  = d0 - pedalBaseMidiId;
+
+            assert( pedalBaseMidiId <= pedalIdx && pedalIdx < pedalN );
+
+            // store the pedal type identifer in the pitch field
+            p->array[j].pitch = d0;
+
+            // if this is a pedal-down message ...
+            if( pedalDnFl )
+            {
+              if( pedalV[pedalIdx] != NULL )
+                cmErrWarnMsg(&p->err,kPedalInvalidScRC,"The score contains multiple pedal down messages withouth an intervening pedal up message in or near bar %i.",barNumb );
+              else
+                pedalV[pedalIdx] = p->array + j;  // ... store a pointer to the scEvt recd in pedalV[]
+
+              p->array[j].flags |= kPedalDnFl;
+            }
+            else  // ... else this is a pedal-up msg ...
+            {
+              p->array[j].flags |= kPedalUpFl;
+
+              if( pedalV[pedalIdx] == NULL )
+                cmErrWarnMsg(&p->err,kPedalInvalidScRC,"The score contains multiple pedal up messages withouth an intervening pedal down message in or near bar %i.",barNumb );
+              else // ... update the pedal down duration in the pedal-down message assoc'd w/ this pedal-up msg.
+              {
+                pedalV[pedalIdx]->durSecs = p->array[j].secs - pedalV[pedalIdx]->secs;
+                pedalV[pedalIdx] = NULL;
+              }
+              
+            }
+
+              
+          }
+        }
+        // fall through
 
       default:
         // Returns DBL_MAX on error.
@@ -1316,6 +1374,7 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
     
     if( rc == kOkScRC )
     {
+      // if sec's is valid then update cur_secs
       if( secs != DBL_MAX )
         cur_secs = secs;
 
@@ -1422,7 +1481,6 @@ cmScRC_t _cmScInitLocArray( cmSc_t* p )
 
   return rc;
 }
-
 
 cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, double srate, const unsigned* dynRefArray, unsigned dynRefCnt, cmScCb_t cbFunc, void* cbArg, cmSymTblH_t stH )
 {
@@ -2589,3 +2647,5 @@ void cmScoreFix( cmCtx_t* ctx )
   cmCsvFinalize(&csvH);
 
 }
+
+
