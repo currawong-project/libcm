@@ -889,6 +889,7 @@ enum
   kMinVelSfId,
   kMeasflSfId,
   kIndexSfId,
+  kMuidSfId,
   kStatusSfId,
   kD0SfId,
   kD1SfId,
@@ -935,6 +936,7 @@ cmDspInst_t*  _cmDspScFolAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     { "minvel",kMinVelSfId,   0, 0, kInDsvFl | kUIntDsvFl | kOptArgDsvFl,     "Minimum velocity."},
     { "measfl",kMeasflSfId,   0, 0, kInDsvFl | kBoolDsvFl | kOptArgDsvFl,     "Enable measurements"},
     { "index", kIndexSfId,    0, 0, kInDsvFl | kUIntDsvFl,                    "Tracking start location."},
+    { "muid",  kMuidSfId,     0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI msg file unique id"},
     { "status",kStatusSfId,   0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI status byte"},
     { "d0",    kD0SfId,       0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI data byte 0"},
     { "d1",    kD1SfId,       0, 0, kInDsvFl | kUIntDsvFl,                    "MIDI data byte 1"},
@@ -1142,7 +1144,7 @@ cmDspRC_t _cmDspScFolRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
           p->sfp->cbArg = &p->arg;
 
           // this call may result in a callback to _cmScFolMatcherCb()
-          if( cmScMatcherExec(p->sfp, cmDspUInt(inst,kSmpIdxSfId), cmDspUInt(inst,kStatusSfId), cmDspUInt(inst,kD0SfId), cmDspUInt(inst,kD1SfId), &scLocIdx) == cmOkRC )
+          if( cmScMatcherExec(p->sfp, cmDspUInt(inst,kSmpIdxSfId), cmDspUInt(inst,kMuidSfId), cmDspUInt(inst,kStatusSfId), cmDspUInt(inst,kD0SfId), cmDspUInt(inst,kD1SfId), &scLocIdx) == cmOkRC )
             if( scLocIdx != cmInvalidIdx )
             {
               // It is possible that the internal score follower may go backwards.  
