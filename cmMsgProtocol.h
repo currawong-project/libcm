@@ -14,22 +14,23 @@ extern "C" {
   // UI seletor id's used in the cmDspUiHdr_t selId field
   enum 
   {
-    kPrintDuiId,   // ui<--eng print the value to the console
-    kSliderDuiId,  // ui<--eng create a slider control
-    kButtonDuiId,  // ui<--eng create button control
-    kCheckDuiId,   // ui<--eng create a check box control
-    kLabelDuiId,   // ui<--end create a label control
-    kTimeLineDuiId,// ui<--end create a time-line control
-    kScoreDuiId,   // ui<--end create a score control
-    kNumberDuiId,  // ui<--eng create a number box
-    kTextDuiId,    // ui<--eng create a text entry control
-    kFnameDuiId,   // ui<--eng create a file/directory picker control
-    kMsgListDuiId, // ui<--eng create a msg list control
-    kMeterDuiId,   // ui<--eng create a meter display
-    kValueDuiId,   // ui<->eng a control changed values  
-    kColumnDuiId,  // ui<--eng start a new column
-    kHBorderDuiId, // ui<--eng insert a vertical border 
-    kPageDuiId,    // ui<--eng insert a new control page
+    kPrintDuiId,       // ui<--eng print the value to the console
+    kSliderDuiId,      // ui<--eng create a slider control
+    kButtonDuiId,      // ui<--eng create button control
+    kCheckDuiId,       // ui<--eng create a check box control
+    kLabelDuiId,       // ui<--eng create a label control
+    kTimeLineDuiId,    // ui<--eng create a time-line control
+    kScoreDuiId,       // ui<--eng create a score control
+    kTakeSeqBldrDuiId, // ui<--eng create a take sequence builder
+    kNumberDuiId,      // ui<--eng create a number box
+    kTextDuiId,        // ui<--eng create a text entry control
+    kFnameDuiId,       // ui<--eng create a file/directory picker control
+    kMsgListDuiId,     // ui<--eng create a msg list control
+    kMeterDuiId,       // ui<--eng create a meter display
+    kValueDuiId,       // ui<->eng a control changed values  
+    kColumnDuiId,      // ui<--eng start a new column
+    kHBorderDuiId,     // ui<--eng insert a vertical border 
+    kPageDuiId,        // ui<--eng insert a new control page
     
     kAudioSysCfgDuiId,  // ui<--audio system cfg label      
     kSubSysCntDuiId,    // ui<--eng audio sub-system count
