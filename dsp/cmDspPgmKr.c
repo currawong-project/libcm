@@ -612,6 +612,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* au1Sw = cmDspSysAllocInst(h,"1ofN",   NULL, 2, 2, 0);
 
   cmDspInst_t* siRt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);  
+  cmDspInst_t* muRt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);  
   cmDspInst_t* d0Rt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);
   cmDspInst_t* d1Rt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);
   cmDspInst_t* stRt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);
@@ -976,6 +977,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, ainb,  "out",  au0Sw, "chidx", NULL );
   cmDspSysInstallCb(h, ainb,  "out",  au1Sw, "chidx", NULL );
   cmDspSysInstallCb(h, simb,  "out",  siRt,  "sel", NULL );
+  cmDspSysInstallCb(h, simb,  "out",  muRt,  "sel", NULL );
   cmDspSysInstallCb(h, simb,  "out",  d1Rt,  "sel", NULL );
   cmDspSysInstallCb(h, simb,  "out",  d0Rt,  "sel", NULL );
   cmDspSysInstallCb(h, simb,  "out",  stRt,  "sel", NULL );
@@ -1046,6 +1048,10 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, mfp,  "smpidx",  siRt, "f-in",NULL );
   cmDspSysInstallCb(h, siRt, "f-out-1", sfp,  "smpidx",NULL ); 
   // leave siRt.f-out-1 unconnected because it should be ignored in 'simulate mode'
+
+  cmDspSysInstallCb(h, mfp,  "mu",      muRt, "f-in",  NULL );
+  cmDspSysInstallCb(h, muRt, "f-out-1", sfp,  "muid",    NULL );
+  // leave muRt.f-out-1 unconnected because it should be ignored in 'simulate mode'
 
   cmDspSysInstallCb(h, mfp,  "d1",      d1Rt, "f-in",  NULL );
   cmDspSysInstallCb(h, d1Rt, "f-out-1", sfp,  "d1",    NULL );
