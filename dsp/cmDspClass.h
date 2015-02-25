@@ -391,16 +391,17 @@ extern "C" {
   // visible to the cmDspInst functions which use them but are not available
   // to the host UI.  The other values defined and declared in cmDspUi.h are
   // common to both the host UI and the DSP instances.
-  cmDspRC_t  cmDspUiConsolePrint( cmDspCtx_t* ctx, cmChar_t* text );
-  cmDspRC_t  cmDspUiSendValue(    cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, const cmDspValue_t* valPtr ); 
-  cmDspRC_t  cmDspUiSendVar(      cmDspCtx_t* ctx, cmDspInst_t* inst, cmDspVar_t* var );
-  cmDspRC_t  cmDspUiScalarCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned typeDuiId, unsigned minVarId,  unsigned maxVarId,  unsigned stpVarId, unsigned valVarId, unsigned lblVarId );
-  cmDspRC_t  cmDspUiTextCreate(   cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned valVarId, unsigned lblVarId );
-  cmDspRC_t  cmDspUiMeterCreate(  cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned minVarId,  unsigned maxVarId,  unsigned valVarId,  unsigned lblVarId );
-  cmDspRC_t  cmDspUiButtonCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned typeDuiId, unsigned outVarId, unsigned lblVarId );
-  cmDspRC_t  cmDspUiLabelCreate(  cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned lblVarId,  unsigned alignVarId );
-  cmDspRC_t  cmDspUiTimeLineCreate(cmDspCtx_t* ctx,cmDspInst_t* inst, unsigned tlFileVarId,  unsigned audPathVarId, unsigned selVarId, unsigned cursVarId );
-  cmDspRC_t  cmDspUiScoreCreate(   cmDspCtx_t* ctx,cmDspInst_t* inst, unsigned scFileVarId,  unsigned selVarId, unsigned smpIdxVarId, unsigned pitchVarId, unsigned velVarId, unsigned locIdxVarIdx, unsigned evtIdxVarIdx, unsigned dynLvlVarIdx, unsigned valTypeVarIdx, unsigned valueVarIdx );
+  cmDspRC_t  cmDspUiConsolePrint(      cmDspCtx_t* ctx, cmChar_t* text );
+  cmDspRC_t  cmDspUiSendValue(         cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, const cmDspValue_t* valPtr ); 
+  cmDspRC_t  cmDspUiSendVar(           cmDspCtx_t* ctx, cmDspInst_t* inst, cmDspVar_t* var );
+  cmDspRC_t  cmDspUiScalarCreate(      cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned typeDuiId, unsigned minVarId,  unsigned maxVarId,  unsigned stpVarId, unsigned valVarId, unsigned lblVarId );
+  cmDspRC_t  cmDspUiTextCreate(        cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned valVarId, unsigned lblVarId );
+  cmDspRC_t  cmDspUiMeterCreate(       cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned minVarId,  unsigned maxVarId,  unsigned valVarId,  unsigned lblVarId );
+  cmDspRC_t  cmDspUiButtonCreate(      cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned typeDuiId, unsigned outVarId, unsigned lblVarId );
+  cmDspRC_t  cmDspUiLabelCreate(       cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned lblVarId,  unsigned alignVarId );
+  cmDspRC_t  cmDspUiTimeLineCreate(    cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned tlFileVarId,  unsigned audPathVarId, unsigned selVarId, unsigned cursVarId );
+  cmDspRC_t  cmDspUiScoreCreate(       cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned scFileVarId,  unsigned selVarId, unsigned smpIdxVarId, unsigned pitchVarId, unsigned velVarId, unsigned locIdxVarIdx, unsigned evtIdxVarIdx, unsigned dynLvlVarIdx, unsigned valTypeVarIdx, unsigned valueVarIdx );
+  cmDspRC_t  cmDspUiTakeSeqBldrCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned fileNameVarId );
 
   cmDspRC_t  cmDspUiNewColumn(        cmDspCtx_t* ctx, unsigned colW );
   cmDspRC_t  cmDspUiInsertHorzBorder( cmDspCtx_t* ctx );

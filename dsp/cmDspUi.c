@@ -415,6 +415,24 @@ cmDspRC_t  cmDspUiScoreCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned scFi
   return rc;
 }
 
+cmDspRC_t  cmDspUiTakeSeqBldrCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned fileNameVarId )
+{
+  cmDspRC_t    rc;
+  unsigned     arr[] = { fileNameVarId  };
+  cmDspValue_t v;
+  unsigned     vn    = sizeof(arr)/sizeof(arr[0]);
+  cmDsvSetUIntMtx(&v,arr,vn,1);
+
+  // tell the UI to create a time-line control
+  if((rc = _cmDspUiMsg( ctx, kUiSelAsId, kTakeSeqBldrDuiId, 0, inst, cmInvalidId, &v )) != kOkDspRC )
+    return cmDspInstErr(ctx,inst,kUiEleCreateFailDspRC,"Take Sequence Builder UI element create failed.");
+
+  // Setting kUiDsvFl will cause variable values to be sent to the UI whenever they change.
+  cmDspInstVarSetFlags( ctx, inst, fileNameVarId,  kUiDsvFl );
+
+  return rc;
+}
+
 
 cmDspRC_t  cmDspUiNewColumn(    cmDspCtx_t* ctx, unsigned colW )
 {
