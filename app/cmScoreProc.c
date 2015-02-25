@@ -229,7 +229,7 @@ cmSpRC_t _cmScoreProcProcess(cmCtx_t* ctx, cmSp_t* sp)
         {
           sp->procCb( sp->cbArg, sp, kNoteOnSpId,  o1p );
 
-          cmRC_t cmRC = cmScMatcherExec(sp->match, mep->obj.seqSmpIdx, mep->msg->status, mep->msg->u.chMsgPtr->d0, mep->msg->u.chMsgPtr->d1, NULL );
+          cmRC_t cmRC = cmScMatcherExec(sp->match, mep->obj.seqSmpIdx, mep->msg->uid, mep->msg->status, mep->msg->u.chMsgPtr->d0, mep->msg->u.chMsgPtr->d1, NULL );
 
           switch( cmRC )
           {
@@ -584,7 +584,8 @@ typedef struct cmSpAssoc_str
 typedef struct cmSpNoteMap_str
 {
   unsigned                tlUid; // time-line MIDI note-on object id
-  unsigned                mni;  // assocated 'mni' returned in a cmScMatcherResult_t record
+  unsigned                mni;   // assocated 'mni' returned in a cmScMatcherResult_t record
+  unsigned                muid;  // MIDI file msg unique id for this event (see cmMidiTrackMsg_t.uid)
   struct cmSpNoteMap_str* link;
 } cmSpNoteMap_t;
 
@@ -613,6 +614,7 @@ void _cmSpMatchAssocCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
   
   if( cmJsonCreateFilledObject(m->jsH, m->array,
       "mni",      kIntTId, rp->mni,
+      "muid",     kIntTId, rp->muid,
       "scEvtIdx", kIntTId, rp->scEvtIdx,
       "flags",    kIntTId, rp->flags, 
       NULL ) == NULL )
@@ -719,7 +721,7 @@ cmSpRC_t  _cmSpProcAssocCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlOb
 cmSpRC_t _cmScoreProcGenAssocMain(cmCtx_t* ctx)
 {
   const cmChar_t*  rsrcFn = "/home/kevin/.kc/time_line.js";
-  const cmChar_t*  outFn  = "/home/kevin/src/cmkc/src/kc/data/assoc0.js";
+  const cmChar_t*  outFn  = "/home/kevin/src/cmkc/src/kc/data/takeSeqBldr0.js";
   cmSpRC_t         rc     = kOkSpRC;
   cmSpAssocProc_t* m      = cmMemAllocZ(cmSpAssocProc_t,1);
   cmSp_t           s;
