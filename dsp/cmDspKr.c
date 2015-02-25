@@ -43,6 +43,7 @@
 #include "cmProc4.h"
 #include "cmProc5.h"
 #include "cmSyncRecd.h"
+#include "cmTakeSeqBldr.h"
 
 enum
 {
@@ -3232,3 +3233,94 @@ struct cmDspClass_str* cmSyncRecdClassCons( cmDspCtx_t* ctx )
 
   return &_cmSyncRecdDC;
 }
+
+
+//==========================================================================================================================================
+enum
+{
+  kFnTbsId,
+};
+
+cmDspClass_t _cmTakeSeqBldrDC;
+
+typedef struct
+{
+  cmDspInst_t      inst;
+  cmTakeSeqBldrH_t h;
+} cmDspTakeSeqBldr_t;
+
+
+cmDspInst_t*  _cmDspTakeSeqBldrAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  cmDspTakeSeqBldr_t* p = cmDspInstAllocV(cmDspTakeSeqBldr_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl,
+    1,       "fn",  kFnScId,     0, 0, kInDsvFl  | kStrzDsvFl | kReqArgDsvFl, "Score Tracking file.",
+    0 );
+
+  if( cmTakeSeqBldrAlloc(ctx->cmCtx, &p->h ) != kOkTsbRC )
+    cmErrMsg(&p->inst.classPtr->err, kSubSysFailDspRC, "Allocate TaskSeqBldr object.");
+  else
+  {
+    cmDspUiTakeSeqBldrCreate(ctx,&p->inst,kFnTbsId);
+  }
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspTakeSeqBldrSetup( cmDspCtx_t* ctx, cmDspInst_t* inst )
+{
+  cmDspRC_t           rc = kOkDspRC;
+  cmDspTakeSeqBldr_t* p  = (cmDspTakeSeqBldr_t*)inst;
+  
+  if( cmTakeSeqBldrInitialize(p->h, cmDspStrcz(inst,kFnTbsId) ) != kOkTsbRC )
+    rc = cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Unable to initialize the internal TakeSeqBldr object with %s.",cmStringNullGuard(cmDspStrcz(inst,kFnTbsId)));
+
+  return rc;
+}
+
+cmDspRC_t _cmDspTakeSeqBldrFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t           rc = kOkDspRC;
+  cmDspTakeSeqBldr_t* p  = (cmDspTakeSeqBldr_t*)inst;
+
+  cmTakeSeqBldrFree(&p->h);
+
+  return rc;
+}
+
+cmDspRC_t _cmDspTakeSeqBldrReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  //cmDspTakeSeqBldr_t* p = (cmDspTakeSeqBldr_t*)inst;
+
+  cmDspApplyAllDefaults(ctx,inst);
+
+  return _cmDspTakeSeqBldrSetup(ctx, inst );
+} 
+
+cmDspRC_t _cmDspTakeSeqBldrExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t rc  = kOkDspRC;
+  return rc;
+}
+
+cmDspRC_t _cmDspTakeSeqBldrRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  //cmDspTakeSeqBldr_t*  p  = (cmDspTakeSeqBldr_t*)inst;
+  return kOkDspRC;
+}
+
+struct cmDspClass_str* cmTakeSeqBldrClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmTakeSeqBldrDC,ctx,"TakeSeqBldr",
+    NULL,
+    _cmDspTakeSeqBldrAlloc,
+    _cmDspTakeSeqBldrFree,
+    _cmDspTakeSeqBldrReset,
+    _cmDspTakeSeqBldrExec,
+    _cmDspTakeSeqBldrRecv,
+    NULL,
+    NULL,
+    "TakeSeqBldr");
+
+  return &_cmTakeSeqBldrDC;
+}
+

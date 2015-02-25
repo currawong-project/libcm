@@ -19,6 +19,7 @@ extern "C" {
   struct cmDspClass_str* cmRecdPlayClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmGoertzelClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmSyncRecdClassCons( cmDspCtx_t* ctx );
+  struct cmDspClass_str* cmTakeSeqBldrClassCons( cmDspCtx_t* ctx );
 
 #ifdef __cplusplus
 }

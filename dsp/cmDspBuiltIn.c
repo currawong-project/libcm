@@ -5612,6 +5612,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmRecdPlayClassCons,
   cmGoertzelClassCons,
   cmSyncRecdClassCons,
+  cmTakeSeqBldrClassCons,
   NULL,
 };
 
