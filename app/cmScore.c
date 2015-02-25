@@ -1332,7 +1332,7 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
             bool     pedalDnFl = d1 >= 64;
             unsigned pedalIdx  = d0 - pedalBaseMidiId;
 
-            assert( pedalBaseMidiId <= pedalIdx && pedalIdx < pedalN );
+            assert( pedalBaseMidiId <= d0 && pedalIdx < pedalN );
 
             // store the pedal type identifer in the pitch field
             p->array[j].pitch = d0;
