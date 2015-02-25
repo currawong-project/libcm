@@ -45,8 +45,8 @@ extern "C" {
     kSkipScFl    = 0x008,        // This isn't a real event (e.g. tied note) skip over it
     kGraceScFl   = 0x010,        // This is a grace note
     kInvalidScFl = 0x020,        // This note has a calculated time
-    kPedalDnFl   = 0x040,        // This is a pedal down event (pitch holds the pedal id and durSecs holds the time the pedal will remain down.)
-    kPedalUpFl   = 0x080         // This is a pedal up event (pitch holds the pedal id)
+    kPedalDnScFl   = 0x040,        // This is a pedal down event (pitch holds the pedal id and durSecs holds the time the pedal will remain down.)
+    kPedalUpScFl   = 0x080         // This is a pedal up event (pitch holds the pedal id)
   };
 
 

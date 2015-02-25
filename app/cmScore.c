@@ -723,7 +723,7 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
   if((midiPitch = cmSciPitchToMidi(sciPitch)) == kInvalidMidiPitch)
     return cmErrMsg(&p->err,kSyntaxErrScRC,"Unable to convert the scientific pitch '%s' to a MIDI value. ");
 
-  // it is possible that note delta-secs field is empty - so default to 0
+  // get the sec's field - or DBL_MAX if it is not set
   if((secs =  cmCsvCellDouble(p->cH, rowIdx, kSecsColScIdx )) == DBL_MAX) // Returns DBL_MAX on error.
     flags += kInvalidScFl;
 
@@ -800,6 +800,96 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
   s->csvRowNumb = rowIdx+1;
   return rc;
 }
+
+cmScRC_t _cmScParseMidiCtlMsg( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned scoreIdx, int barNumb, unsigned barNoteIdx, cmScoreEvt_t** pedalV, unsigned pedalN )
+{
+  cmScRC_t           rc              = kOkScRC;
+  unsigned           flags           = 0;
+  const cmChar_t*    attr;
+  double             secs            = DBL_MAX;
+  double             durSecs         = 0;
+  const unsigned     pedalBaseMidiId = 64;
+
+  s += scoreIdx;
+
+  // get the sec's field - or DBL_MAX if it is not set
+  if((secs =  cmCsvCellDouble(p->cH, rowIdx, kSecsColScIdx )) == DBL_MAX) // Returns DBL_MAX on error.
+    flags += kInvalidScFl;
+
+  // skip attribute
+  if((attr = cmCsvCellText(p->cH,rowIdx,kSkipColScIdx)) != NULL && *attr == 's' )
+    flags += kSkipScFl;
+
+  // get MIDI ctl msg data byte 1
+  unsigned d0 = cmCsvCellUInt( p->cH,rowIdx,kD0ColScIdx);
+
+  // get MIDI ctl msg data byte 2
+  unsigned d1 = cmCsvCellUInt( p->cH,rowIdx,kD1ColScIdx);
+
+  // if this is a pedal event
+  if( pedalBaseMidiId <= d0 && d0 < pedalBaseMidiId + pedalN )
+  {
+    bool     pedalDnFl = d1 >= 64;
+    unsigned pedalIdx  = d0 - pedalBaseMidiId;
+
+    // if this is a pedal-down message ...
+    if( pedalDnFl )
+    {
+      flags += kPedalDnScFl;
+
+      if( pedalV[pedalIdx] != NULL )
+        cmErrWarnMsg(&p->err,kPedalInvalidScRC,"The score contains multiple pedal down messages withouth an intervening pedal up message in or near bar %i.",barNumb );
+      else
+      {
+        // Don't store a pointer to a skipped pedal down msg because it will not
+        // not exist in p->array[] when the associated 'pedal-up' message is
+        // encountered. Note the the 'postProcFl' controlled section of
+        // _cmScParseFile() effectively eliminates cmScoreEvt_t records from
+        // p->array[] that are marked with kSkipScFl.
+        if( cmIsFlag(flags,kSkipScFl)  )
+          cmErrWarnMsg(&p->err,kPedalInvalidScRC,"A 'pedal-down' msg is marked to skip in or near bar %i this will probably produce a 'missing pedal-down' warning.",barNumb );
+        else
+          pedalV[pedalIdx] = s;  // ... store a pointer to the scEvt recd in pedalV[]
+      }
+      
+    }
+    else  // ... else this is a pedal-up msg ...
+    {
+      flags +=  kPedalUpScFl;
+      
+      if( pedalV[pedalIdx] == NULL )
+        cmErrWarnMsg(&p->err,kPedalInvalidScRC,"The score contains multiple pedal up messages withouth an intervening pedal down message in or near bar %i.",barNumb );
+      else // ... update the pedal down duration in the pedal-down message assoc'd w/ this pedal-up msg.
+      {
+        if( secs == DBL_MAX )
+          cmErrWarnMsg(&p->err,kPedalInvalidScRC,"A pedal-up message was encountered with an invalid time-stamp in or near bar %i the pedal down duration could therefore not be calculated.",barNumb);
+        else
+        {
+          // update the pedal down event record with the pedal down duration
+          pedalV[pedalIdx]->durSecs = secs - pedalV[pedalIdx]->secs;
+        }
+        
+
+        pedalV[pedalIdx] = NULL;
+      }
+      
+    }
+              
+  }
+
+  s->type       = kPedalEvtScId;
+  s->secs       = secs;
+  s->pitch      = d0;       // store the pedal type identifer in the pitch field
+  s->flags      = flags;
+  s->dynVal     = 0; 
+  s->barNumb    = barNumb;
+  s->barNoteIdx = barNoteIdx;
+  s->durSecs    = durSecs;
+  s->csvRowNumb = rowIdx+1;
+
+  return rc;
+}
+
 
 cmScRC_t _cmScParseSectionColumn( cmSc_t* p, unsigned rowIdx, unsigned evtIdx, cmScSect_t* sectList )
 {
@@ -1224,7 +1314,6 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
   double      secs;
   double      cur_secs   = 0;
 
-  const unsigned pedalBaseMidiId = 64;
   const unsigned pedalN = 3;
   cmScoreEvt_t*  pedalV[] = { NULL,NULL,NULL };
 
@@ -1263,6 +1352,8 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
   // skip labels line - start on line 1
   for(i=1,j=0; i<p->cnt && rc==kOkScRC; ++i)
   {
+    bool postProcFl = false;
+
     // get the row 'type' label
     const char* typeLabel;
     if((typeLabel = cmCsvCellText(p->cH,i,kTypeLabelColScIdx)) == NULL )
@@ -1299,77 +1390,47 @@ cmScRC_t _cmScParseFile( cmSc_t* p, cmCtx_t* ctx, const cmChar_t* fn )
       case kNonEvtScId:  // parse note-on events
         if((rc =  _cmScParseNoteOn(p, i, p->array, j, barNumb, barNoteIdx )) == kOkScRC )
         {
-          // this note was successfully parsed so time has advanced
-          secs =  p->array[j].secs;
-
-          // if this note was not assigned time a time then set it
-          if( p->array[j].secs == DBL_MAX )
-          {
-            p->array[j].secs = cur_secs;
-            // note that 'secs' is now set to DBL_MAX so cur_secs will not be updated on this row iteration
-          }
-
-          // if this note was marked to skip then don't advance j (and thereby
-          // write over this scEvt with the next note). ...
-          if( cmIsFlag(p->array[j].flags,kSkipScFl) == false )
-          {
-            p->array[j].index = j;   // ... otherwise advance j
-            ++j;
-          }
-
+          postProcFl = true;
           ++barNoteIdx;
         }
         break;
         
       case kCtlEvtScId:
+        if((rc = _cmScParseMidiCtlMsg(p, i, p->array, j, barNumb, barNoteIdx, pedalV, pedalN )) == kOkScRC )
         {
-          unsigned d0 = cmCsvCellUInt( p->cH,i,kD0ColScIdx);
-          unsigned d1 = cmCsvCellUInt( p->cH,i,kD1ColScIdx);
-
-          // if this is a pedal event
-          if( pedalBaseMidiId <= d0 && d0 < pedalBaseMidiId + pedalN )
-          {
-            bool     pedalDnFl = d1 >= 64;
-            unsigned pedalIdx  = d0 - pedalBaseMidiId;
-
-            assert( pedalBaseMidiId <= d0 && pedalIdx < pedalN );
-
-            // store the pedal type identifer in the pitch field
-            p->array[j].pitch = d0;
-
-            // if this is a pedal-down message ...
-            if( pedalDnFl )
-            {
-              if( pedalV[pedalIdx] != NULL )
-                cmErrWarnMsg(&p->err,kPedalInvalidScRC,"The score contains multiple pedal down messages withouth an intervening pedal up message in or near bar %i.",barNumb );
-              else
-                pedalV[pedalIdx] = p->array + j;  // ... store a pointer to the scEvt recd in pedalV[]
-
-              p->array[j].flags |= kPedalDnFl;
-            }
-            else  // ... else this is a pedal-up msg ...
-            {
-              p->array[j].flags |= kPedalUpFl;
-
-              if( pedalV[pedalIdx] == NULL )
-                cmErrWarnMsg(&p->err,kPedalInvalidScRC,"The score contains multiple pedal up messages withouth an intervening pedal down message in or near bar %i.",barNumb );
-              else // ... update the pedal down duration in the pedal-down message assoc'd w/ this pedal-up msg.
-              {
-                pedalV[pedalIdx]->durSecs = p->array[j].secs - pedalV[pedalIdx]->secs;
-                pedalV[pedalIdx] = NULL;
-              }
-              
-            }
-
-              
-          }
+          postProcFl = true;
         }
-        // fall through
+        break;
 
       default:
         // Returns DBL_MAX on error.
         secs =  cmCsvCellDouble(p->cH, i, kSecsColScIdx );
         break;
+    }
+
+    if( postProcFl )
+    {
+      // update the 'secs' according to the parsed time
+      secs =  p->array[j].secs;
+
+      // it is possible that the parsed time field was blank ...
+      if( p->array[j].secs == DBL_MAX )
+      {
+        // ... so set the msg time to the last valid time
+        p->array[j].secs = cur_secs;
+        // note that 'secs' is now set to DBL_MAX so cur_secs will 
+        // not be updated on this row iteration
+      }
+
+      // if this msg was marked to skip then don't advance j (and thereby
+      // write over this scEvt with the next note). ...
+      if( cmIsFlag(p->array[j].flags,kSkipScFl) == false )
+      {
+        p->array[j].index = j;   // ... otherwise advance j
+        ++j;
+      }
+
+
     }
     
     if( rc == kOkScRC )
