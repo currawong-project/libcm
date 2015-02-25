@@ -39,6 +39,7 @@ typedef struct
   const cmChar_t* tlFn;
   const cmChar_t* tlPrefixPath;
   const cmChar_t* scFn;
+  const cmChar_t* tksbFn;
   const cmChar_t* modFn;
   const cmChar_t* measFn;
   const cmChar_t* recordDir;
@@ -56,12 +57,13 @@ cmDspRC_t krLoadRsrc(cmDspSysH_t h, cmErr_t* err, krRsrc_t* r)
   cmDspRsrcString(h,&r->tlFn,        "timeLineFn",   NULL);
   cmDspRsrcString(h,&r->tlPrefixPath,"tlPrefixPath", NULL);
   cmDspRsrcString(h,&r->scFn,        "scoreFn",      NULL);
+  cmDspRsrcString(h,&r->tksbFn,      "tksbFn",       NULL);
   cmDspRsrcString(h,&r->modFn,       "modFn",        NULL);
   cmDspRsrcString(h,&r->measFn,      "measFn",       NULL);
   cmDspRsrcString(h,&r->recordDir,   "recordDir",    NULL);
   cmDspRsrcString(h,&r->midiDevice,  "midiDevice",   NULL);
   cmDspRsrcString(h,&r->midiOutPort, "midiOutPort",  NULL);
-  cmDspRsrcString(h,&r->midiOutPort2, "midiOutPort2", NULL);
+  cmDspRsrcString(h,&r->midiOutPort2,"midiOutPort2", NULL);
 
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
     cmErrMsg(err,rc,"A KR DSP resource load failed.");
@@ -481,6 +483,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspInst_t* tlp  = cmDspSysAllocInst(h,"TimeLine",    "tl",  2, r.tlFn, r.tlPrefixPath );
   cmDspInst_t* scp  = cmDspSysAllocInst(h,"Score",       "sc",  1, r.scFn );
+  /*cmDspInst_t* tksb =*/ cmDspSysAllocInst(h,"TakeSeqBldr", "tk",  1, r.tksbFn );
   cmDspInst_t* php  = cmDspSysAllocInst(h,"Phasor",      NULL,  1, cmDspSysSampleRate(h) );
   cmDspInst_t* wtp  = cmDspSysAllocInst(h,"WaveTable",   NULL,  4, wtSmpCnt, wtInitMode, NULL, wtLoopCnt );
   cmDspInst_t* pts  = cmDspSysAllocInst(h,"PortToSym",   NULL,  2, "on", "off" );
