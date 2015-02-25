@@ -18,7 +18,7 @@
 #include "cmTakeSeqBldr.h"
 
 
-// Map a score event to a MIDI event. 
+// Score track record: Map a score event to a MIDI event. 
 typedef struct cmScTrkMidiTsb_str
 {
   unsigned mni;      // midi note index as an offset from the take marker
@@ -91,6 +91,7 @@ typedef struct
   cmTakeScEvtArrayTsb_t* takes;   // list of scEvt arrays used by this sequence 
   cmTakeScEvtArrayTsb_t* manual;  // list of manually inserted MIDI events
   
+  cmTakeScEvtArrayTsb_t* out;     // render list
 
 } cmTsb_t;
 
@@ -164,7 +165,7 @@ cmTsbRC_t _cmTsbLoadScoreTrkFile( cmTsb_t* p, const cmChar_t* scoreTrkFn )
         "scoreFn",      kStringTId,              &p->scFn,
         "tlPrefixPath", kStringTId,              &p->tlPrefixPath,
         "takeArray",    kArrayTId | kOptArgJsFl, &tkArrObj,
-        0 )) != kOkJsRC )
+        NULL )) != kOkJsRC )
   {
     if( jsRC == kNodeNotFoundJsRC && errMsg != NULL )
       rc = cmErrMsg(&p->err,kParseFailTsbRC,"JSON file header parse failed missing required field:'%s'",errMsg);
@@ -199,7 +200,7 @@ cmTsbRC_t _cmTsbLoadScoreTrkFile( cmTsb_t* p, const cmChar_t* scoreTrkFn )
           "markerUid",kIntTId,   &p->scTrkTakeV[i].markerUid,
           "failFl",   kIntTId,   &p->scTrkTakeV[i].failFl,
           "array",    kArrayTId, &noteArrObj,
-          0)) != kOkJsRC )
+          NULL)) != kOkJsRC )
     {
       if( jsRC == kNodeNotFoundJsRC && errMsg != NULL )
         rc = cmErrMsg(&p->err,kParseFailTsbRC,"JSON file take record parse failed missing required field:'%s'",errMsg);
@@ -232,7 +233,7 @@ cmTsbRC_t _cmTsbLoadScoreTrkFile( cmTsb_t* p, const cmChar_t* scoreTrkFn )
             "mni",      kIntTId, &p->scTrkTakeV[i].midiV[j].mni,
             "scEvtIdx", kIntTId, &p->scTrkTakeV[i].midiV[j].scEvtIdx,
             "flags",    kIntTId, &p->scTrkTakeV[i].midiV[j].flags,
-            0)) != kOkJsRC )
+            NULL)) != kOkJsRC )
       {
         if( jsRC == kNodeNotFoundJsRC && errMsg != NULL )
           rc = cmErrMsg(&p->err,kParseFailTsbRC,"JSON file note record parse failed missing required field:'%s'",errMsg);
@@ -260,13 +261,14 @@ unsigned _cmTsbScoreTrkMarkerEventCount( cmTsb_t* p, unsigned markUid )
 
   for(i=0; i<p->scTrkTakeN; ++i)
     for(j=0; j<p->scTrkTakeV[i].midiN; ++j)
-    {
-      if( p->scTrkTakeV[i].midiV[j].scEvtIdx < minScEvtIdx )
-        minScEvtIdx = p->scTrkTakeV[i].midiV[j].scEvtIdx;
-
-      if( p->scTrkTakeV[i].midiV[j].scEvtIdx > maxScEvtIdx )
-        maxScEvtIdx = p->scTrkTakeV[i].midiV[j].scEvtIdx;
-    }
+      if( p->scTrkTakeV[i].midiV[j].scEvtIdx != cmInvalidIdx )
+      {
+        if( p->scTrkTakeV[i].midiV[j].scEvtIdx < minScEvtIdx )
+          minScEvtIdx = p->scTrkTakeV[i].midiV[j].scEvtIdx;
+        
+        if( p->scTrkTakeV[i].midiV[j].scEvtIdx > maxScEvtIdx )
+          maxScEvtIdx = p->scTrkTakeV[i].midiV[j].scEvtIdx;
+      }
 
   if( maxScEvtIdx < minScEvtIdx )
     return 0;
@@ -359,13 +361,26 @@ cmTsbRC_t cmTakeSeqBldrLoadTake( cmTakeSeqBldrH_t h, unsigned tlMarkUid, bool ov
   cmTlMarker_t*   mark = NULL;
   cmTlMidiFile_t* mf   = NULL;
   cmMidiFileH_t   mfH  = cmMidiFileNullHandle;
-  
+  unsigned        scEvtN = 0; 
+  cmScEvtTsb_t*   scEvtV = NULL;
+
   // get a pointer to the time-line marker object
   if((mark = cmTlMarkerObjPtr( p->tlH, cmTimeLineIdToObj( p->tlH, cmInvalidId, tlMarkUid))) == NULL )
   {
     rc = cmErrMsg(&p->err,kInvalidArgTsbRC,"The time-line marker uid '%i' is not valid.",tlMarkUid);
     goto errLabel;
   }
+
+  // get the count of score events in the take marker
+  if((scEvtN = _cmTsbScoreTrkMarkerEventCount(p,tlMarkUid)) == 0 )
+  {
+    rc = cmErrMsg(&p->err,kInvalidArgTsbRC,"The selected take marker does not appear to contain any score events.");
+    goto errLabel;
+  }
+
+  // allocate a score event array
+  scEvtV = cmMemAllocZ(cmScEvtTsb_t,scEvtN);
+  
 
   // get the name of the MIDI file which contains the marker
   if((mf = cmTimeLineMidiFileAtTime( p->tlH, mark->obj.seqId, mark->obj.seqSmpIdx )) == NULL )
@@ -394,11 +409,12 @@ cmTsbRC_t cmTakeSeqBldrLoadTake( cmTakeSeqBldrH_t h, unsigned tlMarkUid, bool ov
   unsigned                 n   = cmMidiFileMsgCount(mfH);
   const cmMidiTrackMsg_t** a   = cmMidiFileMsgArray(mfH);
   
-  // seek to the first MIDI msg after bsi
+  // seek to the first MIDI msg after sample index bsi in the MIDI file
   for(i=0; i<n; ++i)
     if( a[i]->dtick >= bsi )
       break;
 
+  // if bsi is after the file then the MIDI file finished before the marker
   if( i == n )
   {
     rc = cmErrMsg(&p->err,kInvalidArgTsbRC,"No MIDI events were found in the marker.");
@@ -425,6 +441,11 @@ cmTsbRC_t cmTakeSeqBldrLoadTake( cmTakeSeqBldrH_t h, unsigned tlMarkUid, bool ov
   if( cmMidiFileClose(&mfH) != kOkMfRC )
     rc = cmErrMsg(&p->err,kMidiFileFailTsbRC,"MIDI file close failed.");
   
+  if( rc != kOkTsbRC )
+  {
+    cmMemFree(scEvtV);
+  }
+
   return rc;
 }
 
