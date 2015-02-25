@@ -22,10 +22,10 @@
 
 typedef enum
 {
-  kBeginSectionSpId,  // tlObjPtr points to a cmTlMarker_t object.
-  kEndSectionSpId,    // tlObjPtr is NULL.
-  kNoteOnSpId,        // tlObjPtr points to a cmTlMidiEvt_t note-on object.
-  kFailSpId           // tlObjPtr points to a cmTlMarker_t object (This section score tracking failed.)
+  kBeginTakeSpId,  // tlObjPtr points to a cmTlMarker_t object.
+  kEndTakeSpId,    // tlObjPtr is NULL.
+  kNoteOnSpId,     // tlObjPtr points to a cmTlMidiEvt_t note-on object.
+  kFailSpId        // tlObjPtr points to a cmTlMarker_t object (This takes score tracking failed.)
 } cmScoreProcSelId_t;
 
 struct cmSp_str;
@@ -44,7 +44,7 @@ typedef struct cmSp_str
   double          srate;        // 
   cmScMatcher*    match;        // score follower
 
-  cmScoreProcCb_t  procCb;      // score processor callback - called whenever a new 'marker' section or note-on is about to be processed
+  cmScoreProcCb_t  procCb;      // score processor callback - called whenever a new 'marker' take or note-on is about to be processed
   cmScMatcherCb_t  matchCb;     // score follower callback  - called whenever the score follower detects a matched event
   void*            cbArg;       // callback arg. for both matchCb and procCb.
 
@@ -204,8 +204,8 @@ cmSpRC_t _cmScoreProcProcess(cmCtx_t* ctx, cmSp_t* sp)
         continue;
       }
 
-      // inform the score processor that we are about to start a new section
-      if( sp->procCb( sp->cbArg, sp, kBeginSectionSpId, o0p ) != kOkSpRC )
+      // inform the score processor that we are about to start a new take
+      if( sp->procCb( sp->cbArg, sp, kBeginTakeSpId, o0p ) != kOkSpRC )
       {
         cmErrMsg(&sp->err,kProcFailSpRC,"The score process object failed on reset.");
         continue;
@@ -259,11 +259,11 @@ cmSpRC_t _cmScoreProcProcess(cmCtx_t* ctx, cmSp_t* sp)
         }
       }
 
-      // inform the score processor that we done processing a section
-      if( sp->procCb( sp->cbArg, sp, kEndSectionSpId, NULL ) != kOkSpRC )
+      // inform the score processor that we done processing a take
+      if( sp->procCb( sp->cbArg, sp, kEndTakeSpId, NULL ) != kOkSpRC )
         cmErrMsg(&sp->err,kProcFailSpRC,"The score process object failed on reset.");
 
-      // error flag is used to break out of the loop after the 'end-section' is called
+      // error flag is used to break out of the loop after the 'end-take' is called
       // so that the user defined processes has a chance to clean-up 
       if( errFl )
         goto errLabel;
@@ -493,7 +493,7 @@ cmSpRC_t  _cmSpProcMeasCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlObj
 
   switch( id )
   {
-    case kBeginSectionSpId:
+    case kBeginTakeSpId:
 
       // reset the performance evaluation object
       if( cmScMeasReset(m->meas) != cmOkRC )
@@ -505,7 +505,7 @@ cmSpRC_t  _cmSpProcMeasCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlObj
     case kNoteOnSpId:
       break;
 
-    case kEndSectionSpId:
+    case kEndTakeSpId:
       break;
 
     case kFailSpId:
@@ -595,7 +595,7 @@ typedef struct
   unsigned       mni;
   bool           failFl;
   cmJsonH_t      jsH;
-  cmJsonNode_t*  sectObj;
+  cmJsonNode_t*  takeObj;
   cmJsonNode_t*  array;
 
   cmSpAssoc_t*   bap;  
@@ -632,7 +632,7 @@ cmSpRC_t  _cmSpProcAssocCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlOb
 
   switch( id )
   {
-    case kBeginSectionSpId:
+    case kBeginTakeSpId:
       {
         cmTlMarker_t* markPtr = cmTimeLineMarkerObjPtr( sp->tlH, tlObjPtr );
         assert( markPtr != NULL );
@@ -640,21 +640,21 @@ cmSpRC_t  _cmSpProcAssocCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlOb
         m->failFl = false;
 
         // insert a section object
-        if((m->sectObj = cmJsonInsertPairObject(m->jsH, cmJsonRoot(m->jsH), "section" )) == NULL )
+        if((m->takeObj = cmJsonInsertPairObject(m->jsH, cmJsonRoot(m->jsH), "take" )) == NULL )
         {
-          rc = cmErrMsg(&m->ctx->err,kJsonFailSpRC,"Section insert failed on seq:%i '%s' : '%s'.", tlObjPtr->seqId, cmStringNullGuard(tlObjPtr->text),cmStringNullGuard(markPtr->text));
+          rc = cmErrMsg(&m->ctx->err,kJsonFailSpRC,"Take insert failed on seq:%i '%s' : '%s'.", tlObjPtr->seqId, cmStringNullGuard(tlObjPtr->text),cmStringNullGuard(markPtr->text));
           goto errLabel; 
         }
 
         // set the section time-line UID
-        if( cmJsonInsertPairInt(m->jsH, m->sectObj,"markerUid", tlObjPtr->uid ) != kOkJsRC )
+        if( cmJsonInsertPairInt(m->jsH, m->takeObj,"markerUid", tlObjPtr->uid ) != kOkJsRC )
         {
           rc = cmErrMsg(&m->ctx->err,kJsonFailSpRC,"Marker uid field insert failed on seq:%i '%s' : '%s'.", tlObjPtr->seqId, cmStringNullGuard(tlObjPtr->text),cmStringNullGuard(markPtr->text));
           goto errLabel;           
         }
 
         // create an array to hold the assoc results
-        if(( m->array = cmJsonInsertPairArray(m->jsH, m->sectObj, "array")) == NULL )
+        if(( m->array = cmJsonInsertPairArray(m->jsH, m->takeObj, "array")) == NULL )
         {
           rc = cmErrMsg(&m->ctx->err,kJsonFailSpRC,"Marker array field insert failed on seq:%i '%s' : '%s'.", tlObjPtr->seqId, cmStringNullGuard(tlObjPtr->text),cmStringNullGuard(markPtr->text));
           goto errLabel;           
@@ -662,7 +662,7 @@ cmSpRC_t  _cmSpProcAssocCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlOb
       }
       break;
 
-    case kEndSectionSpId:
+    case kEndTakeSpId:
       {
         while( m->bmp != NULL )
         {
@@ -674,7 +674,7 @@ cmSpRC_t  _cmSpProcAssocCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlOb
         m->bmp = NULL;
         m->emp = NULL;
 
-        if( cmJsonInsertPairInt( m->jsH, m->sectObj, "failFl", m->failFl ) != kOkJsRC )
+        if( cmJsonInsertPairInt( m->jsH, m->takeObj, "failFl", m->failFl ) != kOkJsRC )
         {
           rc = cmErrMsg(&m->ctx->err,kJsonFailSpRC,"JSON fail flag insert failed.");
           goto errLabel;
