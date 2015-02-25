@@ -1275,7 +1275,7 @@ cmRC_t cmScMatcherReset( cmScMatcher* p, unsigned scLocIdx )
   return cmOkRC;
 }
 
-bool cmScMatcherInputMidi(  cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
+bool cmScMatcherInputMidi(  cmScMatcher* p, unsigned smpIdx, unsigned muid, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1 )
 {
   if( (status&0xf0) != kNoteOnMdId)
     return false;
@@ -1293,6 +1293,7 @@ bool cmScMatcherInputMidi(  cmScMatcher* p, unsigned smpIdx, unsigned status, cm
   p->midiBuf[mi].scEvtIdx = cmInvalidIdx;
   p->midiBuf[mi].mni      = p->mni++;
   p->midiBuf[mi].smpIdx   = smpIdx;
+  p->midiBuf[mi].muid     = muid;
   p->midiBuf[mi].pitch    = d0;
   p->midiBuf[mi].vel      = d1;
   if( p->mbi > 0 )
@@ -1503,7 +1504,7 @@ cmRC_t     cmScMatcherStep(  cmScMatcher* p )
   return cmOkRC;
 }
 
-cmRC_t     cmScMatcherExec(  cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1, unsigned* scLocIdxPtr )
+cmRC_t     cmScMatcherExec(  cmScMatcher* p, unsigned smpIdx, unsigned muid, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1, unsigned* scLocIdxPtr )
 {
   bool     fl  = p->mbi > 0;
   cmRC_t   rc  = cmOkRC;
@@ -1513,7 +1514,7 @@ cmRC_t     cmScMatcherExec(  cmScMatcher* p, unsigned smpIdx, unsigned status, c
     *scLocIdxPtr = cmInvalidIdx;
 
   // update the MIDI buffer with the incoming note
-  if( cmScMatcherInputMidi(p,smpIdx,status,d0,d1) == false )
+  if( cmScMatcherInputMidi(p,smpIdx,muid,status,d0,d1) == false )
     return rc;
 
   // if the MIDI buffer transitioned to full then perform an initial scan sync.
@@ -2485,7 +2486,7 @@ cmRC_t cmScAlignScanToTimeLineEvent( cmScMatcher* p, cmTlH_t tlH, cmTlObj_t* top
     // if the time line MIDI msg a note-on
     if( (mep->msg->status&0xf0) == kNoteOnMdId )
     {
-      rc = cmScMatcherExec(p, mep->obj.seqSmpIdx, mep->msg->status, mep->msg->u.chMsgPtr->d0, mep->msg->u.chMsgPtr->d1, NULL );
+      rc = cmScMatcherExec(p, mep->obj.seqSmpIdx, mep->msg->uid, mep->msg->status, mep->msg->u.chMsgPtr->d0, mep->msg->u.chMsgPtr->d1, NULL );
 
       switch( rc )
       {

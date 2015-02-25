@@ -145,6 +145,7 @@ extern "C" {
   typedef struct
   {
     unsigned mni;    // unique identifier for this MIDI note - used to recognize when the cmScMatcher backtracks.
+    unsigned muid;   // MIDI file event msg unique id (See cmMidiTrackMsg_t.uid)
     unsigned smpIdx; // time stamp of this event
     unsigned pitch;  // MIDI note pitch
     unsigned vel;    //  "    "   velocity
@@ -208,6 +209,7 @@ extern "C" {
     unsigned scEvtIdx;  // score event index 
     unsigned mni;       // index of the performed MIDI event associated with this score location
     unsigned smpIdx;    // sample time index of performed MIDI event
+    unsigned muid;      // MIDI file event msg unique id (See cmMidiTrackMsg_t.uid)
     unsigned pitch;     // performed pitch 
     unsigned vel;       // performed velocity
     unsigned flags;     // smTruePosFl | smFalsePosFl 
@@ -297,12 +299,14 @@ extern "C" {
   // will be set with the matched scLocIdx of the match.
   // If this call does not result in a successful match *scLocIdxPtr is set
   // to cmInvalidIdx.
+  // 'muid' is the unique id associated with this MIDI event under the circumstances
+  // that the event came from a MIDI file.  See cmMidiFile.h cmMidiTrackMsg_t.uid.
   // Return:
   // cmOkRC  - Continue processing MIDI events.
   // cmEofRC - The end of the score was encountered.
   // cmInvalidArgRC - scan failed or the object was in an invalid state to attempt a match.
   // cmSubSysFailRC - a scan resync failed in cmScMatcherStep().
-  cmRC_t     cmScMatcherExec(  cmScMatcher* p, unsigned smpIdx, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1, unsigned* scLocIdxPtr );
+  cmRC_t     cmScMatcherExec(  cmScMatcher* p, unsigned smpIdx, unsigned muid, unsigned status, cmMidiByte_t d0, cmMidiByte_t d1, unsigned* scLocIdxPtr );
 
   void cmScMatcherPrint( cmScMatcher* p );
 
