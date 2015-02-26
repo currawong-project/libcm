@@ -596,9 +596,10 @@ typedef struct
   unsigned       mni;
   bool           failFl;
   cmJsonH_t      jsH;
+  cmJsonNode_t*  takeArray;
   cmJsonNode_t*  takeObj;
   cmJsonNode_t*  array;
-
+  
   cmSpAssoc_t*   bap;  
   cmSpAssoc_t*   eap;
   cmSpNoteMap_t* bmp;
@@ -641,8 +642,8 @@ cmSpRC_t  _cmSpProcAssocCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlOb
         m->mni    = 0;
         m->failFl = false;
 
-        // insert a section object
-        if((m->takeObj = cmJsonInsertPairObject(m->jsH, cmJsonRoot(m->jsH), "take" )) == NULL )
+        // insert a take object
+        if((m->takeObj = cmJsonCreateObject(m->jsH, m->takeArray )) == NULL )
         {
           rc = cmErrMsg(&m->ctx->err,kJsonFailSpRC,"Take insert failed on seq:%i '%s' : '%s'.", tlObjPtr->seqId, cmStringNullGuard(tlObjPtr->text),cmStringNullGuard(markPtr->text));
           goto errLabel; 
@@ -755,11 +756,19 @@ cmSpRC_t _cmScoreProcGenAssocMain(cmCtx_t* ctx)
 
   // store the time-line and score file name
   if( cmJsonInsertPairs(m->jsH, cmJsonRoot(m->jsH), 
-      "tlFn",    kStringTId, cmTimeLineFileName( sp->tlH),
-      "scoreFn", kStringTId, cmScoreFileName( sp->scH ),
+      "timeLineFn",    kStringTId, cmTimeLineFileName(   sp->tlH),
+      "scoreFn",       kStringTId, cmScoreFileName(      sp->scH ),
+      "tlPrefixPath",  kStringTId, cmTimeLinePrefixPath( sp->tlH ),
       NULL ) != kOkJsRC )
   {
     cmErrMsg(&m->ctx->err,kJsonFailSpRC,"File name JSON field insertion failed.");
+    goto errLabel;
+  }
+
+  // create an array to hold each take
+  if((m->takeArray = cmJsonInsertPairArray(m->jsH, cmJsonRoot(m->jsH), "takeArray" )) == NULL )
+  {
+    cmErrMsg(&m->ctx->err,kJsonFailSpRC,"JSON take-array create failed.");
     goto errLabel;
   }
 
