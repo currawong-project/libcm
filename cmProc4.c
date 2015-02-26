@@ -1349,6 +1349,7 @@ void _cmScMatcherStoreResult( cmScMatcher* p, unsigned locIdx, unsigned scEvtIdx
   rp->locIdx   = locIdx;
   rp->scEvtIdx = scEvtIdx;
   rp->mni      = mp->mni;
+  rp->muid     = mp->muid;
   rp->smpIdx   = mp->smpIdx;
   rp->pitch    = mp->pitch;
   rp->vel      = mp->vel;
