@@ -122,6 +122,7 @@ extern "C" {
   cmTlRC_t        cmTimeLineInitializeFromFile( cmCtx_t* ctx, cmTlH_t* hp, cmTlCb_t cbFunc, void* cbArg, const cmChar_t* fn, const cmChar_t* prefixPath );
 
   const cmChar_t* cmTimeLineFileName( cmTlH_t h );
+  const cmChar_t* cmTimeLinePrefixPath( cmTlH_t h );
 
   cmTlRC_t        cmTimeLineFinalize( cmTlH_t* hp );
 

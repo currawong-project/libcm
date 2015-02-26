@@ -949,6 +949,12 @@ const cmChar_t* cmTimeLineFileName( cmTlH_t h )
   return p->filename; 
 }
 
+const cmChar_t* cmTimeLinePrefixPath( cmTlH_t h )
+{ 
+  _cmTl_t* p = _cmTlHandleToPtr(h);  
+  return p->prefixPath; 
+}
+
 cmTlRC_t cmTimeLineFinalize( cmTlH_t* hp )
 {
   cmTlRC_t rc;
