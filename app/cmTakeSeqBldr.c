@@ -21,7 +21,8 @@
 // Score track record: Map a score event to a MIDI event. 
 typedef struct cmScTrkMidiTsb_str
 {
-  unsigned mni;      // midi note index as an offset from the take marker
+  unsigned mni;      // MIDI note index as an offset from the take marker
+  unsigned muid;     // MIDI file msg  unique id
   unsigned scEvtIdx; // score event index this not is assoc'd with or -1 if it did not match
   unsigned flags;    // flags from cmScMatcherResult_t 
 } cmScTrkMidiTsb_t;
@@ -114,10 +115,13 @@ cmTsbRC_t _cmTsbScoreTrkFree( cmTsb_t* p )
     goto errLabel;
   }
   
-  for(i=0; i<p->scTrkTakeN; ++i)
-    cmMemPtrFree(&p->scTrkTakeV[i].midiV);
+  if( p->scTrkTakeV != NULL )
+  {
+    for(i=0; i<p->scTrkTakeN; ++i)
+      cmMemPtrFree(&p->scTrkTakeV[i].midiV);
 
-  cmMemPtrFree(&p->scTrkTakeV);
+    cmMemPtrFree(&p->scTrkTakeV);
+  }
 
   if( cmTimeLineFinalize(&p->tlH) != kOkTlRC )
     rc = cmErrMsg(&p->err,kTimeLineFailTsbRC,"Time line object finalize failed.");
@@ -231,6 +235,7 @@ cmTsbRC_t _cmTsbLoadScoreTrkFile( cmTsb_t* p, const cmChar_t* scoreTrkFn )
       // parse the note record
       if((jsRC = cmJsonMemberValues( noteObj, &errMsg,
             "mni",      kIntTId, &p->scTrkTakeV[i].midiV[j].mni,
+            "muid",     kIntTId, &p->scTrkTakeV[i].midiV[j].muid,
             "scEvtIdx", kIntTId, &p->scTrkTakeV[i].midiV[j].scEvtIdx,
             "flags",    kIntTId, &p->scTrkTakeV[i].midiV[j].flags,
             NULL)) != kOkJsRC )
