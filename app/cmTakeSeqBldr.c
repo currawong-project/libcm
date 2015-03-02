@@ -23,7 +23,7 @@ typedef struct cmScTrkMidiTsb_str
 {
   unsigned mni;      // MIDI note index as an offset from the take marker
   unsigned muid;     // MIDI file msg  unique id
-  unsigned scEvtIdx; // score event index this not is assoc'd with or -1 if it did not match
+  unsigned scEvtIdx; // score event index this note/pedal is assoc'd with or -1 if it did not match
   unsigned flags;    // flags from cmScMatcherResult_t 
 } cmScTrkMidiTsb_t;
 
@@ -32,10 +32,10 @@ typedef struct cmScTrkMidiTsb_str
 typedef struct cmScTrkTakeTsb_str
 {
   unsigned          tlMarkerUid;  // marker time line uid assoc'd with this take
-  cmScTrkMidiTsb_t* midiV;      // midiV[midiN] score to midi file map recd. array.
-  unsigned          midiN; 
-  unsigned          minMuid;    // min MIDI muid in midiV[]
-  unsigned          maxMuid;    // max MIDI muid in midiV[]
+  cmScTrkMidiTsb_t* midiV;        // midiV[midiN] score to midi file map recd. array.
+  unsigned          midiN;        // count of records in midiV[]
+  unsigned          minMuid;      // min MIDI muid in midiV[]
+  unsigned          maxMuid;      // max MIDI muid in midiV[]
   bool              failFl;
 } cmScTrkTakeTsb_t;
 
@@ -131,9 +131,12 @@ cmTsbRC_t _cmTsbScoreTrkFree( cmTsb_t* p )
 
 // Free a take record. Note that the record must be unlinked
 // unlinked from p->takes (See _cmTakeTsbUnlink().) prior to calling this function.
-void _cmTsbTakeFree( cmTsb_t* p, cmTakeTsb_t* t )
+void _cmTsbTakeFree( cmTsb_t* p, cmTakeTsb_t** tp )
 {
-  cmMidiTsb_t* m  = t->midi;
+  if( tp == NULL || *tp==NULL )
+    return;
+
+  cmMidiTsb_t* m  = (*tp)->midi;
     
   while( m != NULL )
   {
@@ -142,7 +145,7 @@ void _cmTsbTakeFree( cmTsb_t* p, cmTakeTsb_t* t )
     m = nm;
   }
   
-  cmMemFree(t);
+  cmMemPtrFree(tp);
 }
 
 // Unlink a 'take' record from p->takes.
@@ -179,9 +182,11 @@ cmTsbRC_t _cmTsbFree( cmTsb_t* p )
   while( t != NULL )
   {
     cmTakeTsb_t* nt = t->link;
-    _cmTsbTakeFree(p,t);
+    _cmTsbTakeFree(p,&t);
     t = nt;
   }
+
+  _cmTsbTakeFree(p,&p->out);
 
   cmMemFree(p);
 
@@ -323,6 +328,59 @@ cmTsbRC_t _cmTsbLoadScoreTrkFile( cmTsb_t* p, const cmChar_t* scoreTrkFn )
  errLabel:
   if( rc != kOkTsbRC )
     rc = _cmTsbScoreTrkFree(p);
+
+  return rc;
+}
+
+cmTsbRC_t _cmTakeSeqBldrRender( cmTsb_t* p )
+{
+  cmTsbRC_t rc = kOkTsbRC;
+
+  _cmTsbTakeFree(p,&p->out);
+
+  // get the min/max scEvtIdx among all takes
+  cmTakeTsb_t* t           = p->takes;
+  cmMidiTsb_t* m           = NULL;
+  unsigned     minScEvtIdx = INT_MAX;
+  unsigned     maxScEvtIdx = 0;
+  unsigned     i;
+
+  for(; t!=NULL; t=t->link)
+  {
+    for(m=t->midi; m!=NULL; m=m->link)
+    {
+      if( m->scEvtIdx < minScEvtIdx )
+        minScEvtIdx = m->scEvtIdx;
+
+      if( m->scEvtIdx > maxScEvtIdx )
+        maxScEvtIdx = m->scEvtIdx;
+    }
+  }
+
+  p->out = cmMemAllocZ(cmTakeTsb_t,1);
+
+  // allocate one event for each score postion to render
+  cmMidiTsb_t* m0 = NULL;
+  for(i=0; i<maxScEvtIdx-minScEvtIdx+1; ++i)
+  {
+    m = cmMemAllocZ(cmMidiTsb_t,1);
+    m->srcId    = cmInvalidId;
+    m->scEvtIdx = minScEvtIdx + i;
+    m->ref      = m0;
+    m0          = m;
+
+    if( p->out->midi == NULL )
+      p->out->midi = m;
+  }
+
+  // fill the event list from the selected takes
+  for(t=p->takes; t!=NULL; t=t->link)
+  {
+    
+  }
+  
+  if( rc != kOkTsbRC )
+    _cmTsbTakeFree(p,&p->out);
 
   return rc;
 }
@@ -471,10 +529,8 @@ cmTsbRC_t cmTakeSeqBldrLoadTake( cmTakeSeqBldrH_t h, unsigned tlMarkUid, bool ov
   cmTakeTsb_t* t = cmMemAllocZ(cmTakeTsb_t,1);
 
   t->tlMarkerUid = tlMarkUid;
-  if( p->takes != NULL )
-    p->takes->link = t;
-
-  p->takes = t;
+  t->link        = p->takes;
+  p->takes       = t;
 
 
   cmMidiTsb_t*            m0  = NULL;
@@ -548,7 +604,7 @@ cmTsbRC_t cmTakeSeqBldrUnloadTake( cmTakeSeqBldrH_t h, unsigned tlMarkUid )
 
   assert( t != NULL );
 
-  _cmTsbTakeFree(p,t);
+  _cmTsbTakeFree(p,&t);
     
   return rc;
 }
@@ -591,12 +647,25 @@ cmTsbRC_t cmTakeSeqBldrWriteMidiFile( cmTakeSeqBldrH_t h, const char* fn )
 
 cmTsbRC_t cmTakeSeqBldrTest( cmCtx_t* ctx )
 {
-  const cmChar_t*  scoreTrkFn = "/home/kevin/src/cmkc/src/kc/data/assoc0.js";
-  cmTakeSeqBldrH_t tsbH  = cmTakeSeqBldrNullHandle;
-  cmTsbRC_t        tsbRC = kOkTsbRC;
+  const cmChar_t*  scoreTrkFn = "/home/kevin/src/cmkc/src/kc/data/takeSeqBldr0.js";
+  cmTakeSeqBldrH_t tsbH       = cmTakeSeqBldrNullHandle;
+  cmTsbRC_t        tsbRC      = kOkTsbRC;
+  unsigned         markerIdV[]  = { 2200, 2207 };
+  unsigned         markerN      = sizeof(markerIdV)/sizeof(markerIdV[0]);
+  unsigned         i;
 
   if((tsbRC = cmTakeSeqBldrAllocFn(ctx, &tsbH, scoreTrkFn )) != kOkTsbRC )
     return cmErrMsg(&ctx->err,tsbRC,"TSB Allocate and parse '%s' failed.",scoreTrkFn);
+
+  cmRptPrintf(&ctx->rpt, "TakeSeqBldr Allocation Completed.");
+
+  for(i=0; i<markerN; ++i)
+  {
+    if((tsbRC = cmTakeSeqBldrLoadTake(tsbH,markerIdV[i],false)) != kOkTsbRC )
+      cmErrMsg(&ctx->err,tsbRC,"TSB load take failed.");
+
+    cmRptPrintf(&ctx->rpt, "TakeSeqBldr Load Take %i Completed.",markerIdV[i]);
+  }
 
   if((tsbRC = cmTakeSeqBldrFree(&tsbH)) != kOkTsbRC )
     return cmErrMsg(&ctx->err,tsbRC,"TSB Free failed.");
