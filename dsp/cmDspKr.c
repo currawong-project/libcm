@@ -714,6 +714,7 @@ cmDspInst_t*  _cmDspMidiFilePlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, u
   p->startSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"start");
   p->stopSymId  = cmSymTblRegisterStaticSymbol(ctx->stH,"stop");
   p->contSymId  = cmSymTblRegisterStaticSymbol(ctx->stH,"continue");
+
   p->mfH        = cmMidiFileNullHandle;
 
   cmDspSetDefaultStrcz( ctx, &p->inst, kFnMfId,   NULL, "");
@@ -3240,7 +3241,11 @@ struct cmDspClass_str* cmSyncRecdClassCons( cmDspCtx_t* ctx )
 //==========================================================================================================================================
 enum
 {
-  kFnTbsId,
+  kFnTsbId,
+  kBldrTsbId,
+  kSelTsbId,
+  kRefreshTsbId,
+  kSendTsbId
 };
 
 cmDspClass_t _cmTakeSeqBldrDC;
@@ -3249,20 +3254,29 @@ typedef struct
 {
   cmDspInst_t      inst;
   cmTakeSeqBldrH_t h;
+  bool             errFl;
 } cmDspTakeSeqBldr_t;
 
 
 cmDspInst_t*  _cmDspTakeSeqBldrAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
   cmDspTakeSeqBldr_t* p = cmDspInstAllocV(cmDspTakeSeqBldr_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl,
-    1,       "fn",  kFnScId,     0, 0, kInDsvFl  | kStrzDsvFl | kReqArgDsvFl, "Score Tracking file.",
+    1,       "fn",      kFnTsbId, 0, 0, kInDsvFl  | kStrzDsvFl | kReqArgDsvFl, "Score Tracking file.",
+    1,      "bldr",   kBldrTsbId, 0, 0, kOutDsvFl | kPtrDsvFl, "Bldr Ref",
+    1,       "sel",   kSelTsbId,  0, 0, kOutDsvFl | kUIntDsvFl,   "Selected score element location index.",
+    1,   "refresh",kRefreshTsbId, 0, 0, kOutDsvFl | kUIntDsvFl,   "Refresh",
+    1,      "send",   kSendTsbId, 0, 0, kInDsvFl  | kTypeDsvMask,  "Resend last selected score element location.",
     0 );
+
+  p->errFl      = false;
+
+  cmDspSetDefaultInt(   ctx, &p->inst,  kRefreshTsbId, 0, 0);
 
   if( cmTakeSeqBldrAlloc(ctx->cmCtx, &p->h ) != kOkTsbRC )
     cmErrMsg(&p->inst.classPtr->err, kSubSysFailDspRC, "Allocate TaskSeqBldr object.");
   else
   {
-    cmDspUiTakeSeqBldrCreate(ctx,&p->inst,kFnTbsId);
+    cmDspUiTakeSeqBldrCreate(ctx,&p->inst,kFnTsbId,kBldrTsbId,kSelTsbId,kRefreshTsbId);
   }
 
   return &p->inst;
@@ -3273,9 +3287,15 @@ cmDspRC_t _cmDspTakeSeqBldrSetup( cmDspCtx_t* ctx, cmDspInst_t* inst )
   cmDspRC_t           rc = kOkDspRC;
   cmDspTakeSeqBldr_t* p  = (cmDspTakeSeqBldr_t*)inst;
   
-  if( cmTakeSeqBldrInitialize(p->h, cmDspStrcz(inst,kFnTbsId) ) != kOkTsbRC )
-    rc = cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Unable to initialize the internal TakeSeqBldr object with %s.",cmStringNullGuard(cmDspStrcz(inst,kFnTbsId)));
-
+  if( cmTakeSeqBldrInitialize(p->h, cmDspStrcz(inst,kFnTsbId) ) != kOkTsbRC )
+  {
+    rc = cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Unable to initialize the internal TakeSeqBldr object with %s.",cmStringNullGuard(cmDspStrcz(inst,kFnTsbId)));
+  }
+  else
+  {
+    cmDspSetPtr(ctx,inst,kBldrTsbId,p->h.h);
+    p->errFl = false;
+  }
   return rc;
 }
 
@@ -3300,13 +3320,33 @@ cmDspRC_t _cmDspTakeSeqBldrReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDsp
 
 cmDspRC_t _cmDspTakeSeqBldrExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
-  cmDspRC_t rc  = kOkDspRC;
+  cmDspRC_t            rc  = kOkDspRC;
   return rc;
 }
 
 cmDspRC_t _cmDspTakeSeqBldrRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
-  //cmDspTakeSeqBldr_t*  p  = (cmDspTakeSeqBldr_t*)inst;
+
+  // not matter what arrives at the 'send' input ....
+  if( evt->dstVarId == kSendTsbId )
+  {
+    // send the last score loc 
+    unsigned selIdx;
+    if((selIdx = cmDspUInt(inst,kSelTsbId)) != cmInvalidIdx )
+      cmDspSetUInt(ctx,inst,kSelTsbId, selIdx );
+    
+    return kOkDspRC;
+  }
+
+  cmDspSetEvent(ctx,inst,evt);
+
+  switch(evt->dstVarId)
+  {
+    case kFnTsbId:
+      _cmDspMidiFilePlayOpen(ctx, inst );
+      break;
+
+  }
   return kOkDspRC;
 }
 
@@ -3324,5 +3364,226 @@ struct cmDspClass_str* cmTakeSeqBldrClassCons( cmDspCtx_t* ctx )
     "TakeSeqBldr");
 
   return &_cmTakeSeqBldrDC;
+}
+
+
+
+
+//==========================================================================================================================================
+enum
+{
+  kBldrTsrId,
+  kRefreshTsrId,
+  kCmdTsrId,
+  kSelTsrId,
+  kStatusTsrId,
+  kD0TsrId,
+  kD1TsrId,
+  kSmpIdxTsrId
+};
+
+cmDspClass_t _cmTakeSeqRendDC;
+
+typedef struct
+{
+  cmDspInst_t      inst;
+  cmTakeSeqBldrH_t h;
+  unsigned         startSymId;
+  unsigned         stopSymId;
+  unsigned         contSymId;
+  unsigned         onSymId;
+  unsigned         offSymId;
+  bool             errFl;
+} cmDspTakeSeqRend_t;
+
+
+cmDspInst_t*  _cmDspTakeSeqRendAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  cmDspTakeSeqRend_t* p = cmDspInstAllocV(cmDspTakeSeqRend_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl,
+    1,      "bldr",   kBldrTsrId, 0, 0, kInDsvFl  | kPtrDsvFl  | kOptArgDsvFl, "Take Sequene Builder Ref",
+    1,   "refresh",kRefreshTsrId, 0, 0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "Refresh",
+    1,       "cmd",    kCmdTsrId, 0, 0, kInDsvFl  | kSymDsvFl,  "start | stop | continue" ,
+    1,       "sel",    kSelTsrId, 0, 0, kInDsvFl  | kUIntDsvFl, "Selected score element location index input.",
+    1,    "status", kStatusTsrId, 0, 0, kOutDsvFl | kIntDsvFl,  "Status value output",
+    1,       "d0",      kD0TsrId, 0, 0, kOutDsvFl | kUIntDsvFl, "Data byte 0" ,
+    1,       "d1",      kD1TsrId, 0, 0, kOutDsvFl | kUIntDsvFl, "Data byte 1",
+    1,    "smpidx", kSmpIdxTsrId, 0, 0, kOutDsvFl | kUIntDsvFl, "Msg time tag as a sample index.",
+    0 );
+
+  p->startSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"start");
+  p->stopSymId  = cmSymTblRegisterStaticSymbol(ctx->stH,"stop");
+  p->contSymId  = cmSymTblRegisterStaticSymbol(ctx->stH,"continue");
+  p->onSymId    = cmSymTblRegisterStaticSymbol(ctx->stH,"on");
+  p->offSymId   = cmSymTblRegisterStaticSymbol(ctx->stH,"off");
+
+  p->errFl      = false;
+
+  cmDspSetDefaultInt(   ctx, &p->inst,  kRefreshTsrId, 0, 0);
+  cmDspSetDefaultSymbol(ctx, &p->inst,  kCmdTsrId,    p->stopSymId);
+  cmDspSetDefaultInt(   ctx, &p->inst,  kSmpIdxTsrId, 0, 0);
+  cmDspSetDefaultUInt(  ctx, &p->inst,  kStatusTsrId, 0, 0);
+  cmDspSetDefaultUInt(  ctx, &p->inst,  kD0TsrId,     0, 0);
+  cmDspSetDefaultUInt(  ctx, &p->inst,  kD1TsrId,     0, 0);
+
+  cmDspUiTakeSeqRendCreate(ctx,&p->inst,kBldrTsrId,kRefreshTsrId,kSelTsrId);
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspTakeSeqRendFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t           rc = kOkDspRC;
+  return rc;
+}
+
+cmDspRC_t _cmDspTakeSeqRendReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  //cmDspTakeSeqRend_t* p = (cmDspTakeSeqRend_t*)inst;
+
+  cmDspApplyAllDefaults(ctx,inst);
+  return kOkDspRC;
+} 
+
+typedef struct
+{
+  cmDspCtx_t*  ctx;
+  cmDspInst_t* inst;
+} _cmDspTakeSeqRendCbArg_t;
+
+// Called from cmDspTakeSeqRendExec() -> cmTakeSeqRendPlayExec() to
+// deliver MIDI messages which need to be transmitted.
+void _cmDspTakeSeqRendMidiCb( void* arg, const cmTksbEvent_t* e )
+{
+  _cmDspTakeSeqRendCbArg_t* a = (_cmDspTakeSeqRendCbArg_t*)arg;
+
+  switch( e->status )
+  {
+    case kNoteOffMdId:
+    case kNoteOnMdId:
+    case kCtlMdId:
+      //if( !cmMidiIsPedal(e->status,e->d0))
+      {
+        cmDspSetUInt(a->ctx,a->inst, kSmpIdxTsrId, e->smpIdx);
+        cmDspSetUInt(a->ctx,a->inst, kD1TsrId,     e->d1);
+        cmDspSetUInt(a->ctx,a->inst, kD0TsrId,     e->d0);
+        cmDspSetUInt(a->ctx,a->inst, kStatusTsrId, e->status);
+      }
+      break;
+  }
+  
+}
+
+void _cmDspTakeSeqRendPedalsUp( cmDspCtx_t* ctx, cmDspInst_t* inst )
+{
+  _cmDspTakeSeqRendCbArg_t a;
+  a.ctx = ctx;
+  a.inst = inst;
+
+  cmTksbEvent_t e[] =
+  {
+    { 0, kCtlMdId, kSustainCtlMdId,   0 },
+    { 0, kCtlMdId, kPortamentoCtlMdId,0 },
+    { 0, kCtlMdId, kSostenutoCtlMdId, 0 },
+    { 0, kCtlMdId, kSoftPedalCtlMdId, 0 },
+    { 0, kCtlMdId, kLegatoCtlMdId,    0 }
+  };
+
+  unsigned n = sizeof(e)/sizeof(e[0]);
+  unsigned i;
+  for(i=0; i<n; ++i)
+    _cmDspTakeSeqRendMidiCb(&a,e+i);
+}
+
+
+cmDspRC_t _cmDspTakeSeqRendExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t            rc  = kOkDspRC;
+  cmDspTakeSeqRend_t*  p   = (cmDspTakeSeqRend_t*)inst;
+
+  if( cmDspSymbol(inst,kCmdTsrId) != p->stopSymId )
+  {
+    if( cmTakeSeqBldrIsValid(p->h) == false )
+    {
+      if( p->errFl==false )
+      {
+        rc = cmErrMsg(&inst->classPtr->err, kInvalidStateDspRC,"The Take Sequence Builder not been given a valid file.");
+        p->errFl = true;
+      }
+      return rc;
+    }
+
+    unsigned                 sPc = cmDspSamplesPerCycle(ctx);
+    _cmDspTakeSeqRendCbArg_t arg;
+    arg.inst = inst;
+    arg.ctx  = ctx;
+
+    // This call may result in multiple callbacks  
+    // to _cmDspTakeSeqRendMidiCb() from within the function.
+    cmTakeSeqBldrPlayExec(p->h,sPc,_cmDspTakeSeqRendMidiCb, &arg );
+  }
+
+  return rc;
+}
+
+
+cmDspRC_t _cmDspTakeSeqRendRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspTakeSeqRend_t* p = (cmDspTakeSeqRend_t*)inst;
+  
+  printf("Recv:%s\n",cmStringNullGuard(cmDspVarLabel(ctx, inst, evt->dstVarId)) );
+  
+  cmDspSetEvent(ctx,inst,evt);
+
+  switch(evt->dstVarId)
+  {
+    case kBldrTsrId:
+      p->h.h = cmDspPtr(inst,kBldrTsrId);
+      break;
+
+    case kCmdTsrId:
+      {
+        unsigned symId = cmDspSymbol(inst,kCmdTsrId);
+
+        if( symId == p->onSymId )
+          cmDspSetSymbol( ctx, inst, kCmdTsrId, p->startSymId );
+        else
+          if( symId == p->offSymId )
+            cmDspSetSymbol( ctx, inst, kCmdTsrId, p->stopSymId );
+
+        if( cmTakeSeqBldrIsValid(p->h) && cmDspSymbol(inst,kCmdTsrId)==p->startSymId ) 
+        {
+          _cmDspTakeSeqRendPedalsUp( ctx, inst );
+          cmTakeSeqBldrPlaySeekLoc(p->h, cmInvalidId );
+        }
+      }
+      break;
+
+    case kSelTsrId:
+      {
+        // seek the playback position to the scLocIdx.
+        unsigned scLocIdx = cmDspUInt(inst,kSelTsrId);        
+        if( cmTakeSeqBldrIsValid(p->h)  && cmTakeSeqBldrPlaySeekLoc(p->h, scLocIdx ) != kOkTsbRC )
+          return cmDspInstErr(ctx,&p->inst,kSubSysFailDspRC,"Take Sequence Bldr Seek failed on score location index %i.", scLocIdx);
+      }
+      break;
+
+  }
+  return kOkDspRC;
+}
+
+struct cmDspClass_str* cmTakeSeqRendClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmTakeSeqRendDC,ctx,"TakeSeqRend",
+    NULL,
+    _cmDspTakeSeqRendAlloc,
+    _cmDspTakeSeqRendFree,
+    _cmDspTakeSeqRendReset,
+    _cmDspTakeSeqRendExec,
+    _cmDspTakeSeqRendRecv,
+    NULL,
+    NULL,
+    "TakeSeqRend");
+
+  return &_cmTakeSeqRendDC;
 }
 
