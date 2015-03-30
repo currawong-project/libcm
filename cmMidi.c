@@ -4,16 +4,12 @@
 #include "cmMidi.h"
 
 
-enum
-{
-  mdStatusDescLabelCharCnt = 5
-};
 
 typedef struct
 {
   cmMidiByte_t   status;
   cmMidiByte_t  byteCnt;
-  char     label[ mdStatusDescLabelCharCnt+1 ];
+  const char*     label;
 } cmMidiStatusDesc;
 
 cmMidiStatusDesc _cmMidiStatusDescArray[] =
@@ -72,6 +68,16 @@ cmMidiStatusDesc _cmMidiMetaStatusDescArray[] =
   { kInvalidMetaMdId, kInvalidMidiByte, "ERROR"}
 };
 
+cmMidiStatusDesc _cmMidiPedalLabel[] = 
+{
+  { kSustainCtlMdId,    0, "sustn" },
+  { kPortamentoCtlMdId, 0, "porta" },
+  { kSostenutoCtlMdId,  0, "sostn" },
+  { kSoftPedalCtlMdId,  0, "soft"  },
+  { kLegatoCtlMdId,     0, "legat" },
+  { kInvalidMidiByte, kInvalidMidiByte, "ERROR"}
+};
+
 //====================================================================================================
 
 const char* cmMidiStatusToLabel( cmMidiByte_t status )
@@ -100,6 +106,16 @@ const char*   cmMidiMetaStatusToLabel( cmMidiByte_t metaStatus )
       break;
 
   return _cmMidiMetaStatusDescArray[i].label; 
+}
+
+const char* cmMidiPedalLabel( cmMidiByte_t d0 )
+{
+  int i;
+  for(i=0; _cmMidiPedalLabel[i].status != kInvalidMidiByte; ++i)
+    if( _cmMidiPedalLabel[i].status == d0 )
+      break;
+
+  return _cmMidiPedalLabel[i].label;
 }
 
 cmMidiByte_t cmMidiStatusToByteCount( cmMidiByte_t status )

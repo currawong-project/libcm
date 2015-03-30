@@ -68,7 +68,11 @@ extern "C" {
     kSeqSpecMdId     = 0x7f,
     kInvalidMetaMdId = 0x80,
 
-    kSustainCtlMdId = 64
+    kSustainCtlMdId    = 0x40,
+    kPortamentoCtlMdId = 0x41,
+    kSostenutoCtlMdId  = 0x42,
+    kSoftPedalCtlMdId  = 0x43,
+    kLegatoCtlMdId     = 0x44
   
   };
 
@@ -89,8 +93,14 @@ extern "C" {
 #define cmMidiIsSustainPedalDown( s, d0, d1) ( cmMidiIsSustainPedal(s,d0) && (d1)>=64 )
 #define cmMidiIsSustainPedalUp(   s, d0, d1) ( cmMidiIsSustainPedal(s,d0) && (d1)<64 )
 
+#define cmMidiIsPedal(     s, d0 )      ( kCtlMdId <= (s) && (s) <= (kCtlMdId + kMidiChCnt) && (d0)>=kSustainCtlMdId && (d0)<=kLegatoCtlMdId )
+#define cmMidiIsPedalDown( s, d0, d1 )  ( cmMidiIsPedal(s,d0) && (d1)>=64 )
+#define cmMidiIsPedalUp(   s, d0, d1 )  ( cmMidiIsPedal(s,d0) && (d1)<64  )
+
+
   const char*   cmMidiStatusToLabel(     cmMidiByte_t status );
   const char*   cmMidiMetaStatusToLabel( cmMidiByte_t metaStatus );
+  const char*   cmMidiPedalLabel(        cmMidiByte_t d0 );
 
   // Returns kInvalidMidiByte if status is not a valid status byte
   cmMidiByte_t  cmMidiStatusToByteCount( cmMidiByte_t status );
