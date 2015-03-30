@@ -1871,6 +1871,24 @@ cmScRC_t      cmScoreSeqNotify( cmScH_t h )
   return rc;
 }
 
+cmScRC_t      cmScoreSeqNotifyCb( cmScH_t h, cmScCb_t cbFunc, void* cbArg )
+{
+  cmSc_t*    p = _cmScHandleToPtr(h);
+  cmScRC_t  rc = kOkScRC;
+  cmScCb_t cbf = p->cbFunc;
+  void*    cba = p->cbArg;
+
+  p->cbFunc = cbFunc;
+  p->cbArg  = cbArg;
+
+  rc = cmScoreSeqNotify(h);
+
+  p->cbFunc = cbf;
+  p->cbArg  = cba;
+  
+  return rc;
+}
+
 void          cmScoreClearPerfInfo( cmScH_t h )
 {
   cmSc_t*   p  = _cmScHandleToPtr(h);

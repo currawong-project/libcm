@@ -207,6 +207,7 @@ extern "C" {
   // Use cmScoreDecode() to convert the byte string to a
   // cmScMsg_t record.
   cmScRC_t      cmScoreSeqNotify( cmScH_t h );
+  cmScRC_t      cmScoreSeqNotifyCb( cmScH_t h, cmScCb_t cbFunc, void* cbArg );
 
   void          cmScoreClearPerfInfo( cmScH_t h );
 
