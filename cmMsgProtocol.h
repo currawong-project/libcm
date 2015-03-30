@@ -22,6 +22,7 @@ extern "C" {
     kTimeLineDuiId,    // ui<--eng create a time-line control
     kScoreDuiId,       // ui<--eng create a score control
     kTakeSeqBldrDuiId, // ui<--eng create a take sequence builder
+    kTakeSeqRendDuiId, // ui<--eng create a take sequence renderer
     kNumberDuiId,      // ui<--eng create a number box
     kTextDuiId,        // ui<--eng create a text entry control
     kFnameDuiId,       // ui<--eng create a file/directory picker control
