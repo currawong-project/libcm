@@ -33,12 +33,13 @@ extern "C" {
     kDoubleDsvFl   = 0x00000400,
     kSampleDsvFl   = 0x00000800,
     kRealDsvFl     = 0x00001000,
-    kStrzDsvFl     = 0x00002000,
-    kSymDsvFl      = 0x00004000,
-    kJsonDsvFl     = 0x00008000,
-    kMtxDsvFl      = 0x00010000,
-    kTypeDsvMask   = 0x0001ffff,
-    kProxyDsvFl    = 0x00020000,
+    kPtrDsvFl      = 0x00002000,
+    kStrzDsvFl     = 0x00004000,
+    kSymDsvFl      = 0x00008000,
+    kJsonDsvFl     = 0x00010000,
+    kMtxDsvFl      = 0x00020000,
+    kTypeDsvMask   = 0x0003ffff,
+    kProxyDsvFl    = 0x00040000,
 
     // Auxilliary Flags
     kInDsvFl       = 0x00100000,  // parameter which is input to the instance (represented by an input port)
@@ -177,6 +178,7 @@ extern "C" {
   void cmDsvSetDouble( cmDspValue_t* vp, double v );
   void cmDsvSetSample( cmDspValue_t* vp, cmSample_t v );
   void cmDsvSetReal(   cmDspValue_t* vp, cmReal_t v );
+  void cmDsvSetPtr(    cmDspValue_t* vp, void* v );
   void cmDsvSetSymbol( cmDspValue_t* vp, unsigned int v );
   void cmDsvSetStrz(   cmDspValue_t* vp, cmChar_t* v );  
   void cmDsvSetStrcz(  cmDspValue_t* vp, const cmChar_t* v );  
@@ -218,6 +220,7 @@ extern "C" {
   double         cmDsvDouble( const cmDspValue_t* vp );
   cmSample_t     cmDsvSample( const cmDspValue_t* vp );
   cmReal_t       cmDsvReal(   const cmDspValue_t* vp );
+  void*          cmDsvPtr(    const cmDspValue_t* vp );
   unsigned int   cmDsvSymbol( const cmDspValue_t* vp );
   cmChar_t*      cmDsvStrz(   const cmDspValue_t* vp );
   const cmChar_t*cmDsvStrcz(  const cmDspValue_t* vp );
@@ -277,6 +280,7 @@ extern "C" {
   double         cmDsvGetDouble( const cmDspValue_t* vp );
   cmSample_t     cmDsvGetSample( const cmDspValue_t* vp );
   cmReal_t       cmDsvGetReal(   const cmDspValue_t* vp );
+  void*          cmDsvGetPtr(    const cmDspValue_t* vp );
   unsigned       cmDsvGetSymbol( const cmDspValue_t* vp );
   cmChar_t*      cmDsvGetStrz(   const cmDspValue_t* vp );
   const cmChar_t*cmDsvGetStrcz(  const cmDspValue_t* vp );

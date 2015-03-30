@@ -85,6 +85,7 @@ bool cmDsvIsFloat(     const cmDspValue_t* vp ){ vp=_vcptr(vp); return  cmAllFla
 bool cmDsvIsDouble(    const cmDspValue_t* vp ){ vp=_vcptr(vp); return  cmAllFlags(vp->flags,kDoubleDsvFl);             }
 bool cmDsvIsSample(    const cmDspValue_t* vp ){ vp=_vcptr(vp); return  cmAllFlags(vp->flags,kSampleDsvFl);             }
 bool cmDsvIsReal(      const cmDspValue_t* vp ){ vp=_vcptr(vp); return  cmAllFlags(vp->flags,kRealDsvFl);               }
+bool cmDsvIsPtr(       const cmDspValue_t* vp ){ vp=_vcptr(vp); return  cmAllFlags(vp->flags,kPtrDsvFl);                }
 bool cmDsvIsStrz(      const cmDspValue_t* vp ){ vp=_vcptr(vp); return  cmAllFlags(vp->flags,kStrzDsvFl);               }
 bool cmDsvIsStrcz(     const cmDspValue_t* vp ){ vp=_vcptr(vp); return  cmAllFlags(vp->flags,kStrzDsvFl | kConstDsvFl); }
 bool cmDsvIsSymbol(    const cmDspValue_t* vp ){ vp=_vcptr(vp); return  cmAllFlags(vp->flags,kSymDsvFl);                }
@@ -125,6 +126,7 @@ bool cmDsvSetFromValist( cmDspValue_t* vp, unsigned flags, va_list vl )
     case kDoubleDsvFl: cmDsvSetDouble( vp, va_arg(vl,double        )); break;
     case kSampleDsvFl: cmDsvSetSample( vp, va_arg(vl,double        )); break;
     case kRealDsvFl:   cmDsvSetReal(   vp, va_arg(vl,double        )); break;
+    case kPtrDsvFl:    cmDsvSetPtr(    vp, va_arg(vl,void*         )); break;
     case kStrzDsvFl:   cmDsvSetStrz(   vp, va_arg(vl,cmChar_t*     )); break;
     default:
       return false;
@@ -146,6 +148,7 @@ void cmDsvSetFloat(  cmDspValue_t* vp, float v )          { vp->flags = kFloatDs
 void cmDsvSetDouble( cmDspValue_t* vp, double v )         { vp->flags = kDoubleDsvFl; vp->u.d = v;  }
 void cmDsvSetSample( cmDspValue_t* vp, cmSample_t v )     { vp->flags = kSampleDsvFl; vp->u.a = v;  }
 void cmDsvSetReal(   cmDspValue_t* vp, cmReal_t v )       { vp->flags = kRealDsvFl;   vp->u.r = v;  }
+void cmDsvSetPtr(    cmDspValue_t* vp, void* v )          { vp->flags = kPtrDsvFl;    vp->u.vp = v;  }
 void cmDsvSetSymbol( cmDspValue_t* vp, unsigned v )       { vp->flags = kSymDsvFl;    vp->u.u = v;  }  
 void cmDsvSetStrz(   cmDspValue_t* vp, cmChar_t* v )      { vp->flags = kStrzDsvFl;   vp->u.z = v;  }  
 void cmDsvSetStrcz(  cmDspValue_t* vp, const cmChar_t* v ){ vp->flags = kStrzDsvFl | kConstDsvFl; vp->u.cz = v; }
@@ -235,6 +238,7 @@ float          cmDsvFloat(  const cmDspValue_t* vp ) { vp=_vcptr(vp); if(cmIsFla
 double         cmDsvDouble( const cmDspValue_t* vp ) { vp=_vcptr(vp); if(cmIsFlag((vp->flags & kTypeDsvMask),kDoubleDsvFl)) return vp->u.d;  assert(0); return 0; }
 cmSample_t     cmDsvSample( const cmDspValue_t* vp ) { vp=_vcptr(vp); if(cmIsFlag((vp->flags & kTypeDsvMask),kSampleDsvFl)) return vp->u.a;  assert(0); return 0; }
 cmReal_t       cmDsvReal(   const cmDspValue_t* vp ) { vp=_vcptr(vp); if(cmIsFlag((vp->flags & kTypeDsvMask),kRealDsvFl))   return vp->u.r;  assert(0); return 0; } 
+void*          cmDsvPtr(    const cmDspValue_t* vp ) { vp=_vcptr(vp); if(cmIsFlag((vp->flags & kTypeDsvMask),kPtrDsvFl))    return vp->u.vp; assert(0); return 0; } 
 unsigned int   cmDsvSymbol( const cmDspValue_t* vp ) { vp=_vcptr(vp); if(cmIsFlag((vp->flags & kTypeDsvMask),kSymDsvFl))    return vp->u.u;  assert(0); return cmInvalidId; } 
 cmJsonNode_t*  cmDsvJson(   const cmDspValue_t* vp ) { vp=_vcptr(vp); if(cmIsFlag((vp->flags & kTypeDsvMask),kJsonDsvFl))   return vp->u.j;  assert(0); return NULL; }
 
@@ -659,6 +663,17 @@ cmReal_t       cmDsvGetReal(   const cmDspValue_t* vp  )
       assert(0);
   }
   return 0;
+} 
+
+void*       cmDsvGetPtr(   const cmDspValue_t* vp  )
+{
+  vp = _vcptr(vp);
+
+
+  if( (vp->flags & kTypeDsvMask) == kPtrDsvFl )
+    return vp->u.vp;
+
+  return NULL;
 } 
 
 unsigned int   cmDsvGetSymbol(   const cmDspValue_t* vp ) 
@@ -1266,6 +1281,7 @@ unsigned  cmDsvSerialByteCount( const cmDspValue_t* vp )
       case kDoubleDsvFl:
       case kSampleDsvFl:
       case kRealDsvFl:
+      case kPtrDsvFl:
       case kSymDsvFl:
         // these types are stored as part of the type record
         // and therefore don't need any extra storage
@@ -1371,6 +1387,7 @@ cmDsvRC_t cmDsvSerialize( const cmDspValue_t* vp, void* buf, unsigned bufByteCnt
       case kDoubleDsvFl:
       case kSampleDsvFl:
       case kRealDsvFl:
+      case kPtrDsvFl:
       case kSymDsvFl:
         // these types are stored as part of the type record
         // and therefore don't need any extra storage
@@ -1501,6 +1518,7 @@ void cmDsvPrint( const cmDspValue_t* vp, const cmChar_t* label, cmRpt_t* rpt )
       case kDoubleDsvFl: cmRptPrintf(rpt,"%s%f ",lbl,vp->u.d);  break;
       case kSampleDsvFl: cmRptPrintf(rpt,"%s%f ",lbl,vp->u.a);  break;
       case kRealDsvFl:   cmRptPrintf(rpt,"%s%f ",lbl,vp->u.r);  break;
+      case kPtrDsvFl:    cmRptPrintf(rpt,"%s%p ",lbl,vp->u.vp); break;
       case kStrzDsvFl:   cmRptPrintf(rpt,"%s%s ",lbl,vp->u.z);  break;
       case kSymDsvFl:    cmRptPrintf(rpt,"%s%i ",lbl,vp->u.u); break;
       case kJsonDsvFl:   cmJsonPrintTree(vp->u.j,rpt);   break;    
