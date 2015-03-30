@@ -271,6 +271,7 @@ extern "C" {
   double          cmDspDouble( cmDspInst_t* inst, unsigned varId );
   cmSample_t      cmDspSample( cmDspInst_t* inst, unsigned varId );
   cmReal_t        cmDspReal(   cmDspInst_t* inst, unsigned varId );
+  void*           cmDspPtr(    cmDspInst_t* inst, unsigned varId );
   const cmChar_t* cmDspStrcz(   cmDspInst_t* inst, unsigned varId );
   unsigned        cmDspSymbol( cmDspInst_t* inst, unsigned varId );
   cmJsonNode_t*   cmDspJson(   cmDspInst_t* inst, unsigned varId );
@@ -346,6 +347,7 @@ extern "C" {
   cmDspRC_t   cmDspSetDouble(        cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, double          val );
   cmDspRC_t   cmDspSetSample(        cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, cmSample_t      val );
   cmDspRC_t   cmDspSetReal(          cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, cmReal_t        val );
+  cmDspRC_t   cmDspSetPtr(           cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, void*           val );
   cmDspRC_t   cmDspSetStrcz(         cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, const cmChar_t* val );
   cmDspRC_t   cmDspSetSymbol(        cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, unsigned        val );
   cmDspRC_t   cmDspSetJson(          cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, cmJsonNode_t*   val );
@@ -401,7 +403,8 @@ extern "C" {
   cmDspRC_t  cmDspUiLabelCreate(       cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned lblVarId,  unsigned alignVarId );
   cmDspRC_t  cmDspUiTimeLineCreate(    cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned tlFileVarId,  unsigned audPathVarId, unsigned selVarId, unsigned cursVarId );
   cmDspRC_t  cmDspUiScoreCreate(       cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned scFileVarId,  unsigned selVarId, unsigned smpIdxVarId, unsigned pitchVarId, unsigned velVarId, unsigned locIdxVarIdx, unsigned evtIdxVarIdx, unsigned dynLvlVarIdx, unsigned valTypeVarIdx, unsigned valueVarIdx );
-  cmDspRC_t  cmDspUiTakeSeqBldrCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned fileNameVarId );
+  cmDspRC_t  cmDspUiTakeSeqBldrCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned fileNameVarId, unsigned ptrVarId, unsigned selVarId, unsigned refreshVarId );
+  cmDspRC_t  cmDspUiTakeSeqRendCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned ptrVarId,      unsigned refreshVarId, unsigned selVarId  );
 
   cmDspRC_t  cmDspUiNewColumn(        cmDspCtx_t* ctx, unsigned colW );
   cmDspRC_t  cmDspUiInsertHorzBorder( cmDspCtx_t* ctx );

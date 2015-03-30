@@ -764,6 +764,15 @@ cmReal_t cmDspReal( cmDspInst_t* inst, unsigned varId )
   return cmDsvGetReal(vp); 
 }
 
+void* cmDspPtr( cmDspInst_t* inst, unsigned varId )
+{
+  cmDspValue_t* vp;
+  if(_cmDspVarValuePtr(inst,varId,&vp) != kOkDspRC )
+    return NULL;
+
+  return cmDsvPtr(vp);
+}
+
 const cmChar_t* cmDspStrcz( cmDspInst_t* inst, unsigned varId )
 {
   cmDspValue_t* vp;
@@ -922,6 +931,10 @@ cmDspRC_t   cmDspValueSet( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, c
 
     case kRealDsvFl:
       cmDsvSetReal(dvp, cmDsvGetReal(svp));
+      break;
+
+    case kPtrDsvFl:
+      cmDsvSetPtr(dvp, cmDsvGetPtr(svp));
       break;
 
     case kSymDsvFl:
@@ -1181,6 +1194,13 @@ cmDspRC_t  cmDspSetReal(    cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, 
 { 
   cmDspValue_t v;
   cmDsvSetReal(&v,val);
+  return cmDspValueSet(ctx, inst, varId, &v, 0);
+}
+
+cmDspRC_t  cmDspSetPtr(    cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned varId, void* val )
+{ 
+  cmDspValue_t v;
+  cmDsvSetPtr(&v,val);
   return cmDspValueSet(ctx, inst, varId, &v, 0);
 }
 

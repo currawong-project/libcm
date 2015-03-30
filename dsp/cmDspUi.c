@@ -415,20 +415,44 @@ cmDspRC_t  cmDspUiScoreCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned scFi
   return rc;
 }
 
-cmDspRC_t  cmDspUiTakeSeqBldrCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned fileNameVarId )
+cmDspRC_t  cmDspUiTakeSeqBldrCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned fileNameVarId, unsigned ptrVarId, unsigned selVarId, unsigned refreshVarId )
 {
   cmDspRC_t    rc;
-  unsigned     arr[] = { fileNameVarId  };
+  unsigned     arr[] = { fileNameVarId, ptrVarId, selVarId, refreshVarId  };
   cmDspValue_t v;
   unsigned     vn    = sizeof(arr)/sizeof(arr[0]);
   cmDsvSetUIntMtx(&v,arr,vn,1);
 
-  // tell the UI to create a time-line control
+  // tell the UI to create a sequence builder  control
   if((rc = _cmDspUiMsg( ctx, kUiSelAsId, kTakeSeqBldrDuiId, 0, inst, cmInvalidId, &v )) != kOkDspRC )
     return cmDspInstErr(ctx,inst,kUiEleCreateFailDspRC,"Take Sequence Builder UI element create failed.");
 
   // Setting kUiDsvFl will cause variable values to be sent to the UI whenever they change.
   cmDspInstVarSetFlags( ctx, inst, fileNameVarId,  kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, ptrVarId,       kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, selVarId,       kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, refreshVarId,   kUiDsvFl );
+
+  return rc;
+}
+
+
+cmDspRC_t  cmDspUiTakeSeqRendCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned ptrVarId, unsigned refreshVarId, unsigned selVarId )
+{
+  cmDspRC_t    rc;
+  unsigned     arr[] = { ptrVarId, refreshVarId, selVarId  };
+  cmDspValue_t v;
+  unsigned     vn    = sizeof(arr)/sizeof(arr[0]);
+  cmDsvSetUIntMtx(&v,arr,vn,1);
+
+  // tell the UI to create a sequence render  control
+  if((rc = _cmDspUiMsg( ctx, kUiSelAsId, kTakeSeqRendDuiId, 0, inst, cmInvalidId, &v )) != kOkDspRC )
+    return cmDspInstErr(ctx,inst,kUiEleCreateFailDspRC,"Take Sequence Render UI element create failed.");
+
+  // Setting kUiDsvFl will cause variable values to be sent to the UI whenever they change.
+  cmDspInstVarSetFlags( ctx, inst, ptrVarId,       kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, refreshVarId,   kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, selVarId,       kUiDsvFl );
 
   return rc;
 }
