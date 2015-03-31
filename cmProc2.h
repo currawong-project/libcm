@@ -1054,6 +1054,51 @@ extern "C" {
   cmRC_t     cmFbCtlFinal(cmFbCtl_t* p );
   cmRC_t     cmFbCtlExec( cmFbCtl_t* p, const cmReal_t* xV );
 
+  //-----------------------------------------------------------------------------------------------------------------------
+
+  typedef struct
+  {
+    cmObj obj;
+    cmReal_t* rmsV;  // rmsV[rmsN]
+    unsigned    rmsN;  // 
+    unsigned    rmsIdx;//
+    cmReal_t    rmsValue; // last RMS value
+    cmSample_t* envV;  // envV[envN]
+    unsigned    envN;  // atkSmp + rlsSmp;
+    unsigned    threshN;
+    unsigned    threshIdx;
+    float       threshLvl;
+    float       rlsLvl;
+    unsigned    envIdx;
+    double      gain;
+    unsigned    atkCnt;
+  } cmExpander;
+  
+  cmExpander* cmExpanderAlloc( cmCtx* c, cmExpander* p, double srate, unsigned procSmpCnt, double threshDb, double rlsDb, double threshMs, double rmsMs, double atkMs, double rlsMs );
+  cmRC_t      cmExpanderFree(  cmExpander** pp );
+  cmRC_t      cmExpanderInit( cmExpander* p, double srate, unsigned procSmpCnt, double threshDb, double rlsDb, double threshMs, double rmsMs, double atkMs, double rlsMs );
+  cmRC_t      cmExpanderFinal( cmExpander* p );
+  cmRC_t      cmExpanderExec( cmExpander* p, cmSample_t* x, cmSample_t* y, unsigned xyN );
+  cmRC_t      cmExpanderExecD( cmExpander* p, double* x, double* y, unsigned xyN );
+  //-----------------------------------------------------------------------------------------------------------------------
+  typedef struct
+  {
+    cmObj obj;
+    cmExpander** b;   // b[bandN]
+    unsigned    bandN; 
+    double      rmsValue;
+    unsigned    atkCnt;
+  } cmExpanderBank;
+
+
+  cmExpanderBank* cmExpanderBankAlloc( cmCtx* c, cmExpanderBank* p, unsigned bandN, double srate, unsigned procSmpCnt, double threshDb, double rlsDb, double threshMs, double rmsMs, double atkMs, double rlsMs );
+  cmRC_t      cmExpanderBankFree(  cmExpanderBank** pp );
+  cmRC_t      cmExpanderBankInit(  cmExpanderBank* p, unsigned bandN, double srate, unsigned procSmpCnt, double threshDb, double rlsDb, double threshMs, double rmsMs, double atkMs, double rlsMs );
+  cmRC_t      cmExpanderBankFinal( cmExpanderBank* p );
+  cmRC_t      cmExpanderBankExec(  cmExpanderBank* p, cmSample_t* x, unsigned bandN );
+  cmRC_t      cmExpanderBankExecD(  cmExpanderBank* p, double* x, unsigned bandN );
+  
+
   //------------------------------------------------------------------------------------------------------------
 
   enum
@@ -1080,6 +1125,7 @@ extern "C" {
 
     cmFrqTrk* ft;
     cmFbCtl_t*  fbc;
+    cmExpanderBank* exb;
 
     unsigned mode;
     double   thresh;

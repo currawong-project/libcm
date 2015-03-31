@@ -5494,13 +5494,330 @@ cmRC_t    cmFbCtlExec( cmFbCtl_t* p, const cmReal_t* x0V )
   return rc;
 }
 
+//=======================================================================================================================
+cmExpander* cmExpanderAlloc( cmCtx* c, cmExpander* p, 
+  double srate, unsigned procSmpCnt, double threshDb, double rlsDb, 
+  double threshMs, double rmsMs, double atkMs, double rlsMs )
+{
+  cmExpander* op = cmObjAlloc(cmExpander,c,p);
+  
+  if( srate > 0 )  
+    if( cmExpanderInit(op,srate, procSmpCnt, threshDb, rlsDb, threshMs, rmsMs, atkMs, rlsMs) != cmOkRC )
+      cmExpanderFree(&op);
+
+  return op;
+
+}
+
+cmRC_t      cmExpanderFree(  cmExpander** pp )
+{
+  cmRC_t rc = cmOkRC;
+  if( pp==NULL || *pp==NULL )
+    return rc;
+
+  cmExpander* p = *pp;
+  if((rc = cmExpanderFinal(p)) != cmOkRC )
+    return rc;
+
+  cmMemFree(p->rmsV);
+  cmMemFree(p->envV);
+  cmObjFree(pp);
+  return rc;
+
+}
+
+cmRC_t      cmExpanderInit( cmExpander* p, 
+  double srate, unsigned procSmpCnt, double threshDb, double rlsDb, 
+  double threshMs, double rmsMs, double atkMs, double rlsMs )
+{
+  cmRC_t rc;
+  unsigned i;
+
+  if((rc = cmExpanderFinal(p)) != cmOkRC )
+    return rc;
+  
+  unsigned atkN = cmMax(1,ceil( atkMs / (srate * 1000.0)));
+  unsigned rlsN = cmMax(1,ceil( rlsMs / (srate * 1000.0)));
+  
+  p->rmsN      = cmMax(1,ceil(rmsMs / (srate * 1000.0)));
+  p->rmsV      = cmMemResizeZ(cmReal_t,p->rmsV,p->rmsN);
+  p->rmsIdx    = 0;
+
+  p->envN      = atkN + rlsN;
+  p->envV      = cmMemResizeZ(cmSample_t,p->envV,p->envN);
+  p->envIdx    = p->envN;
+
+  p->threshN   = cmMax(1,ceil(threshMs / (srate * 1000.0)));
+  p->threshIdx = 0;
+
+  p->threshLvl = pow(10.0,(threshDb/20.0));
+  p->rlsLvl    = pow(10.0,(rlsDb/20.0));
+
+  p->gain = 1.0;
+  p->atkCnt = 0;
+
+  cmSample_t G = (1.0 - p->rlsLvl);
+  for(i=0; i<atkN; ++i)
+  {
+    p->envV[i] = 1.0 - G*i/atkN;
+  }
+
+  for(i=0; i<rlsN; ++i)
+  {
+    p->envV[atkN+i] = p->rlsLvl + (G*i/rlsN);
+  }
+
+  printf("rmsN:%i atkN:%i rlsN:%i thr:%f %f rls:%f %f\n",p->rmsN,atkN,rlsN,threshDb,p->threshLvl,rlsDb,p->rlsLvl);
+
+  //for(i=0; i<p->envN; ++i)
+  //  printf("%i %f\n",i,p->envV[i]);
+  //printf("\n");
+  
+  return cmOkRC;
+}
+
+cmRC_t      cmExpanderFinal( cmExpander* p )
+{  return cmOkRC; }
+
+cmRC_t      cmExpanderExec( cmExpander* p, cmSample_t* x, cmSample_t* y, unsigned xyN )
+{
+  unsigned i;
+
+  // update the RMS buffer
+  for(i=0; i<xyN; ++i)
+  {
+    // NOTE: using abs() instead of pow(x,2)
+    p->rmsV[p->rmsIdx] = abs(x[i]);
+
+    if( ++p->rmsIdx >= p->rmsN )
+      p->rmsIdx = 0;
+  }
+
+  // calculate the RMS
+  double rms = cmVOR_Mean(p->rmsV,p->rmsN);
+  
+  // update the duration that the signal has been above the threshold 
+  if( rms > p->threshLvl )
+    p->threshIdx += 1;
+  else
+    p->threshIdx = 0;
+
+  // begin the atk phase?
+  if( p->threshIdx > p->threshN && p->envIdx >= p->envN )
+  {
+    p->envIdx = 0;
+  }
+
+  // update the output
+  if( p->envIdx >= p->envN )
+  {
+    if( y != NULL )
+      cmVOS_Copy(y,xyN,x);   
+    
+  }
+  else
+  {
+    if( y == NULL )
+      y = x;
+
+    for(i=0; i<xyN && p->envIdx<p->envN; ++i,++p->envIdx)
+      y[i] = p->envV[p->envIdx] * x[i];
+  }
+ 
+  return cmOkRC;
+}
+
+cmRC_t cmExpanderExecD( cmExpander* p, double* x, double* y, unsigned xyN )
+{
+  unsigned i;
+
+  // update the RMS buffer
+  for(i=0; i<xyN; ++i)
+  {
+    // NOTE: using abs() instead of pow(x,2)
+    p->rmsV[p->rmsIdx] = x[i];
+
+    p->rmsIdx += 1;
+
+    if( p->rmsIdx >= p->rmsN )
+      p->rmsIdx = 0;
+  }
+
+  // calculate the RMS
+  p->rmsValue = cmVOR_Mean(p->rmsV,p->rmsN);  
+
+  // update the duration that the signal has been above the threshold 
+  if( p->rmsValue > p->threshLvl )
+    p->threshIdx += 1;
+  else
+    p->threshIdx = 0;
+
+  // begin the atk phase?
+  if( p->threshIdx > p->threshN && p->envIdx >= p->envN )
+  {
+    p->envIdx = 0;
+    p->atkCnt += 1;
+  }
+
+  /*
+  if( p->envIdx >= p->envN )
+    p->gain = 1.0;
+  else
+  {
+    p->gain = p->envV[p->envIdx];
+
+    p->envIdx += 1;    
+  }
+  */
+
+  // update the output
+  if( p->envIdx >= p->envN )
+  {
+    if( y != NULL )
+      cmVOD_Copy(y,xyN,x);   
+  }
+  else
+  {
+    if( y == NULL )
+      y = x;
+
+    for(i=0; i<xyN && p->envIdx<p->envN; ++i,++p->envIdx)
+      y[i] = p->envV[p->envIdx] * x[i];
+  }
+
+  return cmOkRC;
+}
+
+
+//=======================================================================================================================
+cmExpanderBank* cmExpanderBankAlloc( cmCtx* c, cmExpanderBank* p, unsigned bandN, double srate, unsigned procSmpCnt, double threshDb, double rlsDb, double threshMs, double rmsMs, double atkMs, double rlsMs )
+{
+  cmExpanderBank* op = cmObjAlloc(cmExpanderBank,c,p);
+  
+  if( bandN > 0 )  
+    if( cmExpanderBankInit(op,bandN,srate, procSmpCnt, threshDb, rlsDb, threshMs, rmsMs, atkMs, rlsMs) != cmOkRC )
+      cmExpanderBankFree(&op);
+
+  return op;
+
+}
+
+cmRC_t      cmExpanderBankFree(  cmExpanderBank** pp )
+{
+  cmRC_t rc = cmOkRC;
+  if( pp==NULL || *pp==NULL )
+    return rc;
+
+  cmExpanderBank* p = *pp;
+  if((rc = cmExpanderBankFinal(p)) != cmOkRC )
+    return rc;
+
+  cmMemFree(p->b);
+  cmObjFree(pp);
+  return rc;
+
+}
+
+cmRC_t      cmExpanderBankInit( cmExpanderBank* p, unsigned bandN, double srate, unsigned procSmpCnt, double threshDb, double rlsDb, double threshMs, double rmsMs, double atkMs, double rlsMs )
+{
+  cmRC_t rc;
+  unsigned i;
+
+  if((rc = cmExpanderBankFinal(p)) != cmOkRC )
+    return rc;
+  
+  p->bandN = bandN;
+  p->b = cmMemResizeZ(cmExpander*,p->b,p->bandN);
+
+  for(i=0; i<bandN; ++i)
+    p->b[i] = cmExpanderAlloc(p->obj.ctx,NULL,srate, procSmpCnt,threshDb,rlsDb,threshMs,rmsMs,atkMs,rlsMs);
+  
+  return cmOkRC;
+}
+
+cmRC_t      cmExpanderBankFinal( cmExpanderBank* p )
+{ 
+  unsigned i;
+  for(i=0; i<p->bandN; ++i)
+    cmExpanderFree(&p->b[i]);
+
+  return cmOkRC; 
+}
+
+cmRC_t      cmExpanderBankExec( cmExpanderBank* p, cmSample_t* x, unsigned bandN )
+{
+  assert( bandN <= p->bandN);
+  unsigned i;
+  for(i=0; i<bandN; ++i)
+  {
+    cmExpanderExec(p->b[i],&x[i],NULL,1);
+  }
+
+  return cmOkRC;
+}
+
+/*
+cmRC_t      cmExpanderBankExecD( cmExpanderBank* p, double* x, unsigned binN )
+{
+  unsigned i;
+  p->rmsValue = 0;
+  for(i=0; i<p->bandN; ++i)
+  {
+    
+    double sum = cmVOD_Sum(x,binN);
+    
+    cmExpanderExecD(p->b[i],&sum,NULL,1);
+
+    //printf("%f %f\n",sum, p->b[i]->rmsValue);
+
+    p->rmsValue += p->b[i]->rmsValue;    
+    
+    cmVOR_MultVS(x,binN,p->b[i]->gain);
+
+  }
+
+  p->rmsValue /= p->bandN;
+
+  return cmOkRC;
+}
+*/
+
+cmRC_t      cmExpanderBankExecD( cmExpanderBank* p, double* x, unsigned bandN )
+{
+  unsigned i;
+  //unsigned n = 3;
+  //unsigned no2 = n/2;
+  double xx;
+  p->rmsValue = 0;
+  p->atkCnt = 0;
+  for(i=0; i<p->bandN; ++i)
+  {    
+    unsigned atkCnt = p->b[i]->atkCnt;
+    
+    //if( i >= no2 && i < bandN-no2 )
+      //  xx = cmVOR_Mean(x-no2,n);
+    //else
+      xx = x[i];
+
+    cmExpanderExecD(p->b[i],&xx,NULL,1);
+
+    p->rmsValue += p->b[i]->rmsValue;    
+
+    p->atkCnt += p->b[i]->atkCnt != atkCnt;
+  }
+
+  p->rmsValue /= p->bandN;
+
+  return cmOkRC;
+}
+
 //------------------------------------------------------------------------------------------------------------
 cmSpecDist_t* cmSpecDistAlloc( cmCtx* ctx,cmSpecDist_t* ap, unsigned procSmpCnt, double srate, unsigned wndSmpCnt, unsigned hopFcmt, unsigned olaWndTypeId  )
 {
   cmSpecDist_t* p = cmObjAlloc( cmSpecDist_t, ctx, ap );
 
   //p->iSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
-  //p->oSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
+  p->oSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
 
   if( procSmpCnt != 0 )
   {
@@ -5521,7 +5838,7 @@ cmRC_t cmSpecDistFree( cmSpecDist_t** pp )
   
   cmSpecDistFinal(p);
   //cmVectArrayFree(&p->iSpecVa);
-  //cmVectArrayFree(&p->oSpecVa);
+  cmVectArrayFree(&p->oSpecVa);
   cmMemPtrFree(&p->hzV);
   cmMemPtrFree(&p->iSpecM);
   cmMemPtrFree(&p->oSpecM);
@@ -5534,7 +5851,7 @@ cmRC_t cmSpecDistFree( cmSpecDist_t** pp )
 
 cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsigned wndSmpCnt, unsigned hopFcmt, unsigned olaWndTypeId  )
 {
-  cmFrqTrkArgs_t fta;
+  //cmFrqTrkArgs_t fta;
 
   cmRC_t rc;
   if((rc = cmSpecDistFinal(p)) != cmOkRC )
@@ -5557,7 +5874,7 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
 
   p->pva = cmPvAnlAlloc(  p->obj.ctx, NULL, procSmpCnt, srate, wndSmpCnt, p->hopSmpCnt, flags );
   p->pvs = cmPvSynAlloc(  p->obj.ctx, NULL, procSmpCnt, srate, wndSmpCnt, p->hopSmpCnt, olaWndTypeId );
-
+  /*
   fta.srate         = srate;
   fta.chCnt         = 50;       
   fta.binCnt        = p->pva->binCnt;
@@ -5580,17 +5897,34 @@ cmRC_t cmSpecDistInit( cmSpecDist_t* p, unsigned procSmpCnt, double srate, unsig
   fta.levelFn       = "/home/kevin/temp/frqtrk/level.va";
   fta.specFn        = "/home/kevin/temp/frqtrk/spec.va";
   fta.attenFn       = "/home/kevin/temp/frqtrk/atten.va";
+  */
 
   //p->ft  = cmFrqTrkAlloc( p->obj.ctx, NULL, &fta );
 
+  /*
   cmFbCtlArgs_t fba;
   fba.srate = srate;
   fba.binCnt = p->pva->binCnt;
   fba.hopSmpCnt = p->hopSmpCnt;
   fba.bufMs = 500;
   fba.maxHz = 5000;
+  */
 
   //p->fbc  = cmFbCtlAlloc( p->obj.ctx, NULL, &fba );
+
+
+  //unsigned expBandN  = 1; //
+  unsigned expBandN  = 20000.0 / (p->srate / p->pva->binCnt);
+  double   expSrate      = p->pva->hopSmpCnt / srate;
+  unsigned expProcSmpCnt = 1; 
+  double expThreshDb = -80.0; 
+  double expRlsDb    = -18.0; 
+  double expThreshMs = 250.0; 
+  double expRmsMs    =  100.0; 
+  double expAtkMs    =  25.0; 
+  double expRlsMs    = 1000.0;
+
+  p->exb = cmExpanderBankAlloc( p->obj.ctx, NULL, expBandN, expSrate, expProcSmpCnt, expThreshDb, expRlsDb, expThreshMs, expRmsMs, expAtkMs, expRlsMs );
 
   p->spcBwHz   = cmMin(srate/2,10000);
   p->spcSmArg  = 0.05;
@@ -5628,12 +5962,13 @@ cmRC_t cmSpecDistFinal(cmSpecDist_t* p )
   cmRC_t rc = cmOkRC;
 
   //cmVectArrayWrite(p->iSpecVa, "/home/kevin/temp/frqtrk/iSpec.va");
-  //cmVectArrayWrite(p->oSpecVa, "/home/kevin/temp/frqtrk/oSpec.va");
+  cmVectArrayWrite(p->oSpecVa, "/home/kevin/temp/expand/oSpec.va");
 
   cmPvAnlFree(&p->pva);
   cmPvSynFree(&p->pvs);
   //cmFrqTrkFree(&p->ft);
   //cmFbCtlFree(&p->fbc);
+  cmExpanderBankFree(&p->exb);
   return rc;
 }
 
@@ -5949,7 +6284,17 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
 
       p->hi = (p->hi + 1) % p->hN;
     }
+
+    //unsigned binN = 12500.0 / (p->srate / p->pva->binCnt);
+    //cmExpanderBankExecD(p->exb, X1m, binN );
     
+    /*
+    cmExpanderBankExecD(p->exb, X1m, p->exb->bandN );
+
+    cmReal_t mean = cmVOR_Mean(X1m,p->exb->bandN);
+    cmReal_t arr[3] = { p->exb->rmsValue, mean, p->exb->atkCnt };
+    cmVectArrayAppendR(p->oSpecVa,arr,3);
+    */
 
     cmPvSynExec(p->pvs, X1m, p->pva->phsV );
   
