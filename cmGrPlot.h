@@ -219,6 +219,10 @@ extern "C" {
   // Given a plot object id return the associated object handle.
   cmGrPlObjH_t cmGrPlotObjectIdToHandle( cmGrPlH_t h, unsigned id );
 
+  // Callback func(arg,objH) for every object. 
+  typedef void (*cmGrPlotObjCbFunc_t)( void* arg, cmGrPlObjH_t oh );
+  void         cmGrPlotObjCb( cmGrPlH_t h, cmGrPlotObjCbFunc_t func, void* arg );
+
   // Pass a keyboard event to the plot system.
   void         cmGrPlotKeyEvent(   cmGrPlH_t h, cmGrH_t grH, unsigned eventFlags, cmGrKeyCodeId_t keycode );
   

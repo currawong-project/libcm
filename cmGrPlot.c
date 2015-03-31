@@ -180,7 +180,7 @@ bool _cmGrPlotObjIsFocused(cmGrPlotObj_t* op)
 { return _cmGrPlotObjIsEnabled(op) && op->p->fop==op; }
 
 bool _cmGrPlotObjIsSelected(cmGrPlotObj_t* op)
-{ return _cmGrPlotObjIsFocused(op) || cmIsFlag(op->stateFlags,kSelectGrPlFl); }
+{ return /*_cmGrPlotObjIsFocused(op) ||*/ cmIsFlag(op->stateFlags,kSelectGrPlFl); }
 
 void _cmGrPlotObjSetupCbArg( cmGrPlotCbArg_t* a, cmGrPlotObj_t* op, cmGrPlCbSelId_t selId )
 {
@@ -249,6 +249,8 @@ void _cmGrPlotObjSetFocus( cmGrPlotObj_t* op )
 
 }
 
+// Set the clear flag to clear all other selected objects if this object is 
+// selected.
 void _cmGrPlotObjSetSelect( cmGrPlotObj_t* op, bool clearFl )
 {
   // if the object is disabled or not selectable
@@ -257,7 +259,7 @@ void _cmGrPlotObjSetSelect( cmGrPlotObj_t* op, bool clearFl )
 
   unsigned stateFlags = op->stateFlags;
 
-  // if the application callback returns false then do change the select state of the object
+  // if the application callback returns false then do not change the select state of the object
   if(_cmGrPlotObjCb(op, kPreEventCbSelGrPlId, kSelectGrPlFl ) == false )
     return;
 
@@ -268,8 +270,15 @@ void _cmGrPlotObjSetSelect( cmGrPlotObj_t* op, bool clearFl )
 
     // clear the select flag on all objects that share op->parent
     for(; cop!=NULL; cop=cop->next)
-      if( cmHandlesAreEqual(cmGrObjParent(cop->grObjH),parentObjH) )
-        cop->stateFlags = cmClrFlag(cop->stateFlags,kSelectGrPlFl);
+      if( cop!=op && cmHandlesAreEqual(cmGrObjParent(cop->grObjH),parentObjH) )
+      {
+        if( cmIsFlag(cop->stateFlags,kSelectGrPlFl) )
+        {  
+          cop->stateFlags = cmClrFlag(cop->stateFlags,kSelectGrPlFl);
+          
+          _cmGrPlotObjCb(cop, kStateChangeGrPlId, kSelectGrPlFl );
+        }
+      }
   }
          
   op->stateFlags = cmTogFlag(stateFlags,kSelectGrPlFl);
@@ -603,7 +612,7 @@ bool _cmGrPlotObjEvent( cmGrObjFuncArgs_t* args, unsigned flags, unsigned key, i
   {
     cmGrPlotObj_t* cb_op = op;
 
-    // if this is a key up/dn event and 'op' is not the 'focused op' then callback
+    // if this is a key up/dn event and 'op' is not the 'focused op' then 
     // callback on the 'focused op' instead of this 'op'.
     if( (cmIsFlag(flags,kKeyDnGrFl) || cmIsFlag(flags,kKeyUpGrFl)) && op->p->fop != op )
       cb_op = op->p->fop;
@@ -834,17 +843,17 @@ cmGrPlRC_t cmGrPlotObjCreate(
 
 
   // set the default colors
-  op->drawColors[kSelectPlGrId] =   0xcd853f;
-  op->fillColors[kSelectPlGrId] =   0xdeb887; 
+  op->drawColors[kSelectPlGrId] =   kPeruGrId;
+  op->fillColors[kSelectPlGrId] =   kBurlyWoodGrId;
 
-  op->drawColors[kFocusPlGrId] =  0x483d8b;
+  op->drawColors[kFocusPlGrId] =  kDarkSlateBlueGrId;
   op->fillColors[kFocusPlGrId] =  0x8470ff; 
 
-  op->drawColors[kEnablePlGrId] =  0x000000;
+  op->drawColors[kEnablePlGrId] =  kBlackGrId;
   op->fillColors[kEnablePlGrId] =  0x009ff7; 
 
   op->drawColors[kDisablePlGrId] = 0xbebebe;
-  op->fillColors[kDisablePlGrId] = 0xd3d3de; 
+  op->fillColors[kDisablePlGrId] = kLightGrayGrId; 
 
   unsigned   grObjCfgFlags = 0;
   cmGrObjH_t parentGrH     = op->parent == NULL ? cmGrObjNullHandle : op->parent->grObjH;
@@ -1345,6 +1354,18 @@ cmGrPlObjH_t cmGrPlotObjectIndexToHandle( cmGrPlH_t h, unsigned index )
   return oh;
 }
 
+void         cmGrPlotObjCb( cmGrPlH_t h, cmGrPlotObjCbFunc_t func, void* arg  )
+{
+  cmGrPl_t*       p = _cmGrPlHandleToPtr(h);
+  cmGrPlotObj_t* op = p->list;
+  cmGrPlObjH_t   oh = cmGrPlObjNullHandle;
+
+  for(; op!=NULL; op=op->next)
+  {
+    oh.h = op;
+    func(arg,oh);
+  }
+}
 
 void  cmGrPlotKeyEvent(   cmGrPlH_t h, cmGrH_t grH, unsigned eventFlags, cmGrKeyCodeId_t keycode )
 {
