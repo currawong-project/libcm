@@ -1173,7 +1173,7 @@ cmGrRC_t cmGrObjDestroy( cmGrH_t h, cmGrObjH_t* ohp )
 }
 
 cmGrRC_t cmGrObjIsValid( cmGrH_t h, cmGrObjH_t  oh )
-{ return oh.h != NULL; }
+{ return h.h!=NULL && oh.h != NULL; }
 
 
 unsigned   cmGrObjId(        cmGrObjH_t oh )
