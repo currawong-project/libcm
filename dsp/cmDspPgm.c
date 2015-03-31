@@ -2744,14 +2744,74 @@ cmDspRC_t _cmDspSysPgm_Goertzel( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+cmDspRC_t _cmDspSysPgm_TakeSeqBldr( cmDspSysH_t h, void** userPtrPtr )
+{  
+  cmDspRC_t       rc         = kOkDspRC;
+  const cmChar_t* tksbFn     = "/home/kevin/src/cmkc/src/kc/data/takeSeqBldr0.js";
+  const cmChar_t* deviceName = "Fastlane";
+  const cmChar_t* portName   = "Fastlane MIDI A";
+
+  //const cmChar_t* deviceName = "DKV-M4";
+  //const cmChar_t* portName   = "DKV-M4 MIDI 1";
+
+  const cmChar_t* fn  = cmFsMakeFn(cmFsUserDir(),tksbFn,NULL,NULL );
+
+  cmDspInst_t* tsb   = cmDspSysAllocInst( h,"TakeSeqBldr", NULL, 1, tksbFn );
+  cmDspInst_t* tsr   = cmDspSysAllocInst( h,"TakeSeqRend", NULL, 0 );
+  cmDspInst_t* nano  = cmDspSysAllocInst( h,"NanoMap",     NULL, 0 );
+  cmDspInst_t* mop   = cmDspSysAllocInst( h,"MidiOut",     NULL, 2, deviceName, portName);
+
+  cmDspSysNewPage(h,"Controls");
+
+  //cmDspInst_t* fnp   =  cmDspSysAllocInst(h,"Fname",       NULL,  3, false,"JS Files (*.js)\tJS Files (*.{js})",fn);
+
+  cmDspInst_t* start = cmDspSysAllocInst( h,"Button", "start",    2, kButtonDuiId, 0.0 );
+  cmDspInst_t* stop  = cmDspSysAllocInst( h,"Button", "stop",     2, kButtonDuiId, 0.0 );
+  cmDspInst_t* cont  = cmDspSysAllocInst( h,"Button", "continue", 2, kButtonDuiId, 0.0 );
+
+  cmDspInst_t* prt  = cmDspSysAllocInst(  h, "Printer",  NULL, 1, ">" );
+    
+  // check for allocation errors
+  if((rc = cmDspSysLastRC(h)) != kOkDspRC )
+    goto errLabel;
+
+  cmDspSysInstallCb(   h, tsb,    "bldr",  tsr,    "bldr", NULL);    
+  cmDspSysInstallCb(   h, tsb, "refresh",  tsr, "refresh", NULL );
+  cmDspSysInstallCb(   h, tsb,     "sel",  tsr,     "sel", NULL );
+
+  cmDspSysInstallCb(   h, start,   "sym",   tsr,    "cmd", NULL);
+  cmDspSysInstallCb(   h, stop,    "sym",   tsr,    "cmd", NULL);
+  cmDspSysInstallCb(   h, cont,    "sym",   tsr,    "cmd", NULL);
+
+  cmDspSysInstallCb(   h, tsr,  "d1",     nano, "d1",     NULL);
+  cmDspSysInstallCb(   h, tsr,  "d0",     nano, "d0",     NULL);
+  cmDspSysInstallCb(   h, tsr,  "status", nano, "status", NULL);
+
+  cmDspSysInstallCb(   h, nano, "d1",     mop,  "d1",     NULL);
+  cmDspSysInstallCb(   h, nano, "d0",     mop,  "d0",     NULL);
+  cmDspSysInstallCb(   h, nano, "status", mop,  "status", NULL);
+
+  //cmDspSysInstallCb(   h, tsb, "sel", prt, "in", NULL );
+  cmDspSysInstallCb(   h, tsb, "refresh", prt, "in", NULL);
+ errLabel:
+
+  cmFsFreeFn(fn);
+
+  return rc;
+}
+
+
+
+
 
 _cmDspSysPgm_t _cmDspSysPgmArray[] = 
 {
+  { "tksb",          _cmDspSysPgm_Tksb,         NULL, NULL },
   { "time_line",     _cmDspSysPgm_TimeLine,     NULL, NULL },
+  { "seq-bldr",      _cmDspSysPgm_TakeSeqBldr,  NULL, NULL },
   { "multi-out",     _cmDspSysPgm_MultiOut,     NULL, NULL },
   { "multi-in",      _cmDspSysPgm_MultiIn,     NULL, NULL },
   { "goertzel",      _cmDspSysPgm_Goertzel,     NULL, NULL },
-  { "kr_live",       _cmDspSysPgm_KrLive,       NULL, NULL },
   { "main",          _cmDspSysPgm_Main,         NULL, NULL },
   { "array",         _cmDspSysPgm_Array,        NULL, NULL },
   { "line",          _cmDspSysPgm_Line,         NULL, NULL },
