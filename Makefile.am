@@ -80,6 +80,13 @@ cmSRC += src/libcm/app/cmSdb.c  src/libcm/app/cmTakeSeqBldr.c
 cmHDR += src/libcm/app/cmPickup.h src/libcm/cmRbm.h src/libcm/cmTaskMgr.h  src/libcm/cmSyncRecd.h
 cmSRC += src/libcm/app/cmPickup.c src/libcm/cmRbm.c src/libcm/cmTaskMgr.c  src/libcm/cmSyncRecd.c
 
+cmHDR += src/libcm/sa/cmSaProc.h  
+cmSRC += src/libcm/sa/cmSaProc.c
+
+if INC_SONICART
+  cmSRC += src/libcm/sa/ss0/surroundstereo.c src/libcm/sa/ss1/surroundstereo_1.c
+endif
+
 if OS_LINUX
  cmSRC += src/libcm/linux/cmFileSysLinux.c  src/libcm/linux/cmAudioPortAlsa.c src/libcm/linux/cmMidiAlsa.c
  cmHDR += src/libcm/linux/cmFileSysLinux.h  src/libcm/linux/cmAudioPortAlsa.h
