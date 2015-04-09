@@ -3733,6 +3733,7 @@ enum
   kEndLnId,
   kDurLnId,
   kCmdLnId,
+  kRateLnId,
   kOutLnId,
 };
 
@@ -3752,6 +3753,7 @@ typedef struct
   unsigned    offSymId;
   unsigned    resetSymId;
   unsigned    curSmpIdx;
+  double      phase;
   bool        onFl;
 } cmDspLine_t;
 
@@ -3762,6 +3764,7 @@ cmDspInst_t*  _cmDspLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned 
     1,   "end",   kEndLnId,   0, 0, kInDsvFl   | kDoubleDsvFl | kReqArgDsvFl, "End value.",
     1,   "dur",   kDurLnId,   0, 0, kInDsvFl   | kDoubleDsvFl | kReqArgDsvFl, "Duration (ms)",
     1,   "cmd",   kCmdLnId,   0, 0, kInDsvFl   | kSymDsvFl    | kOptArgDsvFl, "Command: on | off | reset",
+    1,   "rate",  kRateLnId,  0, 0, kInDsvFl   | kDoubleDsvFl | kOptArgDsvFl, "Output messages per second",
     1,   "out",   kOutLnId,   0, 0, kOutDsvFl  | kDoubleDsvFl,                "Output",
     0 );
 
@@ -3769,10 +3772,12 @@ cmDspInst_t*  _cmDspLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned 
     return NULL;
 
   cmDspSetDefaultDouble( ctx, &p->inst, kOutLnId, 0.0, cmDspDefaultDouble(&p->inst,kBegLnId) );
+  cmDspSetDefaultDouble(   ctx, &p->inst, kRateLnId, 0.0, 0.0 );
 
   p->onSymId    = cmSymTblRegisterStaticSymbol(ctx->stH,"on");
   p->offSymId   = cmSymTblRegisterStaticSymbol(ctx->stH,"off");
   p->resetSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"reset");
+ 
 
   return &p->inst;
 }
@@ -3788,6 +3793,7 @@ cmDspRC_t _cmDspLineReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   cmDspLine_t* p   = (cmDspLine_t*)inst;
   p->curSmpIdx = 0;
   p->onFl      = false;
+  p->phase     = 0;
   return cmDspApplyAllDefaults(ctx,inst);
 }
 
@@ -3799,12 +3805,21 @@ cmDspRC_t _cmDspLineExec( cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   if( p->onFl == false )
     return kOkDspRC;
 
+  unsigned   sPc       = cmDspSamplesPerCycle(ctx);
   double     beg       = cmDspDouble(inst,kBegLnId);
   double     end       = cmDspDouble(inst,kEndLnId);
+  double     rate      = cmDspDouble(inst,kRateLnId);
   double     ms        = cmDspDouble(inst,kDurLnId);
   double     durSmpCnt = floor(ms * cmDspSampleRate(ctx) / 1000);
   double     out       = beg + (end - beg) * p->curSmpIdx / durSmpCnt;
- 
+  double     phsMax    = rate==0 ? sPc : cmDspSampleRate(ctx) / rate; 
+  
+  // we can never output with a period shorter than 
+  // the length of one audio buffer
+  if( phsMax < sPc )
+    phsMax = sPc;
+
+
   if( beg < end )
   {
     if( out >= end )
@@ -3822,9 +3837,15 @@ cmDspRC_t _cmDspLineExec( cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
     }
   }
 
-  cmDspSetDouble(ctx,inst,kOutLnId,out);
+  p->phase     += sPc;
 
-  p->curSmpIdx += cmDspSamplesPerCycle(ctx);
+  if( p->phase >= sPc )
+  {
+    cmDspSetDouble(ctx,inst,kOutLnId,out);
+    p->phase -= sPc;
+  }
+
+  p->curSmpIdx += sPc;
 
   return rc;
 }
