@@ -405,6 +405,7 @@ extern "C" {
   cmDspRC_t  cmDspUiScoreCreate(       cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned scFileVarId,  unsigned selVarId, unsigned smpIdxVarId, unsigned pitchVarId, unsigned velVarId, unsigned locIdxVarIdx, unsigned evtIdxVarIdx, unsigned dynLvlVarIdx, unsigned valTypeVarIdx, unsigned valueVarIdx );
   cmDspRC_t  cmDspUiTakeSeqBldrCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned fileNameVarId, unsigned ptrVarId, unsigned selVarId, unsigned refreshVarId );
   cmDspRC_t  cmDspUiTakeSeqRendCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned ptrVarId,      unsigned refreshVarId, unsigned selVarId  );
+  cmDspRC_t  cmDspUi2dCreate(          cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned xVarId,        unsigned yVarId,       unsigned radiusVarId, unsigned angleVarId);
 
   cmDspRC_t  cmDspUiNewColumn(        cmDspCtx_t* ctx, unsigned colW );
   cmDspRC_t  cmDspUiInsertHorzBorder( cmDspCtx_t* ctx );

@@ -457,6 +457,27 @@ cmDspRC_t  cmDspUiTakeSeqRendCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigne
   return rc;
 }
 
+cmDspRC_t  cmDspUi2dCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned xVarId, unsigned yVarId, unsigned radiusVarId, unsigned angleVarId)
+{
+  cmDspRC_t    rc;
+  unsigned     arr[] = { xVarId, yVarId, radiusVarId, angleVarId  };
+  cmDspValue_t v;
+  unsigned     vn    = sizeof(arr)/sizeof(arr[0]);
+  cmDsvSetUIntMtx(&v,arr,vn,1);
+
+  // tell the UI to create a sequence render  control
+  if((rc = _cmDspUiMsg( ctx, kUiSelAsId, kTwodDuiId, 0, inst, cmInvalidId, &v )) != kOkDspRC )
+    return cmDspInstErr(ctx,inst,kUiEleCreateFailDspRC,"2-d UI element create failed.");
+
+  // Setting kUiDsvFl will cause variable values to be sent to the UI whenever they change.
+  cmDspInstVarSetFlags( ctx, inst, xVarId,      kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, yVarId,      kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, radiusVarId, kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, angleVarId,  kUiDsvFl );
+
+  return rc;
+}
+
 
 cmDspRC_t  cmDspUiNewColumn(    cmDspCtx_t* ctx, unsigned colW )
 {
