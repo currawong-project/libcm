@@ -347,7 +347,8 @@ cmDspRC_t _cmDspSysPgm_PlaySine( cmDspSysH_t h, void** userPtrPtr )
 cmDspRC_t _cmDspSysPgm_PlayFile( cmDspSysH_t h, void** userPtrPtr )
 {
   bool            useBuiltInFl = true;
-  const char*     fn0          = "media/audio/20110723-Kriesberg/Audio Files/Piano 3_01.wav";
+  //const char*     fn0          = "media/audio/20110723-Kriesberg/Audio Files/Piano 3_01.wav";
+  const char*     fn0 = "media/audio/sourcetone/Ella & Louis - Under A Blanket Of Blue";
   //int             beg          = 6900826;
   //int             end          = 13512262;
   const cmChar_t* fn           = cmFsMakeFn(cmFsUserDir(),fn0,NULL,NULL );
@@ -2560,29 +2561,29 @@ cmDspRC_t _cmDspSysPgm_Line( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc = kOkDspRC;
 
-  cmDspInst_t* beg  = cmDspSysAllocScalar( h, "beg", -10.0, 10.0, 1.0, 0.0 );
-  cmDspInst_t* end  = cmDspSysAllocScalar( h, "end", -10.0, 10.0, 1.0, 1.0 );
-  cmDspInst_t* dur  = cmDspSysAllocScalar( h, "dur", 0.0, 10000.0, 1.0, 0.0 );  
-  cmDspInst_t* reset = cmDspSysAllocButton(h, "reset", 0.0 );
+  cmDspInst_t* beg   = cmDspSysAllocScalar( h, "beg", -10.0, 10.0, 1.0, 0.0 );
+  cmDspInst_t* end   = cmDspSysAllocScalar( h, "end", -10.0, 10.0, 1.0, 1.0 );
+  cmDspInst_t* dur   = cmDspSysAllocScalar( h, "dur", 0.0, 10000.0, 1.0, 0.0 );  
+  cmDspInst_t* reset = cmDspSysAllocButton( h, "reset", 0.0 );
+  cmDspInst_t* line  = cmDspSysAllocInst(   h, "Line", NULL, 3, 0.0, 10.0, 1000.0 );
 
-  cmDspInst_t* line   = cmDspSysAllocInst( h, "Line", NULL, 3, 0.0, 10.0, 1000.0 );
+  cmDspInst_t* mtr   = cmDspSysAllocInst( h, "Meter", NULL, 3, -10.0, 10.0, 0.0  );
 
-  cmDspInst_t* mtr  = cmDspSysAllocInst( h, "Meter", NULL, 3, -10.0, 10.0, 0.0  );
-
-  cmDspInst_t* pr1  = cmDspSysAllocInst( h, "Printer", NULL, 1, ">" );
+  cmDspInst_t* pr1   = cmDspSysAllocInst( h, "Printer", NULL, 1, ">" );
 
   // check for allocation errors
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
     goto errLabel;
   
-  cmDspSysInstallCb(   h, beg, "val", line, "beg",NULL);
-  cmDspSysInstallCb(   h, end, "val", line, "end",NULL);
-  cmDspSysInstallCb(   h, dur, "val", line, "dur",NULL);
+  cmDspSysInstallCb(   h, beg, "val", line, "beg", NULL);
+  cmDspSysInstallCb(   h, end, "val", line, "end", NULL);
+  cmDspSysInstallCb(   h, dur, "val", line, "dur", NULL);
 
 
-  cmDspSysInstallCb(   h, line,  "out", mtr, "in", NULL );
+  cmDspSysInstallCb(   h, line,  "out", mtr,  "in",  NULL );
   cmDspSysInstallCb(   h, reset, "sym", line, "cmd", NULL );
-  cmDspSysInstallCb(   h, line, "out", pr1, "in", NULL );
+  cmDspSysInstallCb(   h, line,  "out", pr1,  "in",  NULL );
+
  errLabel:
   return rc;
 }
@@ -2801,11 +2802,103 @@ cmDspRC_t _cmDspSysPgm_TakeSeqBldr( cmDspSysH_t h, void** userPtrPtr )
 }
 
 
+cmDspRC_t _cmDspSysPgm_TwoD( cmDspSysH_t h, void** userPtrPtr )
+{
+  cmDspRC_t       rc         = kOkDspRC;
 
+  cmDspInst_t* twod = cmDspSysAllocInst(h,"twod", NULL, 0);
+  cmDspInst_t* aprt  = cmDspSysAllocInst(h,"Printer",NULL, 1, "a: ");
+  cmDspInst_t* rprt  = cmDspSysAllocInst(h,"Printer",NULL, 1, "r: ");
+
+  // check for allocation errors
+  if((rc = cmDspSysLastRC(h)) != kOkDspRC )
+    goto errLabel;
+  
+  cmDspSysInstallCb(h, twod, "angle",  aprt, "in", NULL );
+  cmDspSysInstallCb(h, twod, "radius", rprt, "in", NULL );
+
+ errLabel:
+  return rc;
+}
+
+cmDspRC_t _cmDspSysPgm_BinEnc( cmDspSysH_t h, void** userPtrPtr )
+{
+  cmDspRC_t       rc         = kOkDspRC;
+
+  double durMs    = 10000.0;  
+  double lineHz   = 0.2;
+  double maxDurMs = 60000.0;
+  double azimBeg  =     0.0;
+  double azimEnd  =   360.0;
+  const char* fn1 = "media/audio/sourcetone/Jazz/Ella & Louis - Under A Blanket Of Blue";
+  const char* fn0 = "temp/comhear/drw/monty.wav";
+  
+  cmDspInst_t* twod = cmDspSysAllocInst( h, "twod",       NULL, 0);
+  cmDspInst_t* php  = cmDspSysAllocInst( h, "Phasor",     NULL, 0 );
+  cmDspInst_t* wtp  = cmDspSysAllocInst( h, "WaveTable",  NULL, 2, ((int)cmDspSysSampleRate(h)), 1 );
+  cmDspInst_t* bep  = cmDspSysAllocInst( h, "BinauralEnc",NULL, 1, 0);
+
+  cmDspInst_t* ao0p = cmDspSysAllocInst( h, "AudioOut", NULL, 1, 0  );
+  cmDspInst_t* ao1p = cmDspSysAllocInst( h, "AudioOut", NULL, 1, 1  );
+
+
+  cmDspSysNewPage(h,"Controls");  
+
+  const cmChar_t* fn    = cmFsMakeFn(cmFsUserDir(),fn0,NULL,NULL );
+  cmDspInst_t*    fnp   = cmDspSysAllocInst(   h,"Fname", NULL,  3, false,"Audio Files (*.wav,*.aiff,*.aif)\tAudio Files (*.{wav,aiff,aif})",fn);
+  cmDspInst_t*    beg   = cmDspSysAllocScalar( h, "beg", 0.0, azimEnd,  1.0, azimBeg );
+  cmDspInst_t*    end   = cmDspSysAllocScalar( h, "end", 0.0, azimEnd,  1.0, azimEnd );
+  cmDspInst_t*    dur   = cmDspSysAllocScalar( h, "dur", 0.0, maxDurMs, 1.0, durMs );  
+  cmDspInst_t*    reset = cmDspSysAllocButton( h, "reset", 0.0 );
+  cmDspInst_t*    azm   = cmDspSysAllocScalar( h, "azimuth", azimBeg, azimEnd, 1.0, 0.0 );
+  cmDspInst_t*    angle = cmDspSysAllocScalar( h, "angle",   azimBeg, azimEnd, 1.0, 0.0 );
+  cmDspInst_t*    mode  = cmDspSysAllocScalar( h, "mode", 0.0, 1.0, 1.0, 0.0 );
+  cmDspInst_t*    gain  = cmDspSysAllocScalar( h, "gain", 0.0,10.0, 0.01, 1.0 );
+
+  cmDspInst_t* line  = cmDspSysAllocInst(   h, "Line", NULL, 3, azimBeg, azimEnd, durMs, lineHz );
+  cmDspInst_t* prt   = cmDspSysAllocInst(   h, "Printer",  NULL, 1, ">" );
+
+  // check for allocation errors
+  if((rc = cmDspSysLastRC(h)) != kOkDspRC )
+    goto errLabel;
+
+  cmDspSysConnectAudio(h, php,  "out",  wtp,  "phs" );  // phasor -> wave table
+  cmDspSysConnectAudio(h, wtp,  "out",  bep,  "in" );
+  cmDspSysConnectAudio(h, bep,  "out0", ao0p, "in" );   // wave table -> audio out
+  cmDspSysConnectAudio(h, bep,  "out1", ao1p, "in" );   // 
+
+  cmDspSysInstallCb(   h, fnp,  "out", wtp,  "fn", NULL);    
+  
+  cmDspSysInstallCb(   h, beg,  "val", line, "beg", NULL);
+  cmDspSysInstallCb(   h, end,  "val", line, "end", NULL);
+  cmDspSysInstallCb(   h, dur,  "val", line, "dur", NULL);
+  cmDspSysInstallCb(   h, reset,"sym", line, "cmd", NULL );
+
+  cmDspSysInstallCb(   h, line, "out",   azm, "val",  NULL );
+  cmDspSysInstallCb(   h, azm,  "val",   bep, "azim", NULL );
+
+  cmDspSysInstallCb(   h, twod, "angle", angle,"val", NULL );
+  cmDspSysInstallCb(   h, angle,"val",   bep, "azim", NULL );
+
+  cmDspSysInstallCb(   h, mode, "val",   bep, "mode", NULL );
+  
+  cmDspSysInstallCb(   h, twod, "angle", prt, "in", NULL );
+  cmDspSysInstallCb(   h, gain, "val",   ao0p, "gain", NULL );
+  cmDspSysInstallCb(   h, gain, "val",   ao1p, "gain", NULL );
+
+  return kOkDspRC;
+
+
+
+ errLabel:
+  return rc;
+}
 
 
 _cmDspSysPgm_t _cmDspSysPgmArray[] = 
 {
+  { "two-d",         _cmDspSysPgm_TwoD,         NULL, NULL },
+  { "bin-enc",       _cmDspSysPgm_BinEnc,       NULL, NULL },
   { "tksb",          _cmDspSysPgm_Tksb,         NULL, NULL },
   { "time_line",     _cmDspSysPgm_TimeLine,     NULL, NULL },
   { "seq-bldr",      _cmDspSysPgm_TakeSeqBldr,  NULL, NULL },
