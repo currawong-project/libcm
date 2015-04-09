@@ -44,6 +44,8 @@
 #include "cmVectOpsTemplateMain.h"
 #include "cmMidiPort.h"
 
+#include "sa/cmSaProc.h"
+
 /*
 About variables:
 1) Variables represent data fields within a DSP object.
@@ -5515,6 +5517,225 @@ struct cmDspClass_str* cmRsrcWrClassCons( cmDspCtx_t* ctx )
 }
 
 //==========================================================================================================================================
+enum
+{
+  kModeBeId,
+  kAzimBeId,
+  kElevBeId,
+  kDistBeId,
+  kAudioInBeId,
+  kAudioOut0BeId,
+  kAudioOut1BeId
+};
+
+typedef struct
+{
+  cmDspInst_t inst;
+  cmBinEnc*   bep;
+} cmDspBinEnc_t;
+ 
+cmDspClass_t _cmBeDC;
+
+cmDspInst_t*  _cmDspBinEncAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  cmDspVarArg_t args[] =
+  {
+    { "mode",    kModeBeId,        0, 0,   kInDsvFl  | kUIntDsvFl | kReqArgDsvFl, "Mode" },
+    { "azim",    kAzimBeId,        0, 0,   kInDsvFl  | kDoubleDsvFl,              "Azimuth" },
+    { "elev",    kElevBeId,        0, 0,   kInDsvFl  | kDoubleDsvFl,              "Elevation" },
+    { "dist",    kDistBeId,        0, 0,   kInDsvFl  | kDoubleDsvFl,              "Distance" },
+    { "in",      kAudioInBeId,     0, 0,   kInDsvFl  | kAudioBufDsvFl,            "Audio Input" },
+    { "out0",    kAudioOut0BeId,   0, 1,   kOutDsvFl | kAudioBufDsvFl,            "Audio Output 0" },
+    { "out1",    kAudioOut1BeId,   0, 1,   kOutDsvFl | kAudioBufDsvFl,            "Audio Output 1" },
+    { NULL, 0, 0, 0, 0 }
+  };
+
+  cmDspBinEnc_t* p = cmDspInstAlloc(cmDspBinEnc_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+  
+  cmDspSetDefaultUInt(   ctx,&p->inst, kModeBeId, 0, 0.0 );
+  cmDspSetDefaultDouble( ctx,&p->inst, kAzimBeId, 0, 0.0 );
+  cmDspSetDefaultDouble( ctx,&p->inst, kElevBeId, 0, 0.0 );
+  cmDspSetDefaultDouble( ctx,&p->inst, kDistBeId, 0, 0.0 );
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspBinEncFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t      rc = kOkDspRC;
+  cmDspBinEnc_t* p  = (cmDspBinEnc_t*)inst;
+
+  cmBinEncFree(&p->bep);
+
+  return rc;
+}
+
+cmDspRC_t _cmDspBinEncSetup(cmDspCtx_t* ctx, cmDspBinEnc_t* p )
+{
+  cmDspRC_t rc           = kOkDspRC;
+
+  cmBinEncFree(&p->bep);
+
+  p->bep = cmBinEncAlloc(ctx->cmProcCtx,NULL,cmDspSampleRate(ctx), cmDspSamplesPerCycle(ctx));
+
+  return rc;
+}
+
+cmDspRC_t _cmDspBinEncReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspBinEnc_t*   p  = (cmDspBinEnc_t*)inst;
+  cmDspRC_t    rc;
+
+  if((rc = cmDspApplyAllDefaults(ctx,inst)) != kOkDspRC )
+    return rc;
+
+  return _cmDspBinEncSetup(ctx,p);
+}
+
+cmDspRC_t _cmDspBinEncExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspBinEnc_t* p  = (cmDspBinEnc_t*)inst;
+  cmDspRC_t      rc = kOkDspRC;
+
+  unsigned          iChIdx  = 0;
+  const cmSample_t* ip      = cmDspAudioBuf(ctx,inst,kAudioInBeId,iChIdx);
+  unsigned          iSmpCnt = cmDspVarRows(inst,kAudioInBeId);
+
+  // if no connected
+  if( iSmpCnt == 0 )
+    return rc;
+  
+  unsigned          oChIdx   = 0;
+  cmSample_t*       o0p      = cmDspAudioBuf(ctx,inst,kAudioOut0BeId,oChIdx);
+  unsigned          oSmp0Cnt = cmDspVarRows(inst,kAudioOut0BeId);
+  cmSample_t*       o1p      = cmDspAudioBuf(ctx,inst,kAudioOut1BeId,oChIdx);
+  unsigned          oSmp1Cnt = cmDspVarRows(inst,kAudioOut0BeId);
+
+  assert( iSmpCnt==oSmp0Cnt && iSmpCnt==oSmp1Cnt );
+
+  cmBinEncExec( p->bep, ip, o0p, o1p, iSmpCnt );
+
+  return rc;
+}
+
+cmDspRC_t _cmDspBinEncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspBinEnc_t* p  = (cmDspBinEnc_t*)inst;
+  cmDspRC_t      rc = kOkDspRC;
+
+  cmDspSetEvent(ctx,inst,evt);
+
+  switch( evt->dstVarId )
+  {
+    case kModeBeId:
+      cmBinEncSetMode(p->bep, cmDspUInt(inst,kModeBeId));
+      break;
+
+    case kAzimBeId:
+    case kElevBeId:
+    case kDistBeId:
+      {
+        float azim = cmDspDouble(inst,kAzimBeId);
+        float elev = cmDspDouble(inst,kElevBeId);
+        float dist = cmDspDouble(inst,kDistBeId);
+        cmBinEncSetLoc(p->bep, azim, elev, dist );
+      }
+      break;
+
+    default:
+      { assert(0); }
+  }
+
+  return rc;
+}
+
+struct cmDspClass_str* cmBinEncClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmBeDC,ctx,"BinauralEnc",
+    NULL,
+    _cmDspBinEncAlloc,
+    _cmDspBinEncFree,
+    _cmDspBinEncReset,
+    _cmDspBinEncExec,
+    _cmDspBinEncRecv,
+    NULL,NULL,
+    "Binaural filter.");
+
+  return &_cmBeDC;
+}
+
+//==========================================================================================================================================
+enum
+{
+  kX2dId,
+  kY2dId,
+  kRadius2dId,
+  kAngle2dId
+};
+
+cmDspClass_t _cm2dDC;
+
+typedef struct
+{
+  cmDspInst_t inst;
+} cmDsp2d_t;
+
+cmDspInst_t*  _cmDsp2dAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  cmDspVarArg_t args[] =
+  {
+    { "x",     kX2dId,      0, 0, kOutDsvFl  | kDoubleDsvFl,  "X coordinate" },
+    { "y",     kY2dId,      0, 0, kOutDsvFl  | kDoubleDsvFl,  "Y coordinate"},
+    { "radius",kRadius2dId, 0, 0, kOutDsvFl  | kDoubleDsvFl,  "Radius"},
+    { "angle", kAngle2dId,  0, 0, kOutDsvFl  | kDoubleDsvFl,  "Angle"},
+    { NULL, 0, 0, 0, 0 }
+  };
+
+  cmDsp2d_t* p = cmDspInstAlloc(cmDsp2d_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+
+  cmDspSetDefaultDouble(ctx, &p->inst, kX2dId,       0.0, 0.0);
+  cmDspSetDefaultDouble(ctx, &p->inst, kY2dId,       0.0, 0.0);
+  cmDspSetDefaultDouble(ctx, &p->inst, kRadius2dId,  0.0, 0.0);
+  cmDspSetDefaultDouble(ctx, &p->inst, kAngle2dId,   0.0, 0.0);
+
+  // create the UI control
+  cmDspUi2dCreate(ctx,&p->inst,kX2dId,kY2dId,kRadius2dId,kAngle2dId);
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDsp2dReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspApplyAllDefaults(ctx,inst);
+  return kOkDspRC;
+}
+
+cmDspRC_t _cmDsp2dRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspSetEvent(ctx,inst,evt);
+
+  return kOkDspRC;
+}
+
+
+struct cmDspClass_str* cm2dClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cm2dDC,ctx,"twod",
+    NULL,
+    _cmDsp2dAlloc,
+    NULL,
+    _cmDsp2dReset,
+    NULL,
+    _cmDsp2dRecv,
+    NULL,
+    NULL,
+    "2d value control.");
+
+  return &_cm2dDC;
+}
+
+
+//==========================================================================================================================================
 
 //==========================================================================================================================================
 
@@ -5556,6 +5777,8 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmShiftBufClassCons,
   cmNetSendClassCons,
   cmRsrcWrClassCons,
+  cmBinEncClassCons,
+  cm2dClassCons,
 
   cmDelayClassCons,
   cmPShiftClassCons,
