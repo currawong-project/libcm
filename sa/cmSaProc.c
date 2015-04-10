@@ -20,10 +20,11 @@
 #include "cmSaProc.h"
 #include "cmVectOps.h"
 
-#define SS_IMPL
-#ifdef SS_IMPL
+#ifdef CM_SONICART
+
 #include "ss0/surroundstereo.h"
 #include "ss1/surroundstereo_1.h"
+
 #else
 void binauralEncoderProcessInit(long pNumInputs, long frames, int hrtfSet) {}
 void binauralEncoderProcessSetPosition(int clientNum, float cazimuth, float celevation) {}
