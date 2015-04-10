@@ -12,20 +12,19 @@
 
 
 // #define _24to32_aif( p ) ((int)( ((p[0]>127?255:0) << 24) + (((int)p[0]) << 16) +  (((int)p[1]) <<8) + p[2]))  // no-swap equivalent
-// See note in:_cmAudioFileReadAiffHeader()
+// See note in:_cmAudioFileReadFileHdr()
 // Note that this code byte swaps as it converts - this is to counter the byte swap that occurs in cmAudioFileReadInt().
 #define _24to32_aif( p ) ((int)( ((p[0]>127?255:0) <<  0) + (((int)p[2]) << 24) +  (((int)p[1]) <<16) + (((int)p[0]) << 8)))
 
 #define _24to32_wav( p ) ((int)( ((p[2]>127?255:0) << 24) + (((int)p[2]) << 16) +  (((int)p[1]) <<8) + p[0]))
 
+#define _cmAfSwap16(v)  cmSwap16(v)
+#define _cmAfSwap32(v)  cmSwap32(v)
+
 #ifdef cmBIG_ENDIAN
-#define _cmAfSwap16(v)  (v)
-#define _cmAfSwap32(v)  (v)
 #define _cmAifSwapFl    (0)
 #define _cmWavSwapFl    (1)
 #else
-#define _cmAfSwap16(v)  cmSwap16(v)
-#define _cmAfSwap32(v)  cmSwap32(v)
 #define _cmAifSwapFl    (1)
 #define _cmWavSwapFl    (0)
 #endif
@@ -61,7 +60,7 @@ typedef struct
   cmAudioFileMarker_t* markArray;
   unsigned             flags;
   cmChar_t*            fn;
-} cmAudioFileGuts;
+} cmAf_t;
 
 cmAudioErrRecd _cmAudioFileErrArray[] = 
 {
@@ -81,9 +80,9 @@ cmAudioErrRecd _cmAudioFileErrArray[] =
 
 cmAudioFileH_t cmNullAudioFileH = { NULL };
 
-cmAudioFileGuts* _cmAudioFileGutsPtr( cmAudioFileH_t h )
+cmAf_t* _cmAudioFileHandleToPtr( cmAudioFileH_t h )
 {
-  cmAudioFileGuts* p = (cmAudioFileGuts*)h.h;
+  cmAf_t* p = (cmAf_t*)h.h;
   
   if( p == NULL )
     assert(p!=NULL);
@@ -91,7 +90,7 @@ cmAudioFileGuts* _cmAudioFileGutsPtr( cmAudioFileH_t h )
   return p;
 }
 
-cmRC_t _cmAudioFileError( cmAudioFileGuts* p, cmRC_t rc )
+cmRC_t _cmAudioFileError( cmAf_t* p, cmRC_t rc )
 {
   if( rc > kUnknownErrAfRC )
     rc = kUnknownErrAfRC;
@@ -100,11 +99,11 @@ cmRC_t _cmAudioFileError( cmAudioFileGuts* p, cmRC_t rc )
   return rc;
 }
 
-cmAudioFileGuts* _cmAudioFileValidate( cmAudioFileH_t h, cmRC_t* rcPtr, bool writeFl )
+cmAf_t* _cmAudioFileValidate( cmAudioFileH_t h, cmRC_t* rcPtr, bool writeFl )
 {
   *rcPtr = kOkAfRC;
 
-  cmAudioFileGuts* p = _cmAudioFileGutsPtr(h);
+  cmAf_t* p = _cmAudioFileHandleToPtr(h);
 
   if( p == NULL )
     *rcPtr =  kInvalidHandleAfRC;
@@ -116,22 +115,22 @@ cmAudioFileGuts* _cmAudioFileValidate( cmAudioFileH_t h, cmRC_t* rcPtr, bool wri
   return *rcPtr == kOkAfRC ? p : NULL;
 }
 
-cmAudioFileGuts* _cmAudioFileReadGutsPtr( cmAudioFileH_t h, cmRC_t* rcPtr )
+cmAf_t* _cmAudioFileReadGutsPtr( cmAudioFileH_t h, cmRC_t* rcPtr )
 { return _cmAudioFileValidate( h, rcPtr, false ); }
 
-cmAudioFileGuts* _cmAudioFileWriteGutsPtr( cmAudioFileH_t h, cmRC_t* rcPtr )
+cmAf_t* _cmAudioFileWriteGutsPtr( cmAudioFileH_t h, cmRC_t* rcPtr )
 { return _cmAudioFileValidate( h, rcPtr, true ); }
 
 
 
-cmRC_t _cmAudioFileSeek( cmAudioFileGuts* p, long byteOffset, int origin )
+cmRC_t _cmAudioFileSeek( cmAf_t* p, long byteOffset, int origin )
 {
   if( fseek(p->fp,byteOffset,origin) != 0 )
     return _cmAudioFileError(p,kSeekFailAfRC);
   return kOkAfRC;
 }
 
-cmRC_t _cmAudioFileRead( cmAudioFileGuts* p, void* eleBuf, unsigned bytesPerEle, unsigned eleCnt )
+cmRC_t _cmAudioFileRead( cmAf_t* p, void* eleBuf, unsigned bytesPerEle, unsigned eleCnt )
 {
   if( fread(eleBuf,bytesPerEle,eleCnt,p->fp) != eleCnt )
     return _cmAudioFileError(p,kReadFailAfRC);
@@ -139,13 +138,12 @@ cmRC_t _cmAudioFileRead( cmAudioFileGuts* p, void* eleBuf, unsigned bytesPerEle,
   return kOkAfRC;
 }
 
-cmRC_t _cmAudioFileReadUInt32( cmAudioFileGuts* p, cmUInt32_t* valuePtr )
+cmRC_t _cmAudioFileReadUInt32( cmAf_t* p, cmUInt32_t* valuePtr )
 {
   cmRC_t rc;
 
   if(( rc = _cmAudioFileRead(p, valuePtr, sizeof(*valuePtr), 1 )) != kOkAfRC )
     return rc;
-
     
   if( cmIsFlag(p->info.flags,kSwapAfFl) )
       *valuePtr = _cmAfSwap32(*valuePtr);
@@ -154,7 +152,7 @@ cmRC_t _cmAudioFileReadUInt32( cmAudioFileGuts* p, cmUInt32_t* valuePtr )
 } 
 
 
-cmRC_t _cmAudioFileReadUInt16( cmAudioFileGuts* p, cmUInt16_t* valuePtr )
+cmRC_t _cmAudioFileReadUInt16( cmAf_t* p, cmUInt16_t* valuePtr )
 {
   cmRC_t rc;
 
@@ -167,7 +165,7 @@ cmRC_t _cmAudioFileReadUInt16( cmAudioFileGuts* p, cmUInt16_t* valuePtr )
   return rc;
 } 
 
-cmRC_t _cmAudioFileReadPascalString( cmAudioFileGuts* p, char s[kAudioFileLabelCharCnt] )
+cmRC_t _cmAudioFileReadPascalString( cmAf_t* p, char s[kAudioFileLabelCharCnt] )
 {
   cmRC_t rc;
   unsigned char n;
@@ -186,7 +184,7 @@ cmRC_t _cmAudioFileReadPascalString( cmAudioFileGuts* p, char s[kAudioFileLabelC
   return rc;
 }
 
-cmRC_t _cmAudioFileReadString( cmAudioFileGuts* p, char* s, unsigned sn )
+cmRC_t _cmAudioFileReadString( cmAf_t* p, char* s, unsigned sn )
 {
   cmRC_t rc;
   if((rc = _cmAudioFileRead(p,s,sn,1)) != kOkAfRC )
@@ -195,7 +193,7 @@ cmRC_t _cmAudioFileReadString( cmAudioFileGuts* p, char* s, unsigned sn )
   return kOkAfRC;
 }
 
-cmRC_t _cmAudioFileReadX80( cmAudioFileGuts* p, double* x80Ptr )
+cmRC_t _cmAudioFileReadX80( cmAf_t* p, double* x80Ptr )
 {
   unsigned char s[10];
   cmRC_t rc = kOkAfRC;
@@ -207,7 +205,7 @@ cmRC_t _cmAudioFileReadX80( cmAudioFileGuts* p, double* x80Ptr )
   return kOkAfRC;
 }
 
-cmRC_t _cmAudioFileReadChunkHdr( cmAudioFileGuts* p, cmUInt32_t* chkIdPtr, unsigned* chkByteCntPtr )
+cmRC_t _cmAudioFileReadChunkHdr( cmAf_t* p, cmUInt32_t* chkIdPtr, unsigned* chkByteCntPtr )
 {
   cmRC_t rc      = kOkAfRC;
 
@@ -226,7 +224,7 @@ cmRC_t _cmAudioFileReadChunkHdr( cmAudioFileGuts* p, cmUInt32_t* chkIdPtr, unsig
   return rc;
 }
 
-cmRC_t _cmAudioFileReadAiffHeader( cmAudioFileGuts* p, unsigned constFormId, unsigned constAifId, bool swapFl )
+cmRC_t _cmAudioFileReadFileHdr( cmAf_t* p, unsigned constFormId, unsigned constAifId, bool swapFl )
 {
   cmRC_t     rc         = kOkAfRC;
   cmUInt32_t formId     = 0;
@@ -280,7 +278,7 @@ cmRC_t _cmAudioFileReadAiffHeader( cmAudioFileGuts* p, unsigned constFormId, uns
   return rc;
 }
 
-cmRC_t _cmAudioFileReadCommChunk( cmAudioFileGuts* p )
+cmRC_t _cmAudioFileReadCommChunk( cmAf_t* p )
 {
   cmRC_t rc = kOkAfRC;
   cmUInt16_t ui16;
@@ -330,7 +328,7 @@ cmRC_t _cmAudioFileReadCommChunk( cmAudioFileGuts* p )
   return rc;
 }
 
-cmRC_t _cmAudioFileReadSsndChunk( cmAudioFileGuts* p )
+cmRC_t _cmAudioFileReadSsndChunk( cmAf_t* p )
 {
   cmRC_t rc = kOkAfRC;
 
@@ -350,7 +348,7 @@ cmRC_t _cmAudioFileReadSsndChunk( cmAudioFileGuts* p )
   return rc;
 }
 
-cmRC_t _cmAudioFileReadMarkerChunk( cmAudioFileGuts* p )
+cmRC_t _cmAudioFileReadMarkerChunk( cmAf_t* p )
 {
   cmRC_t rc = kOkAfRC;
 
@@ -388,7 +386,7 @@ cmRC_t _cmAudioFileReadMarkerChunk( cmAudioFileGuts* p )
   return rc;
 }
 
-cmRC_t _cmAudioFileReadFmtChunk( cmAudioFileGuts* p )
+cmRC_t _cmAudioFileReadFmtChunk( cmAf_t* p )
 {
   cmRC_t rc = kOkAfRC;
   unsigned short fmtId, chCnt, blockAlign, bits;
@@ -424,7 +422,7 @@ cmRC_t _cmAudioFileReadFmtChunk( cmAudioFileGuts* p )
   return rc;
 }
 
-cmRC_t _cmAudioFileReadDatcmhunk( cmAudioFileGuts* p, unsigned chkByteCnt )
+cmRC_t _cmAudioFileReadDatcmhunk( cmAf_t* p, unsigned chkByteCnt )
 {
   // if the 'fmt' chunk was read before the 'data' chunk then info.chCnt is non-zero
   if( p->info.chCnt != 0 )
@@ -437,7 +435,7 @@ cmRC_t _cmAudioFileReadDatcmhunk( cmAudioFileGuts* p, unsigned chkByteCnt )
   return kOkAfRC;
 }
 
-cmRC_t _cmAudioFileReadBextChunk( cmAudioFileGuts* p)
+cmRC_t _cmAudioFileReadBextChunk( cmAf_t* p)
 {
   cmRC_t rc = kOkAfRC;
 
@@ -472,8 +470,8 @@ cmAudioFileH_t cmAudioFileNewOpen( const cmChar_t* fn, cmAudioFileInfo_t* afInfo
   cmAudioFileH_t h;
   cmRC_t       rc        = kOkAfRC;
 
-  h.h = cmMemAllocZ( cmAudioFileGuts, 1 );  
-  cmErrSetup(&((cmAudioFileGuts*)h.h)->err,rpt,"Audio File");
+  h.h = cmMemAllocZ( cmAf_t, 1 );  
+  cmErrSetup(&((cmAf_t*)h.h)->err,rpt,"Audio File");
 
   if( fn != NULL )
     if((rc = cmAudioFileOpen(h,fn,afInfoPtr)) != kOkAfRC )
@@ -496,8 +494,8 @@ cmAudioFileH_t cmAudioFileNewCreate( const cmChar_t* fn, double srate, unsigned 
   cmAudioFileH_t h;
   cmRC_t rc = kOkAfRC;
 
-  h.h = cmMemAllocZ(cmAudioFileGuts,1);
-  cmErrSetup(&((cmAudioFileGuts*)h.h)->err,rpt,"Audio File");
+  h.h = cmMemAllocZ(cmAf_t,1);
+  cmErrSetup(&((cmAf_t*)h.h)->err,rpt,"Audio File");
   
   if( fn != NULL )
     if((rc = cmAudioFileCreate(h,fn,srate,bits,chCnt)) != kOkAfRC )
@@ -515,23 +513,15 @@ cmAudioFileH_t cmAudioFileNewCreate( const cmChar_t* fn, double srate, unsigned 
   return h;    
 }
 
-cmRC_t     cmAudioFileOpen(  cmAudioFileH_t h, const cmChar_t* fn, cmAudioFileInfo_t* infoPtr )
+cmRC_t _cmAudioFileOpen( cmAf_t* p, const cmChar_t* fn, const char* fileModeStr )
 {
   cmRC_t rc = kOkAfRC;
-
-  cmAudioFileGuts* p = _cmAudioFileGutsPtr(h);
-
-  // verify the file is closed before opening
-  if( cmAudioFileIsOpen(h) )
-    if((rc = cmAudioFileClose(&h)) != kOkAfRC )
-      return rc;
-
+  
   // zero the info record
   memset(&p->info,0,sizeof(p->info));
 
-
   // open the file
-  if((p->fp = fopen(fn,"rb")) == NULL )
+  if((p->fp = fopen(fn,fileModeStr)) == NULL )
   {
     p->fn = (cmChar_t*)fn; // set the file name so that the error msg can use it
     rc    = _cmAudioFileError(p,kOpenFailAfRC);
@@ -540,8 +530,8 @@ cmRC_t     cmAudioFileOpen(  cmAudioFileH_t h, const cmChar_t* fn, cmAudioFileIn
   }
 
   // read the file header
-  if((rc = _cmAudioFileReadAiffHeader(p,kAiffFileId,kAiffChkId,_cmAifSwapFl)) != kOkAfRC )
-    if((rc = _cmAudioFileReadAiffHeader(p,kWavFileId,kWavChkId,_cmWavSwapFl)) != kOkAfRC )
+  if((rc = _cmAudioFileReadFileHdr(p,kAiffFileId,kAiffChkId,_cmAifSwapFl)) != kOkAfRC )
+    if((rc = _cmAudioFileReadFileHdr(p,kWavFileId,kWavChkId,_cmWavSwapFl)) != kOkAfRC )
       goto errLabel;
   
   // seek past the file header
@@ -603,6 +593,32 @@ cmRC_t     cmAudioFileOpen(  cmAudioFileH_t h, const cmChar_t* fn, cmAudioFileIn
       goto errLabel;
   }
 
+ errLabel:
+  if( rc!=kOkAfRC && p->fp != NULL )
+  {
+    fclose(p->fp);
+    p->fp = NULL;
+  }
+
+  return rc;
+}
+
+
+cmRC_t     cmAudioFileOpen(  cmAudioFileH_t h, const cmChar_t* fn, cmAudioFileInfo_t* infoPtr )
+{
+  cmRC_t rc = kOkAfRC;
+
+  cmAf_t* p = _cmAudioFileHandleToPtr(h);
+
+  // verify the file is closed before opening
+  if( cmAudioFileIsOpen(h) )
+    if((rc = cmAudioFileClose(&h)) != kOkAfRC )
+      return rc;
+
+  // read the file header
+  if((rc = _cmAudioFileOpen(p, fn, "rb" )) != kOkAfRC )
+    goto errLabel;
+
   // seek to the first sample offset
   if((rc = _cmAudioFileSeek(p,p->smpByteOffs,SEEK_SET)) != kOkAfRC )
     goto errLabel;
@@ -617,11 +633,10 @@ cmRC_t     cmAudioFileOpen(  cmAudioFileH_t h, const cmChar_t* fn, cmAudioFileIn
 
  errLabel:
   cmAudioFileClose(&h);
-  return rc;
-  
+  return rc;  
 }
 
-cmRC_t   _cmAudioFileWriteBytes( cmAudioFileGuts* p, const void* b, unsigned bn )
+cmRC_t   _cmAudioFileWriteBytes( cmAf_t* p, const void* b, unsigned bn )
 {
   cmRC_t rc = kOkAfRC;
   if( fwrite( b, bn, 1, p->fp ) != 1 )
@@ -630,23 +645,27 @@ cmRC_t   _cmAudioFileWriteBytes( cmAudioFileGuts* p, const void* b, unsigned bn 
   return rc;
 }
 
-cmRC_t _cmAudioFileWriteId( cmAudioFileGuts* p, const char* s )
+cmRC_t _cmAudioFileWriteId( cmAf_t* p, const char* s )
 {  return _cmAudioFileWriteBytes( p,  s, strlen(s)) ; }
 
-cmRC_t _cmAudioFileWriteUInt32( cmAudioFileGuts* p, unsigned v )
+cmRC_t _cmAudioFileWriteUInt32( cmAf_t* p, unsigned v )
 {
-  v = _cmAfSwap32(v);
+  if( cmIsFlag(p->info.flags,kSwapAfFl) )
+    v = _cmAfSwap32(v);
+  
   return _cmAudioFileWriteBytes( p, &v, sizeof(v)) ; 
 }
 
-cmRC_t _cmAudioFileWriteUInt16( cmAudioFileGuts* p, unsigned short v )
-{  
-  v = _cmAfSwap16(v);
+cmRC_t _cmAudioFileWriteUInt16( cmAf_t* p, unsigned short v )
+{
+  if( cmIsFlag(p->info.flags,kSwapAfFl) )
+    v = _cmAfSwap16(v);
+  
   return _cmAudioFileWriteBytes( p, &v, sizeof(v)) ; 
 
 }
 
-cmRC_t   _cmAudioFileWriteHdr( cmAudioFileGuts* p )
+cmRC_t _cmAudioFileWriteAiffHdr( cmAf_t* p )
 {
   cmRC_t        rc = kOkAfRC;
   unsigned char srateX80[10];
@@ -685,18 +704,63 @@ cmRC_t   _cmAudioFileWriteHdr( cmAudioFileGuts* p )
   return rc;
 }
 
+cmRC_t _cmAudioFileWriteWavHdr( cmAf_t* p )
+{
+  cmRC_t   rc            = kOkAfRC;
+  short    chCnt         = p->info.chCnt;
+  unsigned frmCnt        = p->info.frameCnt;
+  short    bits          = p->info.bits;
+  unsigned srate         = p->info.srate;
+  short    fmtId         = 1;
+  unsigned bytesPerSmp   = bits/8;
+  unsigned hdrByteCnt    = 36;
+  unsigned fmtByteCnt    = 16;
+  unsigned blockAlignCnt = chCnt * bytesPerSmp;
+  unsigned sampleCnt     = chCnt * frmCnt;
+  unsigned dataByteCnt   = sampleCnt * bytesPerSmp;
+
+  if(( rc = _cmAudioFileSeek( p, 0, SEEK_SET )) != kOkAfRC )
+    return rc;
+
+  if((rc = _cmAudioFileWriteId(     p, "RIFF"))                   != kOkAfRC ) goto errLabel;
+  if((rc = _cmAudioFileWriteUInt32( p, hdrByteCnt + dataByteCnt)) != kOkAfRC ) goto errLabel;
+  if((rc = _cmAudioFileWriteId(     p, "WAVE"))                   != kOkAfRC ) goto errLabel;
+  if((rc = _cmAudioFileWriteId(     p, "fmt "))                   != kOkAfRC ) goto errLabel;
+  if((rc = _cmAudioFileWriteUInt32( p, fmtByteCnt))               != kOkAfRC ) goto errLabel;
+  if((rc = _cmAudioFileWriteUInt16( p, fmtId))                    != kOkAfRC ) goto errLabel;
+  if((rc = _cmAudioFileWriteUInt16( p, chCnt))                    != kOkAfRC ) goto errLabel;
+  if((rc = _cmAudioFileWriteUInt32( p, srate))                    != kOkAfRC ) goto errLabel;
+  if((rc = _cmAudioFileWriteUInt32( p, srate * blockAlignCnt))    != kOkAfRC ) goto errLabel;
+  if((rc = _cmAudioFileWriteUInt16( p, blockAlignCnt))            != kOkAfRC ) goto errLabel;
+  if((rc = _cmAudioFileWriteUInt16( p, bits))                     != kOkAfRC ) goto errLabel;
+  if((rc = _cmAudioFileWriteId(     p, "data"))                   != kOkAfRC ) goto errLabel;
+  if((rc = _cmAudioFileWriteUInt32( p, dataByteCnt))              != kOkAfRC ) goto errLabel;
+
+ errLabel:
+  return rc;
+}
+
+cmRC_t _cmAudioFileWriteHdr( cmAf_t* p )
+{
+  if( cmIsFlag(p->info.flags,kWavAfFl) )
+    return _cmAudioFileWriteWavHdr(p);
+
+  return _cmAudioFileWriteAiffHdr(p);
+}
+
 cmRC_t     cmAudioFileCreate(  cmAudioFileH_t h, const cmChar_t* fn, double srate, unsigned bits, unsigned chCnt )
 {
-  cmRC_t           rc  = kOkAfRC;
-  cmAudioFileGuts* p   = _cmAudioFileGutsPtr(h);
-  cmFileSysPathPart_t* pp = NULL;
+  cmRC_t               rc     = kOkAfRC;
+  cmAf_t*              p      = _cmAudioFileHandleToPtr(h);
+  cmFileSysPathPart_t* pp     = NULL;
 
   // verify the file is closed before opening
   if( cmAudioFileIsOpen(h) )
     if((rc = cmAudioFileClose(&h)) != kOkAfRC )
       return rc;
 
-  // all audio files are written as AIF's - if the file name is given some other extension then issue a warning
+  // all audio files are written as AIF's or WAV's -
+  // if the file name is given some other extension then issue a warning and write an AIF.
   if( fn!=NULL && strlen(fn) && ((pp = cmFsPathParts(fn)) != NULL) )
   {
     unsigned i;
@@ -712,13 +776,25 @@ cmRC_t     cmAudioFileCreate(  cmAudioFileH_t h, const cmChar_t* fn, double srat
         ext[i] = toupper(ext[i]);
     }
 
-    if( pp->extStr==NULL || (strcmp(ext,"AIF") && strcmp(ext,"AIFF")) )
-      cmRptPrintf(p->err.rpt,"The AIF audio file '%s' is being written with a file extension other than 'AIF' or 'AIFF'.",cmStringNullGuard(fn));
+    // determine the file type to write
+    if( cmIsFlag(p->info.flags,kWavAfFl) || strcmp(ext,"WAV")==0 )
+    {
+      p->info.flags = cmSetFlag(p->info.flags,kWavAfFl);
+      p->info.flags = cmClrFlag(p->info.flags,kAiffAfFl);      
+    }
+    else
+    {
+      if( pp->extStr==NULL || (strcmp(ext,"AIF") && strcmp(ext,"AIFF")) )
+        cmRptPrintf(p->err.rpt,"The AIF audio file '%s' is being written with a file extension other than 'AIF' or 'AIFF'.",cmStringNullGuard(fn));
       
+      p->info.flags = cmClrFlag(p->info.flags,kWavAfFl);
+      p->info.flags = cmSetFlag(p->info.flags,kAiffAfFl);
+    }
+    
     cmFsFreePathParts(pp);
   }
 
-  // open the file
+  // open the file for writing
   if((p->fp = fopen(fn,"wb")) == NULL )
   {
     p->fn = (cmChar_t*)fn; // set the file name so that the error msg can use it
@@ -727,18 +803,25 @@ cmRC_t     cmAudioFileCreate(  cmAudioFileH_t h, const cmChar_t* fn, double srat
     goto errLabel;
   }
 
-  p->fn = cmMemResize( char, p->fn, strlen(fn)+1 );
+  p->fn            = cmMemResize( char, p->fn, strlen(fn)+1 );
   p->info.srate    = srate;
   p->info.bits     = bits;
   p->info.chCnt    = chCnt;
   p->info.frameCnt = 0;
   p->flags         = kWriteAudioGutsFl;
+
+    // set the swap flags
+  bool swapFl = cmIsFlag(p->info.flags,kWavAfFl) ?  _cmWavSwapFl :  _cmAifSwapFl;
+
+  p->info.flags = cmEnaFlag(p->info.flags,kSwapAfFl,       swapFl);
+  p->info.flags = cmEnaFlag(p->info.flags,kSwapSamplesAfFl,swapFl);
+
   
   strcpy(p->fn,fn);
 
-  if((rc = _cmAudioFileWriteHdr( p )) != kOkAfRC )
+  if((rc = _cmAudioFileWriteHdr(p)) != kOkAfRC )
     goto errLabel;
-
+    
   return rc;
 
  errLabel:
@@ -751,7 +834,7 @@ cmRC_t     cmAudioFileClose( cmAudioFileH_t* h )
 {
   assert( h != NULL);
 
-  cmAudioFileGuts* p  = _cmAudioFileGutsPtr(*h);
+  cmAf_t* p  = _cmAudioFileHandleToPtr(*h);
   cmRC_t         rc = kOkAfRC;
 
   if( p->fp == NULL )
@@ -785,7 +868,7 @@ cmRC_t     cmAudioFileDelete( cmAudioFileH_t* h)
   if( h->h == NULL )
     return kOkAfRC;
 
-  cmAudioFileGuts* p = _cmAudioFileGutsPtr(*h);
+  cmAf_t* p = _cmAudioFileHandleToPtr(*h);
 
   if( p->fp != NULL )
     rc = cmAudioFileClose(h);
@@ -805,28 +888,28 @@ bool     cmAudioFileIsOpen( cmAudioFileH_t h )
   if( !cmAudioFileIsValid(h) )
     return false;
  
-  return _cmAudioFileGutsPtr(h)->fp != NULL;
+  return _cmAudioFileHandleToPtr(h)->fp != NULL;
 }
 
 
 bool   cmAudioFileIsEOF(      cmAudioFileH_t h )
 {
   cmRC_t           rc = kOkAfRC;
-  cmAudioFileGuts* p  = _cmAudioFileReadGutsPtr(h,&rc);
+  cmAf_t* p  = _cmAudioFileReadGutsPtr(h,&rc);
   return  (rc != kOkAfRC) || (p==NULL) || (p->curFrmIdx >= p->info.frameCnt) || (p->fp==NULL) ||  feof(p->fp) ? true : false;
 }
 
 unsigned   cmAudioFileTell(       cmAudioFileH_t h )
 {
   cmRC_t           rc = kOkAfRC;
-  cmAudioFileGuts* p  = _cmAudioFileReadGutsPtr(h,&rc);
+  cmAf_t* p  = _cmAudioFileReadGutsPtr(h,&rc);
   return (rc==kOkAfRC && p!=NULL) ? p->curFrmIdx : cmInvalidIdx;
 }
 
 cmRC_t     cmAudioFileSeek(       cmAudioFileH_t h, unsigned frmIdx )
 {
   cmRC_t           rc = kOkAfRC;
-  cmAudioFileGuts* p  = _cmAudioFileReadGutsPtr(h,&rc);
+  cmAf_t* p  = _cmAudioFileReadGutsPtr(h,&rc);
   
   if( rc != kOkAfRC )
     return rc;
@@ -840,12 +923,10 @@ cmRC_t     cmAudioFileSeek(       cmAudioFileH_t h, unsigned frmIdx )
 
 }
 
-
-
 cmRC_t _cmAudioFileReadInt( cmAudioFileH_t h, unsigned totalFrmCnt, unsigned chIdx, unsigned chCnt, int* buf[], unsigned* actualFrmCntPtr, bool sumFl )
 {
   cmRC_t           rc  = kOkAfRC;
-  cmAudioFileGuts* p   = _cmAudioFileReadGutsPtr(h,&rc);
+  cmAf_t* p   = _cmAudioFileReadGutsPtr(h,&rc);
 
   if( rc != kOkAfRC )
     return rc;  
@@ -1013,7 +1094,7 @@ cmRC_t _cmAudioFileReadInt( cmAudioFileH_t h, unsigned totalFrmCnt, unsigned chI
 cmRC_t _cmAudioFileReadRealSamples(  cmAudioFileH_t h, unsigned totalFrmCnt, unsigned chIdx, unsigned chCnt, float**  fbuf, double** dbuf, unsigned* actualFrmCntPtr, bool sumFl )
 {
   cmRC_t           rc = kOkAfRC;
-  cmAudioFileGuts* p  = _cmAudioFileReadGutsPtr(h,&rc);
+  cmAf_t* p  = _cmAudioFileReadGutsPtr(h,&rc);
 
   if( rc != kOkAfRC )
     return rc;
@@ -1243,83 +1324,132 @@ cmRC_t     cmAudioFileGetSumDouble( const char* fn, unsigned begFrmIdx, unsigned
 
 
 
-cmRC_t    cmAudioFileWriteInt(    cmAudioFileH_t h, unsigned frmCnt, unsigned chCnt, int**    srcPtrPtr )
+cmRC_t    cmAudioFileWriteInt(    cmAudioFileH_t h, unsigned frmCnt, unsigned chCnt, int** srcPtrPtr )
 {
-  cmRC_t           rc          = kOkAfRC;
-  cmAudioFileGuts* p           = _cmAudioFileWriteGutsPtr(h,&rc );
+  cmRC_t  rc = kOkAfRC;
+  cmAf_t* p  = _cmAudioFileWriteGutsPtr(h,&rc );
 
   if( rc != kOkAfRC )
     return rc;
 
-  unsigned         bytesPerSmp =  p->info.bits / 8;
-  unsigned         bufFrmCnt   = 1024;
-  unsigned         bufByteCnt  = bufFrmCnt * bytesPerSmp;
-  unsigned         ci;
-  unsigned         wrFrmCnt    = 0;
-  char buf[ bufByteCnt * chCnt ];
+  unsigned bytesPerSmp = p->info.bits / 8;
+  unsigned bufFrmCnt   = 1024;
+  unsigned bufByteCnt  = bufFrmCnt * bytesPerSmp;
+  unsigned ci;
+  unsigned wrFrmCnt    = 0;
+  char     buf[ bufByteCnt * chCnt ];
   
   while( wrFrmCnt < frmCnt )
   {
     unsigned n = cmMin( frmCnt-wrFrmCnt, bufFrmCnt );
 
+    // interleave each channel into buf[]
     for(ci=0; ci<chCnt; ++ci)
     {
+      // get the begin and end source pointers
       const int* sbp = srcPtrPtr[ci] + wrFrmCnt;
       const int* sep = sbp + n;
 
-      switch( p->info.bits )
+      // 8 bit samples can't be byte swapped
+      if( p->info.bits == 8 )
       {
-        case 8:
+        char*  dbp = buf + ci;
+        for(; sbp < sep; dbp+=chCnt )
+          *dbp = (char)*sbp++;             
+      }
+      else
+      {
+        // if the samples do need to be byte swapped
+        if( cmIsFlag(p->info.flags,kSwapSamplesAfFl) )
+        {
+          switch( p->info.bits )
           {
-            char*  dbp = buf + ci;
-            for(; sbp < sep; dbp+=chCnt )
-              *dbp = (char)*sbp++;             
-          }
-          break;
+            case 16:
+              {
+                short*  dbp = (short*)buf;
+                for(dbp+=ci; sbp < sep; dbp+=chCnt, ++sbp )
+                  *dbp = _cmAfSwap16((short)*sbp);
+              }
+              break;
 
-        case 16:
-          {
-            short*  dbp = (short*)buf;
-            for(dbp+=ci; sbp < sep; dbp+=chCnt, ++sbp )
-              *dbp = _cmAfSwap16((short)*sbp);
-          }
-          break;
-
-        case 24:
-          {
-            unsigned char* dbp = (unsigned char*)buf;
-            for( dbp+=(ci*3); sbp < sep; dbp+=(3*chCnt), ++sbp)
-            {
-              unsigned char* s = (unsigned char*)sbp;
-              dbp[0] = s[2];
-              dbp[1] = s[1];
-              dbp[2] = s[0];
-            }
-          }
-          break;
+            case 24:
+              {
+                unsigned char* dbp = (unsigned char*)buf;
+                for( dbp+=(ci*3); sbp < sep; dbp+=(3*chCnt), ++sbp)
+                {
+                  unsigned char* s = (unsigned char*)sbp;
+                  dbp[0] = s[2];
+                  dbp[1] = s[1];
+                  dbp[2] = s[0];
+                }
+              }
+              break;
           
 
-        case 32:
+            case 32:
+              {
+                int*  dbp = (int*)buf;
+                for(dbp+=ci; sbp < sep; dbp+=chCnt, ++sbp )
+                  *dbp = _cmAfSwap32(*sbp);
+              }
+              break;
+
+            default:
+              { assert(0);}
+          } 
+
+        }
+        else // interleave without byte swapping
+        {
+          switch( p->info.bits )
           {
-            int*  dbp = (int*)buf;
-            for(dbp+=ci; sbp < sep; dbp+=chCnt, ++sbp )
-              *dbp = _cmAfSwap32(*sbp);
-          }
-          break;
+            case 16:
+              {
+                short*  dbp = (short*)buf;
+                for(dbp+=ci; sbp < sep; dbp+=chCnt, ++sbp )
+                  *dbp = (short)*sbp;
+              }
+              break;
+              
+            case 24:
+              {
+                unsigned char* dbp = (unsigned char*)buf;
+                for( dbp+=(ci*3); sbp < sep; dbp+=(3*chCnt), ++sbp)
+                {
+                  unsigned char* s = (unsigned char*)sbp;
+                  dbp[0] = s[0];
+                  dbp[1] = s[1];
+                  dbp[2] = s[2];
+                }
+              }
+              break;
+          
 
-        default:
-          { assert(0);}
-      }
-    }
+            case 32:
+              {
+                int*  dbp = (int*)buf;
+                for(dbp+=ci; sbp < sep; dbp+=chCnt, ++sbp )
+                  *dbp = *sbp;
+              }
+              break;
 
+            default:
+              { assert(0);}
+          } // switch
+        } // don't swap
+      } // 8 bits
+    } // ch
+
+    // advance the source pointer index
     wrFrmCnt+=n;
 
     if( fwrite( buf, n*bytesPerSmp*chCnt, 1, p->fp ) != 1)
     {
-      rc = _cmAudioFileError(p,kWriteFailAfRC);
-      break;
+        rc = _cmAudioFileError(p,kWriteFailAfRC);
+        break;
     }
-  }
+    
+  } // while
 
   p->info.frameCnt += wrFrmCnt;
 
@@ -1329,7 +1459,7 @@ cmRC_t    cmAudioFileWriteInt(    cmAudioFileH_t h, unsigned frmCnt, unsigned ch
 cmRC_t    _cmAudioFileWriteRealSamples( cmAudioFileH_t h, unsigned frmCnt, unsigned chCnt, const void*  srcPtrPtr, unsigned realSmpByteCnt )
 {
   cmRC_t           rc        = kOkAfRC;
-  cmAudioFileGuts* p         = _cmAudioFileWriteGutsPtr(h,&rc );
+  cmAf_t* p         = _cmAudioFileWriteGutsPtr(h,&rc );
 
   if( rc != kOkAfRC )
     return rc;
@@ -1428,7 +1558,7 @@ cmRC_t     cmAudioFileMinMaxMean( cmAudioFileH_t h, unsigned chIdx, cmSample_t* 
   *meanPtr = 0;
 
   cmRC_t           rc = kOkAfRC;
-  cmAudioFileGuts* p  = _cmAudioFileReadGutsPtr(h,&rc );
+  cmAf_t* p  = _cmAudioFileReadGutsPtr(h,&rc );
 
   if( rc != kOkAfRC )
     return rc;
@@ -1548,7 +1678,7 @@ cmRC_t cmAudioFileMinMaxMeanFn( const cmChar_t* fn, unsigned chIdx, cmSample_t* 
 const cmChar_t* cmAudioFileName( cmAudioFileH_t h )
 {
   cmRC_t rc;
-  cmAudioFileGuts* p  = _cmAudioFileReadGutsPtr(h,&rc );
+  cmAf_t* p  = _cmAudioFileReadGutsPtr(h,&rc );
 
   if( rc != kOkAfRC )
     return NULL;
@@ -1567,8 +1697,6 @@ const char* cmAudioFileErrorMsg( unsigned rc )
   return _cmAudioFileErrArray[i].msg;
 
 }
-
-
 
 cmRC_t cmAudioFileGetInfo(   const cmChar_t* fn, cmAudioFileInfo_t* infoPtr, cmRpt_t* rpt  )
 {
@@ -1625,8 +1753,8 @@ void   cmAudioFilePrintInfo( const cmAudioFileInfo_t* infoPtr, cmRpt_t* rpt )
 
 cmRC_t     cmAudioFileReport( cmAudioFileH_t h, cmRpt_t* rpt, unsigned frmIdx, unsigned frmCnt )
 {
-  cmRC_t           rc = kOkAfRC;
-  cmAudioFileGuts* p  = _cmAudioFileReadGutsPtr(h,&rc);
+  cmRC_t  rc = kOkAfRC;
+  cmAf_t* p  = _cmAudioFileReadGutsPtr(h,&rc);
   
   if( rc != kOkAfRC )
     return rc;
@@ -1676,12 +1804,38 @@ cmRC_t     cmAudioFileReportFn( const cmChar_t* fn, unsigned frmIdx, unsigned fr
   return cmAudioFileDelete(&h);
 }
 
-/// [cmAudioFileExample]
-
-void cmAudioFileTest( const cmChar_t* audioFn, const cmChar_t* outFn, cmRpt_t* rpt )
+cmRC_t     cmAudioFileSetSrate( const cmChar_t* fn, unsigned srate )
 {
-  cmAudioFileInfo_t  afInfo;
-  cmRC_t           cmRC;
+  cmRC_t  rc = kOkAfRC;
+  cmAf_t  af;
+  cmAf_t* p  = &af;
+
+  memset(&af,0,sizeof(af));
+
+  if((rc = _cmAudioFileOpen(p, fn, "r+b")) != kOkAfRC )
+    goto errLabel;  
+
+  if( p->info.srate != srate )
+  {
+    // change the sample rate
+    p->info.srate = srate;
+
+    // write the file header
+    if((rc = _cmAudioFileWriteHdr(p)) != kOkAfRC )
+      goto errLabel;
+  }
+  
+ errLabel:
+  if( p->fp != NULL )
+    fclose(p->fp);
+  
+  return rc;
+}
+
+void _cmAudioFileTest( const cmChar_t* audioFn, cmRpt_t* rpt )
+{
+  cmAudioFileInfo_t afInfo;
+  cmRC_t            cmRC;
 
   // open an audio file
   cmAudioFileH_t     afH   = cmAudioFileNewOpen( audioFn, &afInfo, &cmRC, rpt ); 
@@ -1698,7 +1852,68 @@ void cmAudioFileTest( const cmChar_t* audioFn, const cmChar_t* outFn, cmRpt_t* r
 
   // close and delete the audio file handle
   cmAudioFileDelete(&afH);
-
-
 }
+
+cmRC_t     cmAudioFileSine( cmCtx_t* ctx, const cmChar_t* fn, double srate, unsigned bits, double hz, double gain, double secs )
+{
+  cmRC_t      rc    = kOkAfRC;
+  unsigned    bN    = srate * secs;
+  cmSample_t* b     = cmMemAlloc(cmSample_t,bN);
+  unsigned    chCnt = 1;
+
+  unsigned    i;
+  for(i=0; i<bN; ++i)
+    b[i] = gain * sin(2.0*M_PI*hz*i/srate);
+
+  if((rc = cmAudioFileWriteFileFloat(fn, srate, bits, bN, chCnt, &b, &ctx->rpt)) != kOkAfRC)
+    return rc;
+
+  return rc;
+}
+
+/// [cmAudioFileExample]
+
+void cmAudioFileTest(cmCtx_t* ctx, int argc, const char* argv[])
+{
+  switch( argc )
+  {
+    case 3:
+      //_cmAudioFileTest(argv[2],&ctx->rpt);
+      cmAudioFileReportFn(argv[2],0,0,&ctx->rpt);
+      break;
+      
+    case 4:
+      {
+        errno = 0;
+        long srate =  strtol(argv[3], NULL, 10);
+        if( srate == 0 && errno != 0 )
+          cmRptPrintf(&ctx->rpt,"Invalid sample rate argument to cmAudioFileTest().");
+        else
+          cmAudioFileSetSrate(argv[2],srate);                
+      }
+      break;
+
+    case 8:
+      {
+        errno = 0;
+        double   srate = strtod(argv[3],NULL);
+        unsigned bits  = strtol(argv[4],NULL,10);
+        double   hz    = strtod(argv[5],NULL);
+        double   gain  = strtod(argv[6],NULL);
+        double   secs  = strtod(argv[7],NULL);
+        
+        if( errno != 0 )
+          cmRptPrintf(&ctx->rpt,"Invalid arg. to cmAudioFileTest().");
+        
+        cmAudioFileSine( ctx, argv[2], srate, bits,  hz, gain,  secs );
+      }
+      break;
+
+    default:
+      cmRptPrintf(&ctx->rpt,"Invalid argument count to cmAudioFileTest().");
+      break;
+  }
+}
+
+
 /// [cmAudioFileExample]

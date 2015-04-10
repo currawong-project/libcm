@@ -129,7 +129,8 @@ extern "C" {
   /// reopened with the new file.
   cmRC_t     cmAudioFileOpen(       cmAudioFileH_t h, const cmChar_t* fn, cmAudioFileInfo_t* infoPtr );
 
-  /// Open an audio file for writing.
+  /// Open an audio file for writing.  The type of the audio file, AIF or WAV
+  /// is determined by the file name extension.
   cmRC_t     cmAudioFileCreate(     
     cmAudioFileH_t h,    ///< Handle returned from an earlier call to cmAudioFileNewCreate() or cmAudioFileNewOpen().
     const cmChar_t* fn,  ///< File name of the new file.
@@ -295,10 +296,19 @@ extern "C" {
   cmRC_t     cmAudioFileReportFn( const cmChar_t* fn, unsigned frmIdx, unsigned frmCnt, cmRpt_t* rpt );
   ///@}
 
+  /// Change the sample rate value in the header.  Note that this function does not resample the audio
+  /// signal it simply changes the value of the sample rate in the header.
+  cmRC_t     cmAudioFileSetSrate( const cmChar_t* audioFn, unsigned srate );
+
+  // Generate a sine tone and write it to a file.
+  cmRC_t     cmAudioFileSine( cmCtx_t* ctx, const cmChar_t* fn, double srate, unsigned bits, double hz, double gain, double secs );
+
+
   /// Testing and example routine for functions in cmAudioFile.h.
   /// Also see cmProcTest.c cmAudioFileReadWriteTest()
-  void       cmAudioFileTest( const cmChar_t* audioFn, const cmChar_t* outFn, cmRpt_t* rpt );
+  void       cmAudioFileTest( cmCtx_t* ctx, int argc, const char* argv[] );
 
+  
 #ifdef __cplusplus
 }
 #endif
