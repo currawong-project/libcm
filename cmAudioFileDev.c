@@ -2,6 +2,7 @@
 #include "cmFloatTypes.h"
 #include "cmRpt.h"
 #include "cmErr.h"
+#include "cmCtx.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
 #include "cmAudioFile.h"
