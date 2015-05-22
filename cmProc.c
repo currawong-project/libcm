@@ -443,7 +443,13 @@ cmRC_t      cmWndFuncInit(  cmWndFunc* p, unsigned wndId, unsigned wndSmpCnt, do
     case kUnityWndId:      cmVOS_Fill(       p->wndV, p->outN, 1.0 ); break;
     case kKaiserWndId:    
       {
-        double beta = cmVOS_KaiserBetaFromSidelobeReject(fabs(kslRejectDb));
+        double beta;
+        
+        if( cmIsFlag(wndId,kSlRejIsBetaWndFl) )
+          beta = kslRejectDb;
+        else
+          beta = cmVOS_KaiserBetaFromSidelobeReject(fabs(kslRejectDb));
+        
         cmVOS_Kaiser( p->wndV,p->outN, beta); 
       }
       break;

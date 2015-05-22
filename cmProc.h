@@ -158,7 +158,8 @@ extern "C" {
     kWndIdMask       = 0x0ff,      
 
     kNormByLengthWndFl = 0x100,  // mult by 1/wndSmpCnt 
-    kNormBySumWndFl    = 0x200   // mult by wndSmpCnt/sum(wndV)
+    kNormBySumWndFl    = 0x200,  // mult by wndSmpCnt/sum(wndV)
+    kSlRejIsBetaWndFl  = 0x400   // kaiserSideLobeRejectDb param. is actually kaiser beta arg. 
   };
 
   typedef struct
