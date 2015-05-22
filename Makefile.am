@@ -9,8 +9,8 @@ cmSRC += src/libcm/cmErr.c src/libcm/cmCtx.c src/libcm/cmRpt.c src/libcm/cmGloba
 cmHDR += src/libcm/cmSerialize.h src/libcm/cmSymTbl.h src/libcm/cmHashTbl.h src/libcm/cmFileSys.h src/libcm/cmFile.h 
 cmSRC += src/libcm/cmSerialize.c src/libcm/cmSymTbl.c src/libcm/cmHashTbl.c src/libcm/cmFileSys.c src/libcm/cmFile.c 
 
-cmHDR += src/libcm/cmMem.h src/libcm/cmTime.h src/libcm/cmPgmOpts.h
-cmSRC += src/libcm/cmMem.c src/libcm/cmTime.c src/libcm/cmPgmOpts.c
+cmHDR += src/libcm/cmMem.h src/libcm/cmTime.h src/libcm/cmExec.h src/libcm/cmPgmOpts.h
+cmSRC += src/libcm/cmMem.c src/libcm/cmTime.c src/libcm/cmExec.c src/libcm/cmPgmOpts.c
 
 cmHDR += src/libcm/cmData.h src/libcm/cmLib.h src/libcm/cmText.h src/libcm/cmTextTemplate.h
 cmSRC += src/libcm/cmData.c src/libcm/cmLib.c src/libcm/cmText.c src/libcm/cmTextTemplate.c
