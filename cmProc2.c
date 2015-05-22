@@ -766,22 +766,22 @@ void  cmDelayTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH )
 
 //------------------------------------------------------------------------------------------------------------
 
-cmFIR* cmFIRAllocKaiser(cmCtx* c, cmFIR* p, unsigned procSmpCnt, double srate, double passHz, double stopHz, double passDb, double stopDb )
+cmFIR* cmFIRAllocKaiser(cmCtx* c, cmFIR* p, unsigned procSmpCnt, double srate, double passHz, double stopHz, double passDb, double stopDb, unsigned flags )
 {
   cmFIR* op = cmObjAlloc( cmFIR, c, p );
 
   if( procSmpCnt > 0 && srate > 0  )
-    if( cmFIRInitKaiser(op,procSmpCnt,srate,passHz,stopHz,passDb,stopDb) != cmOkRC )
+    if( cmFIRInitKaiser(op,procSmpCnt,srate,passHz,stopHz,passDb,stopDb,flags) != cmOkRC )
       cmObjFree(&op);
   return op;
 }
 
-cmFIR* cmFIRAllocSinc( cmCtx* c, cmFIR* p, unsigned procSmpCnt, double srate, unsigned sincSmpCnt, double fcHz, unsigned flags )
+cmFIR* cmFIRAllocSinc( cmCtx* c, cmFIR* p, unsigned procSmpCnt, double srate, unsigned sincSmpCnt, double fcHz, unsigned flags, const double* wndV )
 {
   cmFIR* op = cmObjAlloc( cmFIR, c, p );
 
   if( srate > 0 && sincSmpCnt > 0 )
-    if( cmFIRInitSinc(op,procSmpCnt,srate,sincSmpCnt,fcHz,flags) != cmOkRC )
+    if( cmFIRInitSinc(op,procSmpCnt,srate,sincSmpCnt,fcHz,flags,wndV) != cmOkRC )
       cmObjFree(&op);
   return op;  
 }
@@ -794,7 +794,7 @@ cmRC_t cmFIRFree(       cmFIR** pp )
   {
     cmFIR* p = *pp;
     
-    if((rc = cmFIRFinal(*pp)) != cmOkRC )
+    if((rc = cmFIRFinal(*pp)) == cmOkRC )
     {
       cmMemPtrFree(&p->coeffV);
       cmMemPtrFree(&p->outV);
@@ -806,7 +806,7 @@ cmRC_t cmFIRFree(       cmFIR** pp )
   return rc;
 }
 
-cmRC_t cmFIRInitKaiser( cmFIR* p, unsigned procSmpCnt, double srate, double passHz, double stopHz, double passDb, double stopDb )
+cmRC_t cmFIRInitKaiser( cmFIR* p, unsigned procSmpCnt, double srate, double passHz, double stopHz, double passDb, double stopDb, unsigned flags )
 {
   // pass/stop frequencies above nyquist produce incorrect results
   assert( passHz <= srate/2 && stopHz<=srate/2);
@@ -815,13 +815,12 @@ cmRC_t cmFIRInitKaiser( cmFIR* p, unsigned procSmpCnt, double srate, double pass
 
   double fcHz     = (passHz + stopHz) / 2;  // fc is half way between passHz and stopHz
   double dHz      = fabs(stopHz-passHz);
-  //double signFcmt = stopHz > passHz ? 1 : -1;
 
   // convert ripple spec from db to linear 
   double dPass    = (pow(10,passDb/20)-1) / (pow(10,passDb/20)+1);
   double dStop    = pow(10,-stopDb/20);
   
-  // in prcmtice the ripple must be equal in the stop and pass band - so take the minimum between the two
+  // in practice the ripple must be equal in the stop and pass band - so take the minimum between the two
   double d        = cmMin(dPass,dStop);
 
   // convert the ripple bcmk to db
@@ -835,14 +834,12 @@ cmRC_t cmFIRInitKaiser( cmFIR* p, unsigned procSmpCnt, double srate, double pass
 	{
     if( A > 21 )
       alpha = (0.5842 * (pow(A-21.0,0.4))) + (0.07886*(A-21));
-
 	}
 	 
 	double D =  0.922;
 
 	if( A > 21 )
 		D = (A - 7.95) / 14.36;
-
 
 	// compute the filter order
 	unsigned N = (unsigned)(floor(D * srate / dHz) + 1);
@@ -852,19 +849,13 @@ cmRC_t cmFIRInitKaiser( cmFIR* p, unsigned procSmpCnt, double srate, double pass
 		N = N + 1;  
 
   //printf("fc=%f df=%f dPass=%f dStop=%f d=%f alpha=%f A=%f D=%f N=%i\n",fcHz,dHz,dPass,dStop,d,alpha,A,D,N);
-  
-  // form an ideal FIR LP impulse response based on a sinc function
-  cmFIRInitSinc(p,procSmpCnt,srate,N,fcHz,0);
 
   // compute a kaiser function to truncate the sinc 
   double wnd[ N ];
   cmVOD_Kaiser( wnd, N, alpha );
 
-  // apply the kaiser window to the sinc function
-  cmVOD_MultVV( p->coeffV, p->coeffCnt, wnd );
-
-  double sum = cmVOD_Sum(p->coeffV,p->coeffCnt);
-  cmVOD_DivVS(p->coeffV,p->coeffCnt,sum );
+  // form an ideal FIR LP impulse response based on a sinc function
+  cmFIRInitSinc(p,procSmpCnt,srate,N,fcHz,flags, wnd);
 
   //cmVOD_Print(stdout,1,p->coeffCnt,p->coeffV);
 
@@ -872,7 +863,7 @@ cmRC_t cmFIRInitKaiser( cmFIR* p, unsigned procSmpCnt, double srate, double pass
 
 }
 
-cmRC_t cmFIRInitSinc( cmFIR* p, unsigned procSmpCnt, double srate, unsigned sincSmpCnt, double fcHz, unsigned flags )
+cmRC_t cmFIRInitSinc( cmFIR* p, unsigned procSmpCnt, double srate, unsigned sincSmpCnt, double fcHz, unsigned flags, const double* wndV )
 {
   cmRC_t rc;
 
@@ -886,7 +877,11 @@ cmRC_t cmFIRInitSinc( cmFIR* p, unsigned procSmpCnt, double srate, unsigned sinc
   p->delayV   = cmMemResizeZ( double, p->delayV, p->coeffCnt-1 ); // there is always one less delay than coeff
   p->delayIdx = 0;
 
-  cmVOD_LP_Sinc(p->coeffV, p->coeffCnt, srate, fcHz, cmIsFlag(flags,kHighPassFIRFl) ? kHighPass_LPSincFl : 0 );
+  unsigned lp_flags = kNormalize_LPSincFl;
+
+  lp_flags |= cmIsFlag(flags,kHighPassFIRFl) ? kHighPass_LPSincFl : 0;
+
+  cmVOD_LP_Sinc(p->coeffV, p->coeffCnt, wndV, srate, fcHz, lp_flags );
 
   return cmOkRC;
 }
@@ -963,7 +958,7 @@ void cmFIRTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH )
 
   cmVOS_Random(in,procSmpCnt, -1.0, 1.0 );
 
-  cmFIR* ffp    = cmFIRAllocKaiser( &c, NULL, procSmpCnt,srate, srate*0.025, srate/2,  10, 60 );
+  cmFIR* ffp    = cmFIRAllocKaiser( &c, NULL, procSmpCnt,srate, srate*0.025, srate/2,  10, 60, 0 );
   //cmFIR* ffp    = cmFIRAllocSinc( &c, NULL, 32, 1000, 0 );
   cmFftSR* ftp    = cmFftAllocSR(      &c, NULL, ffp->outV, ffp->outN, kToPolarFftFl );
 
@@ -3661,17 +3656,33 @@ cmRC_t   cmNmfExec( cmNmf_t* p, const cmReal_t* vM, unsigned cn )
 
 //------------------------------------------------------------------------------------------------------------
 
+unsigned _cmVectArrayTypeByteCnt( cmVectArray_t* p, unsigned flags )
+{
+  switch( flags & kVaMask )
+  {
+    case kFloatVaFl:  return sizeof(float); 
+    case kDoubleVaFl: return sizeof(double);
+    case kIntVaFl:    return sizeof(int);      
+    case kUIntVaFl:   return sizeof(unsigned);
+  }
+
+  if( p != NULL )
+    cmCtxRtCondition(&p->obj,cmInvalidArgRC,"Unknown data type.");
+  
+  return 0;
+}
+
 cmRC_t _cmVectArrayAppend( cmVectArray_t* p, const void* v, unsigned typeByteCnt, unsigned valCnt )
 {
   cmRC_t            rc      = cmSubSysFailRC;
-  cmVectArrayVect_t* ep      = NULL;
+  cmVectArrayVect_t* ep     = NULL;
   unsigned          byteCnt = typeByteCnt * valCnt;
 
   if( byteCnt == 0 || v == NULL )
     return rc;
 
   // verify that all vectors written to this vector array contain the same data type.
-  if( (cmIsFlag(p->flags,kFloatVaFl) && typeByteCnt!=sizeof(float)) ||  (cmIsFlag(p->flags,kDoubleVaFl) && typeByteCnt!=sizeof(double)))  
+  if( typeByteCnt != _cmVectArrayTypeByteCnt(p,p->flags) )
     return cmCtxRtCondition(&p->obj,cmInvalidArgRC,"All data stored to a cmVectArray_t must be a consistent type.");
 
   // allocate space for the link record
@@ -3726,49 +3737,31 @@ cmVectArray_t* cmVectArrayAlloc( cmCtx* ctx, unsigned flags )
   assert(p != NULL);
 
 
-  switch( flags & (kFloatVaFl | kDoubleVaFl | kSampleVaFl | kRealVaFl ) )
+  switch( flags & kVaMask )
   {
+    case kIntVaFl:
+      p->flags      |= kIntVaFl;
+      p->typeByteCnt = sizeof(int);
+      break;
+
+    case kUIntVaFl:
+      p->flags      |= kUIntVaFl;
+      p->typeByteCnt = sizeof(unsigned);
+      break;
+      
     case kFloatVaFl:
-      p->flags |= kFloatVaFl;
+      p->flags      |= kFloatVaFl;
       p->typeByteCnt = sizeof(float);
       break;
 
     case kDoubleVaFl:
-      p->flags |= kDoubleVaFl;
+      p->flags      |= kDoubleVaFl;
       p->typeByteCnt = sizeof(double);
-      break;
-
-    case kSampleVaFl:
-      if( sizeof(cmSample_t) == sizeof(float) )
-        p->flags |= kFloatVaFl;
-      else
-      {
-        if( sizeof(cmSample_t) == sizeof(double))
-          p->flags |= kDoubleVaFl;
-        else
-          rc = cmCtxRtCondition(&p->obj,cmInvalidArgRC,"The size of the cmSample_t is not consistent with float or double."); 
-      }
-      p->typeByteCnt = sizeof(cmSample_t);
-      break;
-
-    case kRealVaFl:
-      if( sizeof(cmReal_t) == sizeof(float) )
-        p->flags |= kFloatVaFl;
-      else
-      {
-        if( sizeof(cmReal_t) == sizeof(double))
-          p->flags |= kDoubleVaFl;
-        else
-          rc = cmCtxRtCondition(&p->obj,cmInvalidArgRC,"The size of the cmReal_t is not consistent with float or double."); 
-      }
-      p->typeByteCnt = sizeof(cmReal_t);
       break;
 
     default:
       rc = cmCtxRtCondition(&p->obj,cmInvalidArgRC,"The vector array value type flag was not recognized.");
   }
-
-  
 
  if(rc != cmOkRC)
     cmVectArrayFree(&p);
@@ -3807,7 +3800,6 @@ cmVectArray_t* cmVectArrayAllocFromFile(cmCtx* ctx, const char* fn )
 
   buf    = cmMemAlloc(char,maxEleCnt*typeByteCnt);
 
-
   if((p = cmVectArrayAlloc(ctx, flags )) == NULL )
     goto errLabel;
 
@@ -3832,11 +3824,9 @@ cmVectArray_t* cmVectArrayAllocFromFile(cmCtx* ctx, const char* fn )
     {
       rc = cmCtxRtCondition(&p->obj,rc,"The vector array data store failed on vector index:%i in '%s'.",i,cmStringNullGuard(fn));
       goto errLabel;
-    }
-    
+    }    
   }
   
-
  errLabel:
   
   if( fp != NULL )
@@ -3850,7 +3840,6 @@ cmVectArray_t* cmVectArrayAllocFromFile(cmCtx* ctx, const char* fn )
   return p;
 
 }
-
 
 cmRC_t cmVectArrayFree(    cmVectArray_t** pp )
 {
@@ -3894,23 +3883,26 @@ cmRC_t cmVectArrayClear(   cmVectArray_t* p )
 unsigned cmVectArrayCount( const cmVectArray_t* p )
 { return p->vectCnt; }
 
-/*
-unsigned cmVectArrayEleCount( const cmVectArray_t* p )
+unsigned cmVectArrayMaxRowCount( const cmVectArray_t* p )
 {
-  cmVectArrayVect_t* ep = p->bp;
-  unsigned n = 0;
-  for(; ep!=NULL; ep=ep->link )
-    n += ep->n;
-
-  return n;
+  const cmVectArrayVect_t* np   = p->bp;
+  unsigned                 maxN = 0;
+  
+  for(; np!=NULL; np=np->link)    
+    if( np->n > maxN )
+      maxN = np->n;
+  
+  return maxN;
 }
-*/
 
+
+cmRC_t cmVectArrayAppendV( cmVectArray_t* p, const void* v, unsigned vn )
+{ return _cmVectArrayAppend(p,v,_cmVectArrayTypeByteCnt(p,p->flags), vn); }
 
 cmRC_t cmVectArrayAppendS( cmVectArray_t* p, const cmSample_t* v, unsigned vn )
 { return  _cmVectArrayAppend(p,v,sizeof(v[0]),vn); }
 
-cmRC_t cmVectArrayAppendR( cmVectArray_t* p, const cmReal_t* v, unsigned vn )
+cmRC_t cmVectArrayAppendR( cmVectArray_t* p, const cmReal_t* v,   unsigned vn )
 { return  _cmVectArrayAppend(p,v,sizeof(v[0]),vn); }
 
 cmRC_t cmVectArrayAppendF( cmVectArray_t* p, const float* v,      unsigned vn )
@@ -3919,28 +3911,11 @@ cmRC_t cmVectArrayAppendF( cmVectArray_t* p, const float* v,      unsigned vn )
 cmRC_t cmVectArrayAppendD( cmVectArray_t* p, const double* v,     unsigned vn )
 { return  _cmVectArrayAppend(p,v,sizeof(v[0]),vn); }
 
-cmRC_t cmVectArrayAppendI( cmVectArray_t* p, const int* v, unsigned vn )
-{
-  p->tempV = cmMemResize(double,p->tempV,vn);
-  unsigned i;
-  for(i=0; i<vn; ++i)
-    p->tempV[i] = v[i];
+cmRC_t cmVectArrayAppendI( cmVectArray_t* p, const int* v,        unsigned vn )
+{ return  _cmVectArrayAppend(p,v,sizeof(v[0]),vn); }
 
-  cmRC_t rc = cmVectArrayAppendD(p,p->tempV,vn);
-
-  return rc;  
-}
-
-cmRC_t cmVectArrayAppendU( cmVectArray_t* p, const unsigned* v, unsigned vn )
-{
-  p->tempV = cmMemResize(double,p->tempV,vn);
-  unsigned i;
-  for(i=0; i<vn; ++i)
-    p->tempV[i] = v[i];
-
-  cmRC_t rc = cmVectArrayAppendD(p,p->tempV,vn);
-  return rc;  
-}
+cmRC_t cmVectArrayAppendU( cmVectArray_t* p, const unsigned* v,   unsigned vn )
+{ return  _cmVectArrayAppend(p,v,sizeof(v[0]),vn); }
 
 cmRC_t cmVectArrayWrite( cmVectArray_t* p, const char* fn )
 {
@@ -3985,12 +3960,46 @@ cmRC_t cmVectArrayWrite( cmVectArray_t* p, const char* fn )
     }
   }
   
-
  errLabel:
   if( fp != NULL )
     fclose(fp);
   return rc;
 }
+
+
+cmRC_t cmVectArrayPrint( cmVectArray_t* p, cmRpt_t* rpt )
+{
+  cmRC_t             rc = cmOkRC;
+  cmVectArrayVect_t* rp = p->bp;
+  
+  for(; rp!=NULL; rp=rp->link)
+  {
+    switch( p->flags & kVaMask )
+    {
+      case kFloatVaFl:
+        cmVOF_Print(rpt,1,rp->n,rp->u.fV);
+        break;
+        
+      case kDoubleVaFl:
+        cmVOD_Print(rpt,1,rp->n,rp->u.dV);
+        break;
+        
+      case kIntVaFl:
+        cmVOI_Print(rpt,1,rp->n,rp->u.iV);        
+        break;
+        
+      case kUIntVaFl:
+        cmVOU_Print(rpt,1,rp->n,rp->u.uV);        
+        break;
+        
+      default:
+        rc = cmCtxRtCondition(&p->obj,cmInvalidArgRC,"The vector array value type flag was not recognized.");
+        break;
+    }
+  }
+  return rc;
+}
+
 
 unsigned cmVectArrayForEachS( cmVectArray_t* p, unsigned idx, unsigned cnt, cmVectArrayForEachFuncS_t func, void* arg )
 {
@@ -4022,145 +4031,180 @@ unsigned cmVectArrayForEachS( cmVectArray_t* p, unsigned idx, unsigned cnt, cmVe
   return n;
 }
 
+cmRC_t _cmVectArrayWriteMatrix( cmCtx* ctx, const char* fn, unsigned flags, const void* m, unsigned  rn, unsigned cn )
+{
+  cmRC_t         rc  = cmOkRC;
+  cmVectArray_t* p;
+  const char*    b   = (const char*)m;
+  unsigned       tbc = _cmVectArrayTypeByteCnt( NULL, flags );
+  unsigned       ri  = 0;
+  char*          vv  = cmMemAlloc(char,cn*tbc);
+  
+  if((p = cmVectArrayAlloc(ctx,flags)) == NULL )
+    return cmCtxRtCondition(&ctx->obj,cmSubSysFailRC,"Unable to allocate a cmVectArray_t in %s().",__FUNCTION__);
+
+  for(ri=0; ri<rn; ++ri)
+  {
+    // get ptr to first element in row 'ri' or m[]
+    const char* v = b + ri*tbc;
+    unsigned ci;
+    
+    // for each column in m[ri,:]
+    for(ci=0; ci<cn; ++ci)
+      memcpy(vv + ci*tbc, v + ci*rn*tbc, tbc );
+
+    // append the row to the VectArray
+    if((rc = cmVectArrayAppendV(p,v,cn)) != cmOkRC )
+    {
+      rc = cmCtxRtCondition(&p->obj,rc,"Vector append failed in %s().",__FUNCTION__);
+      goto errLabel;
+    }
+  }
+  
+  if((rc = cmVectArrayWrite(p,fn)) != cmOkRC )
+    rc = cmCtxRtCondition(&p->obj,rc,"Vector array write failed in %s().",__FUNCTION__);
+
+ errLabel:
+  if((rc = cmVectArrayFree(&p)) != cmOkRC )
+    rc = cmCtxRtCondition(&ctx->obj,rc,"Vector array free failed in %s().",__FUNCTION__);
+
+  cmMemFree(vv);
+  
+  return rc;  
+}
+
+
+cmRC_t cmVectArrayWriteVectorV( cmCtx* ctx, const char* fn, const void* v, unsigned  vn, unsigned flags )
+{ return _cmVectArrayWriteMatrix( ctx, fn, flags, v, 1, vn ); } 
+  
 cmRC_t cmVectArrayWriteVectorS( cmCtx* ctx, const char* fn, const cmSample_t* v, unsigned  vn )
+{ return _cmVectArrayWriteMatrix( ctx, fn, kSampleVaFl, v, 1, vn ); } 
+
+cmRC_t cmVectArrayWriteVectorR( cmCtx* ctx, const char* fn, const cmReal_t* v, unsigned  vn )
+{ return _cmVectArrayWriteMatrix( ctx, fn, kRealVaFl, v, 1, vn ); } 
+
+cmRC_t cmVectArrayWriteVectorD( cmCtx* ctx, const char* fn, const double* v, unsigned  vn )
+{ return _cmVectArrayWriteMatrix( ctx, fn, kDoubleVaFl, v, 1, vn ); } 
+
+cmRC_t cmVectArrayWriteVectorF( cmCtx* ctx, const char* fn, const float* v, unsigned  vn )
+{ return _cmVectArrayWriteMatrix( ctx, fn, kFloatVaFl, v, 1, vn ); } 
+
+cmRC_t cmVectArrayWriteVectorI( cmCtx* ctx, const char* fn, const int* v, unsigned  vn )
+{ return _cmVectArrayWriteMatrix( ctx, fn, kIntVaFl, v, 1, vn ); }
+
+cmRC_t cmVectArrayWriteVectorU( cmCtx* ctx, const char* fn, const unsigned* v, unsigned  vn )
+{ return _cmVectArrayWriteMatrix( ctx, fn, kUIntVaFl, v, 1, vn ); } 
+
+
+cmRC_t cmVectArrayWriteMatrixV( cmCtx* ctx, const char* fn, const void* v, unsigned  rn, unsigned cn, unsigned flags )
+{ return _cmVectArrayWriteMatrix( ctx, fn, flags, v, rn, cn); }
+
+cmRC_t cmVectArrayWriteMatrixS( cmCtx* ctx, const char* fn, const cmSample_t* v, unsigned  rn, unsigned cn )
+{ return _cmVectArrayWriteMatrix( ctx, fn, kSampleVaFl, v, rn, cn); }
+
+cmRC_t cmVectArrayWriteMatrixR( cmCtx* ctx, const char* fn, const cmReal_t* v, unsigned  rn, unsigned cn )
+{ return _cmVectArrayWriteMatrix( ctx, fn, kRealVaFl, v, rn, cn); }
+
+cmRC_t cmVectArrayWriteMatrixD( cmCtx* ctx, const char* fn, const double* v, unsigned  rn, unsigned cn )
+{ return _cmVectArrayWriteMatrix( ctx, fn, kDoubleVaFl, v, rn, cn); }
+
+cmRC_t cmVectArrayWriteMatrixF( cmCtx* ctx, const char* fn, const float* v, unsigned  rn, unsigned cn )
+{ return _cmVectArrayWriteMatrix( ctx, fn, kFloatVaFl, v, rn, cn); }
+
+cmRC_t cmVectArrayWriteMatrixI( cmCtx* ctx, const char* fn, const int* v, unsigned  rn, unsigned cn )
+{ return _cmVectArrayWriteMatrix( ctx, fn, kIntVaFl, v, rn, cn); }
+
+cmRC_t cmVectArrayWriteMatrixU( cmCtx* ctx, const char* fn, const unsigned* v, unsigned  rn, unsigned cn )
+{ return _cmVectArrayWriteMatrix( ctx, fn, kUIntVaFl, v, rn, cn); }
+
+
+// Fill v[(*vnRef)*tbc] with the data from the current row of p.
+// Return the count of elements copied to v[] in *vnRef.
+cmRC_t _cmVectArrayGetV( cmVectArray_t* p, void* v, unsigned* vnRef, unsigned tbc )
 {
-  cmRC_t        rc = cmOkRC;
-  cmVectArray_t* p;
+  assert( tbc == p->typeByteCnt );
+  
+  if( cmVectArrayIsEOL(p) )
+    return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"%s failed because the state is EOL.",__FUNCTION__);
 
-  if((p = cmVectArrayAlloc(ctx,kSampleVaFl)) == NULL )
-    return cmCtxRtCondition(&ctx->obj,cmSubSysFailRC,"Unable to allocate an cmVectArray_t in cmVectArrayWriteVectorS().");
+  unsigned n = cmMin((*vnRef)*tbc, p->cur->n * p->typeByteCnt );
 
-  if((rc = cmVectArrayAppendS(p,v,vn)) != cmOkRC )
-  {
-    rc = cmCtxRtCondition(&p->obj,rc,"Vector append failed in cmVectArrayWriteVectorS().");
-    goto errLabel;
-  }
-    
-  if((rc = cmVectArrayWrite(p,fn)) != cmOkRC )
-    rc = cmCtxRtCondition(&p->obj,rc,"Vector array write failed in cmVectArrayWriteVectorS().");
+  memcpy(v, p->cur->u.v, n );
 
- errLabel:
-  if((rc = cmVectArrayFree(&p)) != cmOkRC )
-    rc = cmCtxRtCondition(&ctx->obj,rc,"Free failed on cmVectArrayFree() in cmVectArrayWriteVectorS().");
-
-  return rc;
+  *vnRef = n/tbc;
+  
+  return cmOkRC;
 }
 
-cmRC_t cmVectArrayWriteMatrixS( cmCtx* ctx, const char* fn, const cmSample_t* m, unsigned  rn, unsigned cn )
+cmRC_t _cmVectArrayReadMatrixV( cmCtx* ctx, const char* fn, void** mRef, unsigned* rnRef, unsigned* cnRef )
 {
-  cmRC_t        rc = cmOkRC;
-  cmVectArray_t* p;
-  unsigned       i;
+  assert( mRef  != NULL );
+  assert( cnRef != NULL );
+  assert( rnRef != NULL );
 
-  if((p = cmVectArrayAlloc(ctx,kSampleVaFl)) == NULL )
-    return cmCtxRtCondition(&ctx->obj,cmSubSysFailRC,"Unable to allocate an cmVectArray_t in cmVectArrayWriteVectorS().");
-
-  for(i=0; i<cn; ++i)
-  {
-    if((rc = cmVectArrayAppendS(p,m + (i*rn), rn)) != cmOkRC )
-    {
-      rc = cmCtxRtCondition(&p->obj,rc,"Vector append failed in cmVectArrayWriteVectorS().");
-      goto errLabel;
-    }
-    
-  }
-
-  if((rc = cmVectArrayWrite(p,fn)) != cmOkRC )
-    rc = cmCtxRtCondition(&p->obj,rc,"Vector array write failed in cmVectArrayWriteVectorS().");
-
- errLabel:
-  if((rc = cmVectArrayFree(&p)) != cmOkRC )
-    rc = cmCtxRtCondition(&ctx->obj,rc,"Free failed on cmVectArrayFree() in cmVectArrayWriteVectorS().");
-
-  return rc;
-
-}
-
-cmRC_t cmVectArrayWriteMatrixR( cmCtx* ctx, const char* fn, const cmReal_t* m, unsigned  rn, unsigned cn )
-{
-  cmRC_t        rc = cmOkRC;
-  cmVectArray_t* p;
-  unsigned       i;
-
-  if((p = cmVectArrayAlloc(ctx,kRealVaFl)) == NULL )
-    return cmCtxRtCondition(&ctx->obj,cmSubSysFailRC,"Unable to allocate an cmVectArray_t in cmVectArrayWriteVectorR().");
-
-  for(i=0; i<cn; ++i)
-  {
-    if((rc = cmVectArrayAppendR(p,m + (i*rn), rn)) != cmOkRC )
-    {
-      rc = cmCtxRtCondition(&p->obj,rc,"Vector append failed in cmVectArrayWriteVectorR().");
-      goto errLabel;
-    }
-    
-  }
-
-  if((rc = cmVectArrayWrite(p,fn)) != cmOkRC )
-    rc = cmCtxRtCondition(&p->obj,rc,"Vector array write failed in cmVectArrayWriteVectorR().");
-
- errLabel:
-  if((rc = cmVectArrayFree(&p)) != cmOkRC )
-    rc = cmCtxRtCondition(&ctx->obj,rc,"Free failed on cmVectArrayFree() in cmVectArrayWriteVectorR().");
-
-  return rc;
-
-}
-
-cmRC_t cmVectArrayWriteVectorI( cmCtx* ctx, const char* fn, const int* v,        unsigned  vn )
-{
-  cmRC_t        rc = cmOkRC;
-  cmVectArray_t* p;
-
-  if((p = cmVectArrayAlloc(ctx,kIntVaFl)) == NULL )
-    return cmCtxRtCondition(&ctx->obj,cmSubSysFailRC,"Unable to allocate an cmVectArray_t in cmVectArrayWriteVectorS().");
-
-  if((rc = cmVectArrayAppendI(p,v,vn)) != cmOkRC )
-  {
-    rc = cmCtxRtCondition(&p->obj,rc,"Vector append failed in cmVectArrayWriteVectorS().");
-    goto errLabel;
-  }
-    
-  if((rc = cmVectArrayWrite(p,fn)) != cmOkRC )
-    rc = cmCtxRtCondition(&p->obj,rc,"Vector array write failed in cmVectArrayWriteVectorS().");
-
-  errLabel:
-  if((rc = cmVectArrayFree(&p)) != cmOkRC )
-    rc = cmCtxRtCondition(&ctx->obj,rc,"Free failed on cmVectArrayFree() in cmVectArrayWriteVectorS().");
-
-  return rc;
-}
-
-
-cmRC_t cmVectArrayWriteMatrixI( cmCtx* ctx, const char* fn, const int* m, unsigned  rn, unsigned cn )
-{
+  *mRef  = NULL;
+  *cnRef = 0;
+  *rnRef = 0;
+  
   cmRC_t         rc = cmOkRC;
-  cmVectArray_t* p;
-  unsigned       i;
-
-  if((p = cmVectArrayAlloc(ctx,kIntVaFl)) == NULL )
-    return cmCtxRtCondition(&ctx->obj,cmSubSysFailRC,"Unable to allocate an cmVectArray_t in cmVectArrayWriteVectorI().");
-
-  for(i=0; i<cn; ++i)
+  cmVectArray_t* va;
+  
+  if((va = cmVectArrayAllocFromFile(ctx, fn )) == NULL )
+    rc = cmCtxRtCondition(&ctx->obj,cmSubSysFailRC,"Unable to read the vectarray from the file '%s'.", cmStringNullGuard(fn));
+  else
   {
-    if((rc = cmVectArrayAppendI(p,m + (i*rn), rn)) != cmOkRC )
-    {
-      rc = cmCtxRtCondition(&p->obj,rc,"Vector append failed in cmVectArrayWriteVectorI().");
-      goto errLabel;
-    }
+    unsigned rn = cmVectArrayCount(va);                    // count of rows 
+    unsigned cn = cmVectArrayMaxRowCount(va);              // max count of ele's among all rows
+    char*     m = cmMemAllocZ(char,va->typeByteCnt*rn*cn); // allocate the matrix
+    unsigned ci = 0;
     
+    cmVectArrayRewind(va);
+
+    // read each vector into a column of m[]
+    for(; !cmVectArrayIsEOL(va); ++ci)
+    {
+      unsigned n = cmVectArrayEleCount(va);
+
+      assert( m+(ci*rn+n)*va->typeByteCnt <= m + rn*cn*va->typeByteCnt );
+
+      if( _cmVectArrayGetV(va, m + ci*rn*va->typeByteCnt, &n, va->typeByteCnt) != cmOkRC )
+        goto errLabel;
+
+      cmVectArrayAdvance(va,1);
+    }
+
+    *mRef  = m;
+    *cnRef = cn;
+    *rnRef = rn;
   }
-
-  if((rc = cmVectArrayWrite(p,fn)) != cmOkRC )
-    rc = cmCtxRtCondition(&p->obj,rc,"Vector array write failed in cmVectArrayWriteVectorI().");
-
+  
  errLabel:
-  if((rc = cmVectArrayFree(&p)) != cmOkRC )
-    rc = cmCtxRtCondition(&ctx->obj,rc,"Free failed on cmVectArrayFree() in cmVectArrayWriteVectorI().");
+  if( va != NULL )
+    cmVectArrayFree(&va);
 
   return rc;
-
 }
 
+cmRC_t cmVectArrayReadMatrixV( cmCtx* ctx, const char* fn, void** mRef, unsigned* rnRef, unsigned* cnRef )
+{ return _cmVectArrayReadMatrixV(ctx, fn, mRef, rnRef, cnRef ); }
+
+cmRC_t cmVectArrayReadMatrixS( cmCtx* ctx, const char* fn, cmSample_t** mRef, unsigned* rnRef, unsigned* cnRef )
+{ return _cmVectArrayReadMatrixV(ctx, fn, (void**)mRef, rnRef, cnRef ); }
+
+cmRC_t cmVectArrayReadMatrixR( cmCtx* ctx, const char* fn, cmReal_t** mRef, unsigned* rnRef, unsigned* cnRef )
+{ return _cmVectArrayReadMatrixV(ctx, fn, (void**)mRef, rnRef, cnRef ); }
+
+cmRC_t cmVectArrayReadMatrixD( cmCtx* ctx, const char* fn, double**   mRef, unsigned* rnRef, unsigned* cnRef )
+{ return _cmVectArrayReadMatrixV(ctx, fn, (void**)mRef, rnRef, cnRef ); }
+
+cmRC_t cmVectArrayReadMatrixF( cmCtx* ctx, const char* fn, float**    mRef, unsigned* rnRef, unsigned* cnRef )
+{ return _cmVectArrayReadMatrixV(ctx, fn, (void**)mRef, rnRef, cnRef ); }
+
+cmRC_t cmVectArrayReadMatrixI( cmCtx* ctx, const char* fn, int**      mRef, unsigned* rnRef, unsigned* cnRef )
+{ return _cmVectArrayReadMatrixV(ctx, fn, (void**)mRef, rnRef, cnRef ); }
+
+cmRC_t cmVectArrayReadMatrixU( cmCtx* ctx, const char* fn, unsigned** mRef, unsigned* rnRef, unsigned* cnRef )
+{ return _cmVectArrayReadMatrixV(ctx, fn, (void**)mRef, rnRef, cnRef ); }
 
 cmRC_t cmVectArrayForEachTextFuncS( void* arg, unsigned idx, const cmSample_t* xV, unsigned xN )
 {
@@ -4186,13 +4230,11 @@ cmRC_t cmVectArrayAdvance( cmVectArray_t* p, unsigned n )
     p->cur = p->cur->link;
   }
       
-  return cmOkRC;
-  
+  return cmOkRC;  
 }
 
 bool   cmVectArrayIsEOL( const cmVectArray_t* p )
 { return p->cur == NULL; }
-
 
 unsigned cmVectArrayEleCount(   const cmVectArray_t* p )
 {
@@ -4201,101 +4243,136 @@ unsigned cmVectArrayEleCount(   const cmVectArray_t* p )
   return p->cur->n;
 }
 
+cmRC_t cmVectArrayGetV( cmVectArray_t* p, void* v, unsigned* vnRef )
+{ return _cmVectArrayGetV(p,v,vnRef,_cmVectArrayTypeByteCnt(p,p->flags)); }
 
-
-cmRC_t cmVectArrayGetF( cmVectArray_t* p, float* v, unsigned* vnRef )
+cmRC_t cmVectArrayGetS( cmVectArray_t* p, cmSample_t* v, unsigned* vnRef )
 {
-  assert( cmIsFlag(p->flags,kFloatVaFl) );
+  assert( cmIsFlag(p->flags,kSampleVaFl) );
+  return _cmVectArrayGetV(p,v,vnRef,sizeof(cmSample_t));
+}
 
-  if( cmVectArrayIsEOL(p) )
-    return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArray get failed because the state is EOL.");
-
-  unsigned n = cmMin(*vnRef,p->cur->n);
-
-  cmVOF_Copy(v,n,p->cur->u.fV);
-
-  *vnRef = n;
-
-  return cmOkRC;
+cmRC_t cmVectArrayGetR( cmVectArray_t* p, cmReal_t* v, unsigned* vnRef )
+{
+  assert( cmIsFlag(p->flags,kRealVaFl) );
+  return _cmVectArrayGetV(p,v,vnRef,sizeof(cmReal_t));
 }
 
 cmRC_t cmVectArrayGetD( cmVectArray_t* p, double* v, unsigned* vnRef )
 {
   assert( cmIsFlag(p->flags,kDoubleVaFl) );
+  return _cmVectArrayGetV(p,v,vnRef,sizeof(double));
+}
 
-  if( cmVectArrayIsEOL(p) )
-    return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArray get failed because the state is EOL.");
-
-  unsigned n = cmMin(*vnRef,p->cur->n);
-
-  cmVOD_Copy(v,n,p->cur->u.dV);
-
-  *vnRef = n;
-
-  return cmOkRC;
+cmRC_t cmVectArrayGetF( cmVectArray_t* p, float* v, unsigned* vnRef )
+{
+  assert( cmIsFlag(p->flags,kFloatVaFl) );
+  return _cmVectArrayGetV(p,v,vnRef,sizeof(float));
 }
 
 cmRC_t cmVectArrayGetI( cmVectArray_t* p, int* v, unsigned* vnRef )
 {
-  if( cmVectArrayIsEOL(p) )
-    return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArray get failed because the state is EOL.");
-
-  unsigned n = cmMin(*vnRef,p->cur->n);
-  unsigned i;
-
-  if( cmIsFlag(p->flags,kDoubleVaFl) )
-  {
-    for(i=0; i<n; ++i)
-      v[i] = (int)(p->cur->u.dV[i]);
-  }
-  else
-  {
-    if( cmIsFlag(p->flags,kFloatVaFl) )
-    {
-      for(i=0; i<n; ++i)
-        v[i] = (int)(p->cur->u.fV[i]);
-    }
-    else
-    {
-      assert(0);
-    }
-  }
-
-  *vnRef = n;
-
-  return cmOkRC;
+  assert( cmIsFlag(p->flags,kIntVaFl) );
+  return _cmVectArrayGetV(p,v,vnRef,sizeof(int));
 }
 
 cmRC_t cmVectArrayGetU( cmVectArray_t* p, unsigned* v, unsigned* vnRef )
 {
-  if( cmVectArrayIsEOL(p) )
-    return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArray get failed because the state is EOL.");
-
-  unsigned n = cmMin(*vnRef,p->cur->n);
-  unsigned i;
-
-  if( cmIsFlag(p->flags,kDoubleVaFl) )
-  {
-    for(i=0; i<n; ++i)
-      v[i] = (unsigned)(p->cur->u.dV[i]);
-  }
-  else
-  {
-    if( cmIsFlag(p->flags,kFloatVaFl) )
-    {
-      for(i=0; i<n; ++i)
-        v[i] = (unsigned)(p->cur->u.fV[i]);
-    }
-    else
-    {
-      assert(0);     
-    }
-  }
-
-  *vnRef = n;
-
-  return cmOkRC;
+  assert( cmIsFlag(p->flags,kUIntVaFl) );
+  return _cmVectArrayGetV(p,v,vnRef,sizeof(unsigned));
 }
+
+cmRC_t _cmVectArrayMatrixIsEqual( cmCtx* ctx, const char* fn, const void* mm, unsigned rn, unsigned cn, unsigned flags, bool* resultFlRef )
+{
+  assert( resultFlRef != NULL );
+  
+  cmRC_t         rc = cmOkRC;
+  cmVectArray_t*  p = NULL;
+  const char*     m = (const char*)mm;
+  unsigned      tbc = _cmVectArrayTypeByteCnt(NULL,flags);
+  unsigned       ri = 0;
+  char*          vv = cmMemAlloc(char,cn*tbc);
+  
+  *resultFlRef = false;
+  
+  // read the vector array
+  if((p = cmVectArrayAllocFromFile(ctx, fn )) == NULL)
+  {
+    rc = cmCtxRtCondition(&ctx->obj,cmSubSysFailRC,"Unable to read the VectArray from the file '%s'.", cmStringNullGuard(fn));
+    goto errLabel;
+  }
+
+  // verify that the matrix type matches the vector array type
+  if( (p->flags & kVaMask) != (flags & kVaMask) )
+  {
+    rc = cmCtxRtCondition(&ctx->obj,cmInvalidArgRC,"Invalid type conversion in '%s'.",__FUNCTION__);
+    goto errLabel;
+  }
+
+  // the row count of the VectArray and m[] must be the same
+  if( cmVectArrayCount(p) != rn )
+  {
+    *resultFlRef = false;
+    goto errLabel;
+  }
+
+  // for each row in VectArray
+  for(; !cmVectArrayIsEOL(p); ++ri )
+  {
+    unsigned vn = cmVectArrayEleCount(p);
+    char     v[ vn*p->typeByteCnt ];
+    unsigned ci;
+    
+    // get the current row from the VectArray into v[vn]
+    if( _cmVectArrayGetV(p,v,&vn,p->typeByteCnt) != cmOkRC )
+      goto errLabel;
+
+    // if the size of the current row does not match the row element count of the matrix
+    if( vn != cn )
+      goto errLabel;
+
+    for(ci=0; ci<cn; ++ci)
+      memcpy(vv + ci*tbc, m + (ri*tbc) + (ci*rn*tbc), tbc );
+
+    // the current row does not match the matrix column vector
+    if( memcmp(v, vv, vn*p->typeByteCnt ) != 0 )
+      goto errLabel;
+    
+    
+    cmVectArrayAdvance(p,1);
+  }
+
+  *resultFlRef = true;
+  
+ errLabel:
+  if( p != NULL )
+    cmVectArrayFree(&p);
+
+  cmMemFree(vv);
+  
+  return rc;
+}
+
+cmRC_t  cmVectArrayMatrixIsEqualV( cmCtx* ctx, const char* fn, const void*  m, unsigned rn, unsigned cn, bool* resultFlRef, unsigned flags )
+{ return _cmVectArrayMatrixIsEqual(ctx, fn, m, rn, cn, flags, resultFlRef); }
+
+cmRC_t cmVectArrayMatrixIsEqualS( cmCtx* ctx, const char* fn, const cmSample_t* m, unsigned rn, unsigned cn, bool* resultFlRef )
+{ return _cmVectArrayMatrixIsEqual(ctx, fn, m, rn, cn, kSampleVaFl, resultFlRef );  }
+
+cmRC_t cmVectArrayMatrixIsEqualR( cmCtx* ctx, const char* fn, const cmReal_t* m, unsigned rn, unsigned cn, bool* resultFlRef )
+{ return _cmVectArrayMatrixIsEqual(ctx, fn, m, rn, cn, kRealVaFl, resultFlRef );  }
+
+cmRC_t cmVectArrayMatrixIsEqualD( cmCtx* ctx, const char* fn, const double*   m, unsigned rn, unsigned cn, bool* resultFlRef )
+{ return _cmVectArrayMatrixIsEqual(ctx, fn, m, rn, cn, kDoubleVaFl, resultFlRef );  }
+
+cmRC_t cmVectArrayMatrixIsEqualF( cmCtx* ctx, const char* fn, const float*   m, unsigned rn, unsigned cn, bool* resultFlRef )
+{ return _cmVectArrayMatrixIsEqual(ctx, fn, m, rn, cn, kFloatVaFl, resultFlRef );  }
+
+cmRC_t cmVectArrayMatrixIsEqualI( cmCtx* ctx, const char* fn, const int*   m, unsigned rn, unsigned cn, bool* resultFlRef )
+{ return _cmVectArrayMatrixIsEqual(ctx, fn, m, rn, cn, kIntVaFl, resultFlRef );  }
+
+cmRC_t cmVectArrayMatrixIsEqualU( cmCtx* ctx, const char* fn, const unsigned*   m, unsigned rn, unsigned cn, bool* resultFlRef )
+{ return _cmVectArrayMatrixIsEqual(ctx, fn, m, rn, cn, kUIntVaFl, resultFlRef );  }
 
 unsigned cmVectArrayVectEleCount( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt )
 {
@@ -4321,8 +4398,8 @@ unsigned cmVectArrayVectEleCount( cmVectArray_t* p, unsigned groupIdx, unsigned 
   p->cur = pos;
 
   return n;
-  
 }
+
 
 cmRC_t   cmVectArrayFormVectF( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, float** vRef, unsigned* vnRef )
 {
@@ -4421,7 +4498,6 @@ cmRC_t   cmVectArrayFormVectColF( cmVectArray_t* p, unsigned groupIdx, unsigned 
   return rc;
 }
 
-
 cmRC_t   cmVectArrayFormVectColU( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, unsigned colIdx, unsigned** vRef, unsigned* vnRef )
 {
   cmRC_t rc = cmOkRC;
@@ -4472,81 +4548,97 @@ cmRC_t   cmVectArrayFormVectColU( cmVectArray_t* p, unsigned groupIdx, unsigned 
   return rc;
 }
 
-cmRC_t cmVectArrayTest( cmCtx* ctx, const char* fn )
+cmRC_t cmVectArrayTest( cmCtx* ctx, const char* fn, bool genFl )
 {
   cmRC_t         rc    = cmOkRC;
   cmVectArray_t* p     = NULL;
-  unsigned       flags = kSampleVaFl;
-  cmSample_t     v[]   = { 0, 1, 2, 3, 4, 5 };
 
   if( fn == NULL || strlen(fn)==0 )
     return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Invalid test output file name.");
 
-  if( (p = cmVectArrayAlloc(ctx,flags)) == NULL )
-    return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"The vectory array object allocation failed.");
+  if( genFl )
+  {
+    unsigned   flags = kSampleVaFl;
+    cmSample_t v[]   = { 0, 1, 2, 3, 4, 5 };
+
+    if( (p = cmVectArrayAlloc(ctx,flags)) == NULL )
+      return cmCtxRtCondition(&p->obj,cmSubSysFailRC,"The vectory array object allocation failed.");
   
-  if( cmVectArrayAppendS(p,v,1) != cmOkRC )
-  {
-    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Vector append 1 failed.");
-    goto errLabel;
-  }
-
-  if( cmVectArrayAppendS(p,v+1,2) != cmOkRC )
-  {
-    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Vector append 2 failed.");
-    goto errLabel;
-  }
-
-  if( cmVectArrayAppendS(p,v+3,3) != cmOkRC )
-  {
-    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Vector append 3 failed.");
-    goto errLabel;
-  }
-  
-  if( cmVectArrayWrite(p,fn) != cmOkRC )
-  {
-    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Vector array write failed.");
-    goto errLabel;
-  }
-
-  //cmVectArrayForEachS(p,0,cmVectArrayEleCount(p),cmVectArrayForEachTextFuncS,&ctx->printRpt);
-  
-  if( cmVectArrayFree(&p) != cmOkRC )
-  {
-    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"The vectory array release failed.");
-    goto errLabel;
-  }
-
-
-  if((p = cmVectArrayAllocFromFile(ctx, fn )) == NULL )
-  {
-    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArray alloc from file failed.");
-    goto errLabel;
-  }
-
-  
-  while(!cmVectArrayIsEOL(p))
-  {
-    unsigned n = cmVectArrayEleCount(p);
-    cmSample_t v[n];
-    
-
-    if( cmVectArrayGetS(p,v,&n) != cmOkRC )
+    if( cmVectArrayAppendS(p,v,1) != cmOkRC )
     {
-      rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArrayGetS() failed.");
+      rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Vector append 1 failed.");
+      goto errLabel;
+    }
+    
+    if( cmVectArrayAppendS(p,v+1,2) != cmOkRC )
+    {
+      rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Vector append 2 failed.");
       goto errLabel;
     }
 
-    cmVOS_PrintL("v:",NULL,1,n,v);
-    
-    cmVectArrayAdvance(p,1);
-  }
+    if( cmVectArrayAppendS(p,v+3,3) != cmOkRC )
+    {
+      rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Vector append 3 failed.");
+      goto errLabel;
+    }
   
+    if( cmVectArrayWrite(p,fn) != cmOkRC )
+    {
+      rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Vector array write failed.");
+      goto errLabel;
+    }
+  
+    //cmVectArrayForEachS(p,0,cmVectArrayEleCount(p),cmVectArrayForEachTextFuncS,&ctx->printRpt);
+    
+    //if( cmVectArrayFree(&p) != cmOkRC )
+    //{
+    //  rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"The vectory array release failed.");
+    //  goto errLabel;
+    //}
+  }
+  else
+  {
+    if((p = cmVectArrayAllocFromFile(ctx, fn )) == NULL )
+    {
+      rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArray alloc from file failed.");
+      goto errLabel;
+    }
+  
+    while(!cmVectArrayIsEOL(p))
+    {
+      unsigned n = cmVectArrayEleCount(p);
+      cmSample_t v[n];
+      
+
+      if( cmVectArrayGetS(p,v,&n) != cmOkRC )
+      {
+        rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"VectArrayGetS() failed.");
+        goto errLabel;
+      }
+
+      //cmVOS_PrintL("v:",NULL,1,n,v);
+    
+      cmVectArrayAdvance(p,1);
+    }
+
+
+    // Test matrix reading
+    cmSample_t* m;
+    unsigned rn,cn;
+    if( cmVectArrayReadMatrixS(ctx, fn, &m, &rn, &cn ) != cmOkRC )
+      goto errLabel;
+    else
+    {
+      //cmVOS_PrintL("v:",NULL,rn,cn,m);
+      cmMemFree(m);
+    }
+  
+  }
 
  errLabel:
   if( cmVectArrayFree(&p) != cmOkRC )
-    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"The vectory array release failed.");
-
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"The vector array release failed.");
+  
   return rc;
 }
 
@@ -4753,6 +4845,7 @@ cmRC_t    cmFrqTrkFree( cmFrqTrk** pp )
   cmMemFree(p->logFn);
   cmMemFree(p->levelFn);
   cmMemFree(p->specFn);
+  cmMemFree(p->attenFn);
   cmObjFree(pp);
   return rc;
 

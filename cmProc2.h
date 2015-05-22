@@ -176,12 +176,18 @@ extern "C" {
 
   enum { kHighPassFIRFl = 0x01 };
 
-  /// Set p to NULL to dynamically allocate the object.
-  cmFIR* cmFIRAllocKaiser(cmCtx* c, cmFIR* p, unsigned procSmpCnt, double srate, double passHz, double stopHz, double passDb, double stopDb );
-  cmFIR* cmFIRAllocSinc(  cmCtx* c, cmFIR* p, unsigned procSmpCnt, double srate, unsigned sincSmpCnt, double fcHz, unsigned flags );
+  // Note that the relative values of passHz and stopHz do not matter
+  // for low-pass vs high-pass filters.  In practice passHz and
+  // stopHz can be swapped with no effect on the filter in either
+  // case.  Set p to NULL to dynamically allocate the object.
+  cmFIR* cmFIRAllocKaiser(cmCtx* c, cmFIR* p, unsigned procSmpCnt, double srate, double passHz, double stopHz, double passDb, double stopDb, unsigned flags );
+
+  // Set wndV[sincSmpCnt] to NULL to use a unity window otherwise set it to a window
+  // function of length sincSmpCnt.
+  cmFIR* cmFIRAllocSinc(  cmCtx* c, cmFIR* p, unsigned procSmpCnt, double srate, unsigned sincSmpCnt, double fcHz, unsigned flags, const double* wndV );
   cmRC_t cmFIRFree(       cmFIR** pp );
-  cmRC_t cmFIRInitKaiser( cmFIR* p, unsigned procSmpCnt, double srate, double passHz, double stopHz, double passDb, double stopDb );
-  cmRC_t cmFIRInitSinc(   cmFIR* p, unsigned procSmpCnt, double srate, unsigned sincSmpCnt, double fcHz, unsigned flags );
+  cmRC_t cmFIRInitKaiser( cmFIR* p, unsigned procSmpCnt, double srate, double passHz,       double stopHz, double passDb, double stopDb, unsigned flags );
+  cmRC_t cmFIRInitSinc(   cmFIR* p, unsigned procSmpCnt, double srate, unsigned sincSmpCnt, double fcHz,   unsigned flags, const double* wndV );
   cmRC_t cmFIRFinal(      cmFIR* p );
   cmRC_t cmFIRExec(       cmFIR* p, const cmSample_t* sp, unsigned sn );
   void   cmFIRTest();
@@ -783,6 +789,8 @@ extern "C" {
       double*     dV;  // dV[n] vector of doubles  
       float*      fV;  // fV[n] vecotr of floats
       cmSample_t* sV;  // sV[n] vector of cmSample_t
+      int*        iV;
+      unsigned*   uV;
     } u;
 
     struct cmVectArrayVect_str* link; // link to next element record
@@ -791,23 +799,24 @@ extern "C" {
 
   enum
   {
-    kFloatVaFl  = 0x01,
-    kDoubleVaFl = 0x02,
-    kSampleVaFl = 0x04,
-    kRealVaFl   = 0x08,
-    kIntVaFl    = 0x02,  // int and uint is converted to double
-    kUIntVaFl   = 0x02   // 
+    kDoubleVaFl = 0x01,
+    kRealVaFl   = 0x01,
+    kFloatVaFl  = 0x02,
+    kSampleVaFl = 0x02,
+    kIntVaFl    = 0x04,
+    kUIntVaFl   = 0x08,
+    kVaMask     = 0x0f
   };
 
   typedef struct
   {
     cmObj              obj;
-    cmVectArrayVect_t* bp;         // first list element
-    cmVectArrayVect_t* ep;         // last list element
+    cmVectArrayVect_t* bp;          // first list element
+    cmVectArrayVect_t* ep;          // last list element
     unsigned           vectCnt;     // count of elements in linked list
-    unsigned           flags;      // data vector type (See: kFloatVaFl, kDoubleVaFl, ... )
+    unsigned           flags;       // data vector type (See: kFloatVaFl, kDoubleVaFl, ... )
     unsigned           typeByteCnt; // size of a single data vector value (e.g. 4=float 8=double)
-    unsigned           maxEleCnt; // length of the longest data vector
+    unsigned           maxEleCnt;   // length of the longest data vector
     double*            tempV;
     cmVectArrayVect_t* cur;
   } cmVectArray_t;
@@ -824,7 +833,13 @@ extern "C" {
   // Return the count of vectors contained in the vector array.
   cmRC_t cmVectArrayCount(   const cmVectArray_t* p );
 
+  // Return the maximum element count among all rows.
+  unsigned cmVectArrayMaxRowCount( const cmVectArray_t* p );
+
   // Store a new vector by appending it to the end of the internal vector list.
+  // Note that the true type of v[] in the call to cmVectArrayAppendV() must match
+  // the data type set in p->flags.
+  cmRC_t cmVectArrayAppendV( cmVectArray_t* p, const void* v,       unsigned vn );
   cmRC_t cmVectArrayAppendS( cmVectArray_t* p, const cmSample_t* v, unsigned vn );
   cmRC_t cmVectArrayAppendR( cmVectArray_t* p, const cmReal_t* v,   unsigned vn );
   cmRC_t cmVectArrayAppendF( cmVectArray_t* p, const float* v,      unsigned vn );
@@ -835,45 +850,84 @@ extern "C" {
   // Write a vector array in a format that can be read by readVectArray.m.
   cmRC_t cmVectArrayWrite(   cmVectArray_t* p, const char* fn );
 
+  // Print the vector array to rpt.
+  cmRC_t cmVectArrayPrint( cmVectArray_t* p, cmRpt_t* rpt );
+  
   typedef cmRC_t (*cmVectArrayForEachFuncS_t)( void* arg, unsigned idx, const cmSample_t* xV, unsigned xN );
   unsigned cmVectArrayForEachS( cmVectArray_t* p, unsigned idx, unsigned cnt, cmVectArrayForEachFuncS_t func, void* arg ); 
 
+  // Write the vector v[vn] in the VectArray file format.
+  // Note that the true type of v[] in cmVectArrayWriteVectoV() must match the
+  // data type set in the 'flags' parameter.
+  cmRC_t cmVectArrayWriteVectorV( cmCtx* ctx, const char* fn, const void*       v, unsigned  vn, unsigned flags );
   cmRC_t cmVectArrayWriteVectorS( cmCtx* ctx, const char* fn, const cmSample_t* v, unsigned  vn );
-  cmRC_t cmVectArrayWriteVectorI( cmCtx* ctx, const char* fn, const int* v,        unsigned  vn );
+  cmRC_t cmVectArrayWriteVectorR( cmCtx* ctx, const char* fn, const cmReal_t*   v, unsigned  vn );  
+  cmRC_t cmVectArrayWriteVectorD( cmCtx* ctx, const char* fn, const double*     v, unsigned  vn );
+  cmRC_t cmVectArrayWriteVectorF( cmCtx* ctx, const char* fn, const float*      v, unsigned  vn );
+  cmRC_t cmVectArrayWriteVectorI( cmCtx* ctx, const char* fn, const int*        v, unsigned  vn );
+  cmRC_t cmVectArrayWriteVectorU( cmCtx* ctx, const char* fn, const unsigned*   v, unsigned  vn );
 
-  // Write the column-major matrix m[rn,cn] to the file 'fn'. Note that the matrix is transposed as it is 
-  // written and therefore will be read back as a 'cn' by 'rn' matrix.
+  // Write the column-major matrix m[rn,cn] to the file 'fn'.
+  // Note that the true type of m[] in cmVectArrayWriteMatrixV() must match the
+  // data type set in the 'flags' parameter.
+  cmRC_t cmVectArrayWriteMatrixV( cmCtx* ctx, const char* fn, const void*       m, unsigned  rn, unsigned cn, unsigned flags );
   cmRC_t cmVectArrayWriteMatrixS( cmCtx* ctx, const char* fn, const cmSample_t* m, unsigned  rn, unsigned cn );
-  cmRC_t cmVectArrayWriteMatrixR( cmCtx* ctx, const char* fn, const cmReal_t*   m, unsigned  rn, unsigned cn );
+  cmRC_t cmVectArrayWriteMatrixR( cmCtx* ctx, const char* fn, const cmReal_t*   m, unsigned  rn, unsigned cn );  
+  cmRC_t cmVectArrayWriteMatrixD( cmCtx* ctx, const char* fn, const double*     m, unsigned  rn, unsigned cn );
+  cmRC_t cmVectArrayWriteMatrixF( cmCtx* ctx, const char* fn, const float*      m, unsigned  rn, unsigned cn );
   cmRC_t cmVectArrayWriteMatrixI( cmCtx* ctx, const char* fn, const int*        m, unsigned  rn, unsigned cn );
+  cmRC_t cmVectArrayWriteMatrixU( cmCtx* ctx, const char* fn, const unsigned*   m, unsigned  rn, unsigned cn );
 
+  // Read a VectArray file and return it as a matrix.
+  // The returned memory must be released with a subsequent call to cmMemFree().
+  // Note that the true type of the pointer address 'mRef' in the call to 
+  // cmVectArrayReadMatrixV() must match the data type of the cmVectArray_t
+  // specified by 'fn'.
+  cmRC_t cmVectArrayReadMatrixV( cmCtx* ctx, const char* fn, void**       mRef, unsigned* rnRef, unsigned* cnRef );
+  cmRC_t cmVectArrayReadMatrixS( cmCtx* ctx, const char* fn, cmSample_t** mRef, unsigned* rnRef, unsigned* cnRef );
+  cmRC_t cmVectArrayReadMatrixR( cmCtx* ctx, const char* fn, cmReal_t**   mRef, unsigned* rnRef, unsigned* cnRef );  
+  cmRC_t cmVectArrayReadMatrixD( cmCtx* ctx, const char* fn, double**     mRef, unsigned* rnRef, unsigned* cnRef );
+  cmRC_t cmVectArrayReadMatrixF( cmCtx* ctx, const char* fn, float**      mRef, unsigned* rnRef, unsigned* cnRef );
+  cmRC_t cmVectArrayReadMatrixI( cmCtx* ctx, const char* fn, int**        mRef, unsigned* rnRef, unsigned* cnRef );
+  cmRC_t cmVectArrayReadMatrixU( cmCtx* ctx, const char* fn, unsigned**   mRef, unsigned* rnRef, unsigned* cnRef );
+
+  // Row iteration control functions.
   cmRC_t   cmVectArrayRewind(   cmVectArray_t* p );
   cmRC_t   cmVectArrayAdvance(  cmVectArray_t* p, unsigned n );
   bool     cmVectArrayIsEOL(    const cmVectArray_t* p );
   unsigned cmVectArrayEleCount( const cmVectArray_t* p );
-  cmRC_t   cmVectArrayGetF(     cmVectArray_t* p, float* v,      unsigned* vnRef );
-  cmRC_t   cmVectArrayGetD(     cmVectArray_t* p, double* v,     unsigned* vnRef );
-  cmRC_t   cmVectArrayGetI(     cmVectArray_t* p, int* v,        unsigned* vnRef );
-  cmRC_t   cmVectArrayGetU(     cmVectArray_t* p, unsigned* v,   unsigned* vnRef );
+
+  // Copy the current row vector to v[].
+  // Note that the true type of v[] in cmVectArrayGetV() must match the data type of 'p'.
+  cmRC_t  cmVectArrayGetV(     cmVectArray_t* p, void*       v, unsigned* vnRef );
+  cmRC_t  cmVectArrayGetS(     cmVectArray_t* p, cmSample_t* v, unsigned* vnRef );  
+  cmRC_t  cmVectArrayGetR(     cmVectArray_t* p, cmReal_t*   v, unsigned* vnRef );
+  cmRC_t  cmVectArrayGetD(     cmVectArray_t* p, double*     v, unsigned* vnRef );  
+  cmRC_t  cmVectArrayGetF(     cmVectArray_t* p, float*      v, unsigned* vnRef );
+  cmRC_t  cmVectArrayGetI(     cmVectArray_t* p, int*        v, unsigned* vnRef );
+  cmRC_t  cmVectArrayGetU(     cmVectArray_t* p, unsigned*   v, unsigned* vnRef );
+
+  // Set *resultFlRef to true if m[rn,cn] is equal to the cmVectArray_t specified by 'fn'.
+  // Note that the true type of 'm[]' in the call to cmVectArrayMatrixIsEqualV()
+  // must match the data type set in 'flags'.
+  cmRC_t  cmVectArrayMatrixIsEqualV( cmCtx* ctx, const char* fn, const void*       m, unsigned rn, unsigned cn, bool* resultFlRef, unsigned flags );
+  cmRC_t  cmVectArrayMatrixIsEqualS( cmCtx* ctx, const char* fn, const cmSample_t* m, unsigned rn, unsigned cn, bool* resultFlRef );  
+  cmRC_t  cmVectArrayMatrixIsEqualR( cmCtx* ctx, const char* fn, const cmReal_t*   m, unsigned rn, unsigned cn, bool* resultFlRef );  
+  cmRC_t  cmVectArrayMatrixIsEqualD( cmCtx* ctx, const char* fn, const double*     m, unsigned rn, unsigned cn, bool* resultFlRef );  
+  cmRC_t  cmVectArrayMatrixIsEqualF( cmCtx* ctx, const char* fn, const float*      m, unsigned rn, unsigned cn, bool* resultFlRef );  
+  cmRC_t  cmVectArrayMatrixIsEqualI( cmCtx* ctx, const char* fn, const int*        m, unsigned rn, unsigned cn, bool* resultFlRef );  
+  cmRC_t  cmVectArrayMatrixIsEqualU( cmCtx* ctx, const char* fn, const unsigned*   m, unsigned rn, unsigned cn, bool* resultFlRef );  
 
   // If a vector array is composed of repeating blocks of 'groupCnt' sub-vectors 
   // where the concatenated ith sub-vectors in each group form a single super-vector then
   // this function will return the super-vector.  Use cmMemFree(*vRef) to release
   // the returned super-vector.
-  cmRC_t   cmVectArrayFormVectF( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, float** vRef, unsigned* vnRef );
+  cmRC_t   cmVectArrayFormVectR( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, cmReal_t**   vRef, unsigned* vnRef );
+  cmRC_t   cmVectArrayFormVectF( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, float**      vRef, unsigned* vnRef );
 
   cmRC_t   cmVectArrayFormVectColF( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, unsigned colIdx, float**    vRef, unsigned* vnRef );
   cmRC_t   cmVectArrayFormVectColU( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, unsigned colIdx, unsigned** vRef, unsigned* vnRef );
-  cmRC_t   cmVectArrayTest( cmCtx* ctx, const char* fn );  
-
-
-#if CM_FLOAT_SMP == 1
-#define cmVectArrayGetS cmVectArrayGetF
-#define cmVectArrayFormVectS cmVectArrayFormVectF
-#else
-#define cmVectArrayGetS cmVectArrayGetD
-#define cmVectArrayFormVectS cmVectArrayFormVectD
-#endif
+  cmRC_t   cmVectArrayTest( cmCtx* ctx, const char* fn, bool genFl );  
 
   //-----------------------------------------------------------------------------------------------------------------------
   // Spectral whitening filter.
