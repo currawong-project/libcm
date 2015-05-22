@@ -332,13 +332,13 @@ unsigned VECT_OP_FUNC(NormToAbsMax)(   VECT_OP_TYPE* dp, unsigned dn, VECT_OP_TY
 
   unsigned     i  = 0;
   unsigned     mi = 0;
-  VECT_OP_TYPE mx = fabs(dp[0]);
+  VECT_OP_TYPE mx = cmAbs(dp[0]);
 
   for(i=1; i<dn; ++i)
-    if( fabs(dp[i])>mx )
+    if( cmAbs(dp[i])>mx )
     {
       mi = i;
-      mx = fabs(dp[i]);
+      mx = cmAbs(dp[i]);
     }
 
   VECT_OP_FUNC(MultVS)(dp,dn,fact/mx);
@@ -2339,33 +2339,51 @@ VECT_OP_TYPE*    VECT_OP_FUNC(FilterFilter)(struct cmFilter_str* f, cmRC_t (*fun
 
 
 
-VECT_OP_TYPE* VECT_OP_FUNC(LP_Sinc)(VECT_OP_TYPE* dp, unsigned dn, double srate, double fcHz, unsigned flags )
+VECT_OP_TYPE* VECT_OP_FUNC(LP_Sinc)(VECT_OP_TYPE* dp, unsigned dn, const VECT_OP_TYPE* wndV, double srate, double fcHz, unsigned flags )
 {
   VECT_OP_TYPE* rp = dp;
 
   int    dM       = dn % 2;                  // dM is used to handle odd length windows
   int    M        = (dn - dM)/2;
   int    Mi       = -M;
-  double signFact = cmIsFlag(flags, kHighPass_LPSincFl) ? -0.5 : 0.5;
   double phsFact  = 2.0 * M_PI * fcHz / srate;
   double sum      = 0;
+  VECT_OP_TYPE noWndV[ dn ];
 
+  // if no window was given then create a unity window
+  if( wndV == NULL )
+  {
+    VECT_OP_FUNC(Fill)(noWndV,dn,1);
+    wndV = noWndV;
+  }
 
   M += dM; 
 
   //printf("M=%i Mi=%i sign:%f phs:%f\n",M,Mi,signFact,phsFact);
 
-
-  for(; Mi<M; ++Mi,++dp)
+  for(; Mi<M; ++Mi,++dp,++wndV)
   {
     double phs = phsFact * Mi;
-    *dp = Mi == 0 ? 0.5 : signFact * sin(phs)/phs;
+    if( Mi != 0 )
+      *dp = *wndV * 0.5 * sin(phs)/phs;
+    else
+      *dp = *wndV * 0.5;
+    
     sum += *dp;
   }
 
+  // normalize the filter to produce unity gain.
   if( cmIsFlag(flags,kNormalize_LPSincFl) )
-    VECT_OP_FUNC(DivVS)(rp,dn,sum);
+    VECT_OP_FUNC(DivVS)(rp,dn,fabs(sum));
 
+  // Convert low-pass filter to high-pass filter
+  // Note that this can only be done after the filter is normalized.
+  if( cmIsFlag(flags,kHighPass_LPSincFl) )
+  {
+    VECT_OP_FUNC(MultVS)(rp,dn,-1);
+    rp[M-1] = 1.0 + rp[M-1];
+  }
+  
   return rp;
 }
 

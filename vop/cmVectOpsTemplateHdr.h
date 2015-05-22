@@ -443,8 +443,10 @@ struct cmFilter_str;
 VECT_OP_TYPE* VECT_OP_FUNC(FilterFilter)(struct cmFilter_str* f, cmRC_t (*func)( struct cmFilter_str* f,  const VECT_OP_TYPE* x, unsigned xn, VECT_OP_TYPE* y, unsigned yn ), const cmReal_t bb[], unsigned bn, const cmReal_t aa[], unsigned an, const VECT_OP_TYPE* x, unsigned xn, VECT_OP_TYPE* y, unsigned yn );
 
 /// Compute the coefficients of a low/high pass FIR filter
-/// See enum { kHighPass_LPSincFl=0x01, kNormalize_LPSincFl=0x02 } in acVectOps.h
-VECT_OP_TYPE* VECT_OP_FUNC(LP_Sinc)(VECT_OP_TYPE* dp, unsigned dn, double srate, double fcHz, unsigned flags );
+/// wndV[dn] gives the window function used to truncate the ideal low-pass impulse response.
+/// Set wndV to NULL to use a unity window.
+/// See enum { kHighPass_LPSincFl=0x01, kNormalize_LPSincFl=0x02 } in cmVectOps.h
+VECT_OP_TYPE* VECT_OP_FUNC(LP_Sinc)(VECT_OP_TYPE* dp, unsigned dn, const VECT_OP_TYPE* wndV, double srate, double fcHz, unsigned flags );
 
 /// Compute the complex transient detection function from successive spectral frames.
 /// The spectral magntidue mag0V precedes mag1V and the phase (radians) spectrum phs0V precedes the phs1V which precedes phs2V.  
