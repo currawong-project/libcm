@@ -67,4 +67,11 @@ int      cmRandInt( int min, int max );
 unsigned cmRandUInt( unsigned min, unsigned max );
 float    cmRandFloat( float min, float max );
 double   cmRandDouble( double min, double max );
+
+//=================================================================
+bool cmIsCloseD( double   x0, double   x1, double eps );
+bool cmIsCloseF( float    x0, float    x1, double eps );
+bool cmIsCloseI( int      x0, int      x1, double eps );
+bool cmIsCloseU( unsigned x0, unsigned x1, double eps );
+
 #endif

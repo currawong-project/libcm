@@ -419,3 +419,51 @@ double   cmRandDouble( double min, double max )
   double offs = max - min;
   return min + cmMax(0,cmMin(offs,(offs * (double)rand() / RAND_MAX)));
 }
+
+
+//=================================================================
+// Base on: http://stackoverflow.com/questions/3874627/floating-point-comparison-functions-for-c-sharp
+
+bool cmIsCloseD( double x0, double x1, double eps )
+{
+  double d = fabs(x0-x1);
+  
+  if( x0 == x1 )
+    return true;
+
+  if( x0==0 || x1==0 || d<DBL_MIN )
+    return d < (eps * DBL_MIN);
+
+  return (d / cmMin( fabs(x0) + fabs(x1), DBL_MAX)) < eps;
+}
+
+bool cmIsCloseF( float  x0, float  x1, double  eps_d )
+{
+  float eps = (float)eps_d;
+  float d = fabsf(x0-x1);
+  
+  if( x0 == x1 )
+    return true;
+
+  if( x0==0 || x1==0 || d<FLT_MIN )
+    return d < (eps * FLT_MIN);
+
+  return (d / cmMin( fabsf(x0) + fabsf(x1), FLT_MAX)) < eps;
+}
+
+bool cmIsCloseI( int x0, int x1, double eps )
+{
+  if( x0 == x1 )
+    return true;
+  
+  return abs(x0-x1)/(abs(x0)+abs(x1)) < eps;
+}
+
+
+bool cmIsCloseU( unsigned x0, unsigned x1, double eps )
+{
+  if( x0 == x1 )
+    return true;
+  
+  return abs(x0-x1)/(x0+x1) < eps;
+}
