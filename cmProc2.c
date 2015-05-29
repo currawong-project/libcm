@@ -823,7 +823,7 @@ cmRC_t cmFIRInitKaiser( cmFIR* p, unsigned procSmpCnt, double srate, double pass
   // in practice the ripple must be equal in the stop and pass band - so take the minimum between the two
   double d        = cmMin(dPass,dStop);
 
-  // convert the ripple bcmk to db
+  // convert the ripple back to db
   double A = -20 * log10(d);
 
   // compute the kaiser alpha coeff
@@ -914,7 +914,7 @@ cmRC_t cmFIRExec( cmFIR* p, const cmSample_t* sbp, unsigned sn )
     // calc the output sample
     while( cbp<cep)
     {
-      // note that the delay is being iterated bcmkwards
+      // note that the delay is being iterated backwards
       if( di == -1 )
       di=delayCnt-1;
 
@@ -936,7 +936,7 @@ cmRC_t cmFIRExec( cmFIR* p, const cmSample_t* sbp, unsigned sn )
   return cmOkRC;
 }
 
-void cmFIRTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH )
+void cmFIRTest0( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH )
 {
   unsigned N = 512;
   cmKbRecd kb;
@@ -976,6 +976,37 @@ void cmFIRTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH )
 
   cmFftFreeSR(&ftp);
   cmFIRFree(&ffp);
+}
+
+void cmFIRTest1( cmCtx* ctx )
+{
+  const char* sfn        = "/home/kevin/temp/sig.va";
+  const char* ffn        = "/home/kevin/temp/fir.va";
+  unsigned    N          = 44100;
+  unsigned    srate      = N;
+  unsigned    procSmpCnt = N;
+  double      passHz     = 15000;
+  double      stopHz     = 14000;
+  double      passDb     = 1.0;
+  double      stopDb     = 60.0;
+  unsigned    flags      = kHighPassFIRFl;
+  
+  cmSample_t x[ procSmpCnt ];
+  
+  cmVOS_Fill(x,procSmpCnt,0);
+  x[0] = 1;
+
+  cmVOS_Random(x,procSmpCnt, -1.0, 1.0 );
+
+  cmFIR* f = cmFIRAllocKaiser( ctx, NULL, procSmpCnt, srate, passHz, stopHz, stopDb, passDb, flags );
+
+  cmFIRExec( f, x, procSmpCnt ); 
+
+  cmVectArrayWriteMatrixS(ctx, ffn, f->outV, 1, f->outN );
+  cmVectArrayWriteMatrixS(ctx, sfn, x,       1, N );
+
+  cmFIRFree(&f);
+  
 }
 
 //------------------------------------------------------------------------------------------------------------

@@ -190,8 +190,9 @@ extern "C" {
   cmRC_t cmFIRInitSinc(   cmFIR* p, unsigned procSmpCnt, double srate, unsigned sincSmpCnt, double fcHz,   unsigned flags, const double* wndV );
   cmRC_t cmFIRFinal(      cmFIR* p );
   cmRC_t cmFIRExec(       cmFIR* p, const cmSample_t* sp, unsigned sn );
-  void   cmFIRTest();
-
+  void   cmFIRTest0( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH );
+  void   cmFIRTest1( cmCtx* ctx );
+  
   //------------------------------------------------------------------------------------------------------------
   // Apply a generic function to a windowed signal with a one sample hop size.
 
@@ -771,7 +772,7 @@ extern "C" {
 
 
   //------------------------------------------------------------------------------------------------------------
-  // cmVectArray buffers row vectors of arbitrary lenght in  memory.
+  // cmVectArray buffers row vectors of arbitrary length in  memory.
   // The buffers may then be access using the cmVectArrayGetXXX() functions.
   // The entire contents of the file may be written to a file using atVectArrayWrite().
   // The file may then be read in back into memory using cmVectArrayAllocFromFile()
