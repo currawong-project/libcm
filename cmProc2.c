@@ -5711,7 +5711,7 @@ cmRC_t      cmExpanderExec( cmExpander* p, cmSample_t* x, cmSample_t* y, unsigne
   for(i=0; i<xyN; ++i)
   {
     // NOTE: using abs() instead of pow(x,2)
-    p->rmsV[p->rmsIdx] = abs(x[i]);
+    p->rmsV[p->rmsIdx] = fabsf(x[i]);
 
     if( ++p->rmsIdx >= p->rmsN )
       p->rmsIdx = 0;
