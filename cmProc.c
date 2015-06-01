@@ -4393,7 +4393,7 @@ cmRC_t    cmChmmTrain( cmChmm_t* p, const cmReal_t* oM, unsigned T, unsigned ite
     cmReal_t logProb0 =  cmChmmForward( p, oM, T, alphaM, logPrV );
 
     // check for convergence
-    cmReal_t dLogProb =  labs(logProb0-logProb) / ((labs(logProb0)+labs(logProb)+cmReal_EPSILON)/2);
+    cmReal_t dLogProb =  fabs(logProb0-logProb) / ((fabs(logProb0)+fabs(logProb)+cmReal_EPSILON)/2);
     if( dLogProb < thresh )
       break;
 
