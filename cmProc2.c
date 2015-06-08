@@ -4085,7 +4085,7 @@ cmRC_t _cmVectArrayWriteMatrix( cmCtx* ctx, const char* fn, unsigned flags, cons
       memcpy(vv + ci*tbc, v + ci*rn*tbc, tbc );
 
     // append the row to the VectArray
-    if((rc = cmVectArrayAppendV(p,v,cn)) != cmOkRC )
+    if((rc = cmVectArrayAppendV(p,vv,cn)) != cmOkRC )
     {
       rc = cmCtxRtCondition(&p->obj,rc,"Vector append failed in %s().",__FUNCTION__);
       goto errLabel;

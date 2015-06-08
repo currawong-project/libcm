@@ -838,8 +838,12 @@ extern "C" {
   unsigned cmVectArrayMaxRowCount( const cmVectArray_t* p );
 
   // Store a new vector by appending it to the end of the internal vector list.
-  // Note that the true type of v[] in the call to cmVectArrayAppendV() must match
+  // Note:
+  // 1. The true type of v[] in the call to cmVectArrayAppendV() must match
   // the data type set in p->flags.
+  // 2. The 'vn' argument to atVectArrayAppendV() is an element count not
+  // a byte count.  The size of each element is determined by the data type
+  // as set by atVectArrayAlloc().  
   cmRC_t cmVectArrayAppendV( cmVectArray_t* p, const void* v,       unsigned vn );
   cmRC_t cmVectArrayAppendS( cmVectArray_t* p, const cmSample_t* v, unsigned vn );
   cmRC_t cmVectArrayAppendR( cmVectArray_t* p, const cmReal_t* v,   unsigned vn );
@@ -858,8 +862,12 @@ extern "C" {
   unsigned cmVectArrayForEachS( cmVectArray_t* p, unsigned idx, unsigned cnt, cmVectArrayForEachFuncS_t func, void* arg ); 
 
   // Write the vector v[vn] in the VectArray file format.
-  // Note that the true type of v[] in cmVectArrayWriteVectoV() must match the
+  // Note:
+  // 1. The true type of v[] in cmVectArrayWriteVectoV() must match the
   // data type set in the 'flags' parameter.
+  // 2. The 'vn' argument to atVectArrayWriteVectorV() is an element count not
+  // a byte count.  The size of each element is determined by the data type
+  // as set by atVectArrayAlloc().   
   cmRC_t cmVectArrayWriteVectorV( cmCtx* ctx, const char* fn, const void*       v, unsigned  vn, unsigned flags );
   cmRC_t cmVectArrayWriteVectorS( cmCtx* ctx, const char* fn, const cmSample_t* v, unsigned  vn );
   cmRC_t cmVectArrayWriteVectorR( cmCtx* ctx, const char* fn, const cmReal_t*   v, unsigned  vn );  
@@ -869,8 +877,12 @@ extern "C" {
   cmRC_t cmVectArrayWriteVectorU( cmCtx* ctx, const char* fn, const unsigned*   v, unsigned  vn );
 
   // Write the column-major matrix m[rn,cn] to the file 'fn'.
-  // Note that the true type of m[] in cmVectArrayWriteMatrixV() must match the
+  // Notes:
+  // 1. The true type of m[] in cmVectArrayWriteMatrixV() must match the
   // data type set in the 'flags' parameter.
+  // 2. The 'rn','cn' arguments to atVectWriteMatrixV() is are element counts not
+  // byte counts.  The size of each element is determined by the data type
+  // as set by atVectArrayAlloc().
   cmRC_t cmVectArrayWriteMatrixV( cmCtx* ctx, const char* fn, const void*       m, unsigned  rn, unsigned cn, unsigned flags );
   cmRC_t cmVectArrayWriteMatrixS( cmCtx* ctx, const char* fn, const cmSample_t* m, unsigned  rn, unsigned cn );
   cmRC_t cmVectArrayWriteMatrixR( cmCtx* ctx, const char* fn, const cmReal_t*   m, unsigned  rn, unsigned cn );  
