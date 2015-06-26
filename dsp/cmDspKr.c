@@ -2534,7 +2534,7 @@ cmDspRC_t _cmDspRecdPlayParseRsrc( cmDspCtx_t* ctx, cmDspInst_t* inst, cmRecdPla
   if( jnp == NULL || cmJsonIsArray(jnp)==false )
   {
     // this is really a warning - the object does not require preloaded segments.
-    cmDspInstErr(ctx,inst,kRsrcNotFoundDspRC,"The 'recdPlay' resource used to define pre-loaded segments was not found.");
+    cmDspInstErr(ctx,inst,kRsrcNotFoundDspRC,"Warning: The 'recdPlay' resource used to define pre-loaded segments was not found.");
     return kOkDspRC;
   }
 
