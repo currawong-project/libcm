@@ -382,7 +382,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmErr_t         err;
   krRsrc_t        r;
   bool     fragFl       = false;
-  bool     useWtFl      = false;
+  bool     useWtFl      = true;
   bool     useChain1Fl  = true;
   bool     useInputEqFl = false;
   bool     useInCompFl  = true;
@@ -1048,7 +1048,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, siRt, "f-out-1", sfp,  "smpidx",NULL ); 
   // leave siRt.f-out-1 unconnected because it should be ignored in 'simulate mode'
 
-  cmDspSysInstallCb(h, mfp,  "mu",      muRt, "f-in",  NULL );
+  cmDspSysInstallCb(h, mfp,  "id",      muRt, "f-in",  NULL );
   cmDspSysInstallCb(h, muRt, "f-out-1", sfp,  "muid",    NULL );
   // leave muRt.f-out-1 unconnected because it should be ignored in 'simulate mode'
 
