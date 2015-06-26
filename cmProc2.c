@@ -5691,7 +5691,7 @@ cmRC_t      cmExpanderInit( cmExpander* p,
     p->envV[atkN+i] = p->rlsLvl + (G*i/rlsN);
   }
 
-  printf("rmsN:%i atkN:%i rlsN:%i thr:%f %f rls:%f %f\n",p->rmsN,atkN,rlsN,threshDb,p->threshLvl,rlsDb,p->rlsLvl);
+  //printf("rmsN:%i atkN:%i rlsN:%i thr:%f %f rls:%f %f\n",p->rmsN,atkN,rlsN,threshDb,p->threshLvl,rlsDb,p->rlsLvl);
 
   //for(i=0; i<p->envN; ++i)
   //  printf("%i %f\n",i,p->envV[i]);
@@ -5941,7 +5941,7 @@ cmSpecDist_t* cmSpecDistAlloc( cmCtx* ctx,cmSpecDist_t* ap, unsigned procSmpCnt,
   cmSpecDist_t* p = cmObjAlloc( cmSpecDist_t, ctx, ap );
 
   //p->iSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
-  p->oSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
+  //p->oSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
 
   if( procSmpCnt != 0 )
   {
@@ -5962,7 +5962,7 @@ cmRC_t cmSpecDistFree( cmSpecDist_t** pp )
   
   cmSpecDistFinal(p);
   //cmVectArrayFree(&p->iSpecVa);
-  cmVectArrayFree(&p->oSpecVa);
+  //cmVectArrayFree(&p->oSpecVa);
   cmMemPtrFree(&p->hzV);
   cmMemPtrFree(&p->iSpecM);
   cmMemPtrFree(&p->oSpecM);
@@ -6086,7 +6086,7 @@ cmRC_t cmSpecDistFinal(cmSpecDist_t* p )
   cmRC_t rc = cmOkRC;
 
   //cmVectArrayWrite(p->iSpecVa, "/home/kevin/temp/frqtrk/iSpec.va");
-  cmVectArrayWrite(p->oSpecVa, "/home/kevin/temp/expand/oSpec.va");
+  //cmVectArrayWrite(p->oSpecVa, "/home/kevin/temp/expand/oSpec.va");
 
   cmPvAnlFree(&p->pva);
   cmPvSynFree(&p->pvs);
