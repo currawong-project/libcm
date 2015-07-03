@@ -84,4 +84,10 @@
 
 #endif
 
+void cmVOCR_MultVVV( cmComplexR_t* y, const cmComplexR_t* x0, const cmComplexR_t* x1, unsigned n );
+void cmVOCR_Abs(     cmReal_t*     y, const cmComplexR_t* x, unsigned n );
+void cmVOCR_MultVS(  cmComplexR_t* y, cmReal_t v, unsigned n );
+void cmVOCR_DivVS(   cmComplexR_t* y, cmReal_t v, unsigned n );
+
+
 #endif
