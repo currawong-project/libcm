@@ -108,6 +108,91 @@ extern "C" {
 
   cmRC_t cmGoldSigTest( cmCtx* ctx );
 
+
+  //=======================================================================================================================
+  // Phase aligned transform generalized cross correlator
+  //
+
+  // Flags for use with the 'flags' argument to cmPhatAlloc() 
+  enum
+  {
+    kNoFlagsAtPhatFl= 0x00,
+    kDebugAtPhatFl  = 0x01,  // generate debugging file
+    kHannAtPhatFl   = 0x02   // apply a hann window function to the id/audio signals prior to correlation. 
+  };
+
+  typedef struct
+  {
+    cmObj            obj;
+    cmFftSR          fft;
+    
+    float            alpha;
+    unsigned         flags;
+
+    cmComplexR_t*    fhM;      // fhM[fhN,chN]  FT of each id signal stored in complex form
+    float*           mhM;      // mhM[binN,chN]  magnitude of each fhM column
+    unsigned         chN;      // count of id signals
+    unsigned         fhN;      // length of each FT id signal (fft->xN)
+    unsigned        binN;      // length of each mhM column (fft->xN/2);
+    unsigned          hN;      // length of each time domain id signal (hN<=fhN/2)
+
+    unsigned         absIdx;   // abs. sample index of p->di
+
+    cmSample_t*      dV;       // dV[fhN] delay line
+    unsigned         di;       // next input into delay line
+
+    cmSample_t*      xV;       // xV[fhN] linear delay buffer
+    cmComplexR_t*   t0V;       // t0V[fhN]
+    cmComplexR_t*   t1V;       // t1V[fhN]
+
+    cmSample_t*      wndV;
+
+    cmVectArray_t*   ftVa; 
+
+  } cmPhat_t;
+
+
+  // Allocate a PHAT based multi-channel correlator.
+  // 'chN'  is the maximum count of id signals to be set via cmPhatSetId().
+  // 'hN' is the the length of the id signal in samples.
+  // 'alpha' weight used to emphasize the frequencies where the
+  // id signal contains energy.
+  // 'mult' * 'hN' is the correlation length (fhN)
+  // 'flags' See kDebugAtPhatFl and kWndAtPhatFl.
+  cmPhat_t* cmPhatAlloc(  cmCtx* ctx, cmPhat_t* pp, unsigned chN, unsigned hN, float alpha, unsigned mult, unsigned flags );
+  cmRC_t    cmPhatFree(   cmPhat_t** pp );
+
+  cmRC_t   cmPhatInit(  cmPhat_t* p, unsigned chN, unsigned hN, float alpha, unsigned mult, unsigned flags );  
+  cmRC_t   cmPhatFinal( cmPhat_t* p );
+
+  // Zero the audio delay line and reset the current input sample (di)
+  // and absolute time index (absIdx) to 0.
+  cmRC_t   cmPhatReset(  cmPhat_t* p );
+
+  // Register an id signal with the correlator.
+  cmRC_t   cmPhatSetId(  cmPhat_t* p, unsigned chIdx, const cmSample_t* hV, unsigned hN );
+
+  // Update the correlators internal delay buffer.
+  cmRC_t   cmPhatExec(   cmPhat_t* p, const cmSample_t* xV, unsigned xN );
+
+  // Set p->xV[0:fhN-1] to the correlation function based on
+  // correlation between the current audio delay line d[] and
+  // the id signal in fhM[:,chIdx].
+  // 'sessionId' and 'roleId' are only used to label the
+  // data stored in the debug file and may be set to any
+  // arbitrary value if the debug files are not being generated.
+  void cmPhatChExec( 
+    cmPhat_t* p,
+    unsigned  chIdx,
+    unsigned  sessionId,
+    unsigned  roleId);
+
+
+  cmRC_t cmPhatWrite( cmPhat_t* p, const char* dirStr );
+
+  cmRC_t cmPhatTest1( cmCtx* ctx, const char* dirFn );
+  cmRC_t cmPhatTest2( cmCtx* ctx );
+
   
 #ifdef __cplusplus
 }

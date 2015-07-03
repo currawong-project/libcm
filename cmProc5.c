@@ -342,4 +342,520 @@ cmRC_t cmGoldSigGen( cmGoldSig_t* p, unsigned chIdx, unsigned prefixN, unsigned 
 }
 
 
+//=======================================================================================================================
+cmPhat_t*   cmPhatAlloc(  cmCtx* ctx, cmPhat_t* p, unsigned chN, unsigned hN, float alpha, unsigned mult, unsigned flags )
+{
+  cmPhat_t* op = cmObjAlloc(cmPhat_t,ctx,p);
 
+  // The FFT buffer and the delay line is at least twice the size of the 
+  // id signal. This will guarantee that at least one complete id signal
+  // is inside the buffer.  In practice it means that it is possible
+  // that there will be two id's in the buffer therefore if there are
+  // two correlation spikes it is important that we take the second.
+  p->fhN = cmNextPowerOfTwo(mult*hN);
+
+  // allocate the FFT object
+  cmFftAllocSR(ctx,&p->fft,NULL,p->fhN,kToPolarFftFl);
+  
+  if( chN != 0 )  
+    if( cmPhatInit(op,chN,hN,alpha,mult,flags) != cmOkRC )
+      cmPhatFree(&op);
+
+  return op;
+
+}
+
+cmRC_t   cmPhatFree(   cmPhat_t** pp )
+{
+  cmRC_t rc = cmOkRC;
+
+  if( pp == NULL || *pp == NULL )
+    return rc;
+
+  cmPhat_t* p = *pp;
+  if((rc = cmPhatFinal(p)) != cmOkRC )
+    return rc;
+
+  cmMemFree(p->t0V);
+  cmMemFree(p->t1V);
+  cmMemFree(p->dV);
+  cmMemFree(p->xV);
+  cmMemFree(p->fhM);
+  cmMemFree(p->mhM);
+  cmMemFree(p->wndV);
+  cmObjFreeStatic(cmFftFreeSR, cmFftSR, p->fft);
+  cmVectArrayFree(&p->ftVa);
+  cmObjFree(pp);
+
+  return rc;
+
+}
+
+
+cmRC_t   cmPhatInit(  cmPhat_t* p, unsigned chN, unsigned hN, float alpha, unsigned mult, unsigned flags )
+{
+  cmRC_t   rc = cmOkRC;
+  if((rc = cmPhatFinal(cmOkRC)) != cmOkRC )
+    return rc;
+
+  p->fhN = cmNextPowerOfTwo(mult*hN);
+  
+  if((cmFftInitSR(&p->fft, NULL, p->fhN, kToPolarFftFl)) != cmOkRC )
+    return rc;
+
+  p->alpha = alpha;
+  p->flags = flags;
+
+  // allocate the delay line
+  p->dV = cmMemResizeZ(cmSample_t,p->dV,p->fhN);
+  p->di = 0;
+
+  // allocate the linear buffer
+  p->xV  = cmMemResizeZ(cmSample_t,p->xV,p->fhN);
+  p->t0V = cmMemResizeZ(cmComplexR_t,p->t0V,p->fhN);
+  p->t1V = cmMemResizeZ(cmComplexR_t,p->t1V,p->fhN);
+
+  // allocate the window function
+  p->wndV = cmMemResizeZ(cmSample_t,p->wndV,p->fhN);
+  cmVOS_Hann(p->wndV,p->fhN);
+
+  // allocate the signal id matrix
+  p->chN = chN;
+  p->hN  = hN;
+  p->binN = p->fft.binCnt; //atFftRealBinCount(p->fftH);
+  p->fhM = cmMemResizeZ(cmComplexR_t, p->fhM, p->fhN  * chN);
+  p->mhM = cmMemResizeZ(float,        p->mhM, p->binN * chN);
+  cmPhatReset(p);
+
+  //if( cmIsFlag(p->flags,kDebugAtPhatFl)) 
+  //  cmVectArrayAlloc(ctx, &p->ftVa,  kSampleVaFl );
+  //else
+  //  p->ftVa = NULL;
+
+  return rc;
+
+}
+
+cmRC_t cmPhatFinal( cmPhat_t* p )
+{ return cmOkRC; }
+
+cmRC_t cmPhatReset(  cmPhat_t* p )
+{
+  p->di     = 0;
+  p->absIdx = 0;
+  cmVOS_Zero(p->dV,p->fhN);
+  return cmOkRC;
+}
+
+cmRC_t cmPhatSetId(  cmPhat_t* p, unsigned chIdx, const cmSample_t* hV, unsigned hN )
+{
+  unsigned i;
+  assert( chIdx < p->chN );
+  assert( hN == p->hN );
+
+  // Allocate a window vector
+  cmSample_t* wndV = cmMemAllocZ(cmSample_t,hN);
+  cmVOS_Hann(wndV,hN);
+
+  // get ptr to output column in p->fhM[].
+  cmComplexR_t* yV = p->fhM + (chIdx*p->fhN);
+
+  // Zero pad hV[hN] to p->fhN;
+  assert( hN <= p->fhN );
+  cmVOS_Zero(p->xV,p->fhN);
+  cmVOS_Copy(p->xV,hV,hN);
+
+  // Apply the window function to the id signal
+  if(atIsFlag(p->flags,kHannAtPhatFl) )
+    cmVOS_MultVVV(p->xV,hV,wndV,hN);
+
+  // take FFT of id signal. The result is in fft->complexV and fft->magV,phsV
+  cmFftExecSR(p->fft, p->xV, p->fhN );
+
+  // Store the magnitude of the id signal
+  //atFftComplexAbs(p->mhM + (chIdx*p->binN), yV,     p->binN);
+  cmVOR_Copy(p->mhM + (chIdx*p->binN), p->fft->magV, p->binN );
+
+  // Scale the magnitude
+  cmVOS_MultVS(   p->mhM + (chIdx*p->binN), p->binN, p->alpha);
+
+  // store the complex conjugate of the FFT result in yV[]
+  //atFftComplexConj(yV,p->binN);
+  for(i=0; i<p->binN; ++i)
+    yV[i].i = -(p->fft->complexV[i].i);
+
+  cmMemFree(wndV);
+
+  return kOkAtRC;
+}
+
+cmSample_t* _cmPhatReadVector( cmCtx* ctx, cmPhat_t* p, const char* fn, unsigned* vnRef )
+{
+  cmVectArray_t* vap = NULL;
+  cmSample_t*    v   = NULL;
+  
+  // instantiate a VectArray from a file
+  if( cmVectArrayAllocFromFile(ctx, &vap, fn ) != kOkAtRC )
+  {
+    atErrMsg(&p->obj.err,kFileReadFailAtRC,"Id component vector file read failed '%s'.",fn);
+    goto errLabel;
+  }
+
+  // get the count of elements in the vector
+  *vnRef = cmVectArrayEleCount(vap);
+
+  // allocate memory to hold the vector
+  v = cmMemAlloc(&p->obj.err,cmSample_t,*vnRef);
+
+  // copy the vector from the vector array object into v[]
+  if( cmVectArrayGetF(vap,v,vnRef) != kOkAtRC )
+  {
+    cmMemFree(v);
+    v = NULL;
+    atErrMsg(&p->obj.err,kFileReadFailAtRC,"Id component vector copy out failed '%s'.",fn);
+    goto errLabel;
+  }
+
+  cmRptPrintf(p->obj.err.rpt,"%i : %s",*vnRef,fn);
+  
+
+ errLabel:
+  cmVectArrayFree(&vap);
+
+  return v;
+}
+
+
+cmRC_t   cmPhatExec(   cmPhat_t* p, const cmSample_t* xV, unsigned xN )
+{
+  unsigned n = atMin(xN,p->fhN-p->di);
+
+  // update the delay line
+  cmVOS_Copy(p->dV+p->di,xV,n);
+
+  if( n < xN )
+    cmVOS_Copy(p->dV,xV+n,xN-n);
+
+  p->di      = atModIncr(p->di,xN,p->fhN);
+
+  // p->absIdx is the absolute sample index associated with di
+  p->absIdx += xN;  
+
+  return kOkAtRC;
+}
+
+
+void cmPhatChExec( 
+    cmPhat_t* p, 
+    unsigned  chIdx,
+    unsigned  sessionId,
+    unsigned  roleId)
+{
+
+  unsigned n0 = p->fhN - p->di;
+  unsigned n1 = p->fhN - n0;
+
+  // Linearize the delay line into xV[]
+  cmVOS_Copy(p->xV,    p->dV + p->di, n0 );
+  cmVOS_Copy(p->xV+n0, p->dV,         n1 );
+
+  if( atIsFlag(p->flags,kDebugAtPhatFl)) 
+    cmVectArrayAppendS(p->ftVa, p->xV, p->fhN );
+
+  // apply a window function to the incoming signal
+  if( atIsFlag(p->flags,kHannAtPhatFl) )
+    cmVOS_MultVV(p->xV,p->fhN,p->wndV);
+  
+  // Take the FFT of the delay line.
+  // p->t0V[p->binN] = fft(p->xV)
+  //atFftRealForward(p->fftH, p->xV, p->fhN, p->t0V, p->binN );
+  cmFftExecSR(p->fft, p->xV, p->fhN );
+ 
+  // Calc. the Cross Power Spectrum (aka cross spectral density) of the
+  // input signal with the id signal.
+  // Note that the CPS is equivalent to the Fourier Transform of the
+  // cross-correlation of the two signals.
+  // t0V[] *= p->fhM[:,chIdx]
+  //atFftComplexMult( p->t0V, p->fhM + (chIdx * p->fhN), p->binN );
+  cmVOCR_MultVVV( p->t0V, p->fft->complexV, p->fhM + (chIdx * p->fhN), p->binN)
+  
+  // Calculate the magnitude of the CPS.
+  // xV[] = | t0V[] |
+  cmVOCR_Abs( p->xV, p->t0V, p->binN );
+  
+  // Weight the CPS by the scaled magnitude of the id signal
+  // (we want to emphasize the limited frequencies where the
+  //  id signal contains energy)
+  // t0V[] *= p->mhM[:,chIdx]
+  if( p->alpha > 0 )
+    cmVOCR_MultR_VV( p->t0V, p->mhM + (chIdx*p->binN), p->binN);
+
+  // Divide through by the magnitude of the CPS
+  // This has the effect of whitening the spectram and thereby
+  // minimizing the effect of the magnitude correlation 
+  // while maximimizing the effect of the phase correlation.
+  // 
+  // t0V[] /= xV[]
+  cmVOCR_DivR_VV( p->t0V, p->xV, p->binN );
+  
+  // Take the IFFT of the weighted CPS to recover the cross correlation.
+  // xV[] = IFFT(t0V[])
+
+
+  //// ***** atFftRealInverse( p->fftH, p->t0V, p->xV, p->fhN );
+  
+  // Shift the correlation spike to mark the end of the id
+  cmVOS_Rotate( p->xV, p->fhN, -((int)p->hN) );
+
+  // normalize by the length of the correlation
+  cmVOS_DivVS(p->xV,p->fhN,p->fhN);
+
+  if( atIsFlag(p->flags,kDebugAtPhatFl))
+  {
+    cmVectArrayAppendS(p->ftVa, p->xV, p->fhN );
+
+    cmSample_t v[] = { sessionId, roleId };
+    cmVectArrayAppendS(p->ftVa, v, sizeof(v)/sizeof(v[0]));
+  }
+
+}
+
+cmRC_t cmPhatWrite( cmPhat_t* p, const char* dirStr )
+{
+  cmRC_t rc = kOkAtRC;
+  
+  if( atIsFlag(p->flags, kDebugAtPhatFl)) 
+  {
+    char* path = NULL;
+
+    if( p->ftVa != NULL )
+      if((rc = cmVectArrayWrite(p->ftVa, path = atMakePath(&p->obj.err,path,"cmPhatFT","va",dirStr,NULL) )) != kOkAtRC )
+        rc = atErrMsg(&p->obj.err,rc,"PHAT debug file write failed.");
+    
+    cmMemFree(path);
+  }
+  
+  return rc;
+}
+
+
+cmRC_t cmPhatTest1( cmCtx* ctx, const char* dirStr )
+{
+  cmRC_t         rc             = kOkAtRC;
+  atSignalArg_t  sa;
+  atSignal_t*    s              = NULL;
+  cmPhat_t*      p              = NULL;
+  char*          path           = NULL;
+  unsigned       dspFrmCnt      = 256;
+  unsigned       listenDelaySmp = 8196;
+  double         noiseGain      = 0.05;
+  unsigned       chIdx          = 0;
+  cmSample_t*    yV             = NULL;
+  unsigned       yN             = 0;
+  double         phatAlpha      = 0.5;
+  unsigned       phatMult       = 4.0;
+  double         nonLinExpo     = 4.0;
+  cmVectArray_t* outVA          = NULL; 
+  cmVectArray_t* inVA           = NULL;
+  cmVectArray_t* statusVA       = NULL;
+  unsigned       bsiN           = 4;
+  unsigned       bsiV[bsiN];  // known signal onset in absolute samples 
+  unsigned       esiV[bsiN];  // known signal offset
+  unsigned       lsiV[bsiN];  // end of listen time (when cmPhatChExec()) is run.
+  unsigned       dsiV[bsiN];  // detection time
+  unsigned       i,j;
+  
+  sa.chN             =     1;
+  sa.srate           = 44100.0;
+  sa.lfsrN           =     8;
+  sa.mlsCoeff0       =  0x8e;
+  sa.mlsCoeff1       =  0x96;
+  sa.samplesPerChip  =    64;
+  sa.rcosBeta        =     0.5;
+  sa.rcosOSFact      =     4;
+  sa.carrierHz       = 17000.0;
+  sa.envMs           =    50.0;
+  
+  // allocate the the id signals
+  if( atSignalAlloc( ctx, &s, &sa ) != kOkAtRC )
+    return atErrMsg(&ctx->err, kTestFailAtRC, "Signal allocate failed.");
+
+  // set the post signal listen delay to half the signal length
+  listenDelaySmp = s->sigN/2; 
+
+  // allocate a PHAT detector
+  if( cmPhatAlloc(ctx,&p,sa.chN,s->sigN, phatAlpha, phatMult, kDebugAtPhatFl ) != kOkAtRC )
+  {
+    rc = atErrMsg(&ctx->err, kTestFailAtRC, "PHAT allocate failed.");
+    goto errLabel;
+  }
+
+  // register an id signal with the PHAT detector
+  if( cmPhatSetId(p, chIdx, s->ch[chIdx].mdV, s->sigN ) != kOkAtRC )
+  {
+    rc = atErrMsg(&ctx->err, kTestFailAtRC, "PHAT setId failed.");
+    goto errLabel;
+  }
+
+  // generate an input test signal containing bsiN id signals
+  if( atSignalGen(s,chIdx,p->fhN,s->sigN,bsiV,bsiN,noiseGain,&yV,&yN) != kOkAtRC )
+  {
+    rc = atErrMsg(&ctx->err,kTestFailAtRC,"Signal generation failed.");
+    goto errLabel;
+  }
+
+  // bsiV[] now holds signal onsets. Set esiV[] to  signal offsets.
+  atVOU_AddVVS(esiV,bsiV,bsiN,s->sigN );
+
+  // set lsiV[] to end-of-listen location 
+  atVOU_AddVVS(lsiV,esiV,bsiN,listenDelaySmp);
+
+  // zero the detection vector
+  atVOU_Zero(dsiV,bsiN);
+
+  // allocate a vector array to record the PHAT input signals
+  if( cmVectArrayAlloc(ctx,&inVA,kSampleVaFl) != kOkAtRC )
+  {
+    rc = atErrMsg(&ctx->err, kTestFailAtRC, "vectArray inVA alloc failed.");
+    goto errLabel;
+  }
+
+  // allocate a vector array to record the PHAT correlation output signals
+  if( cmVectArrayAlloc(ctx,&outVA,kSampleVaFl) != kOkAtRC )
+  {
+    rc = atErrMsg(&ctx->err, kTestFailAtRC, "vectArray outVA alloc failed.");
+    goto errLabel;
+  }
+
+  // allocate a vector array to record the PHAT status
+  if( cmVectArrayAlloc(ctx,&statusVA,kSampleVaFl) != kOkAtRC )
+  {
+    rc = atErrMsg(&ctx->err, kTestFailAtRC, "vectArray statusVA alloc failed.");
+    goto errLabel;
+  }
+
+  
+  // for each 'dspFrmCnt' samples in the input signal
+  for(i=0,j=0; j<bsiN && i<=yN-dspFrmCnt; i+=dspFrmCnt)
+  {
+    // store a copy of the input signal
+    cmVectArrayAppendS(inVA,yV+i,dspFrmCnt);
+
+    // feed the next dspFrmCnt samples to the PHAT detector
+    cmPhatExec(p,yV+i,dspFrmCnt);
+
+    // if the approximate end of an id signal is encountered
+    if( lsiV[j] <= i && i < lsiV[j] + dspFrmCnt )
+    {
+      // execute the PHAT correlator
+      cmPhatChExec( p, chIdx, -1, -1 );
+
+      // apply non-linear exponent to the correlation vector
+      cmVOS_PowV(p->xV,p->fhN,nonLinExpo);
+
+      // locate the corr. peak inside the listening window
+      // (the detection window is last 'detectWndSmp' samples in the corr. vector )
+      unsigned detectWndSmp = 2*listenDelaySmp;
+      dsiV[j] = cmVOS_ArgMax( p->xV + p->fhN - detectWndSmp,  detectWndSmp);
+
+      // convert the pk index to absolute time
+      dsiV[j] = i + dspFrmCnt - detectWndSmp + dsiV[j];
+
+      //                 sig beg  sig end  detect begin          dtct end    detect
+      cmSample_t v[] = { bsiV[j], esiV[j], lsiV[j]-detectWndSmp, lsiV[j],    dsiV[j] };
+
+      // store the detection information
+      cmVectArrayAppendS(statusVA,v,sizeof(v)/sizeof(v[0]));
+
+      // store the correlation output vector
+      cmVectArrayAppendS(outVA,p->xV,p->fhN);
+      
+      j += 1;
+    }
+  }
+
+  // write inVA
+  if( cmVectArrayWrite(inVA,path = atMakePath(&ctx->err,path,"phatIn","va",dirStr,NULL)) != kOkAtRC )
+  {
+    rc = atErrMsg(&ctx->err, kTestFailAtRC, "vectArray outVA write failed.");
+    goto errLabel;
+  }
+
+  // write outVA
+  if( cmVectArrayWrite(outVA,path = atMakePath(&ctx->err,path,"phatOut","va",dirStr,NULL)) != kOkAtRC )
+  {
+    rc = atErrMsg(&ctx->err, kTestFailAtRC, "vectArray outVA write failed.");
+    goto errLabel;
+  }
+
+  // write statusVA
+  if( cmVectArrayWrite(statusVA,path = atMakePath(&ctx->err,path,"phatStatus","va",dirStr,NULL)) != kOkAtRC )
+  {
+    rc = atErrMsg(&ctx->err, kTestFailAtRC, "vectArray statusVA write failed.");
+    goto errLabel;
+  }
+
+ errLabel:
+  cmVectArrayFree(&outVA);
+  cmVectArrayFree(&inVA);
+
+  if( cmPhatFree(&p) != kOkAtRC )
+    atErrMsg(&ctx->err,kTestFailAtRC,"PHAT free failed.");
+
+  if( atSignalFree(&s) != kOkAtRC )
+    atErrMsg(&ctx->err,kTestFailAtRC,"Signal free failed.");
+
+  return rc;
+}
+
+cmRC_t cmPhatTest2( cmCtx* ctx )
+{
+  cmRC_t    rc    = kOkAtRC;
+  cmPhat_t* p     = NULL;
+  unsigned  hN    = 16;
+  float     alpha = 1.0;
+  unsigned  mult  = 4;
+
+  cmSample_t hV[]  = { 4,3,2,1, 0,0,0,0, 0,0,0,0, 0,0,0,0 };
+  cmSample_t x0V[] = { 4,3,2,1, 0,0,0,0, 0,0,0,0, 0,0,0,0 };
+  cmSample_t x1V[] = { 0,0,0,0, 4,3,2,1, 0,0,0,0, 0,0,0,0 };
+  cmSample_t x2V[] = { 0,0,0,0, 0,0,0,0, 4,3,2,1, 0,0,0,0 };
+  cmSample_t x3V[] = { 0,0,0,0, 0,0,0,0, 0,0,0,0, 4,3,2,1 };
+
+  cmSample_t* xV[] = { x0V, x1V, x2V, x3V };
+  unsigned    chN  = sizeof(xV)/sizeof(xV[0]);
+  unsigned    i;
+  
+  if(cmPhatAlloc(ctx,&p,chN,hN,alpha,mult,kNoFlagsAtPhatFl) != kOkAtRC )
+  {
+    rc = atErrMsg(&ctx->err,kTestFailAtRC,"cmPhatAlloc() failed.");
+    goto errLabel;
+  }
+
+  for(i=0; i<chN; ++i)
+    if( cmPhatSetId(p,i,hV,hN) != kOkAtRC )
+      rc = atErrMsg(&ctx->err,kTestFailAtRC,"cmPhatSetId() failed.");
+  
+  
+  for(i=0; i<chN; ++i)
+  {
+    cmPhatReset(p);
+    
+    if( cmPhatExec(p,xV[i],hN) != kOkAtRC )
+    {
+      rc = atErrMsg(&ctx->err,kTestFailAtRC,"cmPhatExec() failed.");
+      goto errLabel;
+    }
+
+    cmPhatChExec(p, i, -1, -1);
+    cmVOS_PrintL(&ctx->printRpt,"x:",p->xV,1,p->fhN);
+  }
+
+
+  errLabel:
+
+  cmPhatFree(&p);
+
+    
+  return rc;
+}
