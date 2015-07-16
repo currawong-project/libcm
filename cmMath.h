@@ -15,6 +15,12 @@ unsigned cmPrevOddU(  unsigned v );
 unsigned cmNextEvenU( unsigned v );
 unsigned cmPrevEvenU( unsigned v );
 
+/// Increment or decrement 'idx' by 'delta' always wrapping the result into the range
+/// 0 to (maxN-1).
+/// 'idx': initial value 
+/// 'delta':  incremental amount
+/// 'maxN' - 1 : maximum return value.
+unsigned cmModIncr(int idx, int delta, int maxN );
 
 // modified bessel function of first kind, order 0
 // ref: orfandis appendix B io.m

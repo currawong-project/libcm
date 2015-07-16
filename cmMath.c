@@ -154,6 +154,20 @@ unsigned cmPrevOddU(  unsigned v ) { return cmIsOddU(v)  ? v : v-1; }
 unsigned cmNextEvenU( unsigned v ) { return cmIsEvenU(v) ? v : v+1; }
 unsigned cmPrevEvenU( unsigned v ) { return cmIsEvenU(v) ? v : v-1; }
 
+unsigned cmModIncr(int idx, int delta, int maxN )
+{
+  int sum = idx + delta;
+
+  if( sum >= maxN )
+    return sum - maxN;
+
+  if( sum < 0 )
+    return maxN + sum;
+
+  return sum;
+}
+
+
 // modified bessel function of first kind, order 0
 // ref: orfandis appendix B io.m
 double	cmBessel0( double x )
