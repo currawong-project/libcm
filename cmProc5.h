@@ -125,6 +125,7 @@ extern "C" {
   {
     cmObj            obj;
     cmFftSR          fft;
+    cmIFftRS         ifft;
     
     float            alpha;
     unsigned         flags;
@@ -159,7 +160,7 @@ extern "C" {
   // id signal contains energy.
   // 'mult' * 'hN' is the correlation length (fhN)
   // 'flags' See kDebugAtPhatFl and kWndAtPhatFl.
-  cmPhat_t* cmPhatAlloc(  cmCtx* ctx, cmPhat_t* pp, unsigned chN, unsigned hN, float alpha, unsigned mult, unsigned flags );
+  cmPhat_t* cmPhatAlloc(  cmCtx* ctx, cmPhat_t* p, unsigned chN, unsigned hN, float alpha, unsigned mult, unsigned flags );
   cmRC_t    cmPhatFree(   cmPhat_t** pp );
 
   cmRC_t   cmPhatInit(  cmPhat_t* p, unsigned chN, unsigned hN, float alpha, unsigned mult, unsigned flags );  

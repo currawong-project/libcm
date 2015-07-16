@@ -343,25 +343,26 @@ cmRC_t cmGoldSigGen( cmGoldSig_t* p, unsigned chIdx, unsigned prefixN, unsigned 
 
 
 //=======================================================================================================================
-cmPhat_t*   cmPhatAlloc(  cmCtx* ctx, cmPhat_t* p, unsigned chN, unsigned hN, float alpha, unsigned mult, unsigned flags )
+cmPhat_t*   cmPhatAlloc(  cmCtx* ctx, cmPhat_t* ap, unsigned chN, unsigned hN, float alpha, unsigned mult, unsigned flags )
 {
-  cmPhat_t* op = cmObjAlloc(cmPhat_t,ctx,p);
+  cmPhat_t* p = cmObjAlloc(cmPhat_t,ctx,ap);
 
   // The FFT buffer and the delay line is at least twice the size of the 
   // id signal. This will guarantee that at least one complete id signal
   // is inside the buffer.  In practice it means that it is possible
   // that there will be two id's in the buffer therefore if there are
   // two correlation spikes it is important that we take the second.
-  p->fhN = cmNextPowerOfTwo(mult*hN);
+  unsigned fhN = cmNextPowerOfTwo(mult*hN);
 
   // allocate the FFT object
-  cmFftAllocSR(ctx,&p->fft,NULL,p->fhN,kToPolarFftFl);
+  cmFftAllocSR(ctx,&p->fft,NULL,fhN,kToPolarFftFl);
+  cmIFftAllocRS(ctx,&p->ifft,fhN/2 + 1 );
   
   if( chN != 0 )  
-    if( cmPhatInit(op,chN,hN,alpha,mult,flags) != cmOkRC )
-      cmPhatFree(&op);
+    if( cmPhatInit(p,chN,hN,alpha,mult,flags) != cmOkRC )
+      cmPhatFree(&p);
 
-  return op;
+  return p;
 
 }
 
@@ -384,6 +385,7 @@ cmRC_t   cmPhatFree(   cmPhat_t** pp )
   cmMemFree(p->mhM);
   cmMemFree(p->wndV);
   cmObjFreeStatic(cmFftFreeSR, cmFftSR, p->fft);
+  cmObjFreeStatic(cmIFftFreeRS, cmIFftRS, p->ifft);
   cmVectArrayFree(&p->ftVa);
   cmObjFree(pp);
 
@@ -401,6 +403,9 @@ cmRC_t   cmPhatInit(  cmPhat_t* p, unsigned chN, unsigned hN, float alpha, unsig
   p->fhN = cmNextPowerOfTwo(mult*hN);
   
   if((cmFftInitSR(&p->fft, NULL, p->fhN, kToPolarFftFl)) != cmOkRC )
+    return rc;
+
+  if((cmFftInitRS(&p->ifft, NULL, p->fft->binCnt )) != cmOkRC )
     return rc;
 
   p->alpha = alpha;
@@ -463,18 +468,18 @@ cmRC_t cmPhatSetId(  cmPhat_t* p, unsigned chIdx, const cmSample_t* hV, unsigned
   // Zero pad hV[hN] to p->fhN;
   assert( hN <= p->fhN );
   cmVOS_Zero(p->xV,p->fhN);
-  cmVOS_Copy(p->xV,hV,hN);
+  cmVOS_Copy(p->xV,hN,hV);
 
   // Apply the window function to the id signal
-  if(atIsFlag(p->flags,kHannAtPhatFl) )
-    cmVOS_MultVVV(p->xV,hV,wndV,hN);
+  if(cmIsFlag(p->flags,kHannAtPhatFl) )
+    cmVOS_MultVVV(p->xV,hN,hV,wndV);
 
   // take FFT of id signal. The result is in fft->complexV and fft->magV,phsV
-  cmFftExecSR(p->fft, p->xV, p->fhN );
+  cmFftExecSR(&p->fft, p->xV, p->fhN );
 
   // Store the magnitude of the id signal
   //atFftComplexAbs(p->mhM + (chIdx*p->binN), yV,     p->binN);
-  cmVOR_Copy(p->mhM + (chIdx*p->binN), p->fft->magV, p->binN );
+  cmVOF_CopyR(p->mhM + (chIdx*p->binN), p->binN, p->fft.magV );
 
   // Scale the magnitude
   cmVOS_MultVS(   p->mhM + (chIdx*p->binN), p->binN, p->alpha);
@@ -482,22 +487,23 @@ cmRC_t cmPhatSetId(  cmPhat_t* p, unsigned chIdx, const cmSample_t* hV, unsigned
   // store the complex conjugate of the FFT result in yV[]
   //atFftComplexConj(yV,p->binN);
   for(i=0; i<p->binN; ++i)
-    yV[i].i = -(p->fft->complexV[i].i);
+    yV[i] = cmCconjR(p->fft.complexV[i]);
 
   cmMemFree(wndV);
 
-  return kOkAtRC;
+  return cmOkRC;
 }
 
 cmSample_t* _cmPhatReadVector( cmCtx* ctx, cmPhat_t* p, const char* fn, unsigned* vnRef )
 {
   cmVectArray_t* vap = NULL;
   cmSample_t*    v   = NULL;
+  cmRC_t         rc  = cmOkRC;
   
   // instantiate a VectArray from a file
-  if( cmVectArrayAllocFromFile(ctx, &vap, fn ) != kOkAtRC )
+  if( (vap = cmVectArrayAllocFromFile(ctx, fn )) == NULL )
   {
-    atErrMsg(&p->obj.err,kFileReadFailAtRC,"Id component vector file read failed '%s'.",fn);
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Id component vector file read failed '%s'.",fn);
     goto errLabel;
   }
 
@@ -505,14 +511,14 @@ cmSample_t* _cmPhatReadVector( cmCtx* ctx, cmPhat_t* p, const char* fn, unsigned
   *vnRef = cmVectArrayEleCount(vap);
 
   // allocate memory to hold the vector
-  v = cmMemAlloc(&p->obj.err,cmSample_t,*vnRef);
+  v = cmMemAlloc(cmSample_t,*vnRef);
 
   // copy the vector from the vector array object into v[]
-  if( cmVectArrayGetF(vap,v,vnRef) != kOkAtRC )
+  if((rc = cmVectArrayGetF(vap,v,vnRef)) != cmOkRC )
   {
     cmMemFree(v);
     v = NULL;
-    atErrMsg(&p->obj.err,kFileReadFailAtRC,"Id component vector copy out failed '%s'.",fn);
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Id component vector copy out failed '%s'.",fn);
     goto errLabel;
   }
 
@@ -528,20 +534,20 @@ cmSample_t* _cmPhatReadVector( cmCtx* ctx, cmPhat_t* p, const char* fn, unsigned
 
 cmRC_t   cmPhatExec(   cmPhat_t* p, const cmSample_t* xV, unsigned xN )
 {
-  unsigned n = atMin(xN,p->fhN-p->di);
+  unsigned n = cmMin(xN,p->fhN-p->di);
 
   // update the delay line
-  cmVOS_Copy(p->dV+p->di,xV,n);
+  cmVOS_Copy(p->dV+p->di,n,xV);
 
   if( n < xN )
-    cmVOS_Copy(p->dV,xV+n,xN-n);
+    cmVOS_Copy(p->dV,xN-n,xV+n);
 
-  p->di      = atModIncr(p->di,xN,p->fhN);
+  p->di      = cmModIncr(p->di,xN,p->fhN);
 
   // p->absIdx is the absolute sample index associated with di
   p->absIdx += xN;  
 
-  return kOkAtRC;
+  return cmOkRC;
 }
 
 
@@ -556,20 +562,20 @@ void cmPhatChExec(
   unsigned n1 = p->fhN - n0;
 
   // Linearize the delay line into xV[]
-  cmVOS_Copy(p->xV,    p->dV + p->di, n0 );
-  cmVOS_Copy(p->xV+n0, p->dV,         n1 );
+  cmVOS_Copy(p->xV,    n0, p->dV + p->di );
+  cmVOS_Copy(p->xV+n0, n1, p->dV         );
 
-  if( atIsFlag(p->flags,kDebugAtPhatFl)) 
+  if( cmIsFlag(p->flags,kDebugAtPhatFl)) 
     cmVectArrayAppendS(p->ftVa, p->xV, p->fhN );
 
   // apply a window function to the incoming signal
-  if( atIsFlag(p->flags,kHannAtPhatFl) )
+  if( cmIsFlag(p->flags,kHannAtPhatFl) )
     cmVOS_MultVV(p->xV,p->fhN,p->wndV);
   
   // Take the FFT of the delay line.
   // p->t0V[p->binN] = fft(p->xV)
   //atFftRealForward(p->fftH, p->xV, p->fhN, p->t0V, p->binN );
-  cmFftExecSR(p->fft, p->xV, p->fhN );
+  cmFftExecSR(&p->fft, p->xV, p->fhN );
  
   // Calc. the Cross Power Spectrum (aka cross spectral density) of the
   // input signal with the id signal.
@@ -577,7 +583,7 @@ void cmPhatChExec(
   // cross-correlation of the two signals.
   // t0V[] *= p->fhM[:,chIdx]
   //atFftComplexMult( p->t0V, p->fhM + (chIdx * p->fhN), p->binN );
-  cmVOCR_MultVVV( p->t0V, p->fft->complexV, p->fhM + (chIdx * p->fhN), p->binN)
+  cmVOCR_MultVVV( p->t0V, p->fft.complexV, p->fhM + (chIdx * p->fhN), p->binN);
   
   // Calculate the magnitude of the CPS.
   // xV[] = | t0V[] |
@@ -588,7 +594,7 @@ void cmPhatChExec(
   //  id signal contains energy)
   // t0V[] *= p->mhM[:,chIdx]
   if( p->alpha > 0 )
-    cmVOCR_MultR_VV( p->t0V, p->mhM + (chIdx*p->binN), p->binN);
+    cmVOCR_MultVFV( p->t0V, p->mhM + (chIdx*p->binN), p->binN);
 
   // Divide through by the magnitude of the CPS
   // This has the effect of whitening the spectram and thereby
@@ -596,11 +602,11 @@ void cmPhatChExec(
   // while maximimizing the effect of the phase correlation.
   // 
   // t0V[] /= xV[]
-  cmVOCR_DivR_VV( p->t0V, p->xV, p->binN );
+  cmVOCR_DivVFV( p->t0V, p->xV, p->binN );
   
   // Take the IFFT of the weighted CPS to recover the cross correlation.
   // xV[] = IFFT(t0V[])
-
+  cmIFftExecRS( p->ifft,  );
 
   //// ***** atFftRealInverse( p->fftH, p->t0V, p->xV, p->fhN );
   
@@ -610,7 +616,7 @@ void cmPhatChExec(
   // normalize by the length of the correlation
   cmVOS_DivVS(p->xV,p->fhN,p->fhN);
 
-  if( atIsFlag(p->flags,kDebugAtPhatFl))
+  if( cmIsFlag(p->flags,kDebugAtPhatFl))
   {
     cmVectArrayAppendS(p->ftVa, p->xV, p->fhN );
 
@@ -622,28 +628,28 @@ void cmPhatChExec(
 
 cmRC_t cmPhatWrite( cmPhat_t* p, const char* dirStr )
 {
-  cmRC_t rc = kOkAtRC;
+  cmRC_t rc = cmOkRC;
   
-  if( atIsFlag(p->flags, kDebugAtPhatFl)) 
+  if( cmIsFlag(p->flags, kDebugAtPhatFl)) 
   {
-    char* path = NULL;
+    const char* path = NULL;
 
     if( p->ftVa != NULL )
-      if((rc = cmVectArrayWrite(p->ftVa, path = atMakePath(&p->obj.err,path,"cmPhatFT","va",dirStr,NULL) )) != kOkAtRC )
-        rc = atErrMsg(&p->obj.err,rc,"PHAT debug file write failed.");
+      if((rc = cmVectArrayWrite(p->ftVa, path = cmFsMakeFn(path,"cmPhatFT","va",dirStr,NULL) )) != cmOkRC )
+        rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"PHAT debug file write failed.");
     
-    cmMemFree(path);
+    cmFsFreeFn(path);
   }
   
   return rc;
 }
 
-
+#ifdef NOTDEF
 cmRC_t cmPhatTest1( cmCtx* ctx, const char* dirStr )
 {
-  cmRC_t         rc             = kOkAtRC;
-  atSignalArg_t  sa;
-  atSignal_t*    s              = NULL;
+  cmRC_t         rc             = cmOkRC;
+  cmGoldSigArg_t sa;
+  cmGoldSig_t*   s              = NULL;
   cmPhat_t*      p              = NULL;
   char*          path           = NULL;
   unsigned       dspFrmCnt      = 256;
@@ -677,30 +683,30 @@ cmRC_t cmPhatTest1( cmCtx* ctx, const char* dirStr )
   sa.envMs           =    50.0;
   
   // allocate the the id signals
-  if( atSignalAlloc( ctx, &s, &sa ) != kOkAtRC )
-    return atErrMsg(&ctx->err, kTestFailAtRC, "Signal allocate failed.");
+  if( (s = cmGoldSigAlloc( ctx, NULL, &sa ) == NULL )
+    return cmErrMsg(&ctx->err, cmSubSysFailRC, "Signal allocate failed.");
 
   // set the post signal listen delay to half the signal length
   listenDelaySmp = s->sigN/2; 
 
   // allocate a PHAT detector
-  if( cmPhatAlloc(ctx,&p,sa.chN,s->sigN, phatAlpha, phatMult, kDebugAtPhatFl ) != kOkAtRC )
+    if( (p = cmPhatAlloc(ctx,NULL,sa.chN,s->sigN, phatAlpha, phatMult, kDebugAtPhatFl ) == NULL )
   {
-    rc = atErrMsg(&ctx->err, kTestFailAtRC, "PHAT allocate failed.");
+    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "PHAT allocate failed.");
     goto errLabel;
   }
 
   // register an id signal with the PHAT detector
-  if( cmPhatSetId(p, chIdx, s->ch[chIdx].mdV, s->sigN ) != kOkAtRC )
+  if( cmPhatSetId(p, chIdx, s->ch[chIdx].mdV, s->sigN ) != cmOkRC )
   {
-    rc = atErrMsg(&ctx->err, kTestFailAtRC, "PHAT setId failed.");
+    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "PHAT setId failed.");
     goto errLabel;
   }
 
   // generate an input test signal containing bsiN id signals
-  if( atSignalGen(s,chIdx,p->fhN,s->sigN,bsiV,bsiN,noiseGain,&yV,&yN) != kOkAtRC )
+  if( atSignalGen(s,chIdx,p->fhN,s->sigN,bsiV,bsiN,noiseGain,&yV,&yN) != cmOkRC )
   {
-    rc = atErrMsg(&ctx->err,kTestFailAtRC,"Signal generation failed.");
+    rc = cmErrMsg(&ctx->err,cmSubSysFailRC,"Signal generation failed.");
     goto errLabel;
   }
 
@@ -714,23 +720,23 @@ cmRC_t cmPhatTest1( cmCtx* ctx, const char* dirStr )
   atVOU_Zero(dsiV,bsiN);
 
   // allocate a vector array to record the PHAT input signals
-  if( cmVectArrayAlloc(ctx,&inVA,kSampleVaFl) != kOkAtRC )
+  if( cmVectArrayAlloc(ctx,&inVA,kSampleVaFl) != cmOkRC )
   {
-    rc = atErrMsg(&ctx->err, kTestFailAtRC, "vectArray inVA alloc failed.");
+    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "vectArray inVA alloc failed.");
     goto errLabel;
   }
 
   // allocate a vector array to record the PHAT correlation output signals
-  if( cmVectArrayAlloc(ctx,&outVA,kSampleVaFl) != kOkAtRC )
+  if( cmVectArrayAlloc(ctx,&outVA,kSampleVaFl) != cmOkRC )
   {
-    rc = atErrMsg(&ctx->err, kTestFailAtRC, "vectArray outVA alloc failed.");
+    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "vectArray outVA alloc failed.");
     goto errLabel;
   }
 
   // allocate a vector array to record the PHAT status
-  if( cmVectArrayAlloc(ctx,&statusVA,kSampleVaFl) != kOkAtRC )
+  if( cmVectArrayAlloc(ctx,&statusVA,kSampleVaFl) != cmOkRC )
   {
-    rc = atErrMsg(&ctx->err, kTestFailAtRC, "vectArray statusVA alloc failed.");
+    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "vectArray statusVA alloc failed.");
     goto errLabel;
   }
 
@@ -775,23 +781,23 @@ cmRC_t cmPhatTest1( cmCtx* ctx, const char* dirStr )
   }
 
   // write inVA
-  if( cmVectArrayWrite(inVA,path = atMakePath(&ctx->err,path,"phatIn","va",dirStr,NULL)) != kOkAtRC )
+  if( cmVectArrayWrite(inVA,path = atMakePath(&ctx->err,path,"phatIn","va",dirStr,NULL)) != cmOkRC )
   {
-    rc = atErrMsg(&ctx->err, kTestFailAtRC, "vectArray outVA write failed.");
+    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "vectArray outVA write failed.");
     goto errLabel;
   }
 
   // write outVA
-  if( cmVectArrayWrite(outVA,path = atMakePath(&ctx->err,path,"phatOut","va",dirStr,NULL)) != kOkAtRC )
+  if( cmVectArrayWrite(outVA,path = atMakePath(&ctx->err,path,"phatOut","va",dirStr,NULL)) != cmOkRC )
   {
-    rc = atErrMsg(&ctx->err, kTestFailAtRC, "vectArray outVA write failed.");
+    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "vectArray outVA write failed.");
     goto errLabel;
   }
 
   // write statusVA
-  if( cmVectArrayWrite(statusVA,path = atMakePath(&ctx->err,path,"phatStatus","va",dirStr,NULL)) != kOkAtRC )
+  if( cmVectArrayWrite(statusVA,path = atMakePath(&ctx->err,path,"phatStatus","va",dirStr,NULL)) != cmOkRC )
   {
-    rc = atErrMsg(&ctx->err, kTestFailAtRC, "vectArray statusVA write failed.");
+    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "vectArray statusVA write failed.");
     goto errLabel;
   }
 
@@ -799,18 +805,18 @@ cmRC_t cmPhatTest1( cmCtx* ctx, const char* dirStr )
   cmVectArrayFree(&outVA);
   cmVectArrayFree(&inVA);
 
-  if( cmPhatFree(&p) != kOkAtRC )
-    atErrMsg(&ctx->err,kTestFailAtRC,"PHAT free failed.");
+  if( cmPhatFree(&p) != cmOkRC )
+    cmErrMsg(&ctx->err,cmSubSysFailRC,"PHAT free failed.");
 
-  if( atSignalFree(&s) != kOkAtRC )
-    atErrMsg(&ctx->err,kTestFailAtRC,"Signal free failed.");
+  if( atSignalFree(&s) != cmOkRC )
+    cmErrMsg(&ctx->err,cmSubSysFailRC,"Signal free failed.");
 
   return rc;
 }
 
 cmRC_t cmPhatTest2( cmCtx* ctx )
 {
-  cmRC_t    rc    = kOkAtRC;
+  cmRC_t    rc    = cmOkRC;
   cmPhat_t* p     = NULL;
   unsigned  hN    = 16;
   float     alpha = 1.0;
@@ -826,24 +832,24 @@ cmRC_t cmPhatTest2( cmCtx* ctx )
   unsigned    chN  = sizeof(xV)/sizeof(xV[0]);
   unsigned    i;
   
-  if(cmPhatAlloc(ctx,&p,chN,hN,alpha,mult,kNoFlagsAtPhatFl) != kOkAtRC )
+  if(cmPhatAlloc(ctx,&p,chN,hN,alpha,mult,kNoFlagsAtPhatFl) != cmOkRC )
   {
-    rc = atErrMsg(&ctx->err,kTestFailAtRC,"cmPhatAlloc() failed.");
+    rc = cmErrMsg(&ctx->err,cmSubSysFailRC,"cmPhatAlloc() failed.");
     goto errLabel;
   }
 
   for(i=0; i<chN; ++i)
-    if( cmPhatSetId(p,i,hV,hN) != kOkAtRC )
-      rc = atErrMsg(&ctx->err,kTestFailAtRC,"cmPhatSetId() failed.");
+    if( cmPhatSetId(p,i,hV,hN) != cmOkRC )
+      rc = cmErrMsg(&ctx->err,cmSubSysFailRC,"cmPhatSetId() failed.");
   
   
   for(i=0; i<chN; ++i)
   {
     cmPhatReset(p);
     
-    if( cmPhatExec(p,xV[i],hN) != kOkAtRC )
+    if( cmPhatExec(p,xV[i],hN) != cmOkRC )
     {
-      rc = atErrMsg(&ctx->err,kTestFailAtRC,"cmPhatExec() failed.");
+      rc = cmErrMsg(&ctx->err,cmSubSysFailRC,"cmPhatExec() failed.");
       goto errLabel;
     }
 
@@ -859,3 +865,4 @@ cmRC_t cmPhatTest2( cmCtx* ctx )
     
   return rc;
 }
+#endif
