@@ -853,7 +853,8 @@ extern "C" {
   cmRC_t cmVectArrayAppendU( cmVectArray_t* p, const unsigned* v,   unsigned vn );
 
   // Write a vector array in a format that can be read by readVectArray.m.
-  cmRC_t cmVectArrayWrite(   cmVectArray_t* p, const char* fn );
+  cmRC_t cmVectArrayWrite(     cmVectArray_t* p, const char* fn );
+  cmRC_t cmVectArrayWriteDirFn(cmVectArray_t* p, const char* dir, const char* fn );
 
   // Print the vector array to rpt.
   cmRC_t cmVectArrayPrint( cmVectArray_t* p, cmRpt_t* rpt );

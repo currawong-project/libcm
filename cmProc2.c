@@ -3997,6 +3997,14 @@ cmRC_t cmVectArrayWrite( cmVectArray_t* p, const char* fn )
   return rc;
 }
 
+cmRC_t cmVectArrayWriteDirFn(cmVectArray_t* p, const char* dir, const char* fn )
+{
+  assert( dir!=NULL && fn!=NULL );
+  const cmChar_t* path = cmFsMakeFn( dir, fn, NULL, NULL );
+  cmRC_t rc = cmVectArrayWrite(p,path);
+  cmFsFreeFn(path);
+  return rc;
+}
 
 cmRC_t cmVectArrayPrint( cmVectArray_t* p, cmRpt_t* rpt )
 {
