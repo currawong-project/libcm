@@ -405,7 +405,7 @@ cmRC_t   cmPhatInit(  cmPhat_t* p, unsigned chN, unsigned hN, float alpha, unsig
   if((cmFftInitSR(&p->fft, NULL, p->fhN, kToPolarFftFl)) != cmOkRC )
     return rc;
 
-  if((cmFftInitRS(&p->ifft, NULL, p->fft->binCnt )) != cmOkRC )
+  if((cmIFftInitRS(&p->ifft, p->fft.binCnt )) != cmOkRC )
     return rc;
 
   p->alpha = alpha;
@@ -603,13 +603,14 @@ void cmPhatChExec(
   // 
   // t0V[] /= xV[]
   cmVOCR_DivVFV( p->t0V, p->xV, p->binN );
-  
+
   // Take the IFFT of the weighted CPS to recover the cross correlation.
   // xV[] = IFFT(t0V[])
-  cmIFftExecRS( p->ifft,  );
+  cmIFftExecRS( &p->ifft, p->t0V );
 
-  //// ***** atFftRealInverse( p->fftH, p->t0V, p->xV, p->fhN );
-  
+  // Normalize the result by the length of the transform.
+  cmVOS_DivVVS( p->xV, p->fhN, p->ifft.outV, p->fhN );
+
   // Shift the correlation spike to mark the end of the id
   cmVOS_Rotate( p->xV, p->fhN, -((int)p->hN) );
 
