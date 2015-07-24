@@ -334,6 +334,7 @@ cmDspRC_t _cmDspSysPgm_PlaySine( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, useBuiltInFl ? 1 : 3 );
   cmDspInst_t* om0p = cmDspSysAllocInst(h,"AMeter","Out", 0);
   
+  cmDspInst_t* gain= cmDspSysAllocInst( h,"Scalar", "Gain",     5, kNumberDuiId, 0.0,  10.0,  0.01,  0.0);
 
   cmDspSysConnectAudio(h, php, "out", wtp,  "phs" );  // phasor -> wave table
   cmDspSysConnectAudio(h, wtp, "out", ao0p, "in" );   // wave table -> audio out
@@ -341,6 +342,9 @@ cmDspRC_t _cmDspSysPgm_PlaySine( cmDspSysH_t h, void** userPtrPtr )
   cmDspSysConnectAudio(h, wtp, "out", om0p, "in" );
 
   cmDspSysInstallCb( h, chp, "val", ao0p, "ch", NULL);
+  cmDspSysInstallCb( h, gain, "val", ao0p, "gain", NULL);
+  cmDspSysInstallCb( h, gain, "val", ao1p, "gain", NULL);
+  
   return kOkDspRC;
 }
 

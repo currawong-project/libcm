@@ -190,8 +190,9 @@ extern "C" {
   cmRC_t cmFIRInitSinc(   cmFIR* p, unsigned procSmpCnt, double srate, unsigned sincSmpCnt, double fcHz,   unsigned flags, const double* wndV );
   cmRC_t cmFIRFinal(      cmFIR* p );
   cmRC_t cmFIRExec(       cmFIR* p, const cmSample_t* sp, unsigned sn );
-  void   cmFIRTest();
-
+  void   cmFIRTest0( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH );
+  void   cmFIRTest1( cmCtx* ctx );
+  
   //------------------------------------------------------------------------------------------------------------
   // Apply a generic function to a windowed signal with a one sample hop size.
 
@@ -771,7 +772,7 @@ extern "C" {
 
 
   //------------------------------------------------------------------------------------------------------------
-  // cmVectArray buffers row vectors of arbitrary lenght in  memory.
+  // cmVectArray buffers row vectors of arbitrary length in  memory.
   // The buffers may then be access using the cmVectArrayGetXXX() functions.
   // The entire contents of the file may be written to a file using atVectArrayWrite().
   // The file may then be read in back into memory using cmVectArrayAllocFromFile()
@@ -837,8 +838,12 @@ extern "C" {
   unsigned cmVectArrayMaxRowCount( const cmVectArray_t* p );
 
   // Store a new vector by appending it to the end of the internal vector list.
-  // Note that the true type of v[] in the call to cmVectArrayAppendV() must match
+  // Note:
+  // 1. The true type of v[] in the call to cmVectArrayAppendV() must match
   // the data type set in p->flags.
+  // 2. The 'vn' argument to atVectArrayAppendV() is an element count not
+  // a byte count.  The size of each element is determined by the data type
+  // as set by atVectArrayAlloc().  
   cmRC_t cmVectArrayAppendV( cmVectArray_t* p, const void* v,       unsigned vn );
   cmRC_t cmVectArrayAppendS( cmVectArray_t* p, const cmSample_t* v, unsigned vn );
   cmRC_t cmVectArrayAppendR( cmVectArray_t* p, const cmReal_t* v,   unsigned vn );
@@ -848,7 +853,8 @@ extern "C" {
   cmRC_t cmVectArrayAppendU( cmVectArray_t* p, const unsigned* v,   unsigned vn );
 
   // Write a vector array in a format that can be read by readVectArray.m.
-  cmRC_t cmVectArrayWrite(   cmVectArray_t* p, const char* fn );
+  cmRC_t cmVectArrayWrite(     cmVectArray_t* p, const char* fn );
+  cmRC_t cmVectArrayWriteDirFn(cmVectArray_t* p, const char* dir, const char* fn );
 
   // Print the vector array to rpt.
   cmRC_t cmVectArrayPrint( cmVectArray_t* p, cmRpt_t* rpt );
@@ -857,8 +863,12 @@ extern "C" {
   unsigned cmVectArrayForEachS( cmVectArray_t* p, unsigned idx, unsigned cnt, cmVectArrayForEachFuncS_t func, void* arg ); 
 
   // Write the vector v[vn] in the VectArray file format.
-  // Note that the true type of v[] in cmVectArrayWriteVectoV() must match the
+  // Note:
+  // 1. The true type of v[] in cmVectArrayWriteVectoV() must match the
   // data type set in the 'flags' parameter.
+  // 2. The 'vn' argument to atVectArrayWriteVectorV() is an element count not
+  // a byte count.  The size of each element is determined by the data type
+  // as set by atVectArrayAlloc().   
   cmRC_t cmVectArrayWriteVectorV( cmCtx* ctx, const char* fn, const void*       v, unsigned  vn, unsigned flags );
   cmRC_t cmVectArrayWriteVectorS( cmCtx* ctx, const char* fn, const cmSample_t* v, unsigned  vn );
   cmRC_t cmVectArrayWriteVectorR( cmCtx* ctx, const char* fn, const cmReal_t*   v, unsigned  vn );  
@@ -868,8 +878,12 @@ extern "C" {
   cmRC_t cmVectArrayWriteVectorU( cmCtx* ctx, const char* fn, const unsigned*   v, unsigned  vn );
 
   // Write the column-major matrix m[rn,cn] to the file 'fn'.
-  // Note that the true type of m[] in cmVectArrayWriteMatrixV() must match the
+  // Notes:
+  // 1. The true type of m[] in cmVectArrayWriteMatrixV() must match the
   // data type set in the 'flags' parameter.
+  // 2. The 'rn','cn' arguments to atVectWriteMatrixV() is are element counts not
+  // byte counts.  The size of each element is determined by the data type
+  // as set by atVectArrayAlloc().
   cmRC_t cmVectArrayWriteMatrixV( cmCtx* ctx, const char* fn, const void*       m, unsigned  rn, unsigned cn, unsigned flags );
   cmRC_t cmVectArrayWriteMatrixS( cmCtx* ctx, const char* fn, const cmSample_t* m, unsigned  rn, unsigned cn );
   cmRC_t cmVectArrayWriteMatrixR( cmCtx* ctx, const char* fn, const cmReal_t*   m, unsigned  rn, unsigned cn );  

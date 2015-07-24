@@ -4,7 +4,7 @@ cmHDR =
 cmSRC = 
 
 cmHDR += src/libcm/cmErr.h src/libcm/cmCtx.h src/libcm/cmRpt.h src/libcm/cmGlobal.h src/libcm/cmComplexTypes.h src/libcm/cmFloatTypes.h src/libcm/cmPrefix.h
-cmSRC += src/libcm/cmErr.c src/libcm/cmCtx.c src/libcm/cmRpt.c src/libcm/cmGlobal.c 
+cmSRC += src/libcm/cmErr.c src/libcm/cmCtx.c src/libcm/cmRpt.c src/libcm/cmGlobal.c src/libcm/cmComplexTypes.c
 
 cmHDR += src/libcm/cmSerialize.h src/libcm/cmSymTbl.h src/libcm/cmHashTbl.h src/libcm/cmFileSys.h src/libcm/cmFile.h 
 cmSRC += src/libcm/cmSerialize.c src/libcm/cmSymTbl.c src/libcm/cmHashTbl.c src/libcm/cmFileSys.c src/libcm/cmFile.c 

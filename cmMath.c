@@ -1,5 +1,10 @@
 #include "cmPrefix.h"
 #include "cmGlobal.h"
+#include "cmRpt.h"
+#include "cmErr.h"
+#include "cmCtx.h"
+#include "cmMem.h"
+#include "cmMallocDebug.h"
 #include "cmFloatTypes.h"
 #include "cmMath.h"
 #include <sys/types.h> // u_char
@@ -148,6 +153,20 @@ unsigned cmNextOddU(  unsigned v ) { return cmIsOddU(v)  ? v : v+1; }
 unsigned cmPrevOddU(  unsigned v ) { return cmIsOddU(v)  ? v : v-1; }
 unsigned cmNextEvenU( unsigned v ) { return cmIsEvenU(v) ? v : v+1; }
 unsigned cmPrevEvenU( unsigned v ) { return cmIsEvenU(v) ? v : v-1; }
+
+unsigned cmModIncr(int idx, int delta, int maxN )
+{
+  int sum = idx + delta;
+
+  if( sum >= maxN )
+    return sum - maxN;
+
+  if( sum < 0 )
+    return maxN + sum;
+
+  return sum;
+}
+
 
 // modified bessel function of first kind, order 0
 // ref: orfandis appendix B io.m
@@ -464,6 +483,128 @@ bool cmIsCloseU( unsigned x0, unsigned x1, double eps )
 {
   if( x0 == x1 )
     return true;
+  if( x0 > x1 )
+    return (x0-x1)/(x0+x1) < eps;
+  else
+    return (x1-x0)/(x0+x1) < eps;
+}
+
+//=================================================================
+
+// cmLFSR() implementation based on note at bottom of:
+// http://www.ece.cmu.edu/~koopman/lfsr/index.html
+void cmLFSR( unsigned lfsrN, unsigned tapMask, unsigned seed, unsigned* yV, unsigned yN )
+{
+  assert( 0 < lfsrN && lfsrN < 32 );
   
-  return abs(x0-x1)/(x0+x1) < eps;
+  unsigned i;
+  for(i=0; i<yN; ++i)
+  {
+    if( (yV[i] = seed & 1)==1 )
+      seed = (seed >> 1) ^ tapMask;
+    else
+      seed = (seed >> 1);
+
+  }
+}
+
+bool cmMLS_IsBalanced( const unsigned* xV, int xN)
+{
+  int      a = 0;
+  unsigned i;
+
+  for(i=0; i<xN; ++i)
+    if( xV[i] == 1 )
+      ++a;
+
+  return abs(a - (xN-a)) == 1;
+}
+
+unsigned _cmGenGoldCopy( int* y, unsigned yi, unsigned yN, unsigned* x, unsigned xN)
+{
+  unsigned i;
+  for(i=0; i<xN; ++i,++yi)
+    y[yi] = x[i]==1 ? -1 : 1;
+
+  assert(yi <= yN);
+  return yi;
+}
+
+bool cmGenGoldCodes( unsigned lfsrN, unsigned poly_coeff0, unsigned poly_coeff1, unsigned goldN, int* yM, unsigned mlsN  )
+{
+  bool      retFl = true;
+  unsigned  yi    = 0;
+  unsigned  yN    = goldN * mlsN;
+  unsigned* mls0V = cmMemAllocZ(unsigned,mlsN);
+  unsigned* mls1V = cmMemAllocZ(unsigned,mlsN);
+  unsigned* xorV  = cmMemAllocZ(unsigned,mlsN);
+  
+  unsigned  i,j;
+  
+  cmLFSR(lfsrN, poly_coeff0, 1 << (lfsrN-1), mls0V, mlsN);
+
+  cmLFSR(lfsrN, poly_coeff1, 1 << (lfsrN-1), mls1V, mlsN);
+
+  if( cmMLS_IsBalanced(mls0V,mlsN) )
+    yi = _cmGenGoldCopy(yM, yi, yN, mls0V, mlsN);
+
+  if( yi<yN && cmMLS_IsBalanced(mls1V,mlsN) )
+    yi = _cmGenGoldCopy(yM, yi, yN, mls1V, mlsN);
+
+  
+  for(i=0;  yi < yN && i<mlsN-1; ++i )
+  {
+    for(j=0; j<mlsN; ++j)
+      xorV[j] = (mls0V[j] + mls1V[ (i+j) % mlsN ]) % 2;
+    
+    if( cmMLS_IsBalanced(xorV,mlsN) )
+      yi = _cmGenGoldCopy(yM,yi,yN,xorV,mlsN);
+  }
+
+  if(yi < yN )
+  {    
+    //rc = cmErrMsg(err,kOpFailAtRC,"Gold code generation failed.  Insuffient balanced pairs.");
+    retFl = false;
+  }
+  
+  cmMemFree(mls0V);
+  cmMemFree(mls1V);
+  cmMemFree(xorV);
+
+  return retFl;
+
+}
+
+bool  cmLFSR_Test()
+{
+  // lfsrN          = 5;   % 5    6    7;
+  // poly_coeff0    = 0x12;  % 0x12 0x21 0x41;
+  // poly_coeff1    = 0x1e;  % 0x1e 0x36 0x72;
+
+  unsigned lfsrN = 7;
+  unsigned pc0   = 0x41;
+  unsigned pc1   = 0x72;
+  unsigned mlsN    = (1 << lfsrN)-1;
+
+  unsigned yN = mlsN*2;
+  unsigned yV[ yN ];
+  unsigned i;
+
+  cmLFSR( lfsrN, pc0, 1 << (lfsrN-1), yV, yN );
+
+  for(i=0; i<mlsN; ++i)
+    if( yV[i] != yV[i+mlsN] )
+      return false;
+
+  //atVOU_PrintL(NULL,"0x12",yV,mlsN,2);
+
+  cmLFSR( lfsrN, pc1, 1 << (lfsrN-1), yV, yN );
+
+  //atVOU_PrintL(NULL,"0x17",yV,mlsN,2);
+
+  for(i=0; i<mlsN; ++i)
+    if( yV[i] != yV[i+mlsN] )
+      return false;
+
+  return true;
 }

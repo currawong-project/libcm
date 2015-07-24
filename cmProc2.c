@@ -823,7 +823,7 @@ cmRC_t cmFIRInitKaiser( cmFIR* p, unsigned procSmpCnt, double srate, double pass
   // in practice the ripple must be equal in the stop and pass band - so take the minimum between the two
   double d        = cmMin(dPass,dStop);
 
-  // convert the ripple bcmk to db
+  // convert the ripple back to db
   double A = -20 * log10(d);
 
   // compute the kaiser alpha coeff
@@ -914,7 +914,7 @@ cmRC_t cmFIRExec( cmFIR* p, const cmSample_t* sbp, unsigned sn )
     // calc the output sample
     while( cbp<cep)
     {
-      // note that the delay is being iterated bcmkwards
+      // note that the delay is being iterated backwards
       if( di == -1 )
       di=delayCnt-1;
 
@@ -936,7 +936,7 @@ cmRC_t cmFIRExec( cmFIR* p, const cmSample_t* sbp, unsigned sn )
   return cmOkRC;
 }
 
-void cmFIRTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH )
+void cmFIRTest0( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH )
 {
   unsigned N = 512;
   cmKbRecd kb;
@@ -976,6 +976,37 @@ void cmFIRTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH )
 
   cmFftFreeSR(&ftp);
   cmFIRFree(&ffp);
+}
+
+void cmFIRTest1( cmCtx* ctx )
+{
+  const char* sfn        = "/home/kevin/temp/sig.va";
+  const char* ffn        = "/home/kevin/temp/fir.va";
+  unsigned    N          = 44100;
+  unsigned    srate      = N;
+  unsigned    procSmpCnt = N;
+  double      passHz     = 15000;
+  double      stopHz     = 14000;
+  double      passDb     = 1.0;
+  double      stopDb     = 60.0;
+  unsigned    flags      = kHighPassFIRFl;
+  
+  cmSample_t x[ procSmpCnt ];
+  
+  cmVOS_Fill(x,procSmpCnt,0);
+  x[0] = 1;
+
+  cmVOS_Random(x,procSmpCnt, -1.0, 1.0 );
+
+  cmFIR* f = cmFIRAllocKaiser( ctx, NULL, procSmpCnt, srate, passHz, stopHz, stopDb, passDb, flags );
+
+  cmFIRExec( f, x, procSmpCnt ); 
+
+  cmVectArrayWriteMatrixS(ctx, ffn, f->outV, 1, f->outN );
+  cmVectArrayWriteMatrixS(ctx, sfn, x,       1, N );
+
+  cmFIRFree(&f);
+  
 }
 
 //------------------------------------------------------------------------------------------------------------
@@ -3966,6 +3997,14 @@ cmRC_t cmVectArrayWrite( cmVectArray_t* p, const char* fn )
   return rc;
 }
 
+cmRC_t cmVectArrayWriteDirFn(cmVectArray_t* p, const char* dir, const char* fn )
+{
+  assert( dir!=NULL && fn!=NULL );
+  const cmChar_t* path = cmFsMakeFn( dir, fn, NULL, NULL );
+  cmRC_t rc = cmVectArrayWrite(p,path);
+  cmFsFreeFn(path);
+  return rc;
+}
 
 cmRC_t cmVectArrayPrint( cmVectArray_t* p, cmRpt_t* rpt )
 {
@@ -4054,7 +4093,7 @@ cmRC_t _cmVectArrayWriteMatrix( cmCtx* ctx, const char* fn, unsigned flags, cons
       memcpy(vv + ci*tbc, v + ci*rn*tbc, tbc );
 
     // append the row to the VectArray
-    if((rc = cmVectArrayAppendV(p,v,cn)) != cmOkRC )
+    if((rc = cmVectArrayAppendV(p,vv,cn)) != cmOkRC )
     {
       rc = cmCtxRtCondition(&p->obj,rc,"Vector append failed in %s().",__FUNCTION__);
       goto errLabel;
@@ -5660,7 +5699,7 @@ cmRC_t      cmExpanderInit( cmExpander* p,
     p->envV[atkN+i] = p->rlsLvl + (G*i/rlsN);
   }
 
-  printf("rmsN:%i atkN:%i rlsN:%i thr:%f %f rls:%f %f\n",p->rmsN,atkN,rlsN,threshDb,p->threshLvl,rlsDb,p->rlsLvl);
+  //printf("rmsN:%i atkN:%i rlsN:%i thr:%f %f rls:%f %f\n",p->rmsN,atkN,rlsN,threshDb,p->threshLvl,rlsDb,p->rlsLvl);
 
   //for(i=0; i<p->envN; ++i)
   //  printf("%i %f\n",i,p->envV[i]);
@@ -5680,7 +5719,7 @@ cmRC_t      cmExpanderExec( cmExpander* p, cmSample_t* x, cmSample_t* y, unsigne
   for(i=0; i<xyN; ++i)
   {
     // NOTE: using abs() instead of pow(x,2)
-    p->rmsV[p->rmsIdx] = abs(x[i]);
+    p->rmsV[p->rmsIdx] = fabsf(x[i]);
 
     if( ++p->rmsIdx >= p->rmsN )
       p->rmsIdx = 0;
@@ -5910,7 +5949,7 @@ cmSpecDist_t* cmSpecDistAlloc( cmCtx* ctx,cmSpecDist_t* ap, unsigned procSmpCnt,
   cmSpecDist_t* p = cmObjAlloc( cmSpecDist_t, ctx, ap );
 
   //p->iSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
-  p->oSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
+  //p->oSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
 
   if( procSmpCnt != 0 )
   {
@@ -5931,7 +5970,7 @@ cmRC_t cmSpecDistFree( cmSpecDist_t** pp )
   
   cmSpecDistFinal(p);
   //cmVectArrayFree(&p->iSpecVa);
-  cmVectArrayFree(&p->oSpecVa);
+  //cmVectArrayFree(&p->oSpecVa);
   cmMemPtrFree(&p->hzV);
   cmMemPtrFree(&p->iSpecM);
   cmMemPtrFree(&p->oSpecM);
@@ -6055,7 +6094,7 @@ cmRC_t cmSpecDistFinal(cmSpecDist_t* p )
   cmRC_t rc = cmOkRC;
 
   //cmVectArrayWrite(p->iSpecVa, "/home/kevin/temp/frqtrk/iSpec.va");
-  cmVectArrayWrite(p->oSpecVa, "/home/kevin/temp/expand/oSpec.va");
+  //cmVectArrayWrite(p->oSpecVa, "/home/kevin/temp/expand/oSpec.va");
 
   cmPvAnlFree(&p->pva);
   cmPvSynFree(&p->pvs);

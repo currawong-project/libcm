@@ -40,11 +40,17 @@ typedef struct devRecd_str
   snd_async_handler_t* ahandler;
   unsigned             srate;          // device sample rate
 
-  unsigned             iChCnt;  // ch count 
+  unsigned             iChCnt;         // ch count 
   unsigned             oChCnt;
 
   unsigned             iBits;          // bits per sample
-  unsigned             oBits; 
+  unsigned             oBits;
+
+  bool                 iSignFl;        // sample type is signed
+  bool                 oSignFl;
+
+  bool                 iSwapFl;        // swap the sample bytes
+  bool                 oSwapFl;
 
   unsigned             iSigBits;       // significant bits in each sample beginning
   unsigned             oSigBits;       // with the most sig. bit.
@@ -362,6 +368,77 @@ void _cmApDevRtReport( cmRpt_t* rpt, cmApDevRecd_t* drp )
 
 }
 
+void _cmApDevReportFormats( cmRpt_t* rpt, snd_pcm_hw_params_t* hwParams )
+{
+  snd_pcm_format_mask_t* mask;
+
+  snd_pcm_format_t fmt[] =
+  {
+     SND_PCM_FORMAT_S8,
+     SND_PCM_FORMAT_U8,
+     SND_PCM_FORMAT_S16_LE,
+     SND_PCM_FORMAT_S16_BE,
+     SND_PCM_FORMAT_U16_LE,
+     SND_PCM_FORMAT_U16_BE,
+     SND_PCM_FORMAT_S24_LE,
+     SND_PCM_FORMAT_S24_BE,
+     SND_PCM_FORMAT_U24_LE,
+     SND_PCM_FORMAT_U24_BE,
+     SND_PCM_FORMAT_S32_LE,
+     SND_PCM_FORMAT_S32_BE,
+     SND_PCM_FORMAT_U32_LE,
+     SND_PCM_FORMAT_U32_BE,
+     SND_PCM_FORMAT_FLOAT_LE,
+     SND_PCM_FORMAT_FLOAT_BE,
+     SND_PCM_FORMAT_FLOAT64_LE,
+     SND_PCM_FORMAT_FLOAT64_BE,
+     SND_PCM_FORMAT_IEC958_SUBFRAME_LE,
+     SND_PCM_FORMAT_IEC958_SUBFRAME_BE,
+     SND_PCM_FORMAT_MU_LAW,
+     SND_PCM_FORMAT_A_LAW,
+     SND_PCM_FORMAT_IMA_ADPCM,
+     SND_PCM_FORMAT_MPEG,
+     SND_PCM_FORMAT_GSM,
+     SND_PCM_FORMAT_SPECIAL,
+     SND_PCM_FORMAT_S24_3LE,
+     SND_PCM_FORMAT_S24_3BE,
+     SND_PCM_FORMAT_U24_3LE,
+     SND_PCM_FORMAT_U24_3BE,
+     SND_PCM_FORMAT_S20_3LE,
+     SND_PCM_FORMAT_S20_3BE,
+     SND_PCM_FORMAT_U20_3LE,
+     SND_PCM_FORMAT_U20_3BE,
+     SND_PCM_FORMAT_S18_3LE,
+     SND_PCM_FORMAT_S18_3BE,
+     SND_PCM_FORMAT_U18_3LE,
+     SND_PCM_FORMAT_U18_3BE,
+     SND_PCM_FORMAT_G723_24,
+     SND_PCM_FORMAT_G723_24_1B,
+     SND_PCM_FORMAT_G723_40,
+     SND_PCM_FORMAT_G723_40_1B,
+     SND_PCM_FORMAT_DSD_U8,
+     //SND_PCM_FORMAT_DSD_U16_LE,
+     //SND_PCM_FORMAT_DSD_U32_LE,
+     //SND_PCM_FORMAT_DSD_U16_BE,
+     //SND_PCM_FORMAT_DSD_U32_BE,
+     SND_PCM_FORMAT_UNKNOWN 
+  };
+
+  snd_pcm_format_mask_alloca(&mask);
+
+  snd_pcm_hw_params_get_format_mask(hwParams,mask);
+
+  cmRptPrintf(rpt,"Formats: " );
+  
+  int i;
+  for(i=0; fmt[i]!=SND_PCM_FORMAT_UNKNOWN; ++i)
+    if( snd_pcm_format_mask_test(mask, fmt[i] ))
+      cmRptPrintf(rpt,"%s%s",snd_pcm_format_name(fmt[i]), snd_pcm_format_cpu_endian(fmt[i]) ? " " : " (swap) ");
+  
+  cmRptPrintf(rpt,"\n");
+  
+}
+
 void _cmApDevReport( cmRpt_t* rpt, cmApDevRecd_t* drp )
 {
   bool       inputFl = true;
@@ -377,7 +454,7 @@ void _cmApDevReport( cmRpt_t* rpt, cmApDevRecd_t* drp )
   {
     if( ((inputFl==true) && (drp->flags&kInFl)) || (((inputFl==false) && (drp->flags&kOutFl))))
     {
-      const char* ioLabel = inputFl ? "In" : "Out";
+      const char* ioLabel = inputFl ? "In " : "Out";
 
       // attempt to open the sub-device
       if((err = snd_pcm_open(&pcmH,drp->nameStr,inputFl ? SND_PCM_STREAM_CAPTURE : SND_PCM_STREAM_PLAYBACK,0)) < 0 )
@@ -435,6 +512,8 @@ void _cmApDevReport( cmRpt_t* rpt, cmApDevRecd_t* drp )
             ioLabel,minChCnt,maxChCnt,minSrate,maxSrate,minPeriodFrmCnt,maxPeriodFrmCnt,minBufFrmCnt,maxBufFrmCnt,
             (snd_pcm_hw_params_is_half_duplex(hwParams)  ? "yes" : "no"),
             (snd_pcm_hw_params_is_joint_duplex(hwParams) ? "yes" : "no"));
+          
+          _cmApDevReportFormats( rpt, hwParams );
         }
 
         if((err = snd_pcm_close(pcmH)) < 0)
@@ -610,6 +689,28 @@ void _cmApStateRecover( snd_pcm_t* pcmH, cmApDevRecd_t* drp, bool inputFl  )
   
 }
 
+void _cmApS24_3BE_to_Float( const char* x, cmApSample_t* y, unsigned n )
+{
+  unsigned i;
+  for(i=0; i<n; ++i,x+=3)
+  {
+    int s = (((int)x[0])<<16) + (((int)x[1])<<8) + (((int)x[2]));
+    y[i] = ((cmApSample_t)s)/0x7fffff;
+  }
+}
+
+void _cmApS24_3BE_from_Float( const cmApSample_t* x, char* y, unsigned n )
+{
+  unsigned i;
+  for(i=0; i<n; ++i)
+  {
+    int s = x[i] * 0x7fffff;
+    y[i*3+2] = (char)((s & 0x7f0000) >> 16);
+    y[i*3+1] = (char)((s & 0x00ff00) >>  8);
+    y[i*3+0] = (char)((s & 0x0000ff) >>  0);
+  }
+}
+
 
 // Returns count of frames written on success or < 0 on error;
 // set smpPtr to NULL to write a buffer of silence
@@ -648,9 +749,13 @@ int _cmApWriteBuf( cmApDevRecd_t* drp, snd_pcm_t* pcmH, const cmApSample_t* sp, 
 
       case 24:
         {
+          // for use w/ MBox
+          //_cmApS24_3BE_from_Float(sp, obuf, ep-sp );
+          
           int* dp = (int*)obuf;
           while( sp < ep )
             *dp++ = (int)(*sp++ * 0x7fffff);        
+            
         }
         break;
 
@@ -696,7 +801,6 @@ int _cmApWriteBuf( cmApDevRecd_t* drp, snd_pcm_t* pcmH, const cmApSample_t* sp, 
 }
 
 
-
 // Returns frames read on success or < 0 on error.
 // Set smpPtr to NULL to read the incoming buffer and discard it
 int _cmApReadBuf( cmApDevRecd_t* drp, snd_pcm_t* pcmH, cmApSample_t* smpPtr, unsigned chCnt, unsigned frmCnt, unsigned bits, unsigned sigBits )
@@ -729,7 +833,6 @@ int _cmApReadBuf( cmApDevRecd_t* drp, snd_pcm_t* pcmH, cmApSample_t* smpPtr, uns
 
   // setup the return buffer
   cmApSample_t* dp = smpPtr;
-
   cmApSample_t* ep = dp + cmMin(smpCnt,err*chCnt);
   
   switch(bits)
@@ -752,6 +855,8 @@ int _cmApReadBuf( cmApDevRecd_t* drp, snd_pcm_t* pcmH, cmApSample_t* smpPtr, uns
 
     case 24:
       {
+        // For use with MBox
+        //_cmApS24_3BE_to_Float(buf, dp, ep-dp );
         int* sp = (int*)buf;
         while(dp < ep)
           *dp++ = ((cmApSample_t)*sp++) /  0x7fffff;
@@ -819,7 +924,7 @@ void _cmApStaticAsyncHandler( snd_async_handler_t* ahandler )
   while( (avail = snd_pcm_avail_update(pcmH)) >= (snd_pcm_sframes_t)frmCnt )
   {
 
-    // Handle inpuut
+    // Handle input
     if( inputFl )
     {
       // read samples from the device
@@ -1024,7 +1129,21 @@ bool _cmApDevSetup( cmApDevRecd_t *drp, unsigned srate, unsigned framesPerCycle,
   snd_pcm_uframes_t bufferFrameCnt;
   unsigned          bits           = 0;
   int               sig_bits       = 0;
+  bool              signFl         = true;
+  bool              swapFl         = false;
   cmApRoot_t*       p              = drp->rootPtr;
+
+  snd_pcm_format_t fmt[] =
+  {
+    SND_PCM_FORMAT_S32_LE,
+    SND_PCM_FORMAT_S32_BE,
+    SND_PCM_FORMAT_S24_LE,
+    SND_PCM_FORMAT_S24_BE,
+    SND_PCM_FORMAT_S24_3LE,
+    SND_PCM_FORMAT_S24_3BE,
+    SND_PCM_FORMAT_S16_LE,
+    SND_PCM_FORMAT_S16_BE,
+  };
   
 
   // setup input, then output device
@@ -1040,7 +1159,6 @@ bool _cmApDevSetup( cmApDevRecd_t *drp, unsigned srate, unsigned framesPerCycle,
 
       if( _cmApDevShutdown(p, drp, inputFl ) != kOkApRC )
         retFl = false;
-
 
       // attempt to open the sub-device
       if((err = snd_pcm_open(&pcmH,drp->nameStr, inputFl ? SND_PCM_STREAM_CAPTURE : SND_PCM_STREAM_PLAYBACK, 0)) < 0 )
@@ -1075,23 +1193,23 @@ bool _cmApDevSetup( cmApDevRecd_t *drp, unsigned srate, unsigned framesPerCycle,
 
           if((err = snd_pcm_hw_params_set_access(pcmH,hwParams,SND_PCM_ACCESS_RW_INTERLEAVED )) < 0 )
             retFl = _cmApDevSetupError(p,err,inputFl, drp, "Unable to set access to: RW Interleaved");
-		  
-          // select the widest possible sample width
-          if((err = snd_pcm_hw_params_set_format(pcmH,hwParams,SND_PCM_FORMAT_S32)) >= 0 )
-            bits = 32;
+          
+          // select the format width
+          int j;
+          int fmtN = sizeof(fmt)/sizeof(fmt[0]);
+          for(j=0; j<fmtN; ++j)
+            if((err = snd_pcm_hw_params_set_format(pcmH,hwParams,fmt[j])) >= 0 )
+              break;
+
+          if( j == fmtN )
+            retFl = _cmApDevSetupError(p,err,inputFl, drp, "Unable to set format to: S16");
           else
           {
-            if((err = snd_pcm_hw_params_set_format(pcmH,hwParams,SND_PCM_FORMAT_S24)) >= 0 )
-              bits = 24;
-            else
-            {
-              if((err = snd_pcm_hw_params_set_format(pcmH,hwParams,SND_PCM_FORMAT_S16)) >= 0 )
-                bits = 16;
-              else
-                retFl = _cmApDevSetupError(p,err,inputFl, drp, "Unable to set format to: S16");
-            }
+            bits = snd_pcm_format_width(fmt[j]); // bits per sample
+            signFl = snd_pcm_format_signed(fmt[j]);
+            swapFl = !snd_pcm_format_cpu_endian(fmt[j]);
           }
-
+          
           sig_bits = snd_pcm_hw_params_get_sbits(hwParams);
 
           snd_pcm_uframes_t ps_min,ps_max;
@@ -1167,6 +1285,8 @@ bool _cmApDevSetup( cmApDevRecd_t *drp, unsigned srate, unsigned framesPerCycle,
         {
           drp->iBits    = bits;
           drp->iSigBits = sig_bits;
+          drp->iSignFl  = signFl;
+          drp->iSwapFl  = swapFl;
           drp->iPcmH    = pcmH;
           drp->iBuf     = cmMemResizeZ( cmApSample_t, drp->iBuf, actFpC * drp->iChCnt );
           drp->iFpC     = actFpC;
@@ -1175,6 +1295,8 @@ bool _cmApDevSetup( cmApDevRecd_t *drp, unsigned srate, unsigned framesPerCycle,
         {
           drp->oBits    = bits;
           drp->oSigBits = sig_bits;
+          drp->oSignFl  = signFl;
+          drp->oSwapFl  = swapFl;
           drp->oPcmH    = pcmH;
           drp->oBuf     = cmMemResizeZ( cmApSample_t, drp->oBuf, actFpC * drp->oChCnt );
           drp->oFpC     = actFpC;
@@ -1448,7 +1570,7 @@ cmApRC_t      cmApAlsaInitialize( cmRpt_t* rpt, unsigned baseApDevIdx )
                 // this device uses this subdevice in the current direction 
                 dr.flags += inputFl ? kInFl : kOutFl;
 
-              printf("%s in:%i chs:%i rate:%i\n",dr.nameStr,inputFl,*chCntPtr,rate);
+              //printf("%s in:%i chs:%i rate:%i\n",dr.nameStr,inputFl,*chCntPtr,rate);
               
             }                        
 

@@ -11,6 +11,7 @@
 #define cmCrealS crealf
 #define cmCimagS cimagf 
 #define cmCargS  cargf
+#define cmCconjS conjf
 
 #define cmFftPlanAllocS   fftwf_plan_dft_r2c_1d
 #define cmFft1dPlanAllocS fftwf_plan_dft_1d
@@ -29,6 +30,7 @@
 #define cmCrealS creal
 #define cmCimagS cimag 
 #define cmCargS  carg
+#define cmCconjS conj
 
 #define cmFftPlanAllocS   fftw_plan_dft_r2c_1d
 #define cmFft1dPlanAllocS fftw_plan_dft_1d
@@ -53,6 +55,7 @@
 #define cmCrealR crealf
 #define cmCimagR cimagf 
 #define cmCargR  cargf
+#define cmCconjR conjf
 
 #define cmFftPlanAllocR   fftwf_plan_dft_r2c_1d
 #define cmFft1dPlanAllocR fftwf_plan_dft_1d
@@ -71,6 +74,7 @@
 #define cmCrealR creal
 #define cmCimagR cimag 
 #define cmCargR  carg
+#define cmCconjR conj
 
 #define cmFftPlanAllocR   fftw_plan_dft_r2c_1d
 #define cmFft1dPlanAllocR fftw_plan_dft_1d
@@ -83,5 +87,13 @@
   typedef fftw_plan       cmFftPlanR_t;
 
 #endif
+
+void cmVOCR_MultVVV( cmComplexR_t* y, const cmComplexS_t* x0, const cmComplexR_t* x1, unsigned n );
+void cmVOCR_MultVFV(  cmComplexR_t* y, const float* x, unsigned n );
+void cmVOCR_DivVFV(   cmComplexR_t* y, const float_t* x, unsigned n );
+void cmVOCR_Abs(     cmSample_t*   y, const cmComplexR_t* x, unsigned n );
+void cmVOCR_MultVS(  cmComplexR_t* y, cmReal_t v, unsigned n );
+void cmVOCR_DivVS(   cmComplexR_t* y, cmReal_t v, unsigned n );
+
 
 #endif

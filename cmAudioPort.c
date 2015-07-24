@@ -363,6 +363,8 @@ void cmApReport( cmRpt_t* rpt )
   
     }
   }
+
+  //cmApAlsaDeviceReport(rpt);
 }
 
 /// [cmAudioPortExample]
@@ -668,6 +670,7 @@ int cmApPortTest( bool runFl, cmRpt_t* rpt, int argc, const char* argv[] )
 
 
   runFl            = _cmApGetOpt(argc,argv,"-p",!runFl,true)?false:true;
+  r.srate          = _cmApGetOpt(argc,argv,"-r",44100,false);
   r.chIdx          = _cmApGetOpt(argc,argv,"-a",0,false);
   r.chCnt          = _cmApGetOpt(argc,argv,"-c",2,false);
   r.bufCnt         = _cmApGetOpt(argc,argv,"-b",3,false);
@@ -685,7 +688,6 @@ int cmApPortTest( bool runFl, cmRpt_t* rpt, int argc, const char* argv[] )
   r.outDevIdx  = _cmGlobalOutDevIdx = _cmApGetOpt(argc,argv,"-o",2,false); 
   r.phase      = 0;
   r.frqHz      = 2000;
-  r.srate      = 44100;
   r.bufInIdx   = 0;
   r.bufOutIdx  = 0;
   r.bufFullCnt = 0;
