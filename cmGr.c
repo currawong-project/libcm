@@ -2316,7 +2316,7 @@ cmGrObj_t*  _cmGrEventMsDrag( cmGr_t* p, unsigned evtFlags, cmGrKeyCodeId_t key,
   bool       fl = false;
   cmGrObj_t* op = _cmGrFindObjRec(p, p->rootObj, evtFlags, px, py, gx, gy );
 
-  if( op != NULL && op->parent != NULL )
+  if( op != NULL && p->msDnObj != NULL && p->msDnObj->parent != NULL )
   {
     // set the current virtual point
     _cmGrXY_PtoV(p, p->msDnObj->parent, px, py, &p->msVPt );
