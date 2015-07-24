@@ -227,31 +227,47 @@ VECT_OP_TYPE* VECT_OP_FUNC(Replace)(VECT_OP_TYPE* s, unsigned* sn, const VECT_OP
 
 
 
-VECT_OP_TYPE* VECT_OP_FUNC(Rotate)( VECT_OP_TYPE* dbp, unsigned dn, int shiftCnt )
+VECT_OP_TYPE* VECT_OP_FUNC(Rotate)( VECT_OP_TYPE* v, unsigned n, int i )
 {
-  VECT_OP_TYPE* dep = dbp + dn;
-  int           i   = 0;
-  unsigned      k   = 0;
-  int           n   = dep - dbp;
-  VECT_OP_TYPE  t1  = dbp[i];
+  int c, j;
 
-  for(k=0; k<n; ++k)
+  if(v == NULL || n <= 0) 
+    return NULL;
+
+  if(i < 0 || i >= n) 
   {
-    int          j;  
-
-    j = (i + shiftCnt) % n;
-
-    if( j<0 )
-      j += n;
-
-    VECT_OP_TYPE t2 = dbp[j];
-
-    dbp[j] = t1;
-    t1     = t2;
-    i      = j;
+    i %= n;
+    if (i < 0) 
+      i += n;
   }
 
-  return dbp;
+  if(i == 0) 
+    return 0;
+
+  c = 0;
+  for(j = 0; c < n; j++) 
+  {
+    int t = j, k = j + i;
+
+    VECT_OP_TYPE tmp = v[j];
+    c++;
+
+    while( k != j ) 
+    {
+      v[t] = v[k];
+      t    = k;
+      k   += i;
+
+      if( k >= n ) 
+        k -= n;
+
+      c++;
+    }
+    v[t] = tmp;
+  }
+
+  return v;
+
 }
 
 VECT_OP_TYPE* VECT_OP_FUNC(RotateM)( VECT_OP_TYPE* dbp, unsigned drn, unsigned dcn, const VECT_OP_TYPE* sbp, int rShiftCnt, int cShiftCnt  )
