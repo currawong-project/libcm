@@ -18,7 +18,8 @@ extern "C" {
     kOkTxRC = 0,
     kNullTxRC,
     kCvtErrTxRC,
-    kLHeapFailTxRC
+    kLHeapFailTxRC,
+    kBufTooSmallTxRC
   };
 
   typedef unsigned     cmTxRC_t;
@@ -272,6 +273,28 @@ extern "C" {
   // If a row is indented by less than 'n' then it is 
   // then all leading white space is removed.
   cmChar_t*       cmTextOutdent( cmChar_t* s, unsigned n );
+
+  // Given a string containing binary data encoded as base64
+  // return the size of the buffer required to hold the
+  // decoded binary data. Note that if xV[] is a legal base64
+  // string then xN must be a multiple of 4.  If xN is not
+  // a mulitple of 4 then the function returns kInvalidCnt.
+  unsigned cmTextDecodeBase64BufferByteCount( const char* xV, unsigned xN );
+
+  // Decode the base64 data in xV[xN] into yV[yN].  Note that the
+  // minimum value of yN can be determined via
+  // cmTextDecodeBase64BufferByteCount().
+  // Return the actual count of bytes decoded into yV[].
+  unsigned cmTextDecodeBase64( const char* xV, unsigned xN, void* yV, unsigned yN );
+
+  // Given the count of bytes in a binary array, return
+  // the count of bytes required to store the array in base64.
+  unsigned cmTextEncodeBase64BufferByteCount( unsigned xN );
+
+  // Encode the binary array xV[xN] into yV[yN].  Note that the value
+  // of yN can be determined via cmTextEncodeBase64BufferByteCount().
+  cmTxRC_t cmTextEncodeBase64( const void* xV, unsigned xN, char* yV, unsigned yN );
+
 
   //)
   //}

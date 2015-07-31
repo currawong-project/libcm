@@ -1026,3 +1026,212 @@ cmChar_t*       cmTextOutdent( cmChar_t* s, unsigned outdent )
   return s;
      
 }
+
+unsigned cmTextDecodeBase64BufferByteCount( const char* xV, unsigned xN )
+{
+  if( xN % 4 != 0 )
+    return cmInvalidCnt;
+
+  unsigned yN = xN / 4 * 3;
+
+  if( xV[xN-1] == '=' )
+    yN -= 1;
+
+  if( xV[xN-2] == '=' )
+    yN -= 2;
+
+  return yN;  
+}
+
+cmTxRC_t cmTextDecodeBase64( const char* xV, unsigned xN, void* yV, unsigned yN )
+{
+  int t[] =
+  {
+   64, //  0
+   64, //  1
+   64, //  2
+   64, //  3
+   64, //  4
+   64, //  5
+   64, //  6
+   64, //  7
+   64, //  8
+   64, //  9
+   64, // 10
+   64, // 11
+   64, // 12
+   64, // 13
+   64, // 14
+   64, // 15
+   64, // 16
+   64, // 17
+   64, // 18
+   64, // 19
+   64, // 20
+   64, // 21
+   64, // 22
+   64, // 23
+   64, // 24
+   64, // 25
+   64, // 26
+   64, // 27
+   64, // 28
+   64, // 29
+   64, // 30
+   64, // 31
+   64, // 32
+   64, // 33
+   64, // 34
+   64, // 35
+   64, // 36
+   64, // 37
+   64, // 38
+   64, // 39
+   64, // 40
+   64, // 41
+   64, // 42
+   62, // 43 +
+   64, // 44
+   64, // 45
+   64, // 46
+   63, // 47 /
+   52, // 48 0
+   53, // 49 1
+   54, // 50 2
+   55, // 51 3
+   56, // 52 4
+   57, // 53 5
+   58, // 54 6
+   59, // 55 7
+   60, // 56 8
+   61, // 57 9
+   64, // 58
+   64, // 59
+   64, // 60
+   64, // 61
+   64, // 62
+   64, // 63
+   64, // 64
+    0, // 65 A
+    1, // 66 B
+    2, // 67 C
+    3, // 68 D
+    4, // 69 E
+    5, // 70 F
+    6, // 71 G
+    7, // 72 H
+    8, // 73 I
+    9, // 74 J
+   10, // 75 K
+   11, // 76 L
+   12, // 77 M
+   13, // 78 N
+   14, // 79 O
+   15, // 80 P
+   16, // 81 Q
+   17, // 82 R
+   18, // 83 S
+   19, // 84 T
+   20, // 85 U
+   21, // 86 V
+   22, // 87 W
+   23, // 88 X
+   24, // 89 Y
+   25, // 90 Z
+   64, // 91
+   64, // 92
+   64, // 93
+   64, // 94
+   64, // 95
+   64, // 96
+   26, // 97 a
+   27, // 98 b
+   28, // 99 c
+   29, //100 d
+   30, //101 e
+   31, //102 f
+   32, //103 g
+   33, //104 h
+   34, //105 i
+   35, //106 j
+   36, //107 k
+   37, //108 l
+   38, //109 m
+   39, //110 n
+   40, //111 o
+   41, //112 p
+   42, //113 q
+   43, //114 r
+   44, //115 s
+   45, //116 t
+   46, //117 u 
+   47, //118 v
+   48, //119 w
+   49, //120 x
+   50, //121 y
+   51, //122 z
+   64, //123
+   64, //124
+   64, //125
+   64, //126
+   64  //127    
+  };
+  
+  unsigned i  = 0;
+  unsigned j  = 0;
+  char*    zV = (char*)yV;
+
+  while( i < xN )
+  {
+    unsigned yn = 3;
+    
+    if( xV[i+3] == '=' )
+      --yn;
+    
+    if( xV[i+2] == '=' )
+      --yn;
+
+    unsigned v = 0;
+    
+    v += t[(int)xV[i++]] << 18;
+    v += t[(int)xV[i++]] << 12;
+    v += t[(int)xV[i++]] <<  6;
+    v += t[(int)xV[i++]] <<  0;
+
+    if( j >= yN )
+      break;
+    
+    zV[j++] = (v & 0xff0000) >> 16;
+
+    if( yn > 1 )
+    {
+      if( j >= yN )
+        break;
+      
+      zV[j++] = (v & 0x00ff00) >> 8;
+    }
+    
+    if( yn > 2 )
+    {
+      if( j >= yN )
+        break;
+      
+      zV[j++] = (v & 0x0000ff) >> 0;
+    }
+    
+  }
+
+  return j;
+}
+
+
+unsigned cmTextEncodeBase64BufferByteCount( unsigned binByteCnt )
+{
+  return 0;
+}
+
+cmTxRC_t cmTextEncodeBase64( const void* xV, unsigned xN, char* yV, unsigned yN )
+{
+  // const char* t = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  return kOkTxRC;
+}
