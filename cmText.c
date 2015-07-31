@@ -1192,6 +1192,8 @@ cmTxRC_t cmTextDecodeBase64( const char* xV, unsigned xN, void* yV, unsigned yN 
       --yn;
 
     unsigned v = 0;
+
+    assert( i + 4 <= xN );
     
     v += t[(int)xV[i++]] << 18;
     v += t[(int)xV[i++]] << 12;
@@ -1227,11 +1229,67 @@ cmTxRC_t cmTextDecodeBase64( const char* xV, unsigned xN, void* yV, unsigned yN 
 
 unsigned cmTextEncodeBase64BufferByteCount( unsigned binByteCnt )
 {
-  return 0;
+  int rem = binByteCnt % 3;
+  binByteCnt -= rem;
+
+  int n = binByteCnt / 3 * 4;
+
+  if( rem )
+    n += 4;
+
+  return n;
+  
 }
 
-cmTxRC_t cmTextEncodeBase64( const void* xV, unsigned xN, char* yV, unsigned yN )
+unsigned cmTextEncodeBase64( const void* xV, unsigned xN, char* yV, unsigned yN )
 {
-  // const char* t = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  return kOkTxRC;
+  const char*  t = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const char* zV = (const char*)xV;
+  unsigned     i = 0;
+  unsigned     j = 0;
+  
+  while( 1 )
+  {
+    unsigned k = 3;
+    unsigned v = ((int)zV[i++]) << 16;
+
+    if( i < xN )
+      v += ((int)zV[i++]) << 8;
+    else
+      --k;
+
+    if( i < xN )
+      v += ((int)zV[i++]);
+    else
+      --k;
+
+    if( j >= yN )
+      break;
+    
+    yV[j++] = t[ (v & 0xfc0000) >> 18 ];
+
+    if( j >= yN )
+      break;
+    
+    yV[j++] = t[ (v & 0x03f000) >> 12 ];
+
+    if( j >= yN )
+      break;
+    
+    if( k > 1 )
+      yV[j++] = t[ (v & 0x000fc0) >>  6 ];
+    else
+      yV[j++] = '=';
+
+    if( j >= yN )
+      break;
+    
+    if( k > 2 )
+      yV[j++] = t[ (v & 0x00003f) >>  0 ];
+    else
+      yV[j++] = '=';
+    
+  }
+  
+  return j;
 }
