@@ -67,6 +67,9 @@ cmHDR += src/libcm/vop/cmVectOps.h src/libcm/vop/cmProcTemplate.h
 
 cmSRC += src/libcm/vop/cmVectOps.c src/libcm/vop/cmProcTemplate.c
 
+cmSRC += src/libcm/cmDList.c
+cmHDR += src/libcm/cmDList.h src/libcm/cmDListTpl.h
+
 cmHDR += src/libcm/cmProcObj.h src/libcm/cmProc.h src/libcm/cmProc2.h src/libcm/cmProc3.h src/libcm/cmProc4.h src/libcm/cmProc5.h src/libcm/cmProcTest.h
 cmSRC += src/libcm/cmProcObj.c src/libcm/cmProc.c src/libcm/cmProc2.c src/libcm/cmProc3.c src/libcm/cmProc4.c src/libcm/cmProc5.c src/libcm/cmProcTest.c
 
