@@ -12,8 +12,8 @@ typedef int (*cmSFX(cmDListFunc))( void* arg, const cmTYPE* v0, const cmTYPE* v1
 
 cmDlRC_t cmSFX(cmDListAlloc)( cmCtx_t* ctx, cmDListH_t* hp, cmSFX(cmDListFunc) func, void* funcArg );
 
-cmDlRC_t cmSFX(cmDListInsert)( cmDListH_t  h, const cmTYPE* recd );
-cmDlRC_t cmSFX(cmDListDelete)( cmDListH_t  h, const cmTYPE* recd );
+cmDlRC_t cmSFX(cmDListInsert)( cmDListH_t  h, const cmTYPE* recd, bool resyncFl );
+cmDlRC_t cmSFX(cmDListDelete)( cmDListH_t  h, const cmTYPE* recd, bool resyncFl );
 
 cmDlRC_t cmSFX(cmDListAllocIndex)( cmDListH_t h, unsigned indexId, cmSFX(cmDListFunc) f, void* farg );
 
@@ -43,7 +43,7 @@ void cmSFX(_cmDListIndexOnFree)( unsigned indexId, void* arg )
 // Proxy function used to cast generic compare function to the user defined compare function.
 int cmSFX(_cmDListCmp)( void* arg, const void* v0, unsigned vn0, const void* v1, unsigned vn1 )
 {
-  assert(vn0==vn1 && sizeof(cmTYPE)==vn0);
+  assert(vn0==vn1);
   cmSFX(_cmDListArg)* a = (cmSFX(_cmDListArg)*)arg;
   return a->func(a->funcArg,(const cmTYPE*)v0,(const cmTYPE*)v1);
 }
@@ -96,11 +96,11 @@ cmDlRC_t cmSFX(cmDListIndexAlloc)(   cmDListH_t h, unsigned indexId, cmSFX(cmDLi
   return rc;
 }
 
-cmDlRC_t cmSFX(cmDListInsert)( cmDListH_t  h, const cmTYPE* recd )
-{ return cmDListInsert(h,recd,sizeof(recd)); }
+cmDlRC_t cmSFX(cmDListInsert)( cmDListH_t  h, const cmTYPE* recd, bool resyncFl )
+{ return cmDListInsert(h,recd,sizeof(cmTYPE),resyncFl); }
 
-cmDlRC_t cmSFX(cmDListDelete)( cmDListH_t  h, const cmTYPE* recd )
-{ return cmDListDelete(h,recd);  }
+cmDlRC_t cmSFX(cmDListDelete)( cmDListH_t  h, const cmTYPE* recd, bool resyncFl )
+{ return cmDListDelete(h,recd,resyncFl);  }
 
 
 const cmTYPE* cmSFX(cmDListIterGet)(  cmDListIterH_t  iH )

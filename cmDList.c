@@ -39,10 +39,10 @@ struct cmDList_str;
 
 typedef struct cmDListIter_str
 {
-  struct cmDList_str*     p;
-  cmDListIndex_t*         x;
-  cmDListIndexRecd_t*     s;
-  struct cmDListIter_str* link;
+  struct cmDList_str*     p;    // pointer to the owner cmDList
+  cmDListIndex_t*         x;    // pointer to the index this iterator traverses
+  cmDListIndexRecd_t*     s;    // current record
+  struct cmDListIter_str* link; // p->iters list link 
 } cmDListIter_t;
 
 typedef struct cmDList_str
@@ -66,6 +66,7 @@ cmDList_t* _cmDListHandleToPtr( cmDListH_t h )
   return p;
 }
 
+// Given an indexId return the associated index.
 cmDListIndex_t* _cmDListIdToIndex( cmDList_t* p, unsigned indexId )
 {
   cmDListIndex_t* x = p->indexes;
@@ -76,12 +77,14 @@ cmDListIndex_t* _cmDListIdToIndex( cmDList_t* p, unsigned indexId )
   return NULL;
 }
 
+// Allocate 'n' new index records for the index 'x'. 
 void _cmDListIndexAllocRecds( cmDListIndex_t* x, unsigned n )
 {
   unsigned i;
   for(i=0; i<n; ++i)
   {
     cmDListIndexRecd_t* s = cmMemAllocZ(cmDListIndexRecd_t,1);
+
     s->prev = x->last;
     
     if( x->last != NULL )
@@ -97,82 +100,6 @@ void _cmDListIndexAllocRecds( cmDListIndex_t* x, unsigned n )
 
   x->recdN += n;
 
-}
-
-void _cmDListIndexUpdate( cmDList_t* p, cmDListIndex_t* x )
-{
-  cmDListIndexRecd_t* first = NULL;
-  cmDListIndexRecd_t* last  = NULL;
-  cmDListIndexRecd_t* avail = x->first;
-
-  // for each data recd
-  cmDListRecd_t* r = p->first;
-  for(; r!=NULL; r=r->next)
-  {
-    // get the next available index record
-    cmDListIndexRecd_t* a = avail;
-    
-    avail = avail->next;
-
-    // The count of index records and data records should always be the same.
-    assert( a != NULL );
-    a->r = r;
-    
-    cmDListIndexRecd_t* s = first;
-
-    // for each index recd that has already been sorted
-    for(; s!=NULL; s=s->next)
-      if( x->cmpFunc( x->funcArg, r->dV, r->dN, s->r->dV, s->r->dN ) < 0 )
-      {
-        // r is less than s->r
-        // insert 'a' prior to 's' in the index
-
-        a->next = s;
-        a->prev = s->prev;
-
-        // if 's' is not first
-        if( s->prev != NULL )
-          s->prev->next = a;
-        else
-        { // 's' was first - now 'a' is first
-          assert( s == first );
-          first = a;
-        }
-        
-        s->prev = a;
-                
-        break;
-      }
-
-    // No records are greater than r or the index is empty - 'a' is last in the index.
-    if( s == NULL )
-    {      
-      // insert 'a' after 'last'
-
-      // if the index is empty
-      if( last == NULL )
-      {
-        first   = a;
-        a->prev = NULL;
-      }
-      else // make 'a' last in the index
-      {
-        a->prev    = last;
-        a->next    = NULL;
-        assert( last->next == NULL );
-        last->next = a;
-      }
-
-      a->next = NULL;
-      last    = a;
-    }
-
-
-    
-  }
-
-  x->first = first;
-  x->last  = last;
 }
 
 void _cmDListRecdFree( cmDList_t* p, cmDListRecd_t* r )
@@ -202,7 +129,7 @@ void _cmDListIndexRecdFree( cmDListIndex_t* x, cmDListIndexRecd_t* s )
     s->next->prev = s->prev;
   else
     x->last = s->prev;
-  
+
   cmMemFree(s);  
 }
 
@@ -274,7 +201,7 @@ cmDlRC_t _cmDListIterFree( cmDListIter_t* e )
       else
         e0->link = e1->link;
 
-      cmMemFree(e0);
+      cmMemFree(e1);
       break;
     }
 
@@ -306,6 +233,99 @@ cmDlRC_t _cmDListFree( cmDList_t* p )
   cmMemFree(p);
   return rc;
 }
+
+
+void _cmDListIndexUpdate( cmDList_t* p, cmDListIndex_t* x )
+{
+  cmDListIndexRecd_t* first = NULL;
+  cmDListIndexRecd_t* last  = NULL;
+
+  assert(  x->recdN >= p->recdN  );
+
+  // for each data recd
+  cmDListRecd_t* r = p->first;
+  for(; r!=NULL; r=r->next)
+  {
+    // get the next available index record
+    cmDListIndexRecd_t* a = x->first;
+    assert(a!=NULL);
+    x->first = x->first->next;
+    if( x->first != NULL )
+      x->first->prev = NULL;
+
+    // The count of index records and data records should always be the same.
+    assert( a != NULL );
+    a->r = r;
+    
+    cmDListIndexRecd_t* s = first;
+
+    // for each index recd that has already been sorted
+    for(; s!=NULL; s=s->next)
+      if( x->cmpFunc( x->funcArg, r->dV, r->dN, s->r->dV, s->r->dN ) < 0 )
+      {
+        // r is less than s->r
+        // insert 'a' prior to 's' in the index
+
+        a->next = s;
+        a->prev = s->prev;
+
+        // if 's' is not first
+        if( s->prev != NULL )
+          s->prev->next = a;
+        else
+        { // 's' was first - now 'a' is first
+          assert( s == first );
+          first = a;
+        }
+        
+        s->prev = a;
+                
+        break;
+      }
+
+    // No records are greater than r or the index is empty - 'a' is last in the index.
+    if( s == NULL )
+    {      
+      // insert 'a' after 'last'
+
+      // if the index is empty
+      if( last == NULL )
+      {
+        first   = a;
+        a->prev = NULL;
+      }
+      else // make 'a' last in the index
+      {
+        a->prev    = last;
+        a->next    = NULL;
+        assert( last->next == NULL );
+        last->next = a;
+      }
+
+      a->next = NULL;
+      last    = a;
+    }
+  }
+
+  // release any index records that are not in use
+  while(x->first!=NULL)
+  {
+    _cmDListIndexRecdFree(x,x->first);
+    x->recdN -= 1;
+  }
+    
+  assert( x->recdN == p->recdN );
+
+  // Invalidate all iterators which use index x.
+  cmDListIter_t* e = p->iters;
+  for(; e!=NULL; e=e->link)
+    if( e->x == x )
+      e->s = NULL;
+  
+  x->first = first;
+  x->last  = last;
+}
+
 
 cmDlRC_t _cmDListIndexAlloc( cmDList_t* p, unsigned indexId, cmDListCmpFunc_t func, void* funcArg )
 {
@@ -373,7 +393,8 @@ cmDlRC_t cmDListFree(   cmDListH_t* hp )
 bool     cmDListIsValid( cmDListH_t h )
 { return h.h != NULL; }
 
-cmDlRC_t cmDListInsert( cmDListH_t  h, const void* recd, unsigned recdByteN )
+
+cmDlRC_t cmDListInsert( cmDListH_t  h, const void* recd, unsigned recdByteN, bool resyncFl )
 {
   cmDList_t*     p  = _cmDListHandleToPtr(h);
   char*          vp = cmMemAllocZ(char,sizeof(cmDListRecd_t) + recdByteN );
@@ -383,7 +404,7 @@ cmDlRC_t cmDListInsert( cmDListH_t  h, const void* recd, unsigned recdByteN )
   r->dN = recdByteN;
   memcpy( r->dV, recd, recdByteN );
 
-  // Add records at the end of the list.
+  // Add records at the end of the data record list.
 
   // If the list is not empty
   if( p->last != NULL )
@@ -400,51 +421,88 @@ cmDlRC_t cmDListInsert( cmDListH_t  h, const void* recd, unsigned recdByteN )
   p->last   = r;
   p->recdN += 1;
 
-  // update the indexes
+  // add a record to each index
   cmDListIndex_t* x = p->indexes;
   for(; x!=NULL; x=x->link)
   {
-    _cmDListIndexAllocRecds(x,1);
-    _cmDListIndexUpdate(p,x);
+    if( x->recdN < p->recdN )
+      _cmDListIndexAllocRecds(x,1);
+
+    assert( x->recdN >= p->recdN );
+    
+    if( resyncFl )
+      _cmDListIndexUpdate(p,x);
   }
+
   
   return kOkDlRC;
 }
 
-cmDlRC_t cmDListDelete( cmDListH_t  h, const void* recd )
+cmDlRC_t cmDListDelete( cmDListH_t  h, const void* recd, bool resyncFl )
 {
-  cmDList_t*      p = _cmDListHandleToPtr(h);
-  cmDListIndex_t* x = p->indexes;
+  cmDList_t*          p = _cmDListHandleToPtr(h);
+  cmDListIndex_t*     x = p->indexes;
   cmDListIndexRecd_t* s = NULL;
-  cmDListRecd_t* r = NULL;
-  
-  for(; x!=NULL; x=x->link)
+  cmDListRecd_t*      r = NULL;
+
+  if( resyncFl==false )
   {
-    for(s=x->first; s!=NULL; s=s->next)
-      if( s->r->dV == recd )
+    r = p->first;
+    for(; r!=NULL; r=r->next)
+      if( r->dV == recd )
       {
-        if( r == NULL )
-          r = s->r;
-        else
-        {
-          // the same data record should be found for all indexes
-          assert( s->r == r );
-        }
-        
-        _cmDListIndexRecdFree(x,s);
-        
+        _cmDListRecdFree(p,r);
         break;
       }
 
-    if( r == NULL )
-      return cmErrMsg(&p->err,kDataRecdNotFoundDlRC,"The delete target data record could not be found.");
+  }
+  else
+  {
+    // for each index
+    for(; x!=NULL; x=x->link)
+    {
+      // for each index recd
+      for(s=x->first; s!=NULL; s=s->next)        
+        if( s->r->dV == recd )  // if this index recd points to the deletion target
+        {
+          // store a ptr to the data recd to be deleted
+          if( r == NULL )
+            r = s->r;
+          else
+          {
+            // the same data record should be found for all indexes
+            assert( s->r == r );
+          }
+
+          // free the index record
+          _cmDListIndexRecdFree(x,s);
+        
+          break;
+        }
+
+      // if the deletion target was not found
+      if( r == NULL )
+        goto errLabel;
     
-    // if the indexes are valid then the recd should always be found
-    assert( s!=NULL );
+    }
+
+    // advance any iterators that are pointing to the deleted record
+    cmDListIter_t* e = p->iters;
+    for(; e!=NULL; e=e->link)
+      if( e->s != NULL && e->s->r != NULL && e->s->r == r )
+        e->s = e->s->next;
+
+    // release the data record
+    _cmDListRecdFree(p,r);
+
   }
 
-  // release the data record
-  _cmDListRecdFree(p,r);
+ errLabel:
+  if( r == NULL )
+    return cmErrMsg(&p->err,kDataRecdNotFoundDlRC,"The deletion target record could not be found.");
+
+  assert( p->recdN > 0 );
+  p->recdN -= 1;
 
   return kOkDlRC;
   
@@ -478,6 +536,18 @@ cmDlRC_t cmDListIndexSetFreeFunc(cmDListH_t h, unsigned indexId, cmDListIndexFre
   x->freeFunc = func;
   return kOkDlRC;
 }
+
+cmDlRC_t cmDListIndexUpdateAll(  cmDListH_t h )
+{
+  cmDList_t*      p = _cmDListHandleToPtr(h);
+  cmDListIndex_t* x = p->indexes;
+  
+  for(; x!=NULL; x=x->link)
+    _cmDListIndexUpdate(p,x);
+
+  return kOkDlRC;
+}
+
 
 
 cmDListIter_t* _cmDListIterHandleToPtr( cmDListIterH_t h )
@@ -557,6 +627,8 @@ const void* _cmDListIterGet(   cmDListIter_t*  e, unsigned* recdByteNRef )
     return NULL;
   }
 
+  assert( e->s->r != NULL );
+
   if( recdByteNRef != NULL )
     *recdByteNRef = e->s->r->dN;
 
@@ -585,7 +657,7 @@ const void* cmDListIterNext( cmDListIterH_t  iH, unsigned* recdByteNRef )
 {
   cmDListIter_t* e = _cmDListIterHandleToPtr(iH);
   const void*   rv = _cmDListIterGet(e,recdByteNRef);
-
+  
   if( e->s != NULL )
     e->s = e->s->next;
 
