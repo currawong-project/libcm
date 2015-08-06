@@ -921,7 +921,7 @@ cmFsRC_t _cmFileSysDirGetEntries(  cmFileSysDeRecd_t* drp, const cmChar_t* dirSt
   while((dp = readdir(dirp)) != NULL )
   {
     // validate d_name 
-    if( (dp->d_name != NULL) && ((dn = strlen(dp->d_name)) > 0) )
+    if( (dn = strlen(dp->d_name)) > 0 )
     {
       unsigned flags = 0;
         
