@@ -645,225 +645,139 @@ cmRC_t cmPhatWrite( cmPhat_t* p, const char* dirStr )
   return rc;
 }
 
-#ifdef NOTDEF
-cmRC_t cmPhatTest1( cmCtx* ctx, const char* dirStr )
+
+//=======================================================================================================================
+// 
+//
+
+cmReflectCalc_t* cmReflectCalcAlloc( cmCtx* ctx, cmReflectCalc_t* p, const cmGoldSigArg_t* gsa, float phat_alpha, unsigned phat_mult )
 {
-  cmRC_t         rc             = cmOkRC;
-  cmGoldSigArg_t sa;
-  cmGoldSig_t*   s              = NULL;
-  cmPhat_t*      p              = NULL;
-  char*          path           = NULL;
-  unsigned       dspFrmCnt      = 256;
-  unsigned       listenDelaySmp = 8196;
-  double         noiseGain      = 0.05;
-  unsigned       chIdx          = 0;
-  cmSample_t*    yV             = NULL;
-  unsigned       yN             = 0;
-  double         phatAlpha      = 0.5;
-  unsigned       phatMult       = 4.0;
-  double         nonLinExpo     = 4.0;
-  cmVectArray_t* outVA          = NULL; 
-  cmVectArray_t* inVA           = NULL;
-  cmVectArray_t* statusVA       = NULL;
-  unsigned       bsiN           = 4;
-  unsigned       bsiV[bsiN];  // known signal onset in absolute samples 
-  unsigned       esiV[bsiN];  // known signal offset
-  unsigned       lsiV[bsiN];  // end of listen time (when cmPhatChExec()) is run.
-  unsigned       dsiV[bsiN];  // detection time
-  unsigned       i,j;
+  cmReflectCalc_t* op = cmObjAlloc(cmReflectCalc_t,ctx,p);
+  cmRC_t rc = cmOkRC;
   
-  sa.chN             =     1;
-  sa.srate           = 44100.0;
-  sa.lfsrN           =     8;
-  sa.mlsCoeff0       =  0x8e;
-  sa.mlsCoeff1       =  0x96;
-  sa.samplesPerChip  =    64;
-  sa.rcosBeta        =     0.5;
-  sa.rcosOSFact      =     4;
-  sa.carrierHz       = 17000.0;
-  sa.envMs           =    50.0;
-  
-  // allocate the the id signals
-  if( (s = cmGoldSigAlloc( ctx, NULL, &sa ) == NULL )
-    return cmErrMsg(&ctx->err, cmSubSysFailRC, "Signal allocate failed.");
-
-  // set the post signal listen delay to half the signal length
-  listenDelaySmp = s->sigN/2; 
-
-  // allocate a PHAT detector
-    if( (p = cmPhatAlloc(ctx,NULL,sa.chN,s->sigN, phatAlpha, phatMult, kDebugAtPhatFl ) == NULL )
+  // allocate the Gold code signal generator
+  if( (p->gs = cmGoldSigAlloc(ctx,NULL,NULL)) == NULL )
   {
-    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "PHAT allocate failed.");
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Gold sig allocate failed.");
     goto errLabel;
   }
 
-  // register an id signal with the PHAT detector
-  if( cmPhatSetId(p, chIdx, s->ch[chIdx].mdV, s->sigN ) != cmOkRC )
+  // allocate the PHAT object
+  if( (p->phat = cmPhatAlloc(ctx,NULL,0,0,0,0,0)) == NULL )
   {
-    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "PHAT setId failed.");
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"PHAT allocate failed.");
     goto errLabel;
   }
 
-  // generate an input test signal containing bsiN id signals
-  if( atSignalGen(s,chIdx,p->fhN,s->sigN,bsiV,bsiN,noiseGain,&yV,&yN) != cmOkRC )
-  {
-    rc = cmErrMsg(&ctx->err,cmSubSysFailRC,"Signal generation failed.");
-    goto errLabel;
-  }
+  op->va = cmVectArrayAlloc(ctx,kSampleVaFl);
 
-  // bsiV[] now holds signal onsets. Set esiV[] to  signal offsets.
-  atVOU_AddVVS(esiV,bsiV,bsiN,s->sigN );
-
-  // set lsiV[] to end-of-listen location 
-  atVOU_AddVVS(lsiV,esiV,bsiN,listenDelaySmp);
-
-  // zero the detection vector
-  atVOU_Zero(dsiV,bsiN);
-
-  // allocate a vector array to record the PHAT input signals
-  if( cmVectArrayAlloc(ctx,&inVA,kSampleVaFl) != cmOkRC )
-  {
-    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "vectArray inVA alloc failed.");
-    goto errLabel;
-  }
-
-  // allocate a vector array to record the PHAT correlation output signals
-  if( cmVectArrayAlloc(ctx,&outVA,kSampleVaFl) != cmOkRC )
-  {
-    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "vectArray outVA alloc failed.");
-    goto errLabel;
-  }
-
-  // allocate a vector array to record the PHAT status
-  if( cmVectArrayAlloc(ctx,&statusVA,kSampleVaFl) != cmOkRC )
-  {
-    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "vectArray statusVA alloc failed.");
-    goto errLabel;
-  }
-
-  
-  // for each 'dspFrmCnt' samples in the input signal
-  for(i=0,j=0; j<bsiN && i<=yN-dspFrmCnt; i+=dspFrmCnt)
-  {
-    // store a copy of the input signal
-    cmVectArrayAppendS(inVA,yV+i,dspFrmCnt);
-
-    // feed the next dspFrmCnt samples to the PHAT detector
-    cmPhatExec(p,yV+i,dspFrmCnt);
-
-    // if the approximate end of an id signal is encountered
-    if( lsiV[j] <= i && i < lsiV[j] + dspFrmCnt )
-    {
-      // execute the PHAT correlator
-      cmPhatChExec( p, chIdx, -1, -1 );
-
-      // apply non-linear exponent to the correlation vector
-      cmVOS_PowV(p->xV,p->fhN,nonLinExpo);
-
-      // locate the corr. peak inside the listening window
-      // (the detection window is last 'detectWndSmp' samples in the corr. vector )
-      unsigned detectWndSmp = 2*listenDelaySmp;
-      dsiV[j] = cmVOS_ArgMax( p->xV + p->fhN - detectWndSmp,  detectWndSmp);
-
-      // convert the pk index to absolute time
-      dsiV[j] = i + dspFrmCnt - detectWndSmp + dsiV[j];
-
-      //                 sig beg  sig end  detect begin          dtct end    detect
-      cmSample_t v[] = { bsiV[j], esiV[j], lsiV[j]-detectWndSmp, lsiV[j],    dsiV[j] };
-
-      // store the detection information
-      cmVectArrayAppendS(statusVA,v,sizeof(v)/sizeof(v[0]));
-
-      // store the correlation output vector
-      cmVectArrayAppendS(outVA,p->xV,p->fhN);
+  // allocate 'this'
+  if( gsa != NULL )  
+    rc = cmReflectCalcInit(op,gsa,phat_alpha,phat_mult);
       
-      j += 1;
-    }
-  }
-
-  // write inVA
-  if( cmVectArrayWrite(inVA,path = atMakePath(&ctx->err,path,"phatIn","va",dirStr,NULL)) != cmOkRC )
-  {
-    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "vectArray outVA write failed.");
-    goto errLabel;
-  }
-
-  // write outVA
-  if( cmVectArrayWrite(outVA,path = atMakePath(&ctx->err,path,"phatOut","va",dirStr,NULL)) != cmOkRC )
-  {
-    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "vectArray outVA write failed.");
-    goto errLabel;
-  }
-
-  // write statusVA
-  if( cmVectArrayWrite(statusVA,path = atMakePath(&ctx->err,path,"phatStatus","va",dirStr,NULL)) != cmOkRC )
-  {
-    rc = cmErrMsg(&ctx->err, cmSubSysFailRC, "vectArray statusVA write failed.");
-    goto errLabel;
-  }
 
  errLabel:
-  cmVectArrayFree(&outVA);
-  cmVectArrayFree(&inVA);
+      if( rc != cmOkRC )
+        cmReflectCalcFree(&op);
+                        
+  
+  return op;
+  
+}
 
-  if( cmPhatFree(&p) != cmOkRC )
-    cmErrMsg(&ctx->err,cmSubSysFailRC,"PHAT free failed.");
+cmRC_t cmReflectCalcFree( cmReflectCalc_t** pp )
+{
+  cmRC_t rc = cmOkRC;
 
-  if( atSignalFree(&s) != cmOkRC )
-    cmErrMsg(&ctx->err,cmSubSysFailRC,"Signal free failed.");
+  if( pp == NULL || *pp == NULL )
+    return rc;
+
+  cmReflectCalc_t* p = *pp;
+
+  if((rc = cmReflectCalcFinal(p)) != cmOkRC )
+    return rc;
+
+  cmVectArrayFree(&p->va);
+  cmGoldSigFree(&p->gs); 
+  cmPhatFree(&p->phat);
+  
+  cmMemFree(p);
+  *pp = NULL;
 
   return rc;
 }
 
-cmRC_t cmPhatTest2( cmCtx* ctx )
+cmRC_t cmReflectCalcInit( cmReflectCalc_t* p, const cmGoldSigArg_t* gsa, float phat_alpha, unsigned phat_mult )
 {
-  cmRC_t    rc    = cmOkRC;
-  cmPhat_t* p     = NULL;
-  unsigned  hN    = 16;
-  float     alpha = 1.0;
-  unsigned  mult  = 4;
+  cmRC_t rc;
+  if((rc = cmReflectCalcFinal(p)) != cmOkRC )
+    return rc;
 
-  cmSample_t hV[]  = { 4,3,2,1, 0,0,0,0, 0,0,0,0, 0,0,0,0 };
-  cmSample_t x0V[] = { 4,3,2,1, 0,0,0,0, 0,0,0,0, 0,0,0,0 };
-  cmSample_t x1V[] = { 0,0,0,0, 4,3,2,1, 0,0,0,0, 0,0,0,0 };
-  cmSample_t x2V[] = { 0,0,0,0, 0,0,0,0, 4,3,2,1, 0,0,0,0 };
-  cmSample_t x3V[] = { 0,0,0,0, 0,0,0,0, 0,0,0,0, 4,3,2,1 };
-
-  cmSample_t* xV[] = { x0V, x1V, x2V, x3V };
-  unsigned    chN  = sizeof(xV)/sizeof(xV[0]);
-  unsigned    i;
-  
-  if(cmPhatAlloc(ctx,&p,chN,hN,alpha,mult,kNoFlagsAtPhatFl) != cmOkRC )
+  //  initialize the Gold code signal generator
+  if((rc = cmGoldSigInit(p->gs,gsa)) != cmOkRC )
   {
-    rc = cmErrMsg(&ctx->err,cmSubSysFailRC,"cmPhatAlloc() failed.");
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Gold code signal initialize failed.");
+    goto errLabel;
+  }
+  
+  unsigned phat_chN   = 1;
+  unsigned phat_hN    = p->gs->sigN;
+  unsigned phat_flags = 0;
+  unsigned phat_chIdx = 0;
+  
+  // initialize the PHAT
+  if((rc = cmPhatInit(p->phat,phat_chN,phat_hN,phat_alpha,phat_mult,phat_flags)) != cmOkRC )
+  {
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"PHAT intialize failed.");
     goto errLabel;
   }
 
-  for(i=0; i<chN; ++i)
-    if( cmPhatSetId(p,i,hV,hN) != cmOkRC )
-      rc = cmErrMsg(&ctx->err,cmSubSysFailRC,"cmPhatSetId() failed.");
-  
-  
-  for(i=0; i<chN; ++i)
+  // register a target signal with the PHAT
+  if((rc = cmPhatSetId( p->phat, phat_chIdx, p->gs->ch[phat_chIdx].mdV, p->gs->sigN )) != cmOkRC )
   {
-    cmPhatReset(p);
-    
-    if( cmPhatExec(p,xV[i],hN) != cmOkRC )
-    {
-      rc = cmErrMsg(&ctx->err,cmSubSysFailRC,"cmPhatExec() failed.");
-      goto errLabel;
-    }
-
-    cmPhatChExec(p, i, -1, -1);
-    cmVOS_PrintL(&ctx->printRpt,"x:",p->xV,1,p->fhN);
+    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"PHAT signal registration failed.");
+    goto errLabel;
   }
 
+  
+  p->xi     = 0;
+  p->zeroFl = false;
 
-  errLabel:
-
-  cmPhatFree(&p);
-
-    
+ errLabel:
+  
   return rc;
 }
-#endif
+
+cmRC_t cmReflectCalcFinal( cmReflectCalc_t* p )
+{
+  cmGoldSigFinal(p->gs);
+  cmPhatFinal(p->phat);
+  return cmOkRC;
+}
+
+cmRC_t cmReflectCalcExec( cmReflectCalc_t* p, const cmSample_t xV, cmSample_t* yV, unsigned xyN )
+{
+  unsigned i;
+  
+  for(i=0; i<xyN; ++i,++p->xi)
+  {
+    if( p->xi < p->gs->sigN )
+      yV[i] = p->gs->ch[0].mdV[p->xi];
+    else
+      yV[i] = 0;
+
+    if( p->xi == p->phat->fhN )
+    {
+      p->xi = 0;
+
+      cmPhatChExec(p->phat,0,0,0);
+
+      if( p->va != NULL )
+        cmVectArrayAppendS(p->va,p->phat->xV,p->phat->fhN );
+    }
+    
+  }
+
+  return cmOkRC;
+  
+}

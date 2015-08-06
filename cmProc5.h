@@ -156,8 +156,7 @@ extern "C" {
   // Allocate a PHAT based multi-channel correlator.
   // 'chN'  is the maximum count of id signals to be set via cmPhatSetId().
   // 'hN' is the the length of the id signal in samples.
-  // 'alpha' weight used to emphasize the frequencies where the
-  // id signal contains energy.
+  // 'alpha' weight used to emphasize the frequencies where the id signal contains energy.
   // 'mult' * 'hN' is the correlation length (fhN)
   // 'flags' See kDebugAtPhatFl and kWndAtPhatFl.
   cmPhat_t* cmPhatAlloc(  cmCtx* ctx, cmPhat_t* p, unsigned chN, unsigned hN, float alpha, unsigned mult, unsigned flags );
@@ -191,9 +190,30 @@ extern "C" {
 
   cmRC_t cmPhatWrite( cmPhat_t* p, const char* dirStr );
 
-  cmRC_t cmPhatTest1( cmCtx* ctx, const char* dirFn );
-  cmRC_t cmPhatTest2( cmCtx* ctx );
 
+  //=======================================================================================================================
+  // 
+  //
+
+  typedef struct
+  {
+    cmObj obj;
+
+    cmGoldSig_t*     gs;
+    unsigned         xi;  // index into gs->ch[0].mdV[] of the next sample to output
+    bool             zeroFl;
+    cmPhat_t*        phat;
+    cmVectArray_t*   va;
+  } cmReflectCalc_t;
+
+  
+  cmReflectCalc_t* cmReflectCalcAlloc( cmCtx* ctx, cmReflectCalc_t* p, const cmGoldSigArg_t* gsa, float phat_alpha, unsigned phat_mult );
+  cmRC_t cmReflectCalcFree( cmReflectCalc_t** pp );
+  cmRC_t cmReflectCalcInit( cmReflectCalc_t* p, const cmGoldSigArg_t* gsa, float phat_alpha, unsigned phat_mult );
+  cmRC_t cmReflectCalcFinal( cmReflectCalc_t* p );
+  cmRC_t cmReflectCalcExec( cmReflectCalc_t* p, const cmSample_t xV, cmSample_t* yV, unsigned xyN );
+
+  
   
 #ifdef __cplusplus
 }
