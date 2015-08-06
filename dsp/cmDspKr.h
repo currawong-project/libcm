@@ -21,6 +21,7 @@ extern "C" {
   struct cmDspClass_str* cmSyncRecdClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmTakeSeqBldrClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmTakeSeqRendClassCons( cmDspCtx_t* ctx );
+  struct cmDspClass_str* cmReflectCalcClassCons( cmDspCtx_t* ctx );
 
 #ifdef __cplusplus
 }

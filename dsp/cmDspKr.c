@@ -3587,3 +3587,160 @@ struct cmDspClass_str* cmTakeSeqRendClassCons( cmDspCtx_t* ctx )
   return &_cmTakeSeqRendDC;
 }
 
+
+//==========================================================================================================================================
+enum
+{
+  kLfsrN_RcId,
+  kMlsCoeff0RcId,
+  kMlsCoeff1RcId,
+  kSmpPerChipRcId,
+  kRcosBetaRcId,
+  kRcosOS_RcId,
+  kCarrierHzRcId,
+  kAtkDcyMsRcId,
+  kPhatAlphaRcId,
+  kPhatMultRcId,
+  kInRcId,
+  kOutRcId,
+};
+
+cmDspClass_t _cmReflectCalcDC;
+
+typedef struct
+{
+  cmDspInst_t    inst;
+  cmReflectCalc_t* r;
+} cmDspReflectCalc_t;
+
+
+cmDspInst_t*  _cmDspReflectCalcAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+
+  /*
+  if( va_cnt !=3 )
+  {
+    cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'ReflectCalc' constructor must have two arguments: a channel count and frequency array.");
+    return NULL;
+  }
+  */
+
+  cmDspReflectCalc_t* p = cmDspInstAllocV(cmDspReflectCalc_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl,
+    1,         "lfsrN", kLfsrN_RcId,    0,0, kInDsvFl   | kUIntDsvFl,    "Gold code generator LFSR length",
+    1,         "mlsc0", kMlsCoeff0RcId, 0,0, kInDsvFl   | kUIntDsvFl,    "LFSR coefficient 0",
+    1,         "mlsc1", kMlsCoeff1RcId, 0,0, kInDsvFl   | kUIntDsvFl,    "LFSR coefficient 0",
+    1,         "spchip",kSmpPerChipRcId,0,0, kInDsvFl   | kUIntDsvFl,    "Samples per spreading code bit.",
+    1,         "rcosb", kRcosBetaRcId,  0,0, kInDsvFl   | kDoubleDsvFl,  "Raised cosine beta",
+    1,         "rcosos",kRcosOS_RcId,   0,0, kInDsvFl   | kUIntDsvFl,    "Raised cosine oversample factor.",
+    1,         "carhz", kCarrierHzRcId, 0,0, kInDsvFl   | kDoubleDsvFl,  "Carrier frequency in Hertz.",
+    1,         "envms", kAtkDcyMsRcId,  0,0, kInDsvFl   | kDoubleDsvFl,  "Signal Attack/Decay milliseconds.",
+    1,         "alpha", kPhatAlphaRcId, 0,0, kInDsvFl   | kDoubleDsvFl,  "PHAT alpha coefficient.",
+    1,         "mult",  kPhatMultRcId,  0,0, kInDsvFl   | kUIntDsvFl,    "PHAT multiplier coefficient.",
+    1,          "in",   kInRcId,        0,1, kInDsvFl   | kAudioBufDsvFl,"Audio input",
+    1,          "out",  kOutRcId,       0,1, kOutDsvFl  | kAudioBufDsvFl,"Audio output",
+    0 );
+
+
+p->r = cmReflectCalcAlloc(ctx->cmProcCtx, NULL, NULL, 0, 0 );
+  
+  cmDspSetDefaultUInt(   ctx, &p->inst, kLfsrN_RcId,     0,  8);
+  cmDspSetDefaultUInt(   ctx, &p->inst, kMlsCoeff0RcId,  0, 0x8e);
+  cmDspSetDefaultUInt(   ctx, &p->inst, kMlsCoeff1RcId,  0, 0x96);
+  cmDspSetDefaultUInt(   ctx, &p->inst, kSmpPerChipRcId, 0, 64);
+  cmDspSetDefaultDouble( ctx, &p->inst, kRcosBetaRcId,   0, 0.5);
+  cmDspSetDefaultUInt(   ctx, &p->inst, kRcosOS_RcId,    0, 4);
+  cmDspSetDefaultDouble( ctx, &p->inst, kCarrierHzRcId,  0, 2500.0);
+  cmDspSetDefaultDouble( ctx, &p->inst, kAtkDcyMsRcId,   0, 50.0);
+  cmDspSetDefaultDouble( ctx, &p->inst, kPhatAlphaRcId,  0, 0.5);
+  cmDspSetDefaultUInt(   ctx, &p->inst, kPhatMultRcId,   0, 4);
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspReflectCalcSetup( cmDspCtx_t* ctx, cmDspInst_t* inst )
+{
+  cmDspRC_t   rc = kOkDspRC;
+  cmDspReflectCalc_t* p  = (cmDspReflectCalc_t*)inst;
+  cmGoldSigArg_t gsa;
+
+  gsa.chN            = 1;
+  gsa.srate          = cmDspSampleRate(ctx);
+  gsa.lfsrN          = cmDspUInt(inst,kLfsrN_RcId);
+  gsa.mlsCoeff0      = cmDspUInt(inst,kMlsCoeff0RcId);
+  gsa.mlsCoeff1      = cmDspUInt(inst,kMlsCoeff1RcId);
+  gsa.samplesPerChip = cmDspUInt(inst,kSmpPerChipRcId);
+  gsa.rcosBeta       = cmDspDouble(inst,kRcosBetaRcId);
+  gsa.rcosOSFact     = cmDspUInt(inst,kRcosOS_RcId);
+  gsa.carrierHz      = cmDspDouble(inst,kCarrierHzRcId);
+  gsa.envMs          = cmDspDouble(inst,kAtkDcyMsRcId);
+
+  double   phatAlpha = cmDspDouble(inst,kPhatAlphaRcId);
+  unsigned phatMult  = cmDspUInt(inst,kPhatMultRcId);
+
+  if( cmReflectCalcInit(p->r,&gsa,phatAlpha,phatMult) != cmOkRC )
+    rc = cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Unable to initialize the internal ReflectCalc detector.");
+
+  return rc;
+}
+
+cmDspRC_t _cmDspReflectCalcFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t           rc = kOkDspRC;
+  cmDspReflectCalc_t* p  = (cmDspReflectCalc_t*)inst;
+
+  cmReflectCalcFree(&p->r);
+
+  return rc;
+}
+
+cmDspRC_t _cmDspReflectCalcReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+//cmDspReflectCalc_t* p = (cmDspReflectCalc_t*)inst;
+
+  cmDspApplyAllDefaults(ctx,inst);
+
+  return _cmDspReflectCalcSetup(ctx, inst );
+} 
+
+cmDspRC_t _cmDspReflectCalcExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t           rc = kOkDspRC;
+  cmDspReflectCalc_t* p  = (cmDspReflectCalc_t*)inst;
+  const cmSample_t*   xV = cmDspAudioBuf(ctx,inst,kInRcId,0);
+  unsigned            xN = cmDspAudioBufSmpCount(ctx,inst,kInRcId,0);
+  cmSample_t*         yV = cmDspAudioBuf(ctx,inst,kOutRcId,0);
+  unsigned            yN = cmDspAudioBufSmpCount(ctx,inst,kOutRcId,0);
+
+  if( xV != NULL && yV != NULL )
+  {
+    assert( xN == yN );
+    cmReflectCalcExec(p->r,xV,yV,xN);
+  }
+  
+  return rc;
+}
+
+cmDspRC_t _cmDspReflectCalcRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+//cmDspReflectCalc_t*  p         = (cmDspReflectCalc_t*)inst;
+
+  cmDspSetEvent(ctx,inst,evt);
+
+  return kOkDspRC;
+}
+
+struct cmDspClass_str* cmReflectCalcClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmReflectCalcDC,ctx,"ReflectCalc",
+    NULL,
+    _cmDspReflectCalcAlloc,
+    _cmDspReflectCalcFree,
+    _cmDspReflectCalcReset,
+    _cmDspReflectCalcExec,
+    _cmDspReflectCalcRecv,
+    NULL,
+    NULL,
+    "Reflecttion time calculator");
+
+  return &_cmReflectCalcDC;
+}
