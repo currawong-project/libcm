@@ -26,6 +26,44 @@
 #include "cmDspPgmPP.h"
 #include "cmDspPgmKr.h"
 
+
+cmDspRC_t _cmDspSysPgm_ReflectCalc( cmDspSysH_t h, void** userPtrPtr )
+{
+
+  // audio inputs
+  cmDspInst_t* ai0  = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 0 );
+  cmDspInst_t* ai1  = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 1 );
+
+  // audio outputs
+  cmDspInst_t* ao0 = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 0 );
+  cmDspInst_t* ao1 = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 1 );
+
+  // input meters
+  cmDspInst_t* im0 = cmDspSysAllocInst(h,"AMeter","In 0",  0);
+  cmDspInst_t* im1 = cmDspSysAllocInst(h,"AMeter","In 1",  0);
+
+  // output meters
+  //cmDspInst_t* om0 = cmDspSysAllocInst(h,"AMeter","Out 0", 0);
+  //cmDspInst_t* om1 = cmDspSysAllocInst(h,"AMeter","Out 1",0);
+
+    // gain controls
+  cmDspInst_t* igain = cmDspSysAllocInst( h,"Scalar", "In Gain",  5, kNumberDuiId, 0.0,  4.0, 0.01,  1.0);
+  cmDspInst_t* ogain = cmDspSysAllocInst( h,"Scalar", "Out Gain", 5, kNumberDuiId, 0.0,  4.0, 0.01,  1.0);
+
+  cmDspSysConnectAudio(h, ai0, "out", im0, "in");           // ain0 -> imtr0
+  cmDspSysConnectAudio(h, ai1, "out", im1, "in");           // ain1 -> imtr1
+  
+  cmDspSysInstallCb(   h, igain,"val", ai0, "gain", NULL);  // igain -> ain0
+  cmDspSysInstallCb(   h, igain,"val", ai1, "gain", NULL);  // igain -> ain0
+  
+  cmDspSysInstallCb(   h, ogain,"val", ao0, "gain", NULL);  // igain -> ain0
+  cmDspSysInstallCb(   h, ogain,"val", ao1, "gain", NULL);  // igain -> ain0
+  
+  cmDspSysConnectAudio(h, ai0,"out", ao0, "in" );           // ain0  -> aout0 
+  cmDspSysConnectAudio(h, ai1,"out", ao1, "in" );           // ain1  -> aout1 
+  return kOkDspRC;
+}
+
 cmDspRC_t _cmDspSysPgm_SyncRecd(  cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc = kOkDspRC;
@@ -2834,7 +2872,7 @@ cmDspRC_t _cmDspSysPgm_BinEnc( cmDspSysH_t h, void** userPtrPtr )
   double maxDurMs = 60000.0;
   double azimBeg  =     0.0;
   double azimEnd  =   360.0;
-  const char* fn1 = "media/audio/sourcetone/Jazz/Ella & Louis - Under A Blanket Of Blue";
+  //const char* fn1 = "media/audio/sourcetone/Jazz/Ella & Louis - Under A Blanket Of Blue";
   const char* fn0 = "temp/comhear/drw/monty.wav";
   
   cmDspInst_t* twod = cmDspSysAllocInst( h, "twod",       NULL, 0);
@@ -2901,8 +2939,7 @@ cmDspRC_t _cmDspSysPgm_BinEnc( cmDspSysH_t h, void** userPtrPtr )
 
 _cmDspSysPgm_t _cmDspSysPgmArray[] = 
 {
-  { "two-d",         _cmDspSysPgm_TwoD,         NULL, NULL },
-  { "bin-enc",       _cmDspSysPgm_BinEnc,       NULL, NULL },
+  { "reflect",       _cmDspSysPgm_ReflectCalc,  NULL, NULL },
   { "tksb",          _cmDspSysPgm_Tksb,         NULL, NULL },
   { "time_line",     _cmDspSysPgm_TimeLine,     NULL, NULL },
   { "seq-bldr",      _cmDspSysPgm_TakeSeqBldr,  NULL, NULL },
@@ -2951,6 +2988,8 @@ _cmDspSysPgm_t _cmDspSysPgmArray[] =
   { "scalar op",   _cmDspSysPgm_ScalarOp,       NULL, NULL },
   { "seg_line",    _cmDspSysPgm_SegLine,        NULL, NULL },
   { "avail_ch",    _cmDspSysPgm_AvailCh,        NULL, NULL },
+  { "two-d",         _cmDspSysPgm_TwoD,         NULL, NULL },
+  { "bin-enc",       _cmDspSysPgm_BinEnc,       NULL, NULL },
   { NULL , NULL, NULL, NULL }
 };
 
