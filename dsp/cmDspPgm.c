@@ -34,6 +34,9 @@ cmDspRC_t _cmDspSysPgm_ReflectCalc( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ai0  = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 0 );
   cmDspInst_t* ai1  = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 1 );
 
+  cmDspInst_t* rc0   = cmDspSysAllocInst(h,"ReflectCalc", NULL, 0 );
+  //cmDspInst_t* rc1   = cmDspSysAllocInst(h,"ReflectCalc", NULL, 0 );
+  
   // audio outputs
   cmDspInst_t* ao0 = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 0 );
   cmDspInst_t* ao1 = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 1 );
@@ -59,8 +62,12 @@ cmDspRC_t _cmDspSysPgm_ReflectCalc( cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(   h, ogain,"val", ao0, "gain", NULL);  // igain -> ain0
   cmDspSysInstallCb(   h, ogain,"val", ao1, "gain", NULL);  // igain -> ain0
   
-  cmDspSysConnectAudio(h, ai0,"out", ao0, "in" );           // ain0  -> aout0 
-  cmDspSysConnectAudio(h, ai1,"out", ao1, "in" );           // ain1  -> aout1 
+
+  cmDspSysConnectAudio(h, ai0,"out", rc0, "in" );  
+  cmDspSysConnectAudio(h, rc0,"out", ao0, "in" );
+  
+  cmDspSysConnectAudio(h, ai1,"out", ao1, "in" );
+  
   return kOkDspRC;
 }
 
