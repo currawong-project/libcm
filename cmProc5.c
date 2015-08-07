@@ -656,14 +656,14 @@ cmReflectCalc_t* cmReflectCalcAlloc( cmCtx* ctx, cmReflectCalc_t* p, const cmGol
   cmRC_t rc = cmOkRC;
   
   // allocate the Gold code signal generator
-  if( (p->gs = cmGoldSigAlloc(ctx,NULL,NULL)) == NULL )
+  if( (op->gs = cmGoldSigAlloc(ctx,NULL,NULL)) == NULL )
   {
     rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Gold sig allocate failed.");
     goto errLabel;
   }
 
   // allocate the PHAT object
-  if( (p->phat = cmPhatAlloc(ctx,NULL,0,0,0,0,0)) == NULL )
+  if( (op->phat = cmPhatAlloc(ctx,NULL,0,0,0,0,0)) == NULL )
   {
     rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"PHAT allocate failed.");
     goto errLabel;
@@ -694,7 +694,7 @@ cmRC_t cmReflectCalcFree( cmReflectCalc_t** pp )
 
   cmReflectCalc_t* p = *pp;
 
-  cmReflectCalcWrite(p,"/Users/kevin/temp/cmkc");
+  cmReflectCalcWrite(p,"/home/kevin/temp/cmkc");
   
   if((rc = cmReflectCalcFinal(p)) != cmOkRC )
     return rc;
