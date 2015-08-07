@@ -73,7 +73,8 @@ extern "C" {
     cmSample_t*    rcosV;       // rcosV[rcosN] raised cosine impulse response
     unsigned       rcosN;       // length of raised cosine impulse response
     unsigned       mlsN;        // length of Gold codes (Maximum length sequence length)
-    unsigned       sigN;        // length of channel signals bbV[] and mdV[]  
+    unsigned       sigN;        // length of channel signals bbV[] and mdV[]
+    cmFIR*         fir;
   } cmGoldSig_t;
 
 

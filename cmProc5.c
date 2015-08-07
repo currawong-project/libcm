@@ -209,6 +209,8 @@ void _cmGoldSigModulate( cmGoldSig_t* p, unsigned chIdx )
 cmGoldSig_t* cmGoldSigAlloc( cmCtx* ctx, cmGoldSig_t* p, const cmGoldSigArg_t* a )
 {
   cmGoldSig_t* op = cmObjAlloc(cmGoldSig_t,ctx,p);
+
+  p->fir = cmFIRAllocKaiser(ctx, NULL, 0, 0, 0, 0, 0, 0, 0 );
   
   if( a != NULL )  
     if( cmGoldSigInit(op,a) != cmOkRC )
@@ -236,7 +238,8 @@ cmRC_t cmGoldSigFree( cmGoldSig_t** pp )
     cmMemFree(p->ch[i].bbV);
     cmMemFree(p->ch[i].mdV);
   }
-  
+
+  cmFIRFree(&p->fir);
   cmMemFree(p->ch);
   cmMemFree(p->rcosV);
   cmMemFree(p->pnM);
@@ -270,6 +273,27 @@ cmRC_t cmGoldSigInit( cmGoldSig_t* p, const cmGoldSigArg_t* a )
   // generate the rcos impulse response
   _cmGoldSigRaisedCos(p->rcosV,p->rcosN,a->samplesPerChip,a->rcosBeta);
 
+  if(1)
+  {
+    double   passHz = 20000.0;
+    double   stopHz = 17000.0;
+    double   passDb = 1.0;
+    double   stopDb = 90.0;
+    unsigned flags  = 0;
+    
+    if( cmFIRInitKaiser(p->fir, 64, a->srate, passHz, stopHz, passDb, stopDb, flags ) != cmOkRC )
+    {
+      rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Unable to allocate internal FIR.");
+      goto errLabel;
+    }
+
+    p->rcosN = p->fir->coeffCnt;
+    p->rcosV = cmMemResizeZ(cmSample_t,p->rcosV,p->rcosN);
+    cmVOS_CopyD(p->rcosV,p->rcosN,p->fir->coeffV);
+    
+  }
+  
+
   // for each channel
   for(i=0; i<a->chN; ++i)
   {
@@ -294,7 +318,7 @@ cmRC_t cmGoldSigInit( cmGoldSig_t* p, const cmGoldSigArg_t* a )
 }
 
 cmRC_t cmGoldSigFinal( cmGoldSig_t* p )
-{ return cmOkRC; }
+{ return cmFIRFinal(p->fir); }
 
 cmRC_t cmGoldSigWrite( cmCtx* ctx, cmGoldSig_t* p, const char* fn )
 {
