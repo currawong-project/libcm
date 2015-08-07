@@ -210,7 +210,7 @@ cmGoldSig_t* cmGoldSigAlloc( cmCtx* ctx, cmGoldSig_t* p, const cmGoldSigArg_t* a
 {
   cmGoldSig_t* op = cmObjAlloc(cmGoldSig_t,ctx,p);
 
-  p->fir = cmFIRAllocKaiser(ctx, NULL, 0, 0, 0, 0, 0, 0, 0 );
+  op->fir = cmFIRAllocKaiser(ctx, NULL, 0, 0, 0, 0, 0, 0, 0 );
   
   if( a != NULL )  
     if( cmGoldSigInit(op,a) != cmOkRC )
@@ -718,7 +718,7 @@ cmRC_t cmReflectCalcFree( cmReflectCalc_t** pp )
 
   cmReflectCalc_t* p = *pp;
 
-  cmReflectCalcWrite(p,"/home/kevin/temp/cmkc");
+  cmReflectCalcWrite(p,"/Users/kevin/temp/kc");
   
   if((rc = cmReflectCalcFinal(p)) != cmOkRC )
     return rc;
