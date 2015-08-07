@@ -680,14 +680,14 @@ cmReflectCalc_t* cmReflectCalcAlloc( cmCtx* ctx, cmReflectCalc_t* p, const cmGol
   cmRC_t rc = cmOkRC;
   
   // allocate the Gold code signal generator
-  if( (p->gs = cmGoldSigAlloc(ctx,NULL,NULL)) == NULL )
+  if( (op->gs = cmGoldSigAlloc(ctx,NULL,NULL)) == NULL )
   {
     rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Gold sig allocate failed.");
     goto errLabel;
   }
 
   // allocate the PHAT object
-  if( (p->phat = cmPhatAlloc(ctx,NULL,0,0,0,0,0)) == NULL )
+  if( (op->phat = cmPhatAlloc(ctx,NULL,0,0,0,0,0)) == NULL )
   {
     rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"PHAT allocate failed.");
     goto errLabel;
@@ -718,6 +718,8 @@ cmRC_t cmReflectCalcFree( cmReflectCalc_t** pp )
 
   cmReflectCalc_t* p = *pp;
 
+  cmReflectCalcWrite(p,"/home/kevin/temp/cmkc");
+  
   if((rc = cmReflectCalcFinal(p)) != cmOkRC )
     return rc;
 
@@ -779,9 +781,12 @@ cmRC_t cmReflectCalcFinal( cmReflectCalc_t* p )
   return cmOkRC;
 }
 
-cmRC_t cmReflectCalcExec( cmReflectCalc_t* p, const cmSample_t xV, cmSample_t* yV, unsigned xyN )
+cmRC_t cmReflectCalcExec( cmReflectCalc_t* p, const cmSample_t* xV, cmSample_t* yV, unsigned xyN )
 {
   unsigned i;
+
+  // feed audio into the PHAT's buffer
+  cmPhatExec(p->phat,xV,xyN);
   
   for(i=0; i<xyN; ++i,++p->xi)
   {
@@ -790,12 +795,16 @@ cmRC_t cmReflectCalcExec( cmReflectCalc_t* p, const cmSample_t xV, cmSample_t* y
     else
       yV[i] = 0;
 
+    // if the PHAT has a complete buffer
     if( p->xi == p->phat->fhN )
     {
       p->xi = 0;
 
+      // execute the correlation
       cmPhatChExec(p->phat,0,0,0);
 
+      // p->phat->xV now holds the correlation result
+      
       if( p->va != NULL )
         cmVectArrayAppendS(p->va,p->phat->xV,p->phat->fhN );
     }
@@ -804,4 +813,21 @@ cmRC_t cmReflectCalcExec( cmReflectCalc_t* p, const cmSample_t xV, cmSample_t* y
 
   return cmOkRC;
   
+}
+
+cmRC_t cmReflectCalcWrite( cmReflectCalc_t* p, const char* dirStr )
+{
+  cmRC_t rc = cmOkRC;
+  
+  if( p->va != NULL) 
+  {
+    const char* path = NULL;
+
+    if((rc = cmVectArrayWrite(p->va, path = cmFsMakeFn(path,"reflect_calc","va",dirStr,NULL) )) != cmOkRC )
+        rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Reflect calc file write failed.");
+    
+    cmFsFreeFn(path);
+  }
+  
+  return rc;
 }

@@ -209,11 +209,11 @@ extern "C" {
 
   
   cmReflectCalc_t* cmReflectCalcAlloc( cmCtx* ctx, cmReflectCalc_t* p, const cmGoldSigArg_t* gsa, float phat_alpha, unsigned phat_mult );
-  cmRC_t cmReflectCalcFree( cmReflectCalc_t** pp );
-  cmRC_t cmReflectCalcInit( cmReflectCalc_t* p, const cmGoldSigArg_t* gsa, float phat_alpha, unsigned phat_mult );
+  cmRC_t cmReflectCalcFree(  cmReflectCalc_t** pp );
+  cmRC_t cmReflectCalcInit(  cmReflectCalc_t* p, const cmGoldSigArg_t* gsa, float phat_alpha, unsigned phat_mult );
   cmRC_t cmReflectCalcFinal( cmReflectCalc_t* p );
-  cmRC_t cmReflectCalcExec( cmReflectCalc_t* p, const cmSample_t xV, cmSample_t* yV, unsigned xyN );
-
+  cmRC_t cmReflectCalcExec(  cmReflectCalc_t* p, const cmSample_t* xV, cmSample_t* yV, unsigned xyN );
+  cmRC_t cmReflectCalcWrite( cmReflectCalc_t* p, const char* dirStr );
   
   
 #ifdef __cplusplus
