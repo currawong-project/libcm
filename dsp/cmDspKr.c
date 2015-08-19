@@ -3652,7 +3652,7 @@ p->r = cmReflectCalcAlloc(ctx->cmProcCtx, NULL, NULL, 0, 0 );
   cmDspSetDefaultDouble( ctx, &p->inst, kCarrierHzRcId,  0, 2500.0);
   cmDspSetDefaultDouble( ctx, &p->inst, kAtkDcyMsRcId,   0, 50.0);
   cmDspSetDefaultDouble( ctx, &p->inst, kPhatAlphaRcId,  0, 0.5);
-  cmDspSetDefaultUInt(   ctx, &p->inst, kPhatMultRcId,   0, 4);
+  cmDspSetDefaultUInt(   ctx, &p->inst, kPhatMultRcId,   0, 1);
 
   return &p->inst;
 }
