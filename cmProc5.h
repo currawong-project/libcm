@@ -204,7 +204,10 @@ extern "C" {
     unsigned         xi;  // index into gs->ch[0].mdV[] of the next sample to output
     bool             zeroFl;
     cmPhat_t*        phat;
-    cmVectArray_t*   va;
+    
+    cmVectArray_t*   phVa;
+    cmVectArray_t*   xVa;
+    cmVectArray_t*   yVa;
   } cmReflectCalc_t;
 
   

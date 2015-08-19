@@ -381,6 +381,9 @@ cmPhat_t*   cmPhatAlloc(  cmCtx* ctx, cmPhat_t* ap, unsigned chN, unsigned hN, f
   // allocate the FFT object
   cmFftAllocSR(ctx,&p->fft,NULL,fhN,kToPolarFftFl);
   cmIFftAllocRS(ctx,&p->ifft,fhN/2 + 1 );
+
+  // allocate the vect array
+  p->ftVa = cmVectArrayAlloc(ctx, kSampleVaFl );
   
   if( chN != 0 )  
     if( cmPhatInit(p,chN,hN,alpha,mult,flags) != cmOkRC )
@@ -456,11 +459,9 @@ cmRC_t   cmPhatInit(  cmPhat_t* p, unsigned chN, unsigned hN, float alpha, unsig
   p->mhM = cmMemResizeZ(float,        p->mhM, p->binN * chN);
   cmPhatReset(p);
 
-  //if( cmIsFlag(p->flags,kDebugAtPhatFl)) 
-  //  cmVectArrayAlloc(ctx, &p->ftVa,  kSampleVaFl );
-  //else
-  //  p->ftVa = NULL;
-
+  if( cmIsFlag(p->flags,kDebugAtPhatFl)) 
+    cmVectArrayClear(p->ftVa);
+  
   return rc;
 
 }
@@ -659,7 +660,7 @@ cmRC_t cmPhatWrite( cmPhat_t* p, const char* dirStr )
   {
     const char* path = NULL;
 
-    if( p->ftVa != NULL )
+    if( cmVectArrayCount(p->ftVa) )
       if((rc = cmVectArrayWrite(p->ftVa, path = cmFsMakeFn(path,"cmPhatFT","va",dirStr,NULL) )) != cmOkRC )
         rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"PHAT debug file write failed.");
     
@@ -693,7 +694,9 @@ cmReflectCalc_t* cmReflectCalcAlloc( cmCtx* ctx, cmReflectCalc_t* p, const cmGol
     goto errLabel;
   }
 
-  op->va = cmVectArrayAlloc(ctx,kSampleVaFl);
+  op->phVa  = cmVectArrayAlloc(ctx,kSampleVaFl);
+  op->xVa   = cmVectArrayAlloc(ctx,kSampleVaFl);
+  op->yVa   = cmVectArrayAlloc(ctx,kSampleVaFl);
 
   // allocate 'this'
   if( gsa != NULL )  
@@ -723,7 +726,9 @@ cmRC_t cmReflectCalcFree( cmReflectCalc_t** pp )
   if((rc = cmReflectCalcFinal(p)) != cmOkRC )
     return rc;
 
-  cmVectArrayFree(&p->va);
+  cmVectArrayFree(&p->phVa);
+  cmVectArrayFree(&p->xVa);
+  cmVectArrayFree(&p->yVa);
   cmGoldSigFree(&p->gs); 
   cmPhatFree(&p->phat);
   
@@ -803,13 +808,16 @@ cmRC_t cmReflectCalcExec( cmReflectCalc_t* p, const cmSample_t* xV, cmSample_t* 
       // execute the correlation
       cmPhatChExec(p->phat,0,0,0);
 
-      // p->phat->xV now holds the correlation result
+      // p->phat->xV[fhN] now holds the correlation result
       
-      if( p->va != NULL )
-        cmVectArrayAppendS(p->va,p->phat->xV,p->phat->fhN );
+      if( p->phVa != NULL )
+        cmVectArrayAppendS(p->phVa,p->phat->xV,p->phat->fhN );
     }
     
   }
+
+  cmVectArrayAppendS(p->xVa,xV,xyN);
+  cmVectArrayAppendS(p->yVa,yV,xyN);
 
   return cmOkRC;
   
@@ -819,14 +827,17 @@ cmRC_t cmReflectCalcWrite( cmReflectCalc_t* p, const char* dirStr )
 {
   cmRC_t rc = cmOkRC;
   
-  if( p->va != NULL) 
+  if( p->phVa != NULL) 
   {
-    const char* path = NULL;
+    //const char* path = NULL;
 
-    if((rc = cmVectArrayWrite(p->va, path = cmFsMakeFn(path,"reflect_calc","va",dirStr,NULL) )) != cmOkRC )
-        rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Reflect calc file write failed.");
+    cmVectArrayWriteDirFn(p->xVa, dirStr, "reflect_calc_x.va" );
+    cmVectArrayWriteDirFn(p->yVa, dirStr, "reflect_calc_y.va" );
+    cmVectArrayWriteDirFn(p->phVa,dirStr, "reflect_calc_ph.va");
     
-    cmFsFreeFn(path);
+    //if((rc = cmVectArrayWrite(p->phVa, path = cmFsMakeFn(path,"reflect_calc","va",dirStr,NULL) )) != cmOkRC )
+    //    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Reflect calc file write failed.");    
+    //cmFsFreeFn(path);
   }
   
   return rc;
