@@ -827,18 +827,123 @@ cmRC_t cmReflectCalcWrite( cmReflectCalc_t* p, const char* dirStr )
 {
   cmRC_t rc = cmOkRC;
   
-  if( p->phVa != NULL) 
-  {
-    //const char* path = NULL;
-
+  if( p->xVa != NULL) 
     cmVectArrayWriteDirFn(p->xVa, dirStr, "reflect_calc_x.va" );
+
+  if( p->yVa != NULL )
     cmVectArrayWriteDirFn(p->yVa, dirStr, "reflect_calc_y.va" );
+
+  if( p->phVa != NULL )
     cmVectArrayWriteDirFn(p->phVa,dirStr, "reflect_calc_ph.va");
-    
-    //if((rc = cmVectArrayWrite(p->phVa, path = cmFsMakeFn(path,"reflect_calc","va",dirStr,NULL) )) != cmOkRC )
-    //    rc = cmCtxRtCondition(&p->obj,cmSubSysFailRC,"Reflect calc file write failed.");    
-    //cmFsFreeFn(path);
-  }
   
   return rc;
+}
+
+//=======================================================================================================================
+// 
+//
+cmNlmsEc_t* cmNlmsEcAlloc( cmCtx* ctx, cmNlmsEc_t* ap, float mu, unsigned hN, unsigned delayN )
+{
+  cmNlmsEc_t* p = cmObjAlloc(cmNlmsEc_t,ctx,ap);
+
+  // allocate the vect array
+  p->eVa = cmVectArrayAlloc(ctx, kFloatVaFl );
+  
+  if( mu != 0 )  
+    if( cmNlmsEcInit(p,mu,hN,delayN) != cmOkRC )
+      cmNlmsEcFree(&p);
+
+  return p;
+
+}
+
+cmRC_t      cmNlmsEcFree( cmNlmsEc_t** pp )
+{
+   cmRC_t rc = cmOkRC;
+
+  if( pp == NULL || *pp == NULL )
+    return rc;
+
+  cmNlmsEc_t* p = *pp;
+  if((rc = cmNlmsEcFinal(p)) != cmOkRC )
+    return rc;
+
+  cmMemFree(p->wV);
+  cmMemFree(p->hV);
+  cmVectArrayFree(&p->eVa);
+  cmObjFree(pp);
+
+  return rc;
+ 
+}
+
+cmRC_t      cmNlmsEcInit( cmNlmsEc_t* p, float mu, unsigned hN, unsigned delayN )
+{
+  cmRC_t rc = cmOkRC;
+
+  if((rc = cmNlmsEcFinal(p)) != cmOkRC )
+    return rc;
+  
+  p->mu     = mu;
+  p->hN     = hN;
+  p->delayN = delayN;
+  p->wV     = cmMemResizeZ(cmSample_t,p->wV,hN);
+  p->hV     = cmMemResizeZ(cmSample_t,p->hV,hN);
+  p->dV     = cmMemResizeZ(cmSample_t,p->dV,delayN);
+  p->w0i    = 0;
+  
+  return rc;
+}
+    
+cmRC_t      cmNlmsEcFinal( cmNlmsEc_t* p )
+{ return cmOkRC; }
+
+/*
+  for n=M:N
+    uv = u(n:-1:n-M+1);
+    e(n) = d(n)-w'*uv;
+    w=w+mu/(a + uv'*uv ) * uv * conj(e(n));
+  endfor
+
+  e = e(:).^2;
+*/
+
+cmRC_t      cmNlmsEcExec( cmNlmsEc_t* p, const cmSample_t* xV, const cmSample_t* fV, cmSample_t* yV, unsigned xyN )
+{
+  unsigned i;
+  for(i=0; i<xyN; ++i)
+  {
+    cmSample_t y = 0;
+    unsigned j;
+    unsigned k = 0;
+    float a = 0.00001;
+    
+    p->hV[p->w0i] = xV[i];
+    
+    for(j=p->w0i,k=0; j<p->hN; ++j,++k)
+      y += p->hV[j] * p->wV[k];
+
+    for(j=0; j<p->w0i; ++j,++k)
+      y += p->hV[j] * p->wV[k];
+
+    p->w0i = (p->w0i+1) % p->hN;
+    
+    float e = fV[i] - y;
+
+    cmSample_t z = 0;
+    for(j=0; j<p->hN; ++j)
+      z += p->hV[j] * p->hV[j];
+
+    for(j=0; j<p->hN; ++j)
+      p->wV[j] += p->mu/(a + z) * p->hV[j] * e;
+  }
+
+  return cmOkRC;
+}
+
+cmRC_t      cmNlmsEcWrite( cmNlmsEc_t* p, const cmChar_t* dirStr )
+{
+  if( p->eVa != NULL )
+    cmVectArrayWriteDirFn(p->eVa,dirStr, "nlms_err.va");
+  return cmOkRC;
 }

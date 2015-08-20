@@ -217,6 +217,36 @@ extern "C" {
   cmRC_t cmReflectCalcFinal( cmReflectCalc_t* p );
   cmRC_t cmReflectCalcExec(  cmReflectCalc_t* p, const cmSample_t* xV, cmSample_t* yV, unsigned xyN );
   cmRC_t cmReflectCalcWrite( cmReflectCalc_t* p, const char* dirStr );
+
+  //=======================================================================================================================
+  // 
+  //
+  typedef struct
+  {
+    cmObj obj;
+    float           mu;        // LMS step rate
+    unsigned        hN;        // filter length
+    unsigned        delayN;    // fixed delay to apply to align xV with fV.
+    cmSample_t*     dV;        // delay line
+    cmSample_t*     wV;        // wV[hN] filter weights
+    cmSample_t*     hV;        // hV[hN] filter delay line
+    
+    unsigned        w0i;
+      
+    cmVectArray_t* eVa;
+  } cmNlmsEc_t;
+
+  cmNlmsEc_t* cmNlmsEcAlloc( cmCtx* ctx, cmNlmsEc_t* p, float mu, unsigned hN, unsigned delayN );
+  cmRC_t      cmNlmsEcFree( cmNlmsEc_t** pp );
+  cmRC_t      cmNlmsEcInit( cmNlmsEc_t* p, float mu, unsigned hN, unsigned delayN );
+  cmRC_t      cmNlmsEcFinal( cmNlmsEc_t* p );
+  
+  // xV[] unfiltered reference signal  (direct from xform output)
+  // fV[] filtered reference signal    (from mic)
+  // yV[] echo-canelled signal 
+  cmRC_t      cmNlmsEcExec( cmNlmsEc_t* p, const cmSample_t* xV, const cmSample_t* fV, cmSample_t* yV, unsigned xyN );
+  cmRC_t      cmNlmsEcWrite( cmNlmsEc_t* p, const cmChar_t* dir );
+  
   
   
 #ifdef __cplusplus
