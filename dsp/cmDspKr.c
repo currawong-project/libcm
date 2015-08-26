@@ -3744,3 +3744,135 @@ struct cmDspClass_str* cmReflectCalcClassCons( cmDspCtx_t* ctx )
 
   return &_cmReflectCalcDC;
 }
+
+
+//==========================================================================================================================================
+enum
+{
+  kMuEcId,
+  kImpRespN_EcId,
+  kDelayN_EcId,
+  kUnfiltInEcId,
+  kFiltInEcId,
+  kOutEcId
+};
+
+cmDspClass_t _cmEchoCancelDC;
+
+typedef struct
+{
+  cmDspInst_t    inst;
+  cmNlmsEc_t*    r;
+} cmDspEchoCancel_t;
+
+
+cmDspInst_t*  _cmDspEchoCancelAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+
+  /*
+  if( va_cnt !=3 )
+  {
+    cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'EchoCancel' constructor must have two arguments: a channel count and frequency array.");
+    return NULL;
+  }
+  */
+
+  cmDspEchoCancel_t* p = cmDspInstAllocV(cmDspEchoCancel_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl,
+    1,   "mu",     kMuEcId,       0,0, kInDsvFl   | kDoubleDsvFl,  "NLSM mu coefficient.",
+    1,   "irN",    kImpRespN_EcId, 0,0, kInDsvFl   | kUIntDsvFl,    "Filter impulse response length in samples.",
+    1,   "delayN", kDelayN_EcId,  0,0, kInDsvFl   | kUIntDsvFl,    "Fixed feedback delay in samples.",
+    1,   "uf_in",  kUnfiltInEcId, 0,1, kInDsvFl   | kAudioBufDsvFl,"Unfiltered audio input",
+    1,   "f_in",   kFiltInEcId,   0,1, kInDsvFl   | kAudioBufDsvFl,"Filtered audio input",
+    1,   "out",    kOutEcId,      0,1, kOutDsvFl  | kAudioBufDsvFl,"Audio output",
+    0 );
+
+
+  p->r = cmNlmsEcAlloc(ctx->cmProcCtx, NULL, 0,0,0 );
+  
+  cmDspSetDefaultDouble( ctx, &p->inst, kMuEcId,        0, 0.1);
+  cmDspSetDefaultUInt(   ctx, &p->inst, kImpRespN_EcId, 0, 256);
+  cmDspSetDefaultUInt(   ctx, &p->inst, kDelayN_EcId,   0, 2048);
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspEchoCancelSetup( cmDspCtx_t* ctx, cmDspInst_t* inst )
+{
+  cmDspRC_t          rc     = kOkDspRC;
+  cmDspEchoCancel_t* p      = (cmDspEchoCancel_t*)inst;
+  double             mu     = cmDspDouble(inst,kMuEcId);
+  unsigned           hN     = cmDspUInt(inst,kImpRespN_EcId);
+  unsigned           delayN = cmDspUInt(inst,kDelayN_EcId);
+
+  if( cmNlmsEcInit(p->r,mu,hN,delayN) != cmOkRC )
+    rc = cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Unable to initialize the internal echo canceller.");
+
+  return rc;
+}
+
+cmDspRC_t _cmDspEchoCancelFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t           rc = kOkDspRC;
+  cmDspEchoCancel_t* p  = (cmDspEchoCancel_t*)inst;
+
+  cmNlmsEcFree(&p->r);
+
+  return rc;
+}
+
+cmDspRC_t _cmDspEchoCancelReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+//cmDspEchoCancel_t* p = (cmDspEchoCancel_t*)inst;
+
+  cmDspApplyAllDefaults(ctx,inst);
+
+  return _cmDspEchoCancelSetup(ctx, inst );
+} 
+
+cmDspRC_t _cmDspEchoCancelExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t           rc = kOkDspRC;
+  cmDspEchoCancel_t*  p  = (cmDspEchoCancel_t*)inst;
+  
+  const cmSample_t*   fV = cmDspAudioBuf(ctx,inst,kFiltInEcId,0);
+  unsigned            fN = cmDspAudioBufSmpCount(ctx,inst,kFiltInEcId,0);
+  
+  const cmSample_t*   uV = cmDspAudioBuf(ctx,inst,kUnfiltInEcId,0);
+  unsigned            uN = cmDspAudioBufSmpCount(ctx,inst,kUnfiltInEcId,0);
+  
+  cmSample_t*         yV = cmDspAudioBuf(ctx,inst,kOutEcId,0);
+  unsigned            yN = cmDspAudioBufSmpCount(ctx,inst,kOutEcId,0);
+
+  if( fV !=NULL && uV != NULL && yV != NULL )
+  {
+    assert( uN == yN && fN == yN );
+    cmNlmsEcExec(p->r,uV,fV,yV,yN);
+  }
+  
+  return rc;
+}
+
+cmDspRC_t _cmDspEchoCancelRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+//cmDspEchoCancel_t*  p         = (cmDspEchoCancel_t*)inst;
+
+  cmDspSetEvent(ctx,inst,evt);
+
+  return kOkDspRC;
+}
+
+struct cmDspClass_str* cmEchoCancelClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmEchoCancelDC,ctx,"EchoCancel",
+    NULL,
+    _cmDspEchoCancelAlloc,
+    _cmDspEchoCancelFree,
+    _cmDspEchoCancelReset,
+    _cmDspEchoCancelExec,
+    _cmDspEchoCancelRecv,
+    NULL,
+    NULL,
+    "Echo canceller");
+
+  return &_cmEchoCancelDC;
+}
