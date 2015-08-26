@@ -196,14 +196,21 @@ extern "C" {
   // 
   //
 
+
   typedef struct
   {
     cmObj obj;
 
     cmGoldSig_t*     gs;
-    unsigned         xi;  // index into gs->ch[0].mdV[] of the next sample to output
-    bool             zeroFl;
     cmPhat_t*        phat;
+    
+    unsigned         xi;     // index into xV[] of the next sample to output
+    
+    unsigned         t;
+    unsigned*        t0V;    // t0V[tN] - last tN signal start times 
+    unsigned*        t1V;    // t1V[tN] - last tN signal detection times 
+    unsigned         tN;
+    unsigned         ti;
     
     cmVectArray_t*   phVa;
     cmVectArray_t*   xVa;

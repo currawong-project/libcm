@@ -726,6 +726,8 @@ cmRC_t cmReflectCalcFree( cmReflectCalc_t** pp )
   if((rc = cmReflectCalcFinal(p)) != cmOkRC )
     return rc;
 
+  cmMemFree(p->t0V);
+  cmMemFree(p->t1V);
   cmVectArrayFree(&p->phVa);
   cmVectArrayFree(&p->xVa);
   cmVectArrayFree(&p->yVa);
@@ -770,10 +772,14 @@ cmRC_t cmReflectCalcInit( cmReflectCalc_t* p, const cmGoldSigArg_t* gsa, float p
     goto errLabel;
   }
 
-  
   p->xi     = 0;
-  p->zeroFl = false;
 
+  p->tN     = 5;
+  p->t0V    = cmMemResizeZ(unsigned,p->t0V,p->tN);
+  p->t1V    = cmMemResizeZ(unsigned,p->t1V,p->tN);
+  p->ti     = 0;
+  p->t      = 0;
+  
  errLabel:
   
   return rc;
@@ -786,13 +792,15 @@ cmRC_t cmReflectCalcFinal( cmReflectCalc_t* p )
   return cmOkRC;
 }
 
+/*
 cmRC_t cmReflectCalcExec( cmReflectCalc_t* p, const cmSample_t* xV, cmSample_t* yV, unsigned xyN )
 {
   unsigned i;
 
   // feed audio into the PHAT's buffer
   cmPhatExec(p->phat,xV,xyN);
-  
+
+  // fill the output buffer
   for(i=0; i<xyN; ++i,++p->xi)
   {
     if( p->xi < p->gs->sigN )
@@ -820,7 +828,71 @@ cmRC_t cmReflectCalcExec( cmReflectCalc_t* p, const cmSample_t* xV, cmSample_t* 
   cmVectArrayAppendS(p->yVa,yV,xyN);
 
   return cmOkRC;
+}
+*/
+
+cmRC_t cmReflectCalcExec( cmReflectCalc_t* p, const cmSample_t* xV, cmSample_t* yV, unsigned xyN )
+{
+  unsigned i;
+
+  unsigned xyN0 = xyN;
+
+  while(xyN0)
+  {
+    // feed audio into the PHAT's buffer
+    unsigned di = p->phat->di;
+    unsigned n  = cmMin(xyN0,p->phat->fhN - di );
+    
+    cmPhatExec(p->phat,xV,n);
+
+    if( di + n == p->phat->fhN )
+    {
+      // execute the correlation
+      cmPhatChExec(p->phat,0,0,0);
+      
+      // p->phat->xV[fhN] now holds the correlation result
+
+      // get the peak index
+      p->t1V[p->ti] = cmVOS_MaxIndex(p->phat->xV,p->phat->fhN,1);
+
+      printf("%i %i\n",p->t,p->t1V[p->ti]);
+
+      p->ti = (p->ti + 1) % p->tN;
+
+      
+      // store the correlation result
+      if( p->phVa != NULL )
+        cmVectArrayAppendS(p->phVa,p->phat->xV,p->phat->fhN );
+      
+    }
+
+    xyN0 -= n;
+
+  }
   
+  // fill the output buffer
+  for(i=0; i<xyN; ++i)
+  {
+    if( p->xi == 0 )
+      p->t0V[p->ti] = p->t + i;
+    
+    if( p->xi < p->gs->sigN )
+      yV[i] = p->gs->ch[0].mdV[p->xi];
+    else
+      yV[i] = 0;
+
+    p->xi = (p->xi+1) % p->phat->fhN;
+  }
+
+  p->t += xyN;
+  
+  if( p->xVa != NULL )
+    cmVectArrayAppendS(p->xVa,xV,xyN);
+
+  if( p->yVa != NULL )
+    cmVectArrayAppendS(p->yVa,yV,xyN);
+
+  return cmOkRC;
 }
 
 cmRC_t cmReflectCalcWrite( cmReflectCalc_t* p, const char* dirStr )
