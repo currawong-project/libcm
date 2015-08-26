@@ -230,16 +230,15 @@ extern "C" {
   //
   typedef struct
   {
-    cmObj obj;
-    float           mu;        // LMS step rate
-    unsigned        hN;        // filter length
-    unsigned        delayN;    // fixed delay to apply to align xV with fV.
-    cmSample_t*     dV;        // delay line
-    cmSample_t*     wV;        // wV[hN] filter weights
-    cmSample_t*     hV;        // hV[hN] filter delay line
+    cmObj          obj;
+    float          mu;          // LMS step rate
+    unsigned       hN;          // filter length
+    unsigned       delayN;      // fixed delay to apply to align xV with fV.
+    double*        wV;          // wV[hN] filter weights
+    double*        hV;          // hV[hN] filter delay line
     
-    unsigned        w0i;
-      
+    unsigned       w0i;
+    
     cmVectArray_t* eVa;
   } cmNlmsEc_t;
 

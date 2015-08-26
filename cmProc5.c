@@ -959,9 +959,8 @@ cmRC_t      cmNlmsEcInit( cmNlmsEc_t* p, float mu, unsigned hN, unsigned delayN 
   p->mu     = mu;
   p->hN     = hN;
   p->delayN = delayN;
-  p->wV     = cmMemResizeZ(cmSample_t,p->wV,hN);
-  p->hV     = cmMemResizeZ(cmSample_t,p->hV,hN);
-  p->dV     = cmMemResizeZ(cmSample_t,p->dV,delayN);
+  p->wV     = cmMemResizeZ(double,p->wV,hN);
+  p->hV     = cmMemResizeZ(double,p->hV,hN);
   p->w0i    = 0;
   
   return rc;
@@ -982,36 +981,52 @@ cmRC_t      cmNlmsEcFinal( cmNlmsEc_t* p )
 
 cmRC_t      cmNlmsEcExec( cmNlmsEc_t* p, const cmSample_t* xV, const cmSample_t* fV, cmSample_t* yV, unsigned xyN )
 {
+  // See: http://www.eit.lth.se/fileadmin/eit/courses/ett042/CE/CE2e.pdf
+  // and  http://www.eit.lth.se/fileadmin/eit/courses/ett042/CE/CE3e.pdf
   unsigned i;
   for(i=0; i<xyN; ++i)
   {
-    cmSample_t y = 0;
-    unsigned j;
-    unsigned k = 0;
-    float a = 0.00001;
-    
-    p->hV[p->w0i] = xV[i];
-    
+    double     y = 0;
+    unsigned   k = 0;
+    double     a = 0.001;
+    unsigned   j;
+
+    // insert the next sample into the filter delay line
+    p->hV[p->w0i] = xV[i]; 
+
+    // calculate the output of the delay w0i:hN
     for(j=p->w0i,k=0; j<p->hN; ++j,++k)
       y += p->hV[j] * p->wV[k];
 
+    // calcuate the output of the delay 0:w0i
     for(j=0; j<p->w0i; ++j,++k)
       y += p->hV[j] * p->wV[k];
 
-    p->w0i = (p->w0i+1) % p->hN;
-    
-    float e = fV[i] - y;
+    // calculate the error
+    double e = fV[i] - y;
+    yV[i] = e;
 
-    cmSample_t z = 0;
+    // 
+    double z = 0;
     for(j=0; j<p->hN; ++j)
       z += p->hV[j] * p->hV[j];
 
-    for(j=0; j<p->hN; ++j)
-      p->wV[j] += p->mu/(a + z) * p->hV[j] * e;
+    // update weights 0 through w0i
+    for(j=p->w0i,k=0; j<p->hN; ++j,++k)
+      p->wV[k] += (p->mu/(a + z)) * p->hV[j] * e;
+
+    // update weights w0i through hN
+    for(j=0; j<p->w0i; ++j,++k)
+      p->wV[k] += (p->mu/(a + z)) * p->hV[j] * e;
+
+    // advance the delay
+    p->w0i = (p->w0i+1) % p->hN;
+
   }
 
   return cmOkRC;
 }
+
 
 cmRC_t      cmNlmsEcWrite( cmNlmsEc_t* p, const cmChar_t* dirStr )
 {
