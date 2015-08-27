@@ -918,8 +918,11 @@ cmNlmsEc_t* cmNlmsEcAlloc( cmCtx* ctx, cmNlmsEc_t* ap, float mu, unsigned hN, un
 {
   cmNlmsEc_t* p = cmObjAlloc(cmNlmsEc_t,ctx,ap);
 
-  // allocate the vect array
+  // allocate the vect array's
+  p->uVa = cmVectArrayAlloc(ctx, kFloatVaFl );
+  p->fVa = cmVectArrayAlloc(ctx, kFloatVaFl );
   p->eVa = cmVectArrayAlloc(ctx, kFloatVaFl );
+   
   
   if( mu != 0 )  
     if( cmNlmsEcInit(p,mu,hN,delayN) != cmOkRC )
@@ -1024,13 +1027,27 @@ cmRC_t      cmNlmsEcExec( cmNlmsEc_t* p, const cmSample_t* xV, const cmSample_t*
 
   }
 
+  cmVectArrayAppendS(p->uVa,xV,xyN);
+  cmVectArrayAppendS(p->fVa,fV,xyN);
+  cmVectArrayAppendS(p->eVa,yV,xyN);
+   
+
   return cmOkRC;
 }
 
 
 cmRC_t      cmNlmsEcWrite( cmNlmsEc_t* p, const cmChar_t* dirStr )
 {
+
+  if( p->uVa != NULL )
+    cmVectArrayWriteDirFn(p->uVa, dirStr, "nlms_unfiltered.va");
+
+  if( p->fVa != NULL )
+    cmVectArrayWriteDirFn(p->fVa, dirStr, "nlms_filtered.va");
+
   if( p->eVa != NULL )
-    cmVectArrayWriteDirFn(p->eVa,dirStr, "nlms_err.va");
+    cmVectArrayWriteDirFn(p->eVa, dirStr, "nlms_out.va");
+
+  
   return cmOkRC;
 }

@@ -235,10 +235,11 @@ extern "C" {
     unsigned       hN;          // filter length
     unsigned       delayN;      // fixed delay to apply to align xV with fV.
     double*        wV;          // wV[hN] filter weights
-    double*        hV;          // hV[hN] filter delay line
-    
-    unsigned       w0i;
-    
+    double*        hV;          // hV[hN] filter delay line    
+    unsigned       w0i;         // The index into hV[] of the start of the delay line.
+
+    cmVectArray_t* uVa;
+    cmVectArray_t* fVa;
     cmVectArray_t* eVa;
   } cmNlmsEc_t;
 
