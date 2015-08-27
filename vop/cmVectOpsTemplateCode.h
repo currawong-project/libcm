@@ -1891,42 +1891,23 @@ unsigned      VECT_OP_FUNC(SynthPulseCos)(  VECT_OP_TYPE* dbp, unsigned dn, unsi
 
 unsigned      VECT_OP_FUNC(SynthImpulse)(   VECT_OP_TYPE* dbp, unsigned dn, unsigned phase, double srate, double hz )
 {
-  const VECT_OP_TYPE* dep = dbp + dn;
-  double pi2 = 2.0*M_PI;
-  double rps = pi2*hz/srate;
   
-  double v0,v1 = fmod( rps * phase, pi2);
-
-  if( dbp == dep )
-    return phase;
-
-  // the phase is set to zero when the first output should be a 1
-  if( phase == 0 )
+  VECT_OP_FUNC(Zero)(dbp,dn);
+  unsigned i=0;
+  while(1)
   {
-    *dbp++ = 1;
-    ++phase;
+    double samplesPerCycle = srate / hz;
+    unsigned j = round( (srate * i + phase) / hz);
+    if( j >= dn )
+      break;
+
+    dbp[j] = 1;
+    ++i;
   }
 
-  
-  while( dbp < dep )
-  {
-    // the phase vector will always be increasing
-    // the modulus of the phase vector will wrap with frequency 'hz'
-    v0 = fmod(  rps * phase++, pi2 );
-
-    // notice when wrapping occurs
-    *dbp++ = (VECT_OP_TYPE)(v0 < v1);
-
-    v1 = v0;
-  }
-
-  // check if the next output should be a 1 
-  // (this eliminates the problem of not having access to v1 on the next call to this function
-  if( fmod(  rps * phase, pi2 ) < v1 )
-    phase = 0;
-  
-  
-  return phase;
+  // Note that returning an integer value here loses precision
+  // since j was rounded to the nearest integer.
+  return j - dn;
 }
 
 VECT_OP_TYPE VECT_OP_FUNC(SynthPinkNoise)( VECT_OP_TYPE* dbp, unsigned n, VECT_OP_TYPE delaySmp )
