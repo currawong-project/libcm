@@ -51,7 +51,7 @@ cmDspRC_t _cmDspSysPgm_ReflectCalc( cmDspSysH_t h, void** userPtrPtr )
 
     // gain controls
   cmDspInst_t* igain = cmDspSysAllocInst( h,"Scalar", "In Gain",  5, kNumberDuiId, 0.0,  4.0, 0.01,  1.0);
-  cmDspInst_t* ogain = cmDspSysAllocInst( h,"Scalar", "Out Gain", 5, kNumberDuiId, 0.0,  4.0, 0.01,  1.0);
+  cmDspInst_t* ogain = cmDspSysAllocInst( h,"Scalar", "Out Gain", 5, kNumberDuiId, 0.0,  4.0, 0.01,  3.0);
 
   cmDspSysConnectAudio(h, ai0, "out", im0, "in");           // ain0 -> imtr0
   cmDspSysConnectAudio(h, ai1, "out", im1, "in");           // ain1 -> imtr1
@@ -2797,9 +2797,10 @@ cmDspRC_t _cmDspSysPgm_Goertzel( cmDspSysH_t h, void** userPtrPtr )
 cmDspRC_t _cmDspSysPgm_TakeSeqBldr( cmDspSysH_t h, void** userPtrPtr )
 {  
   cmDspRC_t       rc         = kOkDspRC;
-  const cmChar_t* tksbFn     = "/home/kevin/src/cmkc/src/kc/data/takeSeqBldr0.js";
-  const cmChar_t* deviceName = "Fastlane";
-  const cmChar_t* portName   = "Fastlane MIDI A";
+  //const cmChar_t* tksbFn     = "/User/kevin/src/cmkc/src/kc/data/takeSeqBldr0.js";
+  const cmChar_t* tksbFn     =  "/Users/kevin/src/cmkc/src/kc/data/takeSeqBldr_osx.js";
+  const cmChar_t* deviceName = "MOTU - Traveler mk3"; //"Fastlane";
+  const cmChar_t* portName   = "MIDI Port";           // "Fastlane MIDI A";
 
   //const cmChar_t* deviceName = "DKV-M4";
   //const cmChar_t* portName   = "DKV-M4 MIDI 1";

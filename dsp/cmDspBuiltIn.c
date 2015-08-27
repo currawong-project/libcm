@@ -5838,6 +5838,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmTakeSeqBldrClassCons,
   cmTakeSeqRendClassCons,
   cmReflectCalcClassCons,
+  cmEchoCancelClassCons,
   NULL,
 };
 
