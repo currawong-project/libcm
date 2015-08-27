@@ -3790,8 +3790,8 @@ cmDspInst_t*  _cmDspEchoCancelAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
   p->r = cmNlmsEcAlloc(ctx->cmProcCtx, NULL, 0,0,0 );
   
   cmDspSetDefaultDouble( ctx, &p->inst, kMuEcId,        0, 0.1);
-  cmDspSetDefaultUInt(   ctx, &p->inst, kImpRespN_EcId, 0, 256);
-  cmDspSetDefaultUInt(   ctx, &p->inst, kDelayN_EcId,   0, 2048);
+  cmDspSetDefaultUInt(   ctx, &p->inst, kImpRespN_EcId, 0, 2048);
+  cmDspSetDefaultUInt(   ctx, &p->inst, kDelayN_EcId,   0, 3963);
 
   return &p->inst;
 }
@@ -3815,6 +3815,8 @@ cmDspRC_t _cmDspEchoCancelFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
   cmDspRC_t           rc = kOkDspRC;
   cmDspEchoCancel_t* p  = (cmDspEchoCancel_t*)inst;
 
+  cmNlmsEcWrite(p->r, "/Users/kevin/temp/kc");
+  
   cmNlmsEcFree(&p->r);
 
   return rc;
