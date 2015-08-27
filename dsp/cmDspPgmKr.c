@@ -382,7 +382,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmErr_t         err;
   krRsrc_t        r;
   bool     fragFl       = false;
-  bool     useWtFl      = true;
+  bool     useWtFl      = false;
   bool     useChain1Fl  = true;
   bool     useInputEqFl = false;
   bool     useInCompFl  = true;
@@ -442,10 +442,10 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   if( krLoadRsrc(h,&err,&r) != kOkDspRC )
     return rc;
 
-  cmDspInst_t* ai0p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 2);
-  cmDspInst_t* ai1p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 3);
-  cmDspInst_t* ai2p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 4);
-  cmDspInst_t* ai3p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 5);
+  cmDspInst_t* ai0p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 0);
+  cmDspInst_t* ai1p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 1);
+  cmDspInst_t* ai2p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 2);
+  cmDspInst_t* ai3p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 3);
 
   cmDspInst_t* eqLpf_0 =  useInputEqFl ? cmDspSysAllocInst(h,"BiQuadEq",NULL, 5, eqBypassFl, eqLpSymId,eqLpF0hz, eqLpQ, eqLpGain  ) : NULL; 
   cmDspInst_t* eqLpf_1 =  useInputEqFl ? cmDspSysAllocInst(h,"BiQuadEq",NULL, 5, eqBypassFl, eqLpSymId,eqLpF0hz, eqLpQ, eqLpGain  ) : NULL; 
@@ -579,10 +579,10 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* apf2 =  cmDspSysAllocInst(h,"BiQuadEq",NULL, 5, apfBypassFl, apfModeSymId, apfF0hz+200.0, apfQ, apfGain  ); 
   cmDspInst_t* apf3 =  cmDspSysAllocInst(h,"BiQuadEq",NULL, 5, apfBypassFl, apfModeSymId, apfF0hz+300.0, apfQ, apfGain  ); 
 
-  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 0 );
-  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 1 );
-  cmDspInst_t* ao2p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 2 );
-  cmDspInst_t* ao3p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 );
+  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 2 );
+  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 );
+  cmDspInst_t* ao2p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 4 );
+  cmDspInst_t* ao3p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 5 );
 
   cmDspSysNewPage(h,"Main");
   cmDspInst_t* liveb= cmDspSysAllocInst(h,"Button", "live",    2, kCheckDuiId,  0.0 );
@@ -1270,6 +1270,9 @@ cmDspRC_t _cmDspSysPgm_Tksb(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ai2p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 2);
   cmDspInst_t* ai3p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 3);
 
+  cmDspInst_t* ec0  = cmDspSysAllocInst(h,"EchoCancel", NULL, 1, 0,1 );
+  cmDspInst_t* ec1  = cmDspSysAllocInst(h,"EchoCancel", NULL, 1, 0,1 );
+
   cmDspInst_t* eqLpf_0 =  useInputEqFl ? cmDspSysAllocInst(h,"BiQuadEq",NULL, 5, eqBypassFl, eqLpSymId,eqLpF0hz, eqLpQ, eqLpGain  ) : NULL; 
   cmDspInst_t* eqLpf_1 =  useInputEqFl ? cmDspSysAllocInst(h,"BiQuadEq",NULL, 5, eqBypassFl, eqLpSymId,eqLpF0hz, eqLpQ, eqLpGain  ) : NULL; 
   cmDspInst_t* eqLpf_2 =  useInputEqFl ? cmDspSysAllocInst(h,"BiQuadEq",NULL, 5, eqBypassFl, eqLpSymId,eqLpF0hz, eqLpQ, eqLpGain  ) : NULL; 
@@ -1406,10 +1409,10 @@ cmDspRC_t _cmDspSysPgm_Tksb(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* apf2 =  cmDspSysAllocInst(h,"BiQuadEq",NULL, 5, apfBypassFl, apfModeSymId, apfF0hz+200.0, apfQ, apfGain  ); 
   cmDspInst_t* apf3 =  cmDspSysAllocInst(h,"BiQuadEq",NULL, 5, apfBypassFl, apfModeSymId, apfF0hz+300.0, apfQ, apfGain  ); 
 
-  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 0 );
-  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 1 );
-  cmDspInst_t* ao2p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 2 );
-  cmDspInst_t* ao3p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 );
+  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 2 );
+  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 );
+  cmDspInst_t* ao2p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 4 );
+  cmDspInst_t* ao3p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 5 );
 
   cmDspSysNewPage(h,"Main");
   cmDspInst_t* liveb= cmDspSysAllocInst(h,"Button", "live",    2, kCheckDuiId,  0.0 );
@@ -1444,10 +1447,10 @@ cmDspRC_t _cmDspSysPgm_Tksb(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* stRt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);
 
   cmDspSysNewColumn(h,0);
-  cmDspInst_t* igain0 = cmDspSysAllocInst(h,"Scalar", "In Gain-0",    5, kNumberDuiId, 0.0,   100.0,0.01,   1.0 );  
-  cmDspInst_t* igain1 = cmDspSysAllocInst(h,"Scalar", "In Gain-1",    5, kNumberDuiId, 0.0,   100.0,0.01,   1.0 );  
-  cmDspInst_t* igain2 = cmDspSysAllocInst(h,"Scalar", "In Gain-2",    5, kNumberDuiId, 0.0,   100.0,0.01,   1.0 );  
-  cmDspInst_t* igain3 = cmDspSysAllocInst(h,"Scalar", "In Gain-3",    5, kNumberDuiId, 0.0,   100.0,0.01,   1.0 );  
+  cmDspInst_t* igain0 = cmDspSysAllocInst(h,"Scalar", "In Gain-0",    5, kNumberDuiId, 0.0,   100.0,0.01,   0.0 );  
+  cmDspInst_t* igain1 = cmDspSysAllocInst(h,"Scalar", "In Gain-1",    5, kNumberDuiId, 0.0,   100.0,0.01,   0.0 );  
+  cmDspInst_t* igain2 = cmDspSysAllocInst(h,"Scalar", "In Gain-2",    5, kNumberDuiId, 0.0,   100.0,0.01,   0.0 );  
+  cmDspInst_t* igain3 = cmDspSysAllocInst(h,"Scalar", "In Gain-3",    5, kNumberDuiId, 0.0,   100.0,0.01,   0.0 );  
 
   cmDspInst_t* lasecs = cmDspSysAllocInst(h,"Scalar", "LA Secs",      5, kNumberDuiId, 0.0,   recdPlayMaxLaSecs,0.01,   recdPlayCurLaSecs );  
   cmDspInst_t* dbpsec = cmDspSysAllocInst(h,"Scalar", "Fade dBpSec",  5, kNumberDuiId, 0.0,   24.0, 0.01, recdPlayFadeRateDbPerSec);
@@ -1456,10 +1459,10 @@ cmDspRC_t _cmDspSysPgm_Tksb(cmDspSysH_t h, void** userPtrPtr )
 
 
   cmDspSysNewColumn(h,0);
-  cmDspInst_t* ogain0 = cmDspSysAllocInst(h,"Scalar", "Out Gain-0",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
-  cmDspInst_t* ogain1 = cmDspSysAllocInst(h,"Scalar", "Out Gain-1",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
-  cmDspInst_t* ogain2 = cmDspSysAllocInst(h,"Scalar", "Out Gain-2",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
-  cmDspInst_t* ogain3 = cmDspSysAllocInst(h,"Scalar", "Out Gain-3",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
+  cmDspInst_t* ogain0 = cmDspSysAllocInst(h,"Scalar", "Out Gain-0",   5, kNumberDuiId, 0.0,   10.0,0.01,   0.0 );  
+  cmDspInst_t* ogain1 = cmDspSysAllocInst(h,"Scalar", "Out Gain-1",   5, kNumberDuiId, 0.0,   10.0,0.01,   0.0 );  
+  cmDspInst_t* ogain2 = cmDspSysAllocInst(h,"Scalar", "Out Gain-2",   5, kNumberDuiId, 0.0,   10.0,0.01,   0.0 );  
+  cmDspInst_t* ogain3 = cmDspSysAllocInst(h,"Scalar", "Out Gain-3",   5, kNumberDuiId, 0.0,   10.0,0.01,   0.0 );  
 
   //cmDspInst_t* scLoc = cmDspSysAllocInst(h,"Scalar", "Sc Loc",   5, kNumberDuiId, 0.0,   3000.0, 1.0,   0.0 );  
 
@@ -1624,8 +1627,11 @@ cmDspRC_t _cmDspSysPgm_Tksb(cmDspSysH_t h, void** userPtrPtr )
     cmDspSysConnectAudio(h, eqHpf_3, "out", eqMx_3,  "in-2");
   }
 
-  cmDspSysConnectAudio(h, useInputEqFl ? eqMx_0 : ai0p, "out", mx0p, "in-0" );  // eqmix -> input mix
-  cmDspSysConnectAudio(h, useInputEqFl ? eqMx_1 : ai1p, "out", mx1p, "in-0" );
+  cmDspSysConnectAudio(h, ai0p, "out", ec0, "f_in" );
+  cmDspSysConnectAudio(h, ai1p, "out", ec1, "f_in" );
+
+  cmDspSysConnectAudio(h, useInputEqFl ? eqMx_0 : ec0,  "out", mx0p, "in-0" );  // eqmix -> input mix
+  cmDspSysConnectAudio(h, useInputEqFl ? eqMx_1 : ec1,  "out", mx1p, "in-0" );
   cmDspSysConnectAudio(h, useInputEqFl ? eqMx_2 : ai2p, "out", mx0p, "in-1" );
   cmDspSysConnectAudio(h, useInputEqFl ? eqMx_3 : ai3p, "out", mx1p, "in-1" );
 
@@ -1672,6 +1678,7 @@ cmDspRC_t _cmDspSysPgm_Tksb(cmDspSysH_t h, void** userPtrPtr )
     cmDspSysConnectAudio(h, c0.cmp, "out", apf0, "in" );
     cmDspSysConnectAudio(h, c0.cmp, "out", apf2, "in" );
     cmDspSysConnectAudio(h, apf0,  "out", ao0p,  "in" );
+    cmDspSysConnectAudio(h, apf0,  "out", ec0,   "uf_in" );
     cmDspSysConnectAudio(h, apf2,  "out", ao2p,  "in" );
 
     //cmDspSysConnectAudio(h, wtp, "out", apf0, "in" );
@@ -1722,6 +1729,7 @@ cmDspRC_t _cmDspSysPgm_Tksb(cmDspSysH_t h, void** userPtrPtr )
       cmDspSysConnectAudio(h, c1.cmp, "out",   apf1,  "in" );   // cmp -> mix 0
       cmDspSysConnectAudio(h, c1.cmp, "out",   apf3,  "in" );   // cmp -> mix 0
       cmDspSysConnectAudio(h, apf1,  "out",   ao1p,   "in" );
+      cmDspSysConnectAudio(h, apf1,  "out",   ec1,    "uf_in" );
       cmDspSysConnectAudio(h, apf3,  "out",   ao3p,   "in" );
       
       //cmDspSysConnectAudio(h, wtp, "out", apf1, "in" );
