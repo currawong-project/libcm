@@ -1894,10 +1894,13 @@ unsigned      VECT_OP_FUNC(SynthImpulse)(   VECT_OP_TYPE* dbp, unsigned dn, unsi
   
   VECT_OP_FUNC(Zero)(dbp,dn);
   unsigned i=0;
+  unsigned j=dn;
   while(1)
   {
     double samplesPerCycle = srate / hz;
-    unsigned j = round( (srate * i + phase) / hz);
+    
+    j = round( (srate * i + phase) / hz);
+    
     if( j >= dn )
       break;
 
