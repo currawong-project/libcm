@@ -221,11 +221,28 @@ extern "C" {
   cmFileRC_t cmFileWriteDouble( cmFileH_t h, const double*         buf, unsigned cnt );
   cmFileRC_t cmFileWriteBool(   cmFileH_t h, const bool*           buf, unsigned cnt );
 
+  // Write a string to a file as <N> <char0> <char1> ... <char(N-1)>
+  // where N is the count of characters in the string.
+  cmFileRC_t cmFileWriteStr( cmFileH_t h, const cmChar_t* s );
+
+  // Read a string back from a file as written by cmFileWriteStr().
+  // Note that the string will by string will be dynamically allocated
+  // and threfore must eventually be released via cmMemFree().
+  // If maxCharN is set to zero then the default maximum string
+  // length is 16384.  Note that this limit is used to prevent
+  // corrupt files from generating excessively long strings.
+  cmFileRC_t cmFileReadStr(  cmFileH_t h, cmChar_t** sRef, unsigned maxCharN );
+
   // Formatted Text Output Functions:
   // Print formatted text to a file.
   cmFileRC_t cmFilePrint(   cmFileH_t h, const cmChar_t* text );
   cmFileRC_t cmFilePrintf(  cmFileH_t h, const cmChar_t* fmt, ... );
   cmFileRC_t cmFileVPrintf( cmFileH_t h, const cmChar_t* fmt, va_list vl );
+
+
+  cmFileRC_t cmFileLastRC( cmFileH_t h );
+  cmFileRC_t cmFileSetRC( cmFileH_t h, cmFileRC_t rc );
+  
   //)
   //}
 

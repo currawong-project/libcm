@@ -36,7 +36,7 @@ cmFileRC_t _cmFileError( cmFile_t* p, cmFileRC_t rc, int errNumb, const cmChar_t
   return rc;
 }
 
-cmFileRC_t cmFileOpen(    cmFileH_t* hp, const cmChar_t* fn, enum cmFileOpenFlags_t flags, cmRpt_t* rpt )
+cmFileRC_t cmFileOpen( cmFileH_t* hp, const cmChar_t* fn, enum cmFileOpenFlags_t flags, cmRpt_t* rpt )
 {
   char mode[]  = "/0/0/0";
   cmFile_t*  p = NULL;
@@ -731,6 +731,57 @@ cmFileRC_t cmFileWriteBool(   cmFileH_t h, const bool*           buf, unsigned c
 { return cmFileWrite(h,buf,sizeof(buf[0])*cnt); }
 
 
+cmFileRC_t cmFileWriteStr( cmFileH_t h, const cmChar_t* s )
+{
+  cmFileRC_t rc;
+  
+  unsigned n = cmTextLength(s);
+
+  if((rc = cmFileWriteUInt(h,&n,1)) != kOkFileRC )
+    return rc;
+
+  if( n > 0 )
+    rc = cmFileWriteChar(h,s,n);
+  return rc;
+}
+
+
+cmFileRC_t cmFileReadStr(  cmFileH_t h, cmChar_t** sRef, unsigned maxCharN )
+{
+  unsigned n;
+  cmFileRC_t rc;
+
+  assert(sRef != NULL );
+
+  *sRef = NULL;
+  
+  if( maxCharN == 0 )
+    maxCharN = 16384;
+
+  // read the string length
+  if((rc = cmFileReadUInt(h,&n,1)) != kOkFileRC )
+    return rc;
+
+  // verify that string isn't too long
+  if( n > maxCharN  )
+  {
+    cmFile_t* p = _cmFileHandleToPtr(h);
+    return cmErrMsg(&p->err,kBufAllocFailFileRC,"The stored string is larger than the maximum allowable size.");    
+  }
+
+  // allocate a read buffer
+  cmChar_t* s = cmMemAllocZ(cmChar_t,n+1);
+
+  // fill the buffer from the file
+  if((rc = cmFileReadChar(h,s,n)) != kOkFileRC )
+    return rc;
+
+  s[n] = 0; // terminate the string
+
+  *sRef = s;
+
+  return rc;
+}
 
 
 cmFileRC_t cmFilePrint(   cmFileH_t h, const cmChar_t* text )
@@ -765,3 +816,14 @@ cmFileRC_t cmFilePrintf(  cmFileH_t h, const cmChar_t* fmt, ... )
 }
 
 
+cmFileRC_t cmFileLastRC( cmFileH_t h )
+{
+  cmFile_t* p = _cmFileHandleToPtr(h);
+  return cmErrLastRC(&p->err);
+}
+
+cmFileRC_t cmFileSetRC( cmFileH_t h, cmFileRC_t rc )
+{
+  cmFile_t* p = _cmFileHandleToPtr(h);
+  return cmErrSetRC(&p->err,rc);
+}
