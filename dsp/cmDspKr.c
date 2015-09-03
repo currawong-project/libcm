@@ -3778,20 +3778,20 @@ cmDspInst_t*  _cmDspEchoCancelAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
   */
 
   cmDspEchoCancel_t* p = cmDspInstAllocV(cmDspEchoCancel_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl,
-    1,   "mu",     kMuEcId,       0,0, kInDsvFl   | kDoubleDsvFl,  "NLSM mu coefficient.",
-    1,   "irN",    kImpRespN_EcId, 0,0, kInDsvFl   | kUIntDsvFl,    "Filter impulse response length in samples.",
-    1,   "delayN", kDelayN_EcId,  0,0, kInDsvFl   | kUIntDsvFl,    "Fixed feedback delay in samples.",
-    1,   "uf_in",  kUnfiltInEcId, 0,1, kInDsvFl   | kAudioBufDsvFl,"Unfiltered audio input",
-    1,   "f_in",   kFiltInEcId,   0,1, kInDsvFl   | kAudioBufDsvFl,"Filtered audio input",
-    1,   "out",    kOutEcId,      0,1, kOutDsvFl  | kAudioBufDsvFl,"Audio output",
+    1,   "mu",     kMuEcId,        0,0, kInDsvFl   | kDoubleDsvFl,   "NLSM mu coefficient.",
+    1,   "irN",    kImpRespN_EcId, 0,0, kInDsvFl   | kUIntDsvFl,     "Filter impulse response length in samples.",
+    1,   "delayN", kDelayN_EcId,   0,0, kInDsvFl   | kUIntDsvFl,     "Fixed feedback delay in samples.",
+    1,   "uf_in",  kUnfiltInEcId,  0,1, kInDsvFl   | kAudioBufDsvFl, "Unfiltered audio input",
+    1,   "f_in",   kFiltInEcId,    0,1, kInDsvFl   | kAudioBufDsvFl, "Filtered audio input",
+    1,   "out",    kOutEcId,       0,1, kOutDsvFl  | kAudioBufDsvFl, "Audio output",
     0 );
 
 
-  p->r = cmNlmsEcAlloc(ctx->cmProcCtx, NULL, 0,0,0 );
+  p->r = cmNlmsEcAlloc(ctx->cmProcCtx, NULL, 0, 0,0,0 );
   
   cmDspSetDefaultDouble( ctx, &p->inst, kMuEcId,        0, 0.1);
   cmDspSetDefaultUInt(   ctx, &p->inst, kImpRespN_EcId, 0, 2048);
-  cmDspSetDefaultUInt(   ctx, &p->inst, kDelayN_EcId,   0, 3963);
+  cmDspSetDefaultUInt(   ctx, &p->inst, kDelayN_EcId,   0, 1906);
 
   return &p->inst;
 }
@@ -3804,7 +3804,7 @@ cmDspRC_t _cmDspEchoCancelSetup( cmDspCtx_t* ctx, cmDspInst_t* inst )
   unsigned           hN     = cmDspUInt(inst,kImpRespN_EcId);
   unsigned           delayN = cmDspUInt(inst,kDelayN_EcId);
 
-  if( cmNlmsEcInit(p->r,mu,hN,delayN) != cmOkRC )
+  if( cmNlmsEcInit(p->r,cmDspSampleRate(ctx),mu,hN,delayN) != cmOkRC )
     rc = cmErrMsg(&inst->classPtr->err, kSubSysFailDspRC, "Unable to initialize the internal echo canceller.");
 
   return rc;
@@ -3833,8 +3833,9 @@ cmDspRC_t _cmDspEchoCancelReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspE
 
 cmDspRC_t _cmDspEchoCancelExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
-  cmDspRC_t           rc = kOkDspRC;
-  cmDspEchoCancel_t*  p  = (cmDspEchoCancel_t*)inst;
+  cmDspRC_t          rc       = kOkDspRC;
+  cmDspEchoCancel_t* p        = (cmDspEchoCancel_t*)inst;
+  bool               bypassFl = false;
   
   const cmSample_t*   fV = cmDspAudioBuf(ctx,inst,kFiltInEcId,0);
   unsigned            fN = cmDspAudioBufSmpCount(ctx,inst,kFiltInEcId,0);
@@ -3845,10 +3846,19 @@ cmDspRC_t _cmDspEchoCancelExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
   cmSample_t*         yV = cmDspAudioBuf(ctx,inst,kOutEcId,0);
   unsigned            yN = cmDspAudioBufSmpCount(ctx,inst,kOutEcId,0);
 
-  if( fV !=NULL && uV != NULL && yV != NULL )
+  assert( fN==uN && fN==yN );
+  
+  if( bypassFl )
   {
-    assert( uN == yN && fN == yN );
-    cmNlmsEcExec(p->r,uV,fV,yV,yN);
+    cmVOS_Copy(yV,yN,fV);
+  }
+  else
+  {
+    if( fV !=NULL && uV != NULL && yV != NULL )
+    {
+      assert( uN == yN && fN == yN );
+      cmNlmsEcExec(p->r,uV,fV,yV,yN);
+    }
   }
   
   return rc;
@@ -3856,10 +3866,30 @@ cmDspRC_t _cmDspEchoCancelExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
 
 cmDspRC_t _cmDspEchoCancelRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
-//cmDspEchoCancel_t*  p         = (cmDspEchoCancel_t*)inst;
+  cmDspEchoCancel_t*  p = (cmDspEchoCancel_t*)inst;
 
   cmDspSetEvent(ctx,inst,evt);
 
+  if( p->r != NULL )
+  {
+    switch(evt->dstVarId)
+    {
+      case kMuEcId:
+        cmNlmsEcSetMu( p->r, cmDspReal(inst,kMuEcId));
+        break;
+        
+      case kImpRespN_EcId:
+        cmNlmsEcSetIrN( p->r, cmDspUInt(inst,kImpRespN_EcId));
+        break;
+      
+      case kDelayN_EcId:
+        cmNlmsEcSetDelayN( p->r, cmDspUInt(inst,kDelayN_EcId));
+        break;
+    }
+  }
+
+  printf("mu:%f dN:%i hN:%i\n",p->r->mu,p->r->delayN,p->r->hN);
+  
   return kOkDspRC;
 }
 
