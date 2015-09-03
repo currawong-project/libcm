@@ -234,6 +234,9 @@ extern "C" {
     float          mu;          // LMS step rate
     unsigned       hN;          // filter length
     unsigned       delayN;      // fixed delay to apply to align xV with fV.
+    unsigned       dN;          // max length of the fixed delay
+    cmSample_t*    delayV;      // delayV[ dN ] fixed delay buffer[]
+    unsigned       di;          // delay index
     double*        wV;          // wV[hN] filter weights
     double*        hV;          // hV[hN] filter delay line    
     unsigned       w0i;         // The index into hV[] of the start of the delay line.
@@ -243,9 +246,9 @@ extern "C" {
     cmVectArray_t* eVa;
   } cmNlmsEc_t;
 
-  cmNlmsEc_t* cmNlmsEcAlloc( cmCtx* ctx, cmNlmsEc_t* p, float mu, unsigned hN, unsigned delayN );
+  cmNlmsEc_t* cmNlmsEcAlloc( cmCtx* ctx, cmNlmsEc_t* p, double srate, float mu, unsigned hN, unsigned delayN );
   cmRC_t      cmNlmsEcFree( cmNlmsEc_t** pp );
-  cmRC_t      cmNlmsEcInit( cmNlmsEc_t* p, float mu, unsigned hN, unsigned delayN );
+  cmRC_t      cmNlmsEcInit( cmNlmsEc_t* p, double srate, float mu, unsigned hN, unsigned delayN );
   cmRC_t      cmNlmsEcFinal( cmNlmsEc_t* p );
   
   // xV[] unfiltered reference signal  (direct from xform output)
@@ -253,7 +256,10 @@ extern "C" {
   // yV[] echo-canelled signal 
   cmRC_t      cmNlmsEcExec( cmNlmsEc_t* p, const cmSample_t* xV, const cmSample_t* fV, cmSample_t* yV, unsigned xyN );
   cmRC_t      cmNlmsEcWrite( cmNlmsEc_t* p, const cmChar_t* dir );
-  
+
+  void        cmNlmsEcSetMu(     cmNlmsEc_t* p, float mu );
+  void        cmNlmsEcSetDelayN( cmNlmsEc_t* p, unsigned delayN );
+  void        cmNlmsEcSetIrN(    cmNlmsEc_t* p, unsigned irN );
   
   
 #ifdef __cplusplus

@@ -914,18 +914,20 @@ cmRC_t cmReflectCalcWrite( cmReflectCalc_t* p, const char* dirStr )
 //=======================================================================================================================
 // 
 //
-cmNlmsEc_t* cmNlmsEcAlloc( cmCtx* ctx, cmNlmsEc_t* ap, float mu, unsigned hN, unsigned delayN )
+cmNlmsEc_t* cmNlmsEcAlloc( cmCtx* ctx, cmNlmsEc_t* ap, double srate, float mu, unsigned hN, unsigned delayN )
 {
   cmNlmsEc_t* p = cmObjAlloc(cmNlmsEc_t,ctx,ap);
 
+  bool debugFl = false;
+  
   // allocate the vect array's
-  p->uVa = cmVectArrayAlloc(ctx, kFloatVaFl );
-  p->fVa = cmVectArrayAlloc(ctx, kFloatVaFl );
-  p->eVa = cmVectArrayAlloc(ctx, kFloatVaFl );
+  p->uVa = debugFl ? cmVectArrayAlloc(ctx, kFloatVaFl ) : NULL;
+  p->fVa = debugFl ? cmVectArrayAlloc(ctx, kFloatVaFl ) : NULL;
+  p->eVa = debugFl ? cmVectArrayAlloc(ctx, kFloatVaFl ) : NULL;
    
   
-  if( mu != 0 )  
-    if( cmNlmsEcInit(p,mu,hN,delayN) != cmOkRC )
+  if( srate != 0 )  
+    if( cmNlmsEcInit(p,srate,mu,hN,delayN) != cmOkRC )
       cmNlmsEcFree(&p);
 
   return p;
@@ -952,18 +954,24 @@ cmRC_t      cmNlmsEcFree( cmNlmsEc_t** pp )
  
 }
 
-cmRC_t      cmNlmsEcInit( cmNlmsEc_t* p, float mu, unsigned hN, unsigned delayN )
+cmRC_t      cmNlmsEcInit( cmNlmsEc_t* p, double srate, float mu, unsigned hN, unsigned delayN )
 {
   cmRC_t rc = cmOkRC;
 
   if((rc = cmNlmsEcFinal(p)) != cmOkRC )
     return rc;
+
+  assert( srate >= hN );
+  assert( srate >= delayN );
   
   p->mu     = mu;
   p->hN     = hN;
-  p->delayN = delayN;
-  p->wV     = cmMemResizeZ(double,p->wV,hN);
-  p->hV     = cmMemResizeZ(double,p->hV,hN);
+  p->delayN = cmMax(1,delayN);
+  p->dN     = srate;
+  p->delayV = cmMemResizeZ(cmSample_t, p->delayV, srate );
+  p->di     = 0;
+  p->wV     = cmMemResizeZ(double,p->wV,srate);
+  p->hV     = cmMemResizeZ(double,p->hV,srate);
   p->w0i    = 0;
   
   return rc;
@@ -971,16 +979,6 @@ cmRC_t      cmNlmsEcInit( cmNlmsEc_t* p, float mu, unsigned hN, unsigned delayN 
     
 cmRC_t      cmNlmsEcFinal( cmNlmsEc_t* p )
 { return cmOkRC; }
-
-/*
-  for n=M:N
-    uv = u(n:-1:n-M+1);
-    e(n) = d(n)-w'*uv;
-    w=w+mu/(a + uv'*uv ) * uv * conj(e(n));
-  endfor
-
-  e = e(:).^2;
-*/
 
 cmRC_t      cmNlmsEcExec( cmNlmsEc_t* p, const cmSample_t* xV, const cmSample_t* fV, cmSample_t* yV, unsigned xyN )
 {
@@ -994,10 +992,17 @@ cmRC_t      cmNlmsEcExec( cmNlmsEc_t* p, const cmSample_t* xV, const cmSample_t*
     double     a = 0.001;
     unsigned   j;
 
-    // insert the next sample into the filter delay line
-    p->hV[p->w0i] = xV[i]; 
+    // Insert the next sample into the filter delay line.
+    // Note that rather than shifting the delay line on each iteration we
+    // increment the input location and then align it with the zeroth
+    // weight below.
+    p->hV[p->w0i] = p->delayV[ p->di ];
+    
+    p->delayV[ p->di ] = xV[i];
 
-    // calculate the output of the delay w0i:hN
+    p->di = (p->di + 1) % p->delayN;
+
+    // calculate the output of the delay w0i:hN 
     for(j=p->w0i,k=0; j<p->hN; ++j,++k)
       y += p->hV[j] * p->wV[k];
 
@@ -1005,7 +1010,7 @@ cmRC_t      cmNlmsEcExec( cmNlmsEc_t* p, const cmSample_t* xV, const cmSample_t*
     for(j=0; j<p->w0i; ++j,++k)
       y += p->hV[j] * p->wV[k];
 
-    // calculate the error
+    // calculate the error which is also the filter output
     double e = fV[i] - y;
     yV[i] = e;
 
@@ -1027,9 +1032,14 @@ cmRC_t      cmNlmsEcExec( cmNlmsEc_t* p, const cmSample_t* xV, const cmSample_t*
 
   }
 
-  cmVectArrayAppendS(p->uVa,xV,xyN);
-  cmVectArrayAppendS(p->fVa,fV,xyN);
-  cmVectArrayAppendS(p->eVa,yV,xyN);
+  if( p->uVa != NULL )
+    cmVectArrayAppendS(p->uVa,xV,xyN);
+  
+  if( p->fVa != NULL )
+    cmVectArrayAppendS(p->fVa,fV,xyN);
+
+  if( p->eVa != NULL )
+    cmVectArrayAppendS(p->eVa,yV,xyN);
    
 
   return cmOkRC;
@@ -1047,7 +1057,44 @@ cmRC_t      cmNlmsEcWrite( cmNlmsEc_t* p, const cmChar_t* dirStr )
 
   if( p->eVa != NULL )
     cmVectArrayWriteDirFn(p->eVa, dirStr, "nlms_out.va");
-
   
   return cmOkRC;
 }
+
+
+void cmNlmsEcSetMu(     cmNlmsEc_t* p, float mu )
+{
+  if( mu < 0 )
+    p->mu = 0.0001;
+  else
+    if( mu >= 1 )
+      p->mu = 0.99;
+    else
+      p->mu = mu;
+}
+
+void cmNlmsEcSetDelayN( cmNlmsEc_t* p, unsigned delayN )
+{
+  if( delayN > p->dN)
+    delayN = p->dN;
+  else
+    if( delayN < 1 )
+      delayN = 1;
+  
+  cmVOS_Zero(p->delayV,p->delayN);
+  p->delayN = delayN;
+}
+
+void cmNlmsEcSetIrN(    cmNlmsEc_t* p, unsigned hN )
+{
+  if( hN > p->dN )
+    hN = p->dN;
+  else
+    if( hN < 1 )
+      hN = 1;
+
+  cmVOD_Zero(p->wV,p->hN);
+  cmVOD_Zero(p->hV,p->hN);
+  p->hN = hN;
+}
+
