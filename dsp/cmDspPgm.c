@@ -2948,6 +2948,7 @@ cmDspRC_t _cmDspSysPgm_BinEnc( cmDspSysH_t h, void** userPtrPtr )
 _cmDspSysPgm_t _cmDspSysPgmArray[] = 
 {
   { "reflect",       _cmDspSysPgm_ReflectCalc,  NULL, NULL },
+  { "tksblite",     _cmDspSysPgm_TksbLite,     NULL, NULL }, 
   { "tksb",          _cmDspSysPgm_Tksb,         NULL, NULL },
   { "time_line",     _cmDspSysPgm_TimeLine,     NULL, NULL },
   { "seq-bldr",      _cmDspSysPgm_TakeSeqBldr,  NULL, NULL },
