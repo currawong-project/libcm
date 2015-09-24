@@ -3752,6 +3752,7 @@ enum
   kMuEcId,
   kImpRespN_EcId,
   kDelayN_EcId,
+  kBypassEcId,
   kUnfiltInEcId,
   kFiltInEcId,
   kOutEcId
@@ -3781,6 +3782,7 @@ cmDspInst_t*  _cmDspEchoCancelAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
     1,   "mu",     kMuEcId,        0,0, kInDsvFl   | kDoubleDsvFl,   "NLSM mu coefficient.",
     1,   "irN",    kImpRespN_EcId, 0,0, kInDsvFl   | kUIntDsvFl,     "Filter impulse response length in samples.",
     1,   "delayN", kDelayN_EcId,   0,0, kInDsvFl   | kUIntDsvFl,     "Fixed feedback delay in samples.",
+    1,   "bypass", kBypassEcId,    0,0, kInDsvFl   | kBoolDsvFl,     "Bypass enable flag.",
     1,   "uf_in",  kUnfiltInEcId,  0,1, kInDsvFl   | kAudioBufDsvFl, "Unfiltered audio input",
     1,   "f_in",   kFiltInEcId,    0,1, kInDsvFl   | kAudioBufDsvFl, "Filtered audio input",
     1,   "out",    kOutEcId,       0,1, kOutDsvFl  | kAudioBufDsvFl, "Audio output",
@@ -3791,7 +3793,8 @@ cmDspInst_t*  _cmDspEchoCancelAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
   
   cmDspSetDefaultDouble( ctx, &p->inst, kMuEcId,        0, 0.1);
   cmDspSetDefaultUInt(   ctx, &p->inst, kImpRespN_EcId, 0, 2048);
-  cmDspSetDefaultUInt(   ctx, &p->inst, kDelayN_EcId,   0, 1906);
+  cmDspSetDefaultUInt(   ctx, &p->inst, kDelayN_EcId,   0, 1765);
+  cmDspSetDefaultBool(   ctx, &p->inst, kBypassEcId,    0, false);
 
   return &p->inst;
 }
@@ -3835,7 +3838,7 @@ cmDspRC_t _cmDspEchoCancelExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
 {
   cmDspRC_t          rc       = kOkDspRC;
   cmDspEchoCancel_t* p        = (cmDspEchoCancel_t*)inst;
-  bool               bypassFl = false;
+  bool               bypassFl = true; //cmDspBool(inst,kBypassEcId);
   
   const cmSample_t*   fV = cmDspAudioBuf(ctx,inst,kFiltInEcId,0);
   unsigned            fN = cmDspAudioBufSmpCount(ctx,inst,kFiltInEcId,0);
@@ -3850,7 +3853,7 @@ cmDspRC_t _cmDspEchoCancelExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
   
   if( bypassFl )
   {
-    cmVOS_Copy(yV,yN,fV);
+    cmVOS_Copy(yV,yN,uV);
   }
   else
   {
@@ -3884,6 +3887,10 @@ cmDspRC_t _cmDspEchoCancelRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
       
       case kDelayN_EcId:
         cmNlmsEcSetDelayN( p->r, cmDspUInt(inst,kDelayN_EcId));
+        break;
+
+      case kBypassEcId:
+        printf("EC bypass:%i\n",cmDspBool(inst,kBypassEcId));
         break;
     }
   }
