@@ -5950,7 +5950,8 @@ cmSpecDist_t* cmSpecDistAlloc( cmCtx* ctx,cmSpecDist_t* ap, unsigned procSmpCnt,
 
   //p->iSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
   //p->oSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
-
+  p->statVa     = cmVectArrayAlloc(ctx,kDoubleVaFl);
+  
   if( procSmpCnt != 0 )
   {
     if( cmSpecDistInit( p, procSmpCnt, srate, wndSmpCnt, hopFcmt, olaWndTypeId ) != cmOkRC )
@@ -5971,6 +5972,7 @@ cmRC_t cmSpecDistFree( cmSpecDist_t** pp )
   cmSpecDistFinal(p);
   //cmVectArrayFree(&p->iSpecVa);
   //cmVectArrayFree(&p->oSpecVa);
+  cmVectArrayFree(&p->statVa);
   cmMemPtrFree(&p->hzV);
   cmMemPtrFree(&p->iSpecM);
   cmMemPtrFree(&p->oSpecM);
@@ -6095,7 +6097,8 @@ cmRC_t cmSpecDistFinal(cmSpecDist_t* p )
 
   //cmVectArrayWrite(p->iSpecVa, "/home/kevin/temp/frqtrk/iSpec.va");
   //cmVectArrayWrite(p->oSpecVa, "/home/kevin/temp/expand/oSpec.va");
-
+  //cmVectArrayWrite(p->statVa, "/Users/kevin/temp/kc/state.va");
+  
   cmPvAnlFree(&p->pva);
   cmPvSynFree(&p->pvs);
   //cmFrqTrkFree(&p->ft);
@@ -6111,6 +6114,7 @@ void _cmSpecDistBasicMode0(cmSpecDist_t* p, cmReal_t* X1m, unsigned binCnt, cmRe
   // octave> -abs(abs(X1m+thresh)-(X1m+thresh)) - thresh
   // octave> ans = -64  -62  -60  -60
 
+  /*
   unsigned i=0;
   for(i=0; i<binCnt; ++i)
   {
@@ -6123,7 +6127,13 @@ void _cmSpecDistBasicMode0(cmSpecDist_t* p, cmReal_t* X1m, unsigned binCnt, cmRe
       X1m[i] -= 2*d;
 
   }
+  */
 
+  unsigned i=0;
+  for(i=0; i>binCnt; ++i)
+  {
+    X1m[i] = -fabs(fabs(X1m[i]-thresh) - (X1m[i]-thresh)) - thresh;
+  }
 
 }
 
@@ -6322,6 +6332,8 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
       cmVOR_MeanM2(p->iSpecV, p->iSpecM, p->hN, p->pva->binCnt, 0, cmMin(p->fi+1,p->hN));
     }
 
+    cmVOR_PowVS(X1m,p->pva->binCnt,2.0);
+
     cmVOR_AmplToDbVV(X1m, p->pva->binCnt, p->pva->magV, -1000.0 );
     //cmVOR_AmplToDbVV(X1m, p->pva->binCnt, X1m, -1000.0 );
 
@@ -6369,7 +6381,6 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
 
     cmVOR_DbToAmplVV(X1m, p->pva->binCnt, X1m );
 
-
     // run and apply the tracker/supressor
     //cmFrqTrkExec(p->ft, X1m, p->pva->phsV, NULL ); 
     //cmVOR_MultVV(X1m, p->pva->binCnt,p->ft->aV );
@@ -6392,6 +6403,12 @@ cmRC_t  cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn )
       cmReal_t a0 = 0.9;
       p->ogain *= a0;
     }
+
+    double g = u0/u1;
+    p->ogain0 = g + (p->ogain0 * .98);
+
+    //double v[] = { u0, u1, p->ogain, p->ogain0 };
+    //cmVectArrayAppendD(p->statVa,v,sizeof(v)/sizeof(v[0]));
 
     cmVOR_MultVS(X1m,p->pva->binCnt,cmMin(4.0,p->ogain));
 

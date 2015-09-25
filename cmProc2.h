@@ -1224,6 +1224,7 @@ extern "C" {
     cmReal_t  aeUnit;
 
     cmReal_t ogain;
+    cmReal_t ogain0;
 
     unsigned phaseModIndex;
 
@@ -1236,6 +1237,7 @@ extern "C" {
     cmReal_t*      oSpecM;      // oSpecMtx[hN binN]
     cmReal_t*      oSpecV;      // mean of rows of oSpecM
     cmVectArray_t* oSpecVa;
+    cmVectArray_t* statVa;
 
   } cmSpecDist_t;
 
