@@ -1897,7 +1897,7 @@ unsigned      VECT_OP_FUNC(SynthImpulse)(   VECT_OP_TYPE* dbp, unsigned dn, unsi
   unsigned j=dn;
   while(1)
   {
-    double samplesPerCycle = srate / hz;
+    //double samplesPerCycle = srate / hz;
     
     j = round( (srate * i + phase) / hz);
     
