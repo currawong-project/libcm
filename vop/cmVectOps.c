@@ -26,6 +26,7 @@
 #define cmVectOpsRICode_h
 #include "cmVectOpsTemplateMain.h"
 
+unsigned _cmVOU_Abs( unsigned x ) { return x; }
 
 void cmVOU_VPrint( cmRpt_t* rpt, const char* fmt, ... )
 {
