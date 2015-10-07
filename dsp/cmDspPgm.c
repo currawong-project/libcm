@@ -260,12 +260,12 @@ cmDspRC_t _cmDspSysPgm_Stereo_Through( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* php =  cmDspSysAllocInst(h,"Phasor",   NULL,  0 );
   cmDspInst_t* wtp =  cmDspSysAllocInst(h,"WaveTable",NULL,  2, cmDspSysSampleRate(h), 2 );
 
-  cmDspInst_t* ai0p = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 2 );
-  cmDspInst_t* ai1p = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 3 );
+  cmDspInst_t* ai0p = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 0 );
+  cmDspInst_t* ai1p = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 1 );
    
   // MOTU Traveler: Use channels 2&3 (out plugs:3&4) because 0&1 do not show up on plugs 1&2.
-  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 0 );
-  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 1 );
+  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 2 );
+  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 3 );
 
   cmDspInst_t* im0p = cmDspSysAllocInst(h,"AMeter","In 0",  0);
   cmDspInst_t* im1p = cmDspSysAllocInst(h,"AMeter","In 1", 0);
@@ -369,7 +369,7 @@ cmDspRC_t _cmDspSysPgm_Stereo_Fx( cmDspSysH_t h, void** userPtrPtr )
 
 cmDspRC_t _cmDspSysPgm_PlaySine( cmDspSysH_t h, void** userPtrPtr )
 {
-  bool useBuiltInFl = true;
+  bool useBuiltInFl = false;
   double frqHz = 440.0;
 
   cmDspInst_t* chp = cmDspSysAllocInst( h,"Scalar", "Channel",  5, kNumberDuiId, 0.0,  100.0, 1.0,  0.0);
