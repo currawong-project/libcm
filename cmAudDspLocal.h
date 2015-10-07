@@ -5,6 +5,18 @@
 extern "C" {
 #endif
 
+  /*
+    This class instantiates an audio-DSP engine (cmAudDsp),
+    an interface for communicating with it (cmAudDspIF),
+    and message delivery functions for copying messages
+    in both directions between cmAuDsp and cmAudDspIF.
+
+    Note that the actual inteface which allows an application to
+    control, and receive message from, cmAudDsp is provided by
+    cmAudDspIF - which this class provides a handle to.
+    
+   */
+  
   enum
   {
     kOkAdlRC = cmOkRC,
