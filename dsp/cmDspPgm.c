@@ -369,7 +369,7 @@ cmDspRC_t _cmDspSysPgm_Stereo_Fx( cmDspSysH_t h, void** userPtrPtr )
 
 cmDspRC_t _cmDspSysPgm_PlaySine( cmDspSysH_t h, void** userPtrPtr )
 {
-  bool useBuiltInFl = false;
+  bool useBuiltInFl = true;
   double frqHz = 440.0;
 
   cmDspInst_t* chp = cmDspSysAllocInst( h,"Scalar", "Channel",  5, kNumberDuiId, 0.0,  100.0, 1.0,  0.0);
@@ -2690,9 +2690,11 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
   double   xfadeMs     = 250.0;
   bool     xfadeInitFl = false;
 
-  const char*  fn    = "/home/kevin/media/audio/20110723-Kriesberg/Audio Files/Piano 3_01.wav";
+  const char*  fn    = "/Users/kevin/media/audio/20110723-Kriesberg/Audio Files/Piano 3_01.wav";
   
   cmDspInst_t* chk0   = cmDspSysAllocInst(h,"Button", "0",  2, kButtonDuiId, 0.0 );
+  cmDspInst_t* hz     = cmDspSysAllocScalar( h, "hz",0.0, 10000.0, 0.01, 1.0 );
+    
   //cmDspInst_t* chk1   = cmDspSysAllocInst(h,"Button", "1",  2, kCheckDuiId, 0.0 );
 
   cmDspInst_t* achp  = cmDspSysAllocInst( h, "AvailCh", NULL, 1, xfadeChCnt );
@@ -2703,7 +2705,7 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* fwtp  =  cmDspSysAllocInst( h, "WaveTable", NULL,   5, ((int)cmDspSysSampleRate(h)), 1, fn, -1, 7000000 );
   cmDspInst_t* fad0  =  cmDspSysAllocInst( h, "Xfader",    NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl ); 
 
-  //cmDspInst_t*  prp  = cmDspSysAllocInst(  h, "Printer",  NULL, 1, ">" );
+  cmDspInst_t*  prp  = cmDspSysAllocInst(  h, "Printer",  NULL, 1, ">" );
 
   cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, 0 );
   cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, 1 );
@@ -2722,12 +2724,17 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
   //cmDspSysInstallCb(h, chk0, "out", fad0, "gate-0", NULL);
   //cmDspSysInstallCb(h, chk1, "out", fad0, "gate-1", NULL);
 
-  cmDspSysInstallCb(h, chk0, "sym",     achp, "trig",   NULL);
-  cmDspSysInstallCb(h, achp, "gate-0",  fad0, "gate-0", NULL );
-  cmDspSysInstallCb(h, fad0, "state-0", achp, "dis-0",   NULL );
+  cmDspSysInstallCb(h, chk0, "sym",     achp, "trig",   NULL); // btn->availCh.trig
+  cmDspSysInstallCb(h, achp, "ch",      prp,  "in",     NULL); // availCh.ch -> printer
+
+  
+  cmDspSysInstallCb(h, achp, "gate-0",  fad0, "gate-0", NULL );   // availCh.gate->xfad.gate   
+  cmDspSysInstallCb(h, fad0, "state-0", achp, "dis-0",  NULL );  // xfad->state ->availCh.dis
 
   cmDspSysInstallCb(h, achp, "gate-1",  fad0, "gate-1", NULL );
-  cmDspSysInstallCb(h, fad0, "state-1", achp, "dis-1",   NULL );
+  cmDspSysInstallCb(h, fad0, "state-1", achp, "dis-1",  NULL );
+  
+  cmDspSysInstallCb(h, hz,   "val",     sphp, "mult",   NULL );
 
 
   return kOkDspRC;
