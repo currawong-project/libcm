@@ -5797,6 +5797,11 @@ struct cmDspClass_str* cmRouterClassCons( cmDspCtx_t* ctx )
 //                 'false' is transmitted to notify the channel that it should shutdown.
 //                 The channel is not considered actually shutdown until dis[i]
 //                 recieves a 'false'.
+//   ch            The next prospective next available channel is sent whenever it
+//                 becomes available.  A next channel becomes available when
+//                 a channel is marked as inactive via dis[i] or when
+//                 a new channel is made active, via trigger, and another
+//                 channel active channel exists.
 // Notes:
 //   The gate[] output is designed to work with the gate[] input of Xfader.  When
 //   availCh.gate[] goes high Xfader fades in, when availCh.gate[] goes low
@@ -5825,6 +5830,8 @@ typedef struct
   unsigned      baseDisInAvId;
   unsigned      baseGateOutAvId;
   bool*         stateArray;
+  unsigned      nextAvailChIdx;
+  unsigned      audioCycleCnt;
 } cmDspAvailCh_t;
 
 cmDspInst_t*  _cmDspAvailCh_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
@@ -5864,11 +5871,13 @@ cmDspInst_t*  _cmDspAvailCh_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
 
   p->baseDisInAvId   =  baseDisInAvId;
   p->baseGateOutAvId =  baseGateOutAvId;
+  p->nextAvailChIdx  = cmInvalidIdx;
+  p->audioCycleCnt   = 0;
 
   unsigned i;
   for(i=0; i<chCnt; ++i)
   {
-    cmDspSetDefaultBool( ctx, &p->inst, baseDisInAvId+i,  false, false );
+    cmDspSetDefaultBool( ctx, &p->inst, baseDisInAvId+i,   false, false );
     cmDspSetDefaultBool( ctx, &p->inst, baseGateOutAvId+i, false, false );
   }
   cmDspSetDefaultUInt( ctx, &p->inst, kModeAvId,  0, kExclusiveModeAvId );
@@ -5884,11 +5893,104 @@ cmDspRC_t _cmDspAvailCh_Free(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return kOkDspRC;
 }
 
-cmDspRC_t _cmDspAvailCh_Reset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+cmDspRC_t _cmDspAvailCh_DoReset( cmDspCtx_t* ctx, cmDspInst_t* inst )
 {
-  return cmDspApplyAllDefaults(ctx,inst);
+  unsigned i;      
+  cmDspAvailCh_t* p = (cmDspAvailCh_t*)inst;
+    
+  // ch 0 is the channel receiving parameters
+  cmDspSetUInt(ctx,inst,kChIdxAvId,0); 
+    
+  for(i=0; i<p->chCnt; ++i)
+  {
+    cmDspSetBool(ctx, inst, p->baseDisInAvId   + i, i==0); // disable all channels except ch zero
+    cmDspSetBool(ctx, inst, p->baseGateOutAvId + i, i==0); // enable channel 0
+  }
+    
+  p->audioCycleCnt  = 0;
+  p->nextAvailChIdx = cmInvalidIdx;
+    
+  // transmit reset
+  cmDspSetBool(ctx,inst, kResetAvId, false );
+
+  return kOkDspRC;  
 }
 
+
+cmDspRC_t _cmDspAvailCh_Reset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t rc;
+  if((rc = cmDspApplyAllDefaults(ctx,inst)) == kOkDspRC )
+  {
+    rc = _cmDspAvailCh_DoReset(ctx,inst);
+  }
+  return rc;
+}
+
+void _cmDspAvailCh_SetNextAvailCh( cmDspCtx_t* ctx, cmDspInst_t* inst, bool warnFl )
+{
+  cmDspAvailCh_t* p = (cmDspAvailCh_t*)inst;
+  unsigned i;
+   
+  if( p->nextAvailChIdx != cmInvalidIdx )
+    return;
+
+  for(i=0; i<p->chCnt; ++i)
+  {
+    // the channel's active state is held in the 'dis' variable.
+    bool activeFl = cmDspBool(inst,p->baseDisInAvId+i);
+    
+    // if ch[i] is the first avail inactive channel
+    if( !activeFl )
+    {
+      p->nextAvailChIdx  = i;     // set the next available channel
+      break;
+    }
+      
+  }
+
+  // if no available channels were found
+  if( p->nextAvailChIdx == cmInvalidIdx && warnFl )
+    cmDspInstErr(ctx,inst,kInvalidStateDspRC,"No available channels exist.");
+  else
+  {
+    // Notify the external world which channel is to be used next.
+    // This allows routers which are switching parameters between
+    // xfade channels to switch new parameter values to go to the
+    // next available channel rather than the current channel.
+    // The next available channel will then be faded up with the
+    // new parameters on the next trigger command.
+    cmDspSetUInt(ctx,inst,kChIdxAvId,p->nextAvailChIdx); 
+  }  
+}
+
+cmDspRC_t _cmDspAvailCh_Exec( cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t       rc = kOkDspRC;
+  cmDspAvailCh_t* p  = (cmDspAvailCh_t*)inst;
+
+  p->audioCycleCnt += 1;
+
+  // Setting the next available channel here solves the problem of doing the
+  // first 'ch' output after the program starts executing.
+  // The problem is that 'ch' should be set to 0 for at least the first
+  // execution cycle so that parameters may be set to the initial active channel
+  // during the first cycle.  After the first cycle however parameters should be
+  // sent to the next channel which will be faded up.  Setting
+  // 'ch' here accomplishes this without relying on an external signal.
+  // Note that we wait until the second cycle because we don't know where
+  // this 'availCh' will be in the execution cycle relative to other processors.
+  // If it is at the beginning then other processors that might be setting
+  // initial parameters will not have had a chance to run before the
+  // 'ch' change.  Waiting unitl the second cycle guarantees that all the
+  // other processors had at least one chance to run.
+  if( p->audioCycleCnt == 2 )
+  {
+    _cmDspAvailCh_SetNextAvailCh(ctx,inst,true);
+  }
+  
+  return rc;
+}
 
 cmDspRC_t _cmDspAvailCh_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 { 
@@ -5897,79 +5999,53 @@ cmDspRC_t _cmDspAvailCh_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
   bool exclModeFl  = cmDspUInt(inst, kModeAvId ) == kExclusiveModeAvId;
 
+  // if this is a reset
   if( evt->dstVarId == kResetAvId )
   {
-    unsigned i;      
-
-    cmDspSetUInt(ctx,inst,kChIdxAvId,0);
-
-    for(i=0; i<p->chCnt; ++i)
-    {
-      bool fl = i==0;
-      cmDspSetBool(ctx, inst, p->baseDisInAvId   + i, !fl);
-      cmDspSetBool(ctx, inst, p->baseGateOutAvId + i, fl);
-    }
-
-    cmDspSetBool(ctx,inst, kResetAvId, false );
-
-    return rc;
+    return _cmDspAvailCh_DoReset(ctx,inst);
   }
 
   // if this is a trigger
   if( evt->dstVarId == kTrigAvId )
   {
-    unsigned i,j=-1;
-    bool     fl = true;
-    for(i=0; i<p->chCnt; ++i)
-    {
-      // the channel's active state is held in the 'dis' variable.
-      bool activeFl = cmDspBool(inst,p->baseDisInAvId+i);
-
-      // if ch[i] is the first avail inactive channel
-      if( fl && !activeFl )
-      {
-        // activate the available channel
-        //cmDspSetUInt(ctx,inst,kChIdxAvId,j);
-        //cmDspSetBool(ctx, inst, p->baseDisInAvId   + j, true);
-        //cmDspSetBool(ctx, inst, p->baseGateOutAvId + j, true);
-
-        j  = i;
-        fl = false;
-      }
-
-      // if ch[i] is active - then request that it shutdown 
-      //if( activeFl && exclModeFl)
-      //  cmDspSetBool(ctx, inst, p->baseGateOutAvId + i, false);
-
-    }
-
-    if( j==-1 )
-      cmDspInstErr(ctx,inst,kInvalidStateDspRC,"No available channels exist.");
+    // if no available channels were previously found
+    if( p->nextAvailChIdx == cmInvalidIdx )
+      cmDspInstErr(ctx,inst,kInvalidStateDspRC,"There are no available channels to trigger.");
     else
     {
-      // activate the available channel
-      cmDspSetUInt(ctx,inst,kChIdxAvId,j);
-      cmDspSetBool(ctx, inst, p->baseDisInAvId   + j, true);
-      cmDspSetBool(ctx, inst, p->baseGateOutAvId + j, true);
+      // indicate that the next channel is no longer available
+      cmDspSetBool(ctx, inst, p->baseDisInAvId   + p->nextAvailChIdx, true);
+
+      // raise the gate to start the xfade.
+      cmDspSetBool(ctx, inst, p->baseGateOutAvId + p->nextAvailChIdx, true); 
 
       if( exclModeFl )
       {
+        unsigned i;
         for(i=0; i<p->chCnt; ++i)
-          if( i!=j && cmDspBool(inst,p->baseDisInAvId+i) )
+          if( i!=p->nextAvailChIdx && cmDspBool(inst,p->baseDisInAvId+i) )
             cmDspSetBool(ctx,inst, p->baseGateOutAvId+i, false );
       }
+
+      p->nextAvailChIdx = cmInvalidIdx;
+      
+      // It may be possible to know the next avail ch so try to set it here.
+      _cmDspAvailCh_SetNextAvailCh(ctx, inst, false );
+
     }
 
     
     return rc;
   }
 
-  
-
   // if this is an incoming disable message.
   if( p->baseDisInAvId <= evt->dstVarId && evt->dstVarId < p->baseDisInAvId+p->chCnt && cmDsvGetBool(evt->valuePtr) == false)
-  {
+  {    
     cmDspSetEvent(ctx,inst,evt);
+
+    // a channel was disabled so a new channel is available for selection
+    _cmDspAvailCh_SetNextAvailCh(ctx, inst, true );
+    
     if( !exclModeFl )
       cmDspSetBool(ctx, inst, p->baseGateOutAvId + (evt->dstVarId - p->baseDisInAvId), false);
   }
@@ -5984,7 +6060,7 @@ struct cmDspClass_str* cmAvailChClassCons( cmDspCtx_t* ctx )
     _cmDspAvailCh_Alloc,
     _cmDspAvailCh_Free,
     _cmDspAvailCh_Reset,
-    NULL,
+    _cmDspAvailCh_Exec,
     _cmDspAvailCh_Recv,
     NULL,NULL,
     "Enable the next availabled channel");
