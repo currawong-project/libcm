@@ -3259,7 +3259,7 @@ cmDspInst_t*  _cmDspWaveTableAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsi
   cmDspVarArg_t args[] =
   {
     { "len",    kLenWtId,    0, 0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "Wave table length in samples" },
-    { "shape",  kShapeWtId,  0, 0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "Wave shape 0=silent 1=file 2=sine 3=white"   },
+    { "shape",  kShapeWtId,  0, 0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "Wave shape 0=silent 1=file 2=white 3=pink 4=sine, 5=cos 6=sqr 7=tri 8=saw 9=pulse 10=impulse 11=phasor"   },
     { "fn",     kFnWtId,     0, 0, kInDsvFl  | kStrzDsvFl | kOptArgDsvFl, "Optional audio file name"     },
     { "loop",   kLoopWtId,   0, 0, kInDsvFl  | kIntDsvFl  | kOptArgDsvFl, "-1=loop forever  >0=loop count (dflt:-1)"},
     { "beg",    kBegWtId,    0, 0, kInDsvFl  | kIntDsvFl  | kOptArgDsvFl, "File begin sample index" },
