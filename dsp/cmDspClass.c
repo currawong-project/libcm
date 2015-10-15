@@ -372,18 +372,19 @@ cmDspRC_t   cmDspInstRemoveAttrSym(   cmDspCtx_t* ctx, cmDspInst_t* inst, unsign
 }
 
 
-cmDspRC_t _cmDspClassErrV( cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned instId, cmDspRC_t rc, const cmChar_t* fmt, va_list vl )
+cmDspRC_t _cmDspClassErrV( cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned instId, const cmChar_t* instLbl, cmDspRC_t rc, const cmChar_t* fmt, va_list vl )
 {
   va_list vl2;
   va_copy(vl2,vl);
   unsigned n = vsnprintf(NULL,0,fmt,vl2)+1;
+
 
   cmChar_t buf[n+1];
   vsnprintf(buf,n,fmt,vl);
   if( instId == cmInvalidId )
     cmErrMsg( &classPtr->err, rc, "%s DSP Class:%s",buf, classPtr->labelStr);
   else
-    cmErrMsg( &classPtr->err, rc, "%s DSP Class:%s Inst:%i",buf, classPtr->labelStr,instId);
+    cmErrMsg( &classPtr->err, rc, "%s DSP Class:%s Inst:%i %s",buf, classPtr->labelStr,instId,instLbl==NULL?"":instLbl);
 
   va_end(vl2);
   return rc;
@@ -393,7 +394,7 @@ cmDspRC_t   cmDspClassErr( cmDspCtx_t* ctx, cmDspClass_t* classPtr, cmDspRC_t rc
 {
   va_list vl;
   va_start(vl,fmt);
-  rc = _cmDspClassErrV(ctx,classPtr,cmInvalidId,rc,fmt,vl);
+  rc = _cmDspClassErrV(ctx,classPtr,cmInvalidId,NULL,rc,fmt,vl);
   va_end(vl);
   return rc;
 }
@@ -402,7 +403,7 @@ cmDspRC_t cmDspInstErr( cmDspCtx_t* ctx, cmDspInst_t* inst, cmDspRC_t rc, const 
 {
   va_list vl;
   va_start(vl,fmt);
-  rc = _cmDspClassErrV(ctx,inst->classPtr,inst->id,rc,fmt,vl);
+  rc = _cmDspClassErrV(ctx,inst->classPtr,inst->id,cmSymTblLabel(ctx->stH,inst->symId),rc,fmt,vl);
   va_end(vl);
   return rc;
 }
