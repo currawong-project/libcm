@@ -421,6 +421,7 @@ extern "C" {
   enum
   {
     kInvalidModTId,
+    kDeclModTId,     // declare a variable but do not associate a value with it (allows a variable to be connected to w/o sending a value) 
     kSetModTId,      // set variable to parray[0] at scLocIdx
     kLineModTId,     // linear ramp variable to parray[0] over parray[1] seconds
     kSetLineModTId,  // set variable to parray[0] and ramp to parray[1] over parray[2] seconds
