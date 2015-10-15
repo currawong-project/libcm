@@ -1221,6 +1221,7 @@ typedef struct
   unsigned       onSymId;
   unsigned       offSymId;
   unsigned       postSymId;
+  unsigned       dumpSymId;
 } cmDspScMod_t;
 
 void _cmDspScModCb( void* arg, unsigned varSymId, double value, bool postFl )
@@ -1307,6 +1308,7 @@ cmDspInst_t*  _cmDspScModAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   p->onSymId  = cmSymTblId(ctx->stH,"on");
   p->offSymId = cmSymTblId(ctx->stH,"off");
   p->postSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"post");
+  p->dumpSymId = cmSymTblId(ctx->stH,"dump");
 
   mp->cbArg = p;  // set the modulator callback arg
 
@@ -1358,6 +1360,9 @@ cmDspRC_t _cmDspScModRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
         unsigned symId = cmDspSymbol(inst,kCmdMdId);
         if( symId == p->onSymId )
           cmScModulatorReset(p->mp, ctx->cmCtx, cmDspUInt(inst,kScLocIdxMdId));
+        
+        if( symId == p->dumpSymId )
+          cmScModulatorDump(p->mp);
       }
       break;
 
