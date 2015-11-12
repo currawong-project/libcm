@@ -238,7 +238,8 @@ unsigned _cmLexIntMatcher(   cmLex* p, const cmChar_t* cp, unsigned cn, const cm
 {
   unsigned i = 0;
   bool signFl = false;
-
+  unsigned digitCnt = 0;
+  
   for(; i<cn; ++i)
   {
     if( i==0 && cp[i]=='-' )
@@ -249,6 +250,8 @@ unsigned _cmLexIntMatcher(   cmLex* p, const cmChar_t* cp, unsigned cn, const cm
 
     if( !isdigit(cp[i]) )
       break;
+
+    ++digitCnt;
   }
 
   // BUG BUG BUG
@@ -262,7 +265,7 @@ unsigned _cmLexIntMatcher(   cmLex* p, const cmChar_t* cp, unsigned cn, const cm
   // containing a decimal point as reals. 
 
   // if no integer was found
-  if( (signFl && i==0) || i==0 )
+  if( digitCnt==0)
     return 0;
 
 
