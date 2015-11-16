@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Manage shared-libraries and query them for known symbols." kw:[system]}
+  
   enum
   {
     kOkLibRC = cmOkRC,
@@ -54,7 +56,7 @@ extern "C" {
   // Return the libraries file name.
   const cmChar_t* cmLibName( cmLibH_t h, unsigned libId );
   
-  
+  //)
 
 #ifdef __cplusplus
 }

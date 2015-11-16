@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( {file_desc: "Obsolete audio buffer class. This class is superceded by cmApBuf."}
+  
   enum
   {
     kOkBaRC = cmOkRC
@@ -53,7 +55,7 @@ extern "C" {
 
   cmBaRC_t cmAudioBufAdvance( unsigned devIdx, unsigned flags );
 
-
+  //)
 
 
 #ifdef __cplusplus

@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"MIDI file reader and writer." kw:[midi file]}  
   // MIDI file timing:
   // Messages in the MIDI file are time tagged with a delta offset in 'ticks'
   // from the previous message in the same track.
@@ -22,9 +23,9 @@ extern "C" {
   //
   // As part of the file reading process, the status byte of note-on messages 
   // with velocity=0 are is changed to a note-off message. See _cmMidiFileReadChannelMsg().
-
-
-
+  //)
+  
+  //(
   typedef cmHandle_t cmMidiFileH_t;
   typedef unsigned   cmMfRC_t;
 
@@ -175,6 +176,8 @@ extern "C" {
   bool                  cmMidiFileIsNull( cmMidiFileH_t h );
   void                  cmMidiFileTest( const char* fn, cmCtx_t* ctx );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

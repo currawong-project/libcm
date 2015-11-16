@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Musical event onset detector." kw:[audio] }
+  
   enum
   {
     kOkOnRC = cmOkRC,
@@ -65,6 +67,8 @@ extern "C" {
 
   cmOnRC_t cmOnsetTest( cmCtx_t* c );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

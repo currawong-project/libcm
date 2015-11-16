@@ -1,3 +1,5 @@
+//( { file_desc:"'snap' Performance analysis related programs." kw:[snap]}
+
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmFloatTypes.h"
@@ -375,6 +377,10 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   c->cmp   = cmp; 
 
 }
+
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_TimeLine file_desc:"Audio/MIDI sequencer for analyzing the score vs. the performance and generating related audio transforms." kw:[spgm] }
 
 cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 {
@@ -1199,6 +1205,9 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 }
 
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Tksb file_desc:"Audio/MIDI sequencer for analyzing the score vs. the performance from user selected MIDI fragments and generating related audio transforms." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Tksb(cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t       rc         = kOkDspRC;
@@ -2038,6 +2047,9 @@ cmDspRC_t _cmDspSysPgm_Tksb(cmDspSysH_t h, void** userPtrPtr )
 }
 
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_TksbLIst file_desc:"A simplified version of cmDspSysPgm_Tksb." kw:[spgm] }
 
 cmDspRC_t _cmDspSysPgm_TksbLite(cmDspSysH_t h, void** userPtrPtr )
 {
@@ -2343,3 +2355,4 @@ cmDspRC_t _cmDspSysPgm_TksbLite(cmDspSysH_t h, void** userPtrPtr )
 
   return rc;
 }
+//)

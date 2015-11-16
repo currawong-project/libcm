@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Wrapper object for cmUdpNet to handle UDP network communications." kw:[network]}
   enum
   {
     kOkVnRC = cmOkRC,
@@ -66,6 +67,8 @@ extern "C" {
 
   cmVnRC_t cmVnTest( cmCtx_t* ctx );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

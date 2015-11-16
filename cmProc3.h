@@ -4,6 +4,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+  //( { file_desc:"Processor Library 3" kw:[proclib]}
+  //)
+  
+  //( { label:cmPitchShift file_desc:"Time-domain pitch shifter based on sample rate conversion." kw:[proc]}    
 
   typedef struct
   {
@@ -45,7 +49,9 @@ extern "C" {
   cmRC_t        cmPitchShiftFinal(cmPitchShift* p );
   cmRC_t        cmPitchShiftExec( cmPitchShift* p, const cmSample_t* x, cmSample_t* y, unsigned n, double shiftRatio, bool bypassFl );
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+  //( { label:cmLoopRecord file_desc:"Audio interactive loop recorder." kw:[proc]}    
 
   typedef struct
   {
@@ -90,7 +96,9 @@ extern "C" {
   cmRC_t        cmLoopRecordExec( cmLoopRecord* p, const cmSample_t* x, cmSample_t* y, unsigned xn, bool bypassFl, bool recdFl, bool playFl, double ratio, double pgain, double rgain );
 
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+  //( { label:cmGateDetector file_desc:"Detect when a signal onsets and offsets." kw:[proc]}    
   typedef struct
   {
     cmObj       obj;
@@ -115,8 +123,9 @@ extern "C" {
   cmRC_t       cmGateDetectFinal(cmGateDetect* p );
   cmRC_t       cmGateDetectExec( cmGateDetect* p, const cmSample_t* x, unsigned xn );
   
-
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+  //( { label:cmGateDetector2 file_desc:"Improved gate detector to detect when a signal onsets and offsets." kw:[proc]}    
   typedef struct
   {
     unsigned medCnt;       // length of the median filter
@@ -164,14 +173,17 @@ extern "C" {
 
 
   cmGateDetect2* cmGateDetectAlloc2( cmCtx* c, cmGateDetect2* p, unsigned procSmpCnt, const cmGateDetectParams* args );
-  cmRC_t       cmGateDetectFree2( cmGateDetect2** p );
-  cmRC_t       cmGateDetectInit2( cmGateDetect2* p, unsigned procSmpCnt, const cmGateDetectParams* args );
-  cmRC_t       cmGateDetectFinal2(cmGateDetect2* p );
-  cmRC_t       cmGateDetectExec2( cmGateDetect2* p, const cmSample_t* x, unsigned xn );
-  void       cmGateDetectSetOnThreshDb2( cmGateDetect2* p, cmReal_t db );
-  void       cmGateDetectSetOffThreshDb2( cmGateDetect2* p, cmReal_t db );
+  cmRC_t         cmGateDetectFree2( cmGateDetect2** p );
+  cmRC_t         cmGateDetectInit2( cmGateDetect2* p, unsigned procSmpCnt, const cmGateDetectParams* args );
+  cmRC_t         cmGateDetectFinal2(cmGateDetect2* p );
+  cmRC_t         cmGateDetectExec2( cmGateDetect2* p, const cmSample_t* x, unsigned xn );
+  void           cmGateDetectSetOnThreshDb2( cmGateDetect2* p, cmReal_t db );
+  void           cmGateDetectSetOffThreshDb2( cmGateDetect2* p, cmReal_t db );
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmAutoGain file_desc:"Automatically balance a set of audio signals by adjusting their level." kw:[proc fluxo]}    
   
   //
   // Calculate a set of automatic gain adjustments for a set of audio channels.
@@ -230,7 +242,10 @@ extern "C" {
 
   void        cmAutoGainPrint( cmAutoGain* p, cmRpt_t* rpt );
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmChCfg file_desc:"Configure a 'fluxo' pickup channel." kw:[proc fluxo]}
   typedef struct
   {
     unsigned        ch;
@@ -261,8 +276,11 @@ extern "C" {
   void     cmChCfgPrint( cmChCfg* p, cmRpt_t* rpt );
   unsigned cmChCfgChannelCount( cmCtx_t* ctx, const cmChar_t* fn, unsigned* nsChCntPtr );
   unsigned cmChCfgChannelIndex( cmCtx_t* ctx, const cmChar_t* fn, unsigned chIdx );
+  
+  //------------------------------------------------------------------------------------------------------------
+  //)
 
-  //=======================================================================================================================
+  //( { label:cmChordDetector file_desc:"Chord detector based on evaluating signals from cmGateDetector2." kw:[proc]}    
 
   typedef struct 
   {
@@ -293,7 +311,10 @@ extern "C" {
   cmRC_t         cmChordDetectExec(  cmChordDetect* p, unsigned procSmpCnt, const bool* gateV, const cmReal_t* rmsV, unsigned chCnt );
   cmRC_t         cmChordDetectSetSpanMs( cmChordDetect* p, cmReal_t maxTimeSpanMs );
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmXfader file_desc:"Audio cross fade controller." kw:[proc]}    
   // This object is not really a cross-fader.  It is really just a multichannel
   // fader - which just calculates the fade gain but does not actually apply it
   // to the audio signal - unless you use cmXfaderExecAudio()
@@ -335,7 +356,10 @@ extern "C" {
   void      cmXfaderAllOff( cmXfader* p );
   void      cmXfaderJumpToDestinationGain( cmXfader* p ); // jump to dest. gain based on gate state
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmFader file_desc:"Fade in/out an audio signal based on the state of a gate control signal." kw:[proc]}      
   // This fader object accepts a gate signal. When the gate is high it increments
   // the gain until it reaches 1.0. When the gate is low it decrements the gain
   // until it reaches 0.0.  The fade time is the lenght of time the gain will take
@@ -355,7 +379,10 @@ extern "C" {
   cmRC_t    cmFaderExec(  cmFader* p, unsigned procSmpCnt, bool gateFl, bool mixFl, const cmSample_t* x, cmSample_t* y );
   void      cmFaderSetFadeTime( cmFader* p, cmReal_t fadeTimeMs );
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmCombFilt file_desc:"Comb and Inverse Comb filter algorithm with a variable fractional delay." kw:[proc]}      
   struct cmIDelay_str;
   typedef struct
   {
@@ -384,7 +411,10 @@ extern "C" {
   void        cmCombFiltSetAlpha( cmCombFilt* p, cmReal_t alpha );
   cmRC_t      cmCombFiltSetHz( cmCombFilt* p, cmReal_t hz );
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmDcFilt file_desc:"DC Filter algorithm." kw:[proc]}      
 
   typedef struct
   {
@@ -402,9 +432,10 @@ extern "C" {
   cmRC_t    cmDcFiltFinal( cmDcFilt* p );
   cmRC_t    cmDcFiltExec(  cmDcFilt* p, const cmSample_t* x, cmSample_t* y, unsigned n );
 
-  //=======================================================================================================================
-  
-  // interpolating delay - used by the comb filter
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmIDelay file_desc:"Variable interpolating fractional audio delay line." kw:[proc]}      
   
   typedef struct cmIDelay_str
   {
@@ -429,7 +460,10 @@ extern "C" {
   cmRC_t    cmIDelaySetTapMs( cmIDelay* p, unsigned tapIdx, cmReal_t tapMs );
   
   
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmGroupSel file_desc:"Assign channel to dynamic groups under gate control." kw:[proc]}      
   
   // This object sequentially assigns channels to groups when their gates go high.
   // 'chsPerGroup' channels will be assigned to each group.  No channel will be
@@ -481,7 +515,10 @@ extern "C" {
   // and groups that will be removed on the next cycle have their 'releaseFl' set.
   cmRC_t      cmGroupSelExec( cmGroupSel* p );
   
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmAudioNofM file_desc:"Route N of M possible input channels to N output channels under gate control." kw:[proc]}      
   
   // Route N of M input channels to N output channels.
   // The N channels are selected from the first N gates to go high.
@@ -526,7 +563,10 @@ extern "C" {
   cmRC_t       cmAudioNofMSetFadeMs( cmAudioNofM* p, cmReal_t fadeTimeMs );
 
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmAdsr file_desc:"ADSR audio evelope generator." kw:[proc]}      
 
   enum { kDlyAdsrId, kAtkAdsrId, kDcyAdsrId, kSusAdsrId, kRlsAdsrId, kDoneAdsrId };
 
@@ -545,9 +585,6 @@ extern "C" {
     int      susSmp;            // only used in trigger mode
     cmReal_t susLevel;
     int      rlsSmp;
-
-
-
 
     unsigned state;             // current state
     int      durSmp;            // time in current state
@@ -575,7 +612,10 @@ extern "C" {
   void      cmAdsrSetLevel( cmAdsr* p, cmReal_t level, unsigned id );
   void      cmAdsrReport( cmAdsr* p, cmRpt_t* rpt );
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmCompressor file_desc:"Audio dynamics compressor algorithm." kw:[proc]}      
   enum { kAtkCompId, kRlsCompId };
 
   typedef struct
@@ -616,7 +656,11 @@ extern "C" {
   void    cmCompressorSetThreshDb(  cmCompressor* p, cmReal_t thresh );
   void    cmCompressorSetRmsWndMs( cmCompressor* p, cmReal_t ms );
 
-  //=======================================================================================================================
+  
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmBiQuad file_desc:"General purpose Biquad filter algorithm." kw:[proc]}      
 
   // BiQuad Audio Eq's based on Robert Bristow-Johnson's recipes.
   // http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
@@ -660,7 +704,10 @@ extern "C" {
   void        cmBiQuadEqSet( cmBiQuadEq* p, unsigned mode, cmReal_t f0Hz, cmReal_t Q, cmReal_t gainDb );
 
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmDistDs file_desc:"Guitar style distortion effect." kw:[proc]}      
   typedef struct
   {
     cmObj      obj;
@@ -686,7 +733,10 @@ extern "C" {
   cmRC_t    cmDistDsInit( cmDistDs* p, cmReal_t srate, cmReal_t inGain, cmReal_t downSrate, cmReal_t bits, bool rectFl, bool fullFl, cmReal_t clipDb, cmReal_t outGain, bool bypassFl );
   cmRC_t    cmDistDsFinal( cmDistDs* p );
   cmRC_t    cmDistDsExec(  cmDistDs* p, const cmSample_t* x, cmSample_t* y, unsigned n );
+  //------------------------------------------------------------------------------------------------------------
+  //)
 
+  
   //=======================================================================================================================
   /*
   typedef struct

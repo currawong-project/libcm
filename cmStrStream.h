@@ -6,6 +6,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"String stream text sink." kw:[text] }
+  
   enum
   {
     kOkSsRC = cmOkRC,
@@ -34,6 +36,8 @@ extern "C" {
   void*     cmOStrStreamAllocBuf(  cmStrStreamH_t h );
   cmChar_t* cmOStrStreamAllocText( cmStrStreamH_t h );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

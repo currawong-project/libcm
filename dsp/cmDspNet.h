@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"'snap' distributed host UDP networking implementation." kw:[snap]}
+  
 #define cmDspSys_PARENT_SYM_TBL_BASE_ID 10000
 #define cmDspSys_AsSubIdx_Zero (0)
 
@@ -115,6 +117,8 @@ extern "C" {
 
   cmDspRC_t _cmDspSysNetSendEvent( cmDspSysH_t h, unsigned dstNetNodeId,  unsigned dstId, const cmDspEvt_t* evt );
 
+  //)
+  
 #ifdef __cplusplus
    }
 #endif

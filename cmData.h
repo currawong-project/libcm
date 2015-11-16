@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Generic, introspective, data structure." }
+  
   /*
     TODO:
     0) Figure out an error handling scheme that does not rely on
@@ -688,7 +690,7 @@ extern "C" {
   void     cmDataPrint( const cmData_t* p, cmRpt_t* rpt );
   
   void     cmDataTest( cmCtx_t* ctx );
-
+  //)
 
 #ifdef __cplusplus
 }

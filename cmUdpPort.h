@@ -4,7 +4,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+  //( { file_desc:"UDP socket interface class." kw:[network] }
+  
   #include <netinet/in.h>
 
   enum
@@ -140,6 +141,8 @@ extern "C" {
   cmUdpRC_t cmUdpTest( cmCtx_t* ctx, const char* remoteIpAddr, cmUdpPort_t port );
   cmUdpRC_t cmUdpTestV( cmCtx_t* ctx, unsigned argc, const char* argv[]);
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

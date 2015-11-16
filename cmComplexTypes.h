@@ -1,8 +1,14 @@
 #ifndef cmComplexTypes_h
 #define cmComplexTypes_h
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <complex.h>
 #include <fftw3.h>
+
+//( { file_desc: "Constants and functions used for working with complex values." kw:[base math] }
 
 #if CM_FLOAT_SMP == 1
 
@@ -95,5 +101,10 @@ void cmVOCR_Abs(     cmSample_t*   y, const cmComplexR_t* x, unsigned n );
 void cmVOCR_MultVS(  cmComplexR_t* y, cmReal_t v, unsigned n );
 void cmVOCR_DivVS(   cmComplexR_t* y, cmReal_t v, unsigned n );
 
+//)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

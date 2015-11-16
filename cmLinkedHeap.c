@@ -141,7 +141,7 @@ bool     _cmLHeapFree(    cmLHeap_t* lhp, void* dataPtr )
     lbp->nextPtr = (char*)allocPtr; // ... then make it the space to alloc
   else           
     lbp->freeCnt += *allocPtr; // ... otherwise increase the free count
-  //(freeCnt tracks unused space that is not at the end of the block and therefore cannot be reused.)
+  // freeCnt tracks unused space that is not at the end of the block and therefore cannot be reused.
 
   // if all the space for this block has been freed then the
   // next space to allocate must be at the base

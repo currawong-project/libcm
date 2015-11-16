@@ -5,8 +5,18 @@
 extern "C" {
 #endif
 
-  //{
+  //( { file_desc:"Implements a block based memory heap manager." kw:[base]}
+  //
+  // There are two advantages to using this memory manager over the cmMallocDebug
+  // manager. It alleviates memory fragmentation by pre-allocating large blocks of memory
+  // which are then used to fullfill many small memory requests. Second it can
+  // act as a garbage collector by releasing all the memory it is managing at once.
+  // This can reduce code complexity by eliminating for a class instance to release internally
+  // allocated objects.
+  //)
+
   //(
+  
   typedef cmHandle_t cmLHeapH_t;
   
   extern cmLHeapH_t cmLHeapNullHandle;
@@ -84,7 +94,6 @@ extern "C" {
 #endif
 
   //)
-  //}
 
 #ifdef __cplusplus
 }

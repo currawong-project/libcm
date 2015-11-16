@@ -5,7 +5,8 @@
 extern "C" {
 #endif
 
-  /*
+  /*( { file_desc:"Task manager for controlling and monitoring tasks running in independent thread." kw:[parallel]}
+
     Usage:
     1) Use cmTaskMgrInstall() to register a worker function 
     (cmTaskMgrFunc_t) with the task manager.
@@ -353,7 +354,8 @@ extern "C" {
   cmTmWorkerRC_t cmTaskMgrWorkerMsgSend( cmTaskMgrFuncArg_t* a, const void* buf, unsigned bufByteCnt );
 
   cmTmRC_t cmTaskMgrTest(cmCtx_t* ctx);
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

@@ -4,6 +4,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+  //( { file_desc:"Manages a collection of audio files and maintains downsampled copies of their signals." kw:[audio file] }
+  
   enum
   {
     kOkAfmRC = cmOkRC,
@@ -56,7 +59,7 @@ extern "C" {
   bool         cmAfmIsValid( cmAfmH_t h );
   cmAfmFileH_t cmAfmIdToHandle( cmAfmH_t h, unsigned fileId );
 
-    
+  //)  
 
 
 #ifdef __cplusplus

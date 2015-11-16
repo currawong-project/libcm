@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc: "Virtual interface to the audio DSP system." kw:[rt]}
+  //
   // This class provides a two-way interface to the audio DSP system.
   // It is designed to work independenty of the physical
   // method of communication.  For example, when used by
@@ -41,8 +43,9 @@ extern "C" {
   //    client provided cmAdIfDispatch_t function (ssInitFunc,statusFunc or uiFunc).
   //    Note that this entire chain of calls occurs in the client thread
   //    and in the context of the cmAdIfDispatchMsgToHost() procedure.
-                         
+  //)
 
+  //(
   enum
   {
     kOkAiRC = cmOkRC,
@@ -174,7 +177,8 @@ extern "C" {
                               
    */
 
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

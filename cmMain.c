@@ -1,3 +1,5 @@
+//( { file_desc:"Template 'main.c' for 'libcm' based program"  kw:[demo]}
+
 #include "cmGlobal.h"
 #include "cmRpt.h"
 #include "cmMem.h"
@@ -31,3 +33,5 @@ int main(int argc, char* argv[] )
   cmMdFinalize();
   return 0;
 }
+
+//)

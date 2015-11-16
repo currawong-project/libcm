@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Object for managing musical score data." kw:[score]}
+  
   enum
   {
     kOkScRC = cmOkRC,
@@ -273,7 +275,8 @@ extern "C" {
 
   void          cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn );
 
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

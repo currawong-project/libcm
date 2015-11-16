@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"rtSys networking component." kw:[rtsys network] }
+  
   /*
    Nodes and Endpoints:
    ---------------------
@@ -202,7 +204,8 @@ extern "C" {
         4)  The symbol -=- in the flow chart implies a network transmission.
 
    */  
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

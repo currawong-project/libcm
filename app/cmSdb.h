@@ -5,7 +5,8 @@
 extern "C" {
 #endif
 
-  /*
+  /*( { file_desc:"Musical instrument sample database manager and synthetic sequence generator." kw:[audio] }
+
     The CSV file used to initialize a SDB object has the  following column syntax.
     
     Column Name     Type  Description
@@ -40,7 +41,7 @@ extern "C" {
         so that their cmSdb value is zero based.  See cmSdbLoad().
  
    */
-
+  
   enum
   {
     kOkSdbRC,
@@ -291,7 +292,9 @@ extern "C" {
   void                   cmSdbSeqPrint( cmSdbSeqH_t sh, cmRpt_t* rpt );
 
   cmSdbRC_t cmSdbTest( cmCtx_t* ctx );
-
+  
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

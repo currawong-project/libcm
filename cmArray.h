@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc: "Dynamic array container class." kw:[container] }
+  
 enum
 {
   kOkArRC = cmOkRC,
@@ -55,6 +57,8 @@ enum
   // Zero elements i:i+n-1
 #define cmArrayClrN(t,h,i,n) ((t*)cmArraySet(h,i,NULL,n))
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

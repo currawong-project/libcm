@@ -1,3 +1,4 @@
+//( {  file_desc:"'snap' programs." kw:[snap] }
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmFloatTypes.h"
@@ -25,7 +26,8 @@
 #include "cmDspPgm.h"
 #include "cmDspPgmPP.h"
 #include "cmDspPgmKr.h"
-
+//)
+//( { label:cmDspPgm_ReflecCalc file_desc:"Acoustic time-of-flight measurement program." kw:[spgm] }
 
 cmDspRC_t _cmDspSysPgm_ReflectCalc( cmDspSysH_t h, void** userPtrPtr )
 {
@@ -71,6 +73,10 @@ cmDspRC_t _cmDspSysPgm_ReflectCalc( cmDspSysH_t h, void** userPtrPtr )
   return kOkDspRC;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_SyncRecd file_desc:"Generate MIDI / Audio synchronization data with cmDspSyncRecd." kw:[spgm] }
+
 cmDspRC_t _cmDspSysPgm_SyncRecd(  cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc = kOkDspRC;
@@ -115,6 +121,9 @@ cmDspRC_t _cmDspSysPgm_SyncRecd(  cmDspSysH_t h, void** userPtrPtr )
 
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_MidiFilePlay file_desc:"MIDI file player example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_MidiFilePlay( cmDspSysH_t h, void** userPtrPtr )
 {
   
@@ -198,7 +207,9 @@ cmDspRC_t _cmDspSysPgm_MidiFilePlay( cmDspSysH_t h, void** userPtrPtr )
 }
 
 
-
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Midi_Test file_desc:"MIDI input/output example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Test_Midi( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc = kOkDspRC;
@@ -250,6 +261,9 @@ cmDspRC_t _cmDspSysPgm_Test_Midi( cmDspSysH_t h, void** userPtrPtr )
   
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Stereo_Through file_desc:"Stereo audio through example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Stereo_Through( cmDspSysH_t h, void** userPtrPtr )
 {
 
@@ -299,6 +313,9 @@ cmDspRC_t _cmDspSysPgm_Stereo_Through( cmDspSysH_t h, void** userPtrPtr )
   return kOkDspRC;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Stereo_Fx file_desc:"Stereo audio effects example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Stereo_Fx( cmDspSysH_t h, void** userPtrPtr )
 {
   bool useBuiltInFl = true;
@@ -367,6 +384,9 @@ cmDspRC_t _cmDspSysPgm_Stereo_Fx( cmDspSysH_t h, void** userPtrPtr )
   return kOkDspRC;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_PlaySine file_desc:"Play a sine signal." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_PlaySine( cmDspSysH_t h, void** userPtrPtr )
 {
   bool useBuiltInFl = true;
@@ -424,6 +444,9 @@ cmDspRC_t _cmDspSysPgm_PlayFile( cmDspSysH_t h, void** userPtrPtr )
 }
 
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_MultiOut file_desc:"Play to multiple output channels example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_MultiOut( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t    rc           = kOkDspRC;
@@ -486,6 +509,9 @@ cmDspRC_t _cmDspSysPgm_MultiOut( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_MultiIn file_desc:"Multiple audio inputs example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_MultiIn(cmDspSysH_t h, void** userPtrPtr)
 {
   int          chCnt = 8;
@@ -516,6 +542,9 @@ cmDspRC_t _cmDspSysPgm_MultiIn(cmDspSysH_t h, void** userPtrPtr)
 }
 
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_GateDetect file_desc:"Gate detector example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_GateDetect( cmDspSysH_t h, void** userPtrPtr )
 {
   bool            useBuiltInFl = true;
@@ -556,6 +585,9 @@ cmDspRC_t _cmDspSysPgm_GateDetect( cmDspSysH_t h, void** userPtrPtr )
   return kOkDspRC;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Record file_desc:"Record audio to an audio file." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Record(cmDspSysH_t h, void** userPtrPtr)
 {
   int          chCnt = 8;
@@ -593,6 +625,9 @@ cmDspRC_t _cmDspSysPgm_Record(cmDspSysH_t h, void** userPtrPtr)
   return kOkDspRC;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_PitchShift file_desc:"Pitch-shifter example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_PitchShiftFile( cmDspSysH_t h, void** userPtrPtr )
 {
   bool            useBuiltInFl = true;
@@ -634,6 +669,9 @@ cmDspRC_t _cmDspSysPgm_PitchShiftFile( cmDspSysH_t h, void** userPtrPtr )
   return kOkDspRC;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_LoopRecd file_desc:"Loop-recorder example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_LoopRecd( cmDspSysH_t h, void** userPtrPtr )
 {
   bool            useBuiltInFl = true;
@@ -670,6 +708,9 @@ cmDspRC_t _cmDspSysPgm_LoopRecd( cmDspSysH_t h, void** userPtrPtr )
 
 
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_UiTest file_desc:"User Interface example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_UiTest(cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc        = kOkDspRC;
@@ -716,6 +757,9 @@ cmDspRC_t _cmDspSysPgm_UiTest(cmDspSysH_t h, void** userPtrPtr )
 
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Xfade file_desc:"Cross fader example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Xfade( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc         = kOkDspRC;
@@ -779,6 +823,9 @@ cmDspRC_t _cmDspSysPgm_Xfade( cmDspSysH_t h, void** userPtrPtr )
   return cmDspSysLastRC(h);
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Pgm6 file_desc:"Stereo strectral non-linear distortion example." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm6( cmDspSysH_t h, void* audioDir )
 {
   cmDspRC_t rc        = kOkDspRC;
@@ -917,6 +964,9 @@ cmDspRC_t _cmDspSysPgm6( cmDspSysH_t h, void* audioDir )
   return cmDspSysLastRC(h);
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Guitar file_desc:"Similiar to Pgm6." kw:[spgm] }
 cmDspRC_t _cmDspSysPgmGuitar( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc        = kOkDspRC;
@@ -1056,6 +1106,9 @@ cmDspRC_t _cmDspSysPgmGuitar( cmDspSysH_t h, void** userPtrPtr )
 
 
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Pickups0 file_desc:"'fluxo' with loop-record, echo, rectify, and pitch-shift." kw:[spgm fluxo] }
 
 cmDspRC_t _cmDspSysPgm_Pickups0( cmDspSysH_t h, void** userPtrPtr )
 {
@@ -1168,6 +1221,10 @@ cmDspRC_t _cmDspSysPgm_Pickups0( cmDspSysH_t h, void** userPtrPtr )
 
   return kOkDspRC;
 }
+
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_AutoGain file_desc:"'fluxo' channel calibration program." kw:[spgm fluxo] }
 
 #include "cmAudioFile.h"
 #include "cmProcObj.h"
@@ -1414,6 +1471,9 @@ cmDspRC_t _cmDspSysPgm_AutoGain( cmDspSysH_t h, void** userPtrPtr )
   
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_PickupFxFile file_desc:"'fluxo' noise shapers." kw:[spgm fluxo] }
 cmDspRC_t _cmDspSysPgm_PickupFxFile( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t       rc        = kOkDspRC;
@@ -1509,6 +1569,9 @@ cmDspRC_t _cmDspSysPgm_PickupFxFile( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_NoiseTails file_desc:"'fluxo' noise shapers." kw:[spgm fluxo] }
 cmDspRC_t _cmDspSysPgm_NoiseTails( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t       rc        = kOkDspRC;
@@ -1609,6 +1672,9 @@ cmDspRC_t _cmDspSysPgm_NoiseTails( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_NoiseTails2 file_desc:"'fluxo' noise shapers." kw:[spgm fluxo] }
 cmDspRC_t _cmDspSysPgm_NoiseTails2( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t       rc           = kOkDspRC;
@@ -1781,6 +1847,9 @@ cmDspRC_t _cmDspSysPgm_NoiseTails2( cmDspSysH_t h, void** userPtrPtr )
 
 
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_CombFilt file_desc:"Comb filter example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_CombFilt( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc        = kOkDspRC;
@@ -1808,6 +1877,9 @@ cmDspRC_t _cmDspSysPgm_CombFilt( cmDspSysH_t h, void** userPtrPtr )
   return rc;  
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_ScalarOp file_desc:"Scalar operations example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_ScalarOp( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
@@ -1839,6 +1911,9 @@ cmDspRC_t _cmDspSysPgm_ScalarOp( cmDspSysH_t h, void** userPtrPtr )
 }
 
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_RingMod file_desc:"Ring modulation example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_RingMod( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t       rc          = kOkDspRC;
@@ -1948,6 +2023,9 @@ cmDspRC_t _cmDspSysPgm_RingMod( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_RingMod2 file_desc:"Ring modulation example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_RingMod2( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t       rc          = kOkDspRC;
@@ -2037,6 +2115,9 @@ cmDspRC_t _cmDspSysPgm_RingMod2( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_MsgDelay file_desc:"Message delay example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_MsgDelay( cmDspSysH_t h, void** userPtrPtr )
 {
 
@@ -2059,6 +2140,9 @@ cmDspRC_t _cmDspSysPgm_MsgDelay( cmDspSysH_t h, void** userPtrPtr )
 }
 
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Adsr file_desc:"ADSR envelope generator example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Adsr( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
@@ -2108,6 +2192,10 @@ cmDspRC_t _cmDspSysPgm_Adsr( cmDspSysH_t h, void** userPtrPtr )
 }
 
 
+
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Adsr file_desc:"Dynamics compressor example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Compressor( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
@@ -2170,6 +2258,9 @@ cmDspRC_t _cmDspSysPgm_Compressor( cmDspSysH_t h, void** userPtrPtr )
 }
 
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_BiQuadEq file_desc:"Biquad EQ example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_BiQuadEq( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t       rc        = kOkDspRC;
@@ -2218,6 +2309,9 @@ cmDspRC_t _cmDspSysPgm_BiQuadEq( cmDspSysH_t h, void** userPtrPtr )
 }
 
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_DistDs file_desc:"Guitar distortion example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_DistDs( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t       rc        = kOkDspRC;
@@ -2274,6 +2368,9 @@ cmDspRC_t _cmDspSysPgm_DistDs( cmDspSysH_t h, void** userPtrPtr )
   
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Seq file_desc:"Message list 'seq' mode example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Seq( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
@@ -2300,6 +2397,9 @@ cmDspRC_t _cmDspSysPgm_Seq( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_ThunkNet file_desc:"UDP network receiver example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_ThunkNet( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
@@ -2318,6 +2418,9 @@ cmDspRC_t _cmDspSysPgm_ThunkNet( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_WhirlNet file_desc:"UDP network sender example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_WhirlNet( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
@@ -2335,6 +2438,9 @@ cmDspRC_t _cmDspSysPgm_WhirlNet( cmDspSysH_t h, void** userPtrPtr )
   
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_NofM file_desc:"Select NofM example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_NofM( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
@@ -2403,6 +2509,9 @@ cmDspRC_t _cmDspSysPgm_NofM( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_1ofM file_desc:"Select 1 of N example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_1ofN( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
@@ -2438,6 +2547,9 @@ cmDspRC_t _cmDspSysPgm_1ofN( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Router file_desc:"Router example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Router( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
@@ -2476,6 +2588,9 @@ cmDspRC_t _cmDspSysPgm_Router( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Preset file_desc:"Preset save/restore example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Preset( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
@@ -2516,6 +2631,9 @@ cmDspRC_t _cmDspSysPgm_Preset( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_RsrcWr file_desc:"Set a resource value example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_RsrcWr( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t    rc      = kOkDspRC;
@@ -2545,6 +2663,9 @@ cmDspRC_t _cmDspSysPgm_RsrcWr( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_1Up file_desc:"1Up example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_1Up( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
@@ -2572,6 +2693,9 @@ cmDspRC_t _cmDspSysPgm_1Up( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_PortToSym file_desc:"PortToSym example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_PortToSym( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc = kOkDspRC;
@@ -2606,6 +2730,9 @@ cmDspRC_t _cmDspSysPgm_PortToSym( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Line file_desc:"Line generator example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Line( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc = kOkDspRC;
@@ -2637,6 +2764,9 @@ cmDspRC_t _cmDspSysPgm_Line( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Array file_desc:"Array and pitch converter example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Array( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t       rc           = kOkDspRC;
@@ -2683,6 +2813,9 @@ cmDspRC_t _cmDspSysPgm_SegLine( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_AvailCh file_desc:"AvailCh and XFader example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
 {
   double   frqHz       = 440.0;
@@ -2741,6 +2874,9 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
 
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Goertzel file_desc:"Goertzel detector example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Goertzel( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
@@ -2801,6 +2937,9 @@ cmDspRC_t _cmDspSysPgm_Goertzel( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_TakeSeqBldr file_desc:"Take sequence builder example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_TakeSeqBldr( cmDspSysH_t h, void** userPtrPtr )
 {  
   cmDspRC_t       rc         = kOkDspRC;
@@ -2859,6 +2998,9 @@ cmDspRC_t _cmDspSysPgm_TakeSeqBldr( cmDspSysH_t h, void** userPtrPtr )
 }
 
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_TwoD file_desc:"Two dimensional controller  example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_TwoD( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t       rc         = kOkDspRC;
@@ -2878,6 +3020,9 @@ cmDspRC_t _cmDspSysPgm_TwoD( cmDspSysH_t h, void** userPtrPtr )
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_BinEnc file_desc:"HRTF binaural encoder example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_BinEnc( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t       rc         = kOkDspRC;
@@ -2950,8 +3095,8 @@ cmDspRC_t _cmDspSysPgm_BinEnc( cmDspSysH_t h, void** userPtrPtr )
  errLabel:
   return rc;
 }
-
-
+//)
+//(
 _cmDspSysPgm_t _cmDspSysPgmArray[] = 
 {
   { "reflect",       _cmDspSysPgm_ReflectCalc,  NULL, NULL },
@@ -3015,3 +3160,4 @@ _cmDspSysPgm_t* _cmDspSysPgmArrayBase()
 }
 
 
+//)

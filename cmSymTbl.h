@@ -4,13 +4,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  //{
-  //(
-  //  Symbol table component.
-  //)
-
+  //( { file_desc:"Symbol table object." kw:[base] }
   
-  //(
   typedef cmHandle_t cmSymTblH_t;
 
   extern cmSymTblH_t cmSymTblNullHandle;
@@ -61,7 +56,6 @@ extern "C" {
   void        cmSymTblTest(cmCtx_t* ctx);
   
   //)
-  //}
 
 #ifdef __cplusplus
 }

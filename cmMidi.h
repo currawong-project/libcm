@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"MIDI utility constants and functions." kw:[midi]}
+  
   enum
   {
     kMidiChCnt           = 16,
@@ -154,6 +156,8 @@ extern "C" {
   // of this range will be returned as kInvalidMidiPitch.   
   cmMidiByte_t    cmSciPitchToMidi( const char* sciPitchStr );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

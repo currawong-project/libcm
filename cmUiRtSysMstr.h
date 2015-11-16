@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Application side API for communicating with the UI audio master controls and meters." kw:[rtsys]}
+  
   enum
   {
     kOkAmRC = cmOkRC,
@@ -33,6 +35,8 @@ extern "C" {
   // Clear the status indicators.
   void cmUiRtSysMstrClearStatus( cmUiRtMstrH_t h );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

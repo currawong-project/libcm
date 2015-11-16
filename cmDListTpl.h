@@ -1,4 +1,6 @@
 
+//( { file_desc:"Template 'include' code for using cmDList as a template." kw:[container] }
+
 // The following two macros must be defined prior to including this code:
 // #define cmSFX(a) a##_MySuffix
 // #define cmTYPE   My_Type 
@@ -117,6 +119,8 @@ const cmTYPE* cmSFX(cmDListIterFind)(      cmDListIterH_t  iH, const cmTYPE* key
 
 #endif // cmGEN_CODE
 
+//)
 
 #undef cmSFX
 #undef cmTYPE
+

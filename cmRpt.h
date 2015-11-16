@@ -5,12 +5,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  //{
 
   
-  //(
+  //( { file_desc: "The cmRpt class provides console style output for all objects in the cm system." kw:[base]}
   // 
-  // The cmRpt class provides console style output for all objects in the cm system.
   // 
   // The cmRpt class provides console output style output, like stdout and stderr
   // for most of the classes in the cm library.
@@ -51,7 +49,6 @@ extern "C" {
   void cmRptVErrorf( cmRpt_t* rpt, const cmChar_t* fmt, va_list vl );
   void cmRptErrorf(  cmRpt_t* rpt, const cmChar_t* fmt, ... );
   //)
-  //}
 
 #ifdef __cplusplus
   }

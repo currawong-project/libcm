@@ -1,11 +1,8 @@
 #ifndef cmLex_h
 #define cmLex_h
 
-//{
-//(
-//)
 
-//(
+//( { file_desc:"User configurable lexer for tokenizing text files." kw:[text]}
 
 
 // Predefined Lexer Id's
@@ -158,6 +155,5 @@ const cmChar_t* cmLexRcToMsg( unsigned rc );
 void cmLexTest( cmRpt_t* rpt );
 
 //)
-//}
 
 #endif

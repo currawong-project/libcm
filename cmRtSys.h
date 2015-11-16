@@ -1,5 +1,4 @@
-// cmRtSys.h
-// Implements a real-time audio processing engine.
+//( { file_desc:"Improved real-time audio processing engine." kw:[rtsys] }
 //
 // The audio system is composed a collection of independent sub-systems.
 // Each sub-system maintains a thread which runs asynchrounsly
@@ -48,10 +47,7 @@
 // Messages arriving while the mutex is locked are queued and
 // delivered to the DSP procedure at the end of the DSP execution
 // procedure.
-//
-// Usage example and testing code:
-// See  cmRtSysTest().
-// \snippet cmRtSys.c cmRtSysTest
+//)
 
 #ifndef cmRtSys_h
 #define cmRtSys_h
@@ -60,6 +56,7 @@
 extern "C" {
 #endif
 
+  //(
   // Audio system result codes
   enum
   {
@@ -329,7 +326,7 @@ extern "C" {
   cmRtRC_t cmRtSysNetReport( cmRtSysH_t h );
   cmRtRC_t cmRtSysNetReportSyncEnable( cmRtSysH_t h, bool enableFl );
   cmRtRC_t cmRtSysNetGetHandle( cmRtSysH_t h, unsigned rtSubIdx, cmRtNetH_t* hp );
-
+  //)
 
 #ifdef __cplusplus
 }

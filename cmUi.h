@@ -4,7 +4,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  /*
+  /*( { file_desc:"UI control manager for rtSys." kw:[rtSys]}
+
     cmUI implements a platform independent UI control manager 
     for multiple simultaneous applications. In this context
     an 'application' can be seen as a plug-in style program.
@@ -108,8 +109,10 @@ extern "C" {
     7) There is no duplex model for validating and then displaying the
     value of a control.
 
-   */
-
+  */
+  //)
+  
+  //(
   typedef cmHandle_t cmUiH_t;
 
 
@@ -384,7 +387,8 @@ extern "C" {
   cmUiRC_t   cmUiLastRC( cmUiH_t uiH );
   cmUiRC_t   cmUiSetRC( cmUiH_t uiH, cmUiRC_t rc );
 
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

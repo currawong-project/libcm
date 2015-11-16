@@ -5,8 +5,7 @@
 extern "C" {
 #endif
 
-  // This API supports a serialized interface to an internal instance of 
-  // cmAudioSys and cmDspSys.  
+  //( { file_desc: "Supports a serialized interface to an internal instance of  cmAudioSys and cmDspSys." kw:[rt]}
 
   enum
   {
@@ -49,6 +48,8 @@ extern "C" {
   // This function provides the primary interface for communication from the
   // client program to the aud_dsp system.
   cmAdRC_t cmAudDspReceiveClientMsg( cmAdH_t h, unsigned msgBytecnt, const void* msg );
+  
+  //)
   
 
 #ifdef __cplusplus

@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Constrants and data structures used to communicate messages to and from cmAudioSys" kw:[audio real_time]}
+  
   /// Reserved DSP message selector id's (second field of all host<->audio system messages)
   enum
   {
@@ -112,7 +114,8 @@ extern "C" {
     
   } cmAudioSysStatus_t;
 
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

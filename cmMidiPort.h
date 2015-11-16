@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //(  { file_desc:"Device independent MIDI port related code." kw:[midi]}
+
   typedef unsigned cmMpRC_t;
 
   // Flags used to identify input and output ports on MIDI devices
@@ -30,7 +32,9 @@ extern "C" {
   };
 
   typedef void (*cmMpCallback_t)( const cmMidiPacket_t* pktArray, unsigned pktCnt );
-
+  
+  //)
+  //(  { label:cmMpParser file_desc:"MIDI event parser converts raw MIDI events into cmMidiPacket_t messages." kw:[midi]}
 
   //===============================================================================================
   // MIDI Parser
@@ -62,6 +66,8 @@ extern "C" {
   // Returns true if the parser uses the given callback.
   bool          cmMpParserHasCallback(     cmMpParserH_t h, cmMpCallback_t cbFunc, void* cbDataPtr );
 
+  //)
+  //(  { label:cmMidiPort file_desc:"Device independent MIDI port." kw:[midi]}
 
   //===============================================================================================
   // MIDI Device Interface
@@ -92,7 +98,8 @@ extern "C" {
   void        cmMpReport( cmRpt_t* rpt );
 
   void cmMpTest( cmCtx_t* ctx );
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

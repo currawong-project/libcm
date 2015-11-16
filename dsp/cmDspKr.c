@@ -18,6 +18,8 @@
 #include "cmThread.h"
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
+//( { file_desc:"'snap' audio effects performance analysis units." kw:[snap]}
+
 #include "cmTime.h"
 #include "cmAudioSys.h"
 #include "cmDspCtx.h"
@@ -45,6 +47,10 @@
 #include "cmSyncRecd.h"
 #include "cmTakeSeqBldr.h"
 
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspKr file_desc:"Spectral non-linear distortion effect." kw:[sunit] }
+
 enum
 {
   kWndSmpCntKrId,
@@ -70,8 +76,6 @@ typedef struct
  
 cmDspClass_t _cmKrDC;
 
-
-//==========================================================================================================================================
 
 cmDspInst_t*  _cmDspKrAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
@@ -262,7 +266,7 @@ cmDspRC_t _cmDspKrRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt
   return rc;
 }
 
-struct cmDspClass_str* cmKrClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmKrClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmKrDC,ctx,"Kr",
     NULL,
@@ -277,9 +281,9 @@ struct cmDspClass_str* cmKrClassCons( cmDspCtx_t* ctx )
   return &_cmKrDC;
 }
 
-
-//==========================================================================================================================================
-// Time Line UI Object
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspTimeLine file_desc:"Time line user interface unit." kw:[sunit] }
 
 enum
 {
@@ -446,7 +450,7 @@ cmDspRC_t _cmDspTimeLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmTimeLineClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmTimeLineClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmTimeLineDC,ctx,"TimeLine",
     NULL,
@@ -461,8 +465,9 @@ struct cmDspClass_str* cmTimeLineClassCons( cmDspCtx_t* ctx )
   return &_cmTimeLineDC;
 }
 
-//==========================================================================================================================================
-// Score UI Object
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspScore file_desc:"Musical score user interface unit." kw:[sunit] }
 
 enum
 {
@@ -637,7 +642,7 @@ cmDspRC_t _cmDspScoreRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmScoreClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmScoreClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmScoreDC,ctx,"Score",
     NULL,
@@ -652,8 +657,9 @@ struct cmDspClass_str* cmScoreClassCons( cmDspCtx_t* ctx )
   return &_cmScoreDC;
 }
 
-//==========================================================================================================================================
-// MIDI File Player
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspMidiFilePlay file_desc:"MIDI file player." kw:[sunit] }
 
 enum
 {
@@ -684,14 +690,12 @@ typedef struct
   bool          errFl;
 } cmDspMidiFilePlay_t;
 
-/*
-  'bsi' and 'esi' give the starting and ending sample for MIDI file playback.
-  These indexes are relative to the start of the file.
-  When the player recieves a 'start' msg it sets the current sample index
-  'si' to 'bsi' and begins scanning for the next note to play.  
-  On each call to the _cmDspMidiFilePlayExec() msgs that fall in the interval
-  si:si+sPc-1 will be transmitted.  (where sPc are the number of samples per DSP cycle).
- */
+//  'bsi' and 'esi' give the starting and ending sample for MIDI file playback.
+//  These indexes are relative to the start of the file.
+//  When the player recieves a 'start' msg it sets the current sample index
+//  'si' to 'bsi' and begins scanning for the next note to play.  
+//  On each call to the _cmDspMidiFilePlayExec() msgs that fall in the interval
+//  si:si+sPc-1 will be transmitted.  (where sPc are the number of samples per DSP cycle).
 
 cmDspInst_t*  _cmDspMidiFilePlayAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
@@ -866,7 +870,7 @@ cmDspRC_t _cmDspMidiFilePlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDsp
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmMidiFilePlayClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmMidiFilePlayClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmMidiFilePlayDC,ctx,"MidiFilePlay",
     NULL,
@@ -881,7 +885,10 @@ struct cmDspClass_str* cmMidiFilePlayClassCons( cmDspCtx_t* ctx )
   return &_cmMidiFilePlayDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspScFol file_desc:"MIDI performance score follower." kw:[sunit] }
+
 enum
 {
   kFnSfId,
@@ -1003,27 +1010,25 @@ void _cmScFolMatcherCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
       if(ap->sfp->smp->set[i].value != DBL_MAX )
       {
 
-        /*
-        switch( ap->sfp->smp->set[i].sp->varId )
-        {
-          case kEvenVarScId:
-            cmDspSetDouble(ap->ctx,inst,kEvenSfId,ap->sfp->smp->set[i].value);
-            break;
-
-          case kDynVarScId:
-            cmDspSetDouble(ap->ctx,inst,kDynSfId,ap->sfp->smp->set[i].value);
-            break;
-
-          case kTempoVarScId:
-            cmDspSetDouble(ap->ctx,inst,kTempoSfId,ap->sfp->smp->set[i].value);
-            break;
-
-          default:
-            { assert(0); }
-        }           
-
-        cmDspSetDouble(ap->ctx,inst,kCostSfId,ap->sfp->smp->set[i].match_cost);
-        */
+//        switch( ap->sfp->smp->set[i].sp->varId )
+//        {
+//          case kEvenVarScId:
+//            cmDspSetDouble(ap->ctx,inst,kEvenSfId,ap->sfp->smp->set[i].value);
+//            break;
+//
+//          case kDynVarScId:
+//            cmDspSetDouble(ap->ctx,inst,kDynSfId,ap->sfp->smp->set[i].value);
+//            break;
+//
+//          case kTempoVarScId:
+//            cmDspSetDouble(ap->ctx,inst,kTempoSfId,ap->sfp->smp->set[i].value);
+//            break;
+//
+//          default:
+//            { assert(0); }
+//        }           
+//
+//        cmDspSetDouble(ap->ctx,inst,kCostSfId,ap->sfp->smp->set[i].match_cost);
 
         // Set the values in the global variable storage
         cmDspValue_t vv,cv;
@@ -1051,15 +1056,13 @@ void _cmScFolMatcherCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
 
       }
 
-    /*
-    // trigger 'section' starts 
-    for(i=ap->sfp->smp->vsli; i<ap->sfp->smp->nsli; ++i)
-    {
-      const cmScoreLoc_t* locPtr = cmScoreLoc(ap->sfp->smp->mp->scH,i);
-      if( locPtr->begSectPtr != NULL )
-        cmDspSetUInt(ap->ctx,inst,kSectIndexSfId,locPtr->begSectPtr->index);
-    }
-    */
+//    // trigger 'section' starts 
+//    for(i=ap->sfp->smp->vsli; i<ap->sfp->smp->nsli; ++i)
+//    {
+//      const cmScoreLoc_t* locPtr = cmScoreLoc(ap->sfp->smp->mp->scH,i);
+//      if( locPtr->begSectPtr != NULL )
+//        cmDspSetUInt(ap->ctx,inst,kSectIndexSfId,locPtr->begSectPtr->index);
+//    }
   }
 }
 
@@ -1184,7 +1187,7 @@ cmDspRC_t _cmDspScFolRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   return rc;
 }
 
-struct cmDspClass_str* cmScFolClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmScFolClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmScFolDC,ctx,"ScFol",
     NULL,
@@ -1199,7 +1202,9 @@ struct cmDspClass_str* cmScFolClassCons( cmDspCtx_t* ctx )
   return &_cmScFolDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspScMod file_desc:"Score driven parameter automation." kw:[sunit] }
 
 enum
 {
@@ -1385,7 +1390,7 @@ cmDspRC_t _cmDspScModExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   return rc;
 }
 
-struct cmDspClass_str* cmScModClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmScModClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmModulatorDC,ctx,"ScMod",
     NULL,
@@ -1400,7 +1405,9 @@ struct cmDspClass_str* cmScModClassCons( cmDspCtx_t* ctx )
   return &_cmModulatorDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspGSwitch file_desc:"Route all inputs to one of a group of outputs." kw:[sunit] }
 
 enum
 {
@@ -1583,7 +1590,7 @@ cmDspRC_t _cmDspGSwitchRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
 }
 
 
-struct cmDspClass_str* cmGSwitchClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmGSwitchClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmGSwitchDC,ctx,"GSwitch",
     NULL,
@@ -1599,7 +1606,9 @@ struct cmDspClass_str* cmGSwitchClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspScaleRange file_desc:"Offset and scale a scalar value." kw:[sunit] }
 
 enum
 {
@@ -1684,7 +1693,7 @@ cmDspRC_t _cmDspScaleRangeRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
 }
 
 
-struct cmDspClass_str* cmScaleRangeClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmScaleRangeClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmScaleRangeDC,ctx,"ScaleRange",
     NULL,
@@ -1700,7 +1709,9 @@ struct cmDspClass_str* cmScaleRangeClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspActiveMeas file_desc:"Issue stored parameter values at specified score locations." kw:[sunit] }
 
 enum
 {
@@ -1730,12 +1741,10 @@ typedef struct cmDspAmRecd_str
 } cmDspAmRecd_t;
 
 
-/*
-int cmDspActiveMeasRecdCompare(const void * p0, const void * p1)
-{
-  return ((int)((cmDspActiveMeasRecd_t*)p0)->loc) - (int)(((cmDspActiveMeasRecd_t*)p1)->loc);
-}
-*/
+//int cmDspActiveMeasRecdCompare(const void * p0, const void * p1)
+//{
+//  return ((int)((cmDspActiveMeasRecd_t*)p0)->loc) - (int)(((cmDspActiveMeasRecd_t*)p1)->loc);
+//}
 
 typedef struct
 {
@@ -1985,96 +1994,94 @@ cmDspRC_t _cmDspActiveMeasRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
 
   }
 
-  /*
-  switch( evt->dstVarId )
-  {
-    case kSflocAmId:
-      if( p->nextFullIdx != cmInvalidIdx )
-      {
-        // get the recv'd score location
-        unsigned sflocIdx = cmDspUInt(inst,kSflocAmId);
-
-        unsigned prvLoc = cmInvalidIdx;
-
-        // for each remaining avail record
-        for(; p->nextFullIdx < p->nextEmptyIdx; p->nextFullIdx++)
-        {
-          cmDspActiveMeasRecd_t* r = p->array + p->nextFullIdx;
-
-          // if this records score location is after the recv'd score loc then we're done
-          if( r->loc > sflocIdx )
-            break;
-
-          // deterimine the records type
-          unsigned varId = cmInvalidId;
-          switch( r->type )
-          {
-            case kEvenVarScId:   varId = kEvenAmId;  break;
-            case kDynVarScId:    varId = kDynAmId;   break;
-            case kTempoVarScId:  varId = kTempoAmId; break;
-            default:
-              { assert(0); }
-          }
-
-          // if this score location has not yet been sent then send it now
-          if( prvLoc != r->loc )
-            cmDspSetUInt(ctx,inst,kScLocAmId,r->loc);
-
-          // transmit the records value and cost
-          cmDspSetDouble(ctx,inst,varId,r->value);
-          cmDspSetDouble(ctx,inst,kCostAmId,r->cost);
-
-          prvLoc = r->loc;
-        } 
-        
-
-      }
-      break;
-
-    case kCmdAmId:
-      {
-        unsigned cmdSymId = cmDspSymbol(inst,kCmdAmId);
-
-        if( cmdSymId == p->addSymId )
-        {
-          if( p->nextEmptyIdx >= p->cnt )
-            cmDspInstErr(ctx,inst,kProcFailDspRC,"The active measurement list is full cnt=%i.",p->cnt);
-          else
-          {
-            cmDspActiveMeasRecd_t* r = p->array + p->nextEmptyIdx;
-            r->loc   = cmDspUInt(  inst,kLocAmId);
-            r->type  = cmDspUInt(  inst,kTypeAmId);
-            r->value = cmDspDouble(inst,kValueAmId);
-            r->cost  = cmDspDouble(inst,kCstAmId);
-            p->nextEmptyIdx += 1;
-
-            qsort(p->array,p->nextEmptyIdx,sizeof(p->array[0]),cmDspActiveMeasRecdCompare);
-
-            if( p->nextEmptyIdx == 1 && p->nextFullIdx == cmInvalidIdx )
-              p->nextFullIdx = 0;
-
-          }
-        }
-          
-        if( cmdSymId == p->clearSymId )
-          rc = _cmDspActiveMeasClear(ctx,p);
-        else
-          if( cmdSymId == p->printSymId )
-            rc = _cmDspActiveMeasPrint(ctx,p);
-          else
-            if(cmdSymId == p->rewindSymId )
-              p->nextFullIdx = 0;
-      }
-      break;
-
-  }
-  */
+  //  switch( evt->dstVarId )
+  //  {
+  //    case kSflocAmId:
+  //      if( p->nextFullIdx != cmInvalidIdx )
+  //      {
+  //        // get the recv'd score location
+  //        unsigned sflocIdx = cmDspUInt(inst,kSflocAmId);
+  //
+  //        unsigned prvLoc = cmInvalidIdx;
+  //
+  //        // for each remaining avail record
+  //        for(; p->nextFullIdx < p->nextEmptyIdx; p->nextFullIdx++)
+  //        {
+  //          cmDspActiveMeasRecd_t* r = p->array + p->nextFullIdx;
+  //
+  //          // if this records score location is after the recv'd score loc then we're done
+  //          if( r->loc > sflocIdx )
+  //            break;
+  //
+  //          // deterimine the records type
+  //          unsigned varId = cmInvalidId;
+  //          switch( r->type )
+  //          {
+  //            case kEvenVarScId:   varId = kEvenAmId;  break;
+  //            case kDynVarScId:    varId = kDynAmId;   break;
+  //            case kTempoVarScId:  varId = kTempoAmId; break;
+  //            default:
+  //              { assert(0); }
+  //          }
+  //
+  //          // if this score location has not yet been sent then send it now
+  //          if( prvLoc != r->loc )
+  //            cmDspSetUInt(ctx,inst,kScLocAmId,r->loc);
+  //
+  //          // transmit the records value and cost
+  //          cmDspSetDouble(ctx,inst,varId,r->value);
+  //          cmDspSetDouble(ctx,inst,kCostAmId,r->cost);
+  //
+  //          prvLoc = r->loc;
+  //        } 
+  //        
+  //
+  //      }
+  //      break;
+  //
+  //    case kCmdAmId:
+  //      {
+  //        unsigned cmdSymId = cmDspSymbol(inst,kCmdAmId);
+  //
+  //        if( cmdSymId == p->addSymId )
+  //        {
+  //          if( p->nextEmptyIdx >= p->cnt )
+  //            cmDspInstErr(ctx,inst,kProcFailDspRC,"The active measurement list is full cnt=%i.",p->cnt);
+  //          else
+  //          {
+  //            cmDspActiveMeasRecd_t* r = p->array + p->nextEmptyIdx;
+  //            r->loc   = cmDspUInt(  inst,kLocAmId);
+  //            r->type  = cmDspUInt(  inst,kTypeAmId);
+  //            r->value = cmDspDouble(inst,kValueAmId);
+  //            r->cost  = cmDspDouble(inst,kCstAmId);
+  //            p->nextEmptyIdx += 1;
+  //
+  //            qsort(p->array,p->nextEmptyIdx,sizeof(p->array[0]),cmDspActiveMeasRecdCompare);
+  //
+  //            if( p->nextEmptyIdx == 1 && p->nextFullIdx == cmInvalidIdx )
+  //              p->nextFullIdx = 0;
+  //
+  //          }
+  //        }
+  //          
+  //        if( cmdSymId == p->clearSymId )
+  //          rc = _cmDspActiveMeasClear(ctx,p);
+  //        else
+  //          if( cmdSymId == p->printSymId )
+  //            rc = _cmDspActiveMeasPrint(ctx,p);
+  //          else
+  //            if(cmdSymId == p->rewindSymId )
+  //              p->nextFullIdx = 0;
+  //      }
+  //      break;
+  //
+  //  }
 
   return rc;
 }
 
 
-struct cmDspClass_str* cmActiveMeasClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmActiveMeasClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmActiveMeasDC,ctx,"ActiveMeas",
     NULL,
@@ -2089,33 +2096,35 @@ struct cmDspClass_str* cmActiveMeasClassCons( cmDspCtx_t* ctx )
   return &_cmActiveMeasDC;
 }
 
-//==========================================================================================================================================
-// Audio MIDI Sync
-/*
- Usage:
- 1)  In the program resource file setup a list of sync points.
- 'asmp' refers to a sample offset into the audio file 'af'
- which should match to the midi event index 'mid' in the
- midi file 'mf'.
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspAmSync  file_desc:"Calculate MIDI to Audio latency offsets." kw:[sunit] }
+//
+//
+// Usage:
+// 1)  In the program resource file setup a list of sync points.
+// 'asmp' refers to a sample offset into the audio file 'af'
+// which should match to the midi event index 'mid' in the
+// midi file 'mf'.
+//
+//  amSync :
+//  [
+//   { af:"af-16" asmp:34735276  mf:"mf-10"  mid:350 }
+//   { af:"af-16" asmp:71802194  mf:"mf-10"  mid:787 }
+//  ]
+//
+// 2) Feed the 'fidx' output from a wave table loaded with 'af' into the 'asmp' input port of this amSync object.
+//    Feed the 'id' output from the MIDI file player loaded with 'mf' into the 'mid' input port of this amSync object.
+//
+// 3) Run the players. 
+// 4) When the run is complete send any message to the 'sel' port of this amSync object.
+//    The 'frm:' field of the printed output gives the difference in samples between
+//    MIDI and audio sync points.
+//
+//    If the value is positive then the MIDI point is after the Audio point.
+//    If the value is negative then the MIDI point is before the audio point.
+//
 
-  amSync :
-  [
-   { af:"af-16" asmp:34735276  mf:"mf-10"  mid:350 }
-   { af:"af-16" asmp:71802194  mf:"mf-10"  mid:787 }
-  ]
-
- 2) Feed the 'fidx' output from a wave table loaded with 'af' into the 'asmp' input port of this amSync object.
-    Feed the 'id' output from the MIDI file player loaded with 'mf' into the 'mid' input port of this amSync object.
-
- 3) Run the players. 
- 4) When the run is complete send any message to the 'sel' port of this amSync object.
-    The 'frm:' field of the printed output gives the difference in samples between
-    MIDI and audio sync points.
-
-    If the value is positive then the MIDI point is after the Audio point.
-    If the value is negative then the MIDI point is before the audio point.
-
-*/
 
 enum
 {
@@ -2350,7 +2359,7 @@ cmDspRC_t _cmDspAmSyncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmAmSyncClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmAmSyncClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmAmSyncDC,ctx,"AmSync",
     NULL,
@@ -2365,7 +2374,10 @@ struct cmDspClass_str* cmAmSyncClassCons( cmDspCtx_t* ctx )
   return &_cmAmSyncDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspNanoMap file_desc:"Control a MIDI synth." kw:[sunit] }
+
 enum
 {
   kPgmNmId,
@@ -2474,7 +2486,7 @@ cmDspRC_t _cmDspNanoMapRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmNanoMapClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmNanoMapClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmNanoMapDC,ctx,"NanoMap",
     NULL,
@@ -2490,7 +2502,10 @@ struct cmDspClass_str* cmNanoMapClassCons( cmDspCtx_t* ctx )
   return &_cmNanoMapDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspRecdPlay file_desc:"Record audio segments from a live perfromance and play them back at a later time" kw:[sunit] }
+
 enum
 {
   kChCntPrId,
@@ -2850,7 +2865,7 @@ cmDspRC_t _cmDspRecdPlayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmRecdPlayClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmRecdPlayClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmRecdPlayDC,ctx,"RecdPlay",
     NULL,
@@ -2866,7 +2881,9 @@ struct cmDspClass_str* cmRecdPlayClassCons( cmDspCtx_t* ctx )
   return &_cmRecdPlayDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspGoertzel file_desc:"Goertzel tone detection filter" kw:[sunit] }
 enum
 {
   kHopFactGrId,
@@ -3025,7 +3042,7 @@ cmDspRC_t _cmDspGoertzelRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmGoertzelClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmGoertzelClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmGoertzelDC,ctx,"Goertzel",
     NULL,
@@ -3041,7 +3058,10 @@ struct cmDspClass_str* cmGoertzelClassCons( cmDspCtx_t* ctx )
   return &_cmGoertzelDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspSyncRecd file_desc:"Time align a MIDI and associated audio recording" kw:[sunit] }
+
 enum
 {
   kRecdDirSrId,
@@ -3226,7 +3246,7 @@ cmDspRC_t _cmDspSyncRecdRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return rc;
 }
 
-struct cmDspClass_str* cmSyncRecdClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmSyncRecdClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmSyncRecdDC,ctx,"SyncRecd",
     NULL,
@@ -3243,7 +3263,10 @@ struct cmDspClass_str* cmSyncRecdClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspTakeSeqBldr file_desc:"User interface unit for creating a single sequence from multiple, score aligned, MIDI fragments." kw:[sunit] }
+
 enum
 {
   kFnTsbId,
@@ -3355,7 +3378,7 @@ cmDspRC_t _cmDspTakeSeqBldrRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspE
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmTakeSeqBldrClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmTakeSeqBldrClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmTakeSeqBldrDC,ctx,"TakeSeqBldr",
     NULL,
@@ -3374,7 +3397,9 @@ struct cmDspClass_str* cmTakeSeqBldrClassCons( cmDspCtx_t* ctx )
 
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspTakeSeqRend file_desc:"User interface unit for graphically rendering the MIDI sequences created by cmDspTakeSeqBldr." kw:[sunit] }
 enum
 {
   kBldrTsrId,
@@ -3576,7 +3601,7 @@ cmDspRC_t _cmDspTakeSeqRendRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspE
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmTakeSeqRendClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmTakeSeqRendClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmTakeSeqRendDC,ctx,"TakeSeqRend",
     NULL,
@@ -3593,7 +3618,9 @@ struct cmDspClass_str* cmTakeSeqRendClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspReflectCalc file_desc:"Estimate the time-of-flight of from an acoustic signal from a speaker to a microphone." kw:[sunit] }
 enum
 {
   kLfsrN_RcId,
@@ -3622,13 +3649,11 @@ typedef struct
 cmDspInst_t*  _cmDspReflectCalcAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
 
-  /*
-  if( va_cnt !=3 )
-  {
-    cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'ReflectCalc' constructor must have two arguments: a channel count and frequency array.");
-    return NULL;
-  }
-  */
+  //  if( va_cnt !=3 )
+  //  {
+  //    cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'ReflectCalc' constructor must have two arguments: a channel count and frequency array.");
+  //    return NULL;
+  //  }
 
   cmDspReflectCalc_t* p = cmDspInstAllocV(cmDspReflectCalc_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl,
     1,         "lfsrN", kLfsrN_RcId,    0,0, kInDsvFl   | kUIntDsvFl,    "Gold code generator LFSR length",
@@ -3734,7 +3759,7 @@ cmDspRC_t _cmDspReflectCalcRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspE
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmReflectCalcClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmReflectCalcClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmReflectCalcDC,ctx,"ReflectCalc",
     NULL,
@@ -3751,7 +3776,9 @@ struct cmDspClass_str* cmReflectCalcClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspEchoCancel file_desc:"Normalized least mean squares echo canceller." kw:[sunit] }
 enum
 {
   kMuEcId,
@@ -3775,13 +3802,11 @@ typedef struct
 cmDspInst_t*  _cmDspEchoCancelAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
 
-  /*
-  if( va_cnt !=3 )
-  {
-    cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'EchoCancel' constructor must have two arguments: a channel count and frequency array.");
-    return NULL;
-  }
-  */
+  //  if( va_cnt !=3 )
+  //  {
+  //    cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'EchoCancel' constructor must have two arguments: a channel count and frequency array.");
+  //    return NULL;
+  //  }
 
   cmDspEchoCancel_t* p = cmDspInstAllocV(cmDspEchoCancel_t,ctx,classPtr,instSymId,id,storeSymId,va_cnt,vl,
     1,   "mu",     kMuEcId,        0,0, kInDsvFl   | kDoubleDsvFl,   "NLSM mu coefficient.",
@@ -3905,7 +3930,7 @@ cmDspRC_t _cmDspEchoCancelRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmEchoCancelClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmEchoCancelClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmEchoCancelDC,ctx,"EchoCancel",
     NULL,
@@ -3920,3 +3945,4 @@ struct cmDspClass_str* cmEchoCancelClassCons( cmDspCtx_t* ctx )
 
   return &_cmEchoCancelDC;
 }
+//)

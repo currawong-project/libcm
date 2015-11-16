@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"'snap' global variable interface used by units for getting and setting global variables." kw:[snap]}
   extern cmDspStoreH_t cmDspStoreNullHandle;
 
   cmDspRC_t cmDspStoreAlloc( cmCtx_t* ctx, cmDspStoreH_t* hp, unsigned initStoreCnt, unsigned growStoreCnt );
@@ -23,6 +24,8 @@ extern "C" {
   // Returns the 'id' of the variable.
   unsigned cmDspStoreSetValueViaSym( cmDspStoreH_t h, unsigned symId, const cmDspValue_t* val );
 
+  //)
+  
 #ifdef __cplusplus
   }
 #endif

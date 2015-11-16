@@ -5,7 +5,10 @@
 extern "C" {
 #endif
 
-  //------------------------------------------------------------------------------------------------------------
+  //( { file_desc:"Processor Library 1" kw:[proclib]}
+  //)
+
+  //( { label:cmAudioFileRd file_desc:"Audio file reader based on cmAudioFile" kw:[proc] }
   typedef struct
   {
     cmObj             obj;
@@ -23,28 +26,30 @@ extern "C" {
     cmMtxFile*        mfp;
   } cmAudioFileRd;
 
-  /// set p to NULL to dynamically allocate the object
-  /// fn and chIdx are optional - set fn to NULL to allocate the reader without opening a file.
-  /// If fn is valid then chIdx must also be valid.
-  /// Set 'endSmpIdx' to cmInvalidIdx to return the entire signal in cmAudioFileRdRead().
-  /// Set 'endSmpIdx' to 0 to return all samples between 0 and the end of the file.
+  // set p to NULL to dynamically allocate the object
+  // fn and chIdx are optional - set fn to NULL to allocate the reader without opening a file.
+  // If fn is valid then chIdx must also be valid.
+  // Set 'endSmpIdx' to cmInvalidIdx to return the entire signal in cmAudioFileRdRead().
+  // Set 'endSmpIdx' to 0 to return all samples between 0 and the end of the file.
   cmAudioFileRd*     cmAudioFileRdAlloc( cmCtx* c, cmAudioFileRd* p, unsigned procSmpCnt, const char* fn, unsigned chIdx, unsigned begSmpIdx, unsigned endSmpIdx );
   cmRC_t             cmAudioFileRdFree(  cmAudioFileRd** p );
   cmRC_t             cmAudioFileRdOpen(  cmAudioFileRd* p, unsigned procSmpCnt,  const cmChar_t* fn, unsigned chIdx, unsigned begSmpIdx, unsigned endSmpIdx ); 
   cmRC_t             cmAudioFileRdClose( cmAudioFileRd* p );  
 
 
-  /// Returns cmEofRC if the end of file is encountered.
+  // Returns cmEofRC if the end of file is encountered.
   cmRC_t             cmAudioFileRdRead(  cmAudioFileRd* p );
   cmRC_t             cmAudioFileRdSeek(  cmAudioFileRd* p, unsigned frmIdx );
 
-  /// Find the overall minimum, maximum, and mean sample values without changing the current file location.
+  // Find the overall minimum, maximum, and mean sample values without changing the current file location.
   cmRC_t             cmAudioFileRdMinMaxMean( cmAudioFileRd* p, unsigned chIdx, cmSample_t* minPtr, cmSample_t* maxPtr, cmSample_t* meanPtr );
 
+  //)
 
+  //( { label:cmShiftBuf file_desc:"Audio shift buffer processor" kw:[proc] }
   //------------------------------------------------------------------------------------------------------------
-  /// The buffer is intended to synchronize sample block rates between processes and to provide an overlapped 
-  /// input buffer.
+  // The buffer is intended to synchronize sample block rates between processes and to provide an overlapped 
+  // input buffer.
   typedef struct cmShiftBuf_str
   {
     cmObj       obj;
@@ -61,89 +66,36 @@ extern "C" {
 
 
 
-  /// Set p to NULL to dynamically allocate the object.  hopSmpCnt must be  <= wndSmpCnt.
+  // Set p to NULL to dynamically allocate the object.  hopSmpCnt must be  <= wndSmpCnt.
   cmShiftBuf*       cmShiftBufAlloc( cmCtx* c, cmShiftBuf* p, unsigned procSmpCnt, unsigned wndSmpCnt, unsigned hopSmpCnt );
   cmRC_t            cmShiftBufFree(  cmShiftBuf** p );
   cmRC_t            cmShiftBufInit(  cmShiftBuf* p, unsigned procSmpCnt, unsigned wndSmpCnt, unsigned hopSmpCnt );
   cmRC_t            cmShiftBufFinal( cmShiftBuf* p );
 
-  /// Returns true if a new hop is ready to be read otherwise returns false.
-  /// In general cmShiftBufExec() should be called in a loop until it returns false. 
-  /// Note that 'sp' and 'sn' are ignored except for the first call after the function returns false.
-  /// This means that when called in a loop 'sp' and 'sn' are only used on the first time through the loop.
-  /// When procSmpCnt is less than hopSmpCnt the loop will only execute when at least wndSmpCnt 
-  /// new samples have been buffered.
-  /// When procSmpCnt is greater than hopSmpCnt the loop will execute multiple times until less 
+  // Returns true if a new hop is ready to be read otherwise returns false.
+  // In general cmShiftBufExec() should be called in a loop until it returns false. 
+  // Note that 'sp' and 'sn' are ignored except for the first call after the function returns false.
+  // This means that when called in a loop 'sp' and 'sn' are only used on the first time through the loop.
+  // When procSmpCnt is less than hopSmpCnt the loop will only execute when at least wndSmpCnt 
+  // new samples have been buffered.
+  // When procSmpCnt is greater than hopSmpCnt the loop will execute multiple times until less 
   //  than wndSmpCnt new samples are available.
-  /// Note that 'sn' must always be less than or equal to procSmpCnt.
-  ///
-  /// Example:
-  /// while( fill(sp,sn) )                      // fill sp[] with sn samples
-  /// {
-  ///    // shift by hopSmpCnt samples on all passes - insert new samples on first pass
-  ///    while( cmShiftBufExec(p,sp,sn) )       
-  ///       proc(p->outV,p->outN);              // process p->outV[wndSmpCnt]
-  /// }
+  // Note that 'sn' must always be less than or equal to procSmpCnt.
+  //
+  // Example:
+  // while( fill(sp,sn) )                      // fill sp[] with sn samples
+  // {
+  //    // shift by hopSmpCnt samples on all passes - insert new samples on first pass
+  //    while( cmShiftBufExec(p,sp,sn) )       
+  //       proc(p->outV,p->outN);              // process p->outV[wndSmpCnt]
+  // }
   bool              cmShiftBufExec(  cmShiftBuf* p, const cmSample_t* sp, unsigned sn );
 
   void              cmShiftBufTest( cmCtx* c );
-
-
   //------------------------------------------------------------------------------------------------------------
-  /*
-  typedef struct
-  {
-    cmComplexS_t*   complexV;
-    cmSample_t*     outV;
-    cmFftPlanS_t     plan;
-  } cmIFftObjS;
+  //)
 
-  typedef struct
-  {
-    cmComplexR_t*   complexV;
-    cmReal_t*       outV;
-    cmFftPlanR_t    plan;
-  } cmIFftObjR;
-
-  typedef struct
-  {
-    cmObj           obj;
-    unsigned        binCnt;
-    unsigned        outN;
-
-    union 
-    {
-      cmIFftObjS sr;
-      cmIFftObjR rr;
-    }u;
-  
-  } cmIFft;
-
-  cmIFft*  cmIFftAllocS( cmCtx* c, cmIFft* p, unsigned binCnt );
-  cmIFft*  cmIFftAllocR( cmCtx* c, cmIFft* p, unsigned binCnt );
-
-  cmRC_t   cmIFftFreeS(  cmIFft** pp );
-  cmRC_t   cmIFftFreeR(  cmIFft** pp );
-
-  cmRC_t   cmIFftInitS(  cmIFft* p, unsigned binCnt );
-  cmRC_t   cmIFftInitR(  cmIFft* p, unsigned binCnt );
-
-  cmRC_t   cmIFftFinalS( cmIFft* p );
-  cmRC_t   cmIFftFinalR( cmIFft* p );
-
-  // x must contain 'binCnt' elements.
-  cmRC_t   cmIFftExecS(     cmIFft* p, cmComplexS_t* x );
-  cmRC_t   cmIFftExecR(     cmIFft* p, cmComplexR_t* x );
-
-  cmRC_t   cmIFftExecPolarS( cmIFft* p, const cmReal_t* magV, const cmReal_t* phsV ); 
-  cmRC_t   cmIFftExecPolarR( cmIFft* p, const cmReal_t* magV, const cmReal_t* phsV ); 
-
-  cmRC_t   cmIFftExecRectS(  cmIFft* p, const cmReal_t* rV,   const cmReal_t* iV );
-  cmRC_t   cmIFftExecPolarR( cmIFft* p, const cmReal_t* magV, const cmReal_t* phsV ); 
-
-  void cmIFftTest( cmRpt_t* rptFuncPtr );
-  */
-  //------------------------------------------------------------------------------------------------------------
+  //( { label:cmWindowFunc file_desc:"Fourier Transform window function generator." kw:[proc]}
 
   enum
   {
@@ -174,8 +126,8 @@ extern "C" {
     cmMtxFile*  mfp;
   } cmWndFunc;
 
-  /// Set p to NULL to dynamically allocate the object
-  /// if wndId is set to a valid value this function will internally call cmWndFuncInit()
+  // Set p to NULL to dynamically allocate the object
+  // if wndId is set to a valid value this function will internally call cmWndFuncInit()
   cmWndFunc*  cmWndFuncAlloc( cmCtx* c, cmWndFunc* p, unsigned wndId, unsigned wndSmpCnt, double kaierSideLobeRejectDb );
   cmRC_t      cmWndFuncFree(  cmWndFunc** pp );
   cmRC_t      cmWndFuncInit(  cmWndFunc* p, unsigned wndId, unsigned wndSmpCnt, double kaiserSideLobeRejectDb );
@@ -184,9 +136,11 @@ extern "C" {
 
 
   void cmWndFuncTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH );
-
   //------------------------------------------------------------------------------------------------------------
-  /// Spectral frame delay. A circular buffer for spectral (or other fixed length) vectors.
+  //)
+
+  //( { label:cmSpecDelay file_desc:"Spectral frame delay. A circular buffer for spectral (or other fixed length) vectors." kw:[proc]}
+  
   typedef struct
   {
     cmObj       obj;
@@ -197,24 +151,25 @@ extern "C" {
   } cmSpecDelay;
 
 
-  /// Set p to NULL to dynamically allocate the object.
-  /// Allocate a spectral frame delay capable of delaying for 'maxDelayCnt' hops and 
-  /// where each vector contains 'binCnt' elements.
+  // Set p to NULL to dynamically allocate the object.
+  // Allocate a spectral frame delay capable of delaying for 'maxDelayCnt' hops and 
+  // where each vector contains 'binCnt' elements.
   cmSpecDelay*      cmSpecDelayAlloc( cmCtx* c, cmSpecDelay* p, unsigned maxDelayCnt, unsigned binCnt );
   cmRC_t            cmSpecDelayFree(  cmSpecDelay** p );
 
   cmRC_t            cmSpecDelayInit( cmSpecDelay* p, unsigned maxDelayCnt, unsigned binCnt );
   cmRC_t            cmSpecDelayFinal(cmSpecDelay* p );
 
-  /// Give an input vector to the delay. 'sn' must <= binCnt
+  // Give an input vector to the delay. 'sn' must <= binCnt
   cmRC_t            cmSpecDelayExec(  cmSpecDelay* p, const cmSample_t* sp, unsigned sn );
 
-  /// Get a pointer to a delayed vector. 'delayCnt' indicates the length of the delay in hops.
-  /// (e.g. 1 is the previous hop, 2 is two hops previous, ... )
+  // Get a pointer to a delayed vector. 'delayCnt' indicates the length of the delay in hops.
+  // (e.g. 1 is the previous hop, 2 is two hops previous, ... )
   const cmSample_t* cmSpecDelayOutPtr(cmSpecDelay* p, unsigned delayCnt );
-
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmFilter file_desc:"General purpose, LTI, Octave compatible, filter." kw:[proc] }
   typedef struct cmFilter_str
   {
     cmObj     obj;
@@ -257,9 +212,10 @@ extern "C" {
 
   void      cmFilterTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH );
   void      cmFilterFilterTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH );
-
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmComplexDetect file_desc:"Complex domain onset detection function." kw:[proc] }
   typedef struct
   {
     cmObj        obj;
@@ -271,14 +227,16 @@ extern "C" {
     //unsigned     cdfSpRegId;
   } cmComplexDetect;
 
-  /// Set p to NULL to dynamically allocate the object.
+  // Set p to NULL to dynamically allocate the object.
   cmComplexDetect* cmComplexDetectAlloc(cmCtx* c, cmComplexDetect* p, unsigned binCnt );
   cmRC_t           cmComplexDetectFree( cmComplexDetect** pp);
   cmRC_t           cmComplexDetectInit( cmComplexDetect* p, unsigned binCnt );
   cmRC_t           cmComplexDetectFinal(cmComplexDetect* p);
   cmRC_t           cmComplexDetectExec( cmComplexDetect* p, const cmSample_t* magV, const cmSample_t* phsV, unsigned binCnt  );
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmComplexOnset file_desc:"Complex onset detection function" kw:[proc]}
   typedef struct
   {
     cmObj        obj;
@@ -298,8 +256,10 @@ extern "C" {
   cmRC_t          cmComplexOnsetFinal( cmComplexOnset* p);
   cmRC_t          cmComplexOnsetExec(  cmComplexOnset* p, cmSample_t cdf );
   cmRC_t          cmComplexOnsetCalc(  cmComplexOnset* p );
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmMfcc file_desc:"Mel Frequency Cepstral Coefficient (MFCC) measurement function." kw:[proc] }
   typedef struct
   {
     cmObj       obj;
@@ -321,8 +281,10 @@ extern "C" {
   cmRC_t  cmMfccExecPower(      cmMfcc* p, const cmReal_t* magPowV, unsigned binCnt );
   cmRC_t  cmMfccExecAmplitude(  cmMfcc* p, const cmReal_t* magAmpV, unsigned binCnt );
   void    cmMfccTest();
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmSones file_desc:"Sones measurement function." kw:[proc] }
   typedef struct
   {
     cmObj       obj;
@@ -350,8 +312,10 @@ extern "C" {
   cmRC_t   cmSonesExec(  cmSones*  p, const cmReal_t* magPowV, unsigned binCnt ); 
 
   void     cmSonesTest();
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label: cmAudioOffsetScale file_desc:"Audio signal pre-processing normalizer." kw:[proc] }
   typedef struct
   {
     cmObj             obj;
@@ -371,15 +335,15 @@ extern "C" {
   } cmAudioOffsetScale;
 
 
-  /// This processor adds an offset to an audio signal and scales into dB (SPL) using one of two techniques
-  /// 1) Measures the effective sound pressure (via RMS) and then scales the signal to the reference dB (SPL) 
-  ///    In this case dBref is commonly set to 70. See Timony, 2004, Implementing Loudness Models in Matlab.
-  /// 
-  /// 2) treats the dBref as the maximum dB (SPL) and scales the signal by this amount without regard
-  ///    measured signal level.  In this case dBref is commonly set to 96 (max. dB (SPL) value for 16 bits)
-  ///    and rmsWndSecs is ignored.
-  ///
-  /// Note that setting rmsWndSecs to zero has the effect of using procSmpCnt as the window length.
+  // This processor adds an offset to an audio signal and scales into dB (SPL) using one of two techniques
+  // 1) Measures the effective sound pressure (via RMS) and then scales the signal to the reference dB (SPL) 
+  //    In this case dBref is commonly set to 70. See Timony, 2004, Implementing Loudness Models in Matlab.
+  // 
+  // 2) treats the dBref as the maximum dB (SPL) and scales the signal by this amount without regard
+  //    measured signal level.  In this case dBref is commonly set to 96 (max. dB (SPL) value for 16 bits)
+  //    and rmsWndSecs is ignored.
+  //
+  // Note that setting rmsWndSecs to zero has the effect of using procSmpCnt as the window length.
 
   enum { kNoAudioScaleFl=0x01, kRmsAudioScaleFl=0x02, kFixedAudioScaleFl=0x04 };
 
@@ -388,8 +352,10 @@ extern "C" {
   cmRC_t        cmAudioOffsetScaleInit(  cmAudioOffsetScale* p, unsigned procSmpCnt, double srate, cmSample_t offset, double rmsWndSecs, double dBref, unsigned flags );
   cmRC_t        cmAudioOffsetScaleFinal( cmAudioOffsetScale* p );
   cmRC_t        cmAudioOffsetScaleExec(  cmAudioOffsetScale* p, const cmSample_t* sp, unsigned sn );
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmSpecMeas file_desc:"Measure a signals RMS, High-Frequency Content, Spectral Centroid, and Spectral Spread." kw:[proc]}
   typedef struct
   {
     cmObj      obj;
@@ -422,10 +388,10 @@ extern "C" {
     unsigned ssSpRegId;
   } cmSpecMeas;
 
-  /// Set wndFrmCnt to the number of spectral frames to take the measurement over.
-  /// Setting wndFrmCnt to 1 has the effect of calculating the value on the current frame only.
-  /// Set flags = kWholeSigSpecMeasFl to ignore wndFrmCnt and calculate the result on the entire signal.
-  /// In effect this treats the entire signal as the length of the measurement window.
+  // Set wndFrmCnt to the number of spectral frames to take the measurement over.
+  // Setting wndFrmCnt to 1 has the effect of calculating the value on the current frame only.
+  // Set flags = kWholeSigSpecMeasFl to ignore wndFrmCnt and calculate the result on the entire signal.
+  // In effect this treats the entire signal as the length of the measurement window.
   enum { kWholeSigSpecMeasFl=0x00, kUseWndSpecMeasFl=0x01 };
 
   cmSpecMeas* cmSpecMeasAlloc( cmCtx* c, cmSpecMeas* p, double srate, unsigned binCnt, unsigned wndFrmCnt, unsigned flags );
@@ -433,8 +399,10 @@ extern "C" {
   cmRC_t      cmSpecMeasInit(  cmSpecMeas* p, double srate, unsigned binCnt, unsigned wndFrmCnt, unsigned flags );
   cmRC_t      cmSpecMeasFinal( cmSpecMeas* p );
   cmRC_t      cmSpecMeasExec(  cmSpecMeas* p, const cmReal_t* magPowV, unsigned binCnt ); 
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmSigMeas file_desc:"Measure a time domain signals zero crossing rate." kw:[proc]}
   typedef struct
   {
     cmObj       obj;
@@ -456,8 +424,10 @@ extern "C" {
   cmRC_t     cmSigMeasInit(  cmSigMeas* p, double srate, unsigned procSmpCnt, unsigned measSmpCnt );
   cmRC_t     cmSigMeasFinal( cmSigMeas* p );
   cmRC_t     cmSigMeasExec(  cmSigMeas* p, const cmSample_t* sigV, unsigned smpCnt );
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmSRC file_desc:"Sample rate converter" kw:[proc] }
   typedef struct
   {
     cmObj        obj;
@@ -476,7 +446,7 @@ extern "C" {
 
   } cmSRC;
 
-  /// The srate paramater is the sample rate of the source signal provided via cmSRCExec()
+  // The srate paramater is the sample rate of the source signal provided via cmSRCExec()
   cmSRC* cmSRCAlloc( cmCtx* c, cmSRC* p, double srate, unsigned procSmpCnt, unsigned upFact, unsigned dnFact );
   cmRC_t cmSRCFree(  cmSRC** pp );
   cmRC_t cmSRCInit(  cmSRC* p, double srate, unsigned procSmpCnt, unsigned upFact, unsigned dnFact );
@@ -484,8 +454,10 @@ extern "C" {
   cmRC_t cmSRCExec(  cmSRC* p, const cmSample_t* sp, unsigned sn );
 
   void   cmSRCTest();
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmConstQ file_desc:"Contant-Q transform." kw:[proc] }
   typedef struct
   {
     cmObj           obj;
@@ -510,9 +482,10 @@ extern "C" {
   cmRC_t    cmConstQInit(  cmConstQ* p, double srate, unsigned minMidiPitch, unsigned maxMidiPitch, unsigned binsPerOctave, double thresh );
   cmRC_t    cmConstQFinal( cmConstQ* p );
   cmRC_t    cmConstQExec(  cmConstQ* p, const cmComplexR_t* ftV, unsigned binCnt );
-
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmTuneHpcp file_desc:"Generate a tuned chromagram." kw:[proc]}
   typedef struct
   {
     cmObj     obj;
@@ -545,10 +518,10 @@ extern "C" {
   cmRC_t         cmTunedHpcpFinal( cmHpcp* p );
   cmRC_t         cmTunedHpcpExec(  cmHpcp* p, const cmComplexR_t* constQBinPtr, unsigned constQBinCnt );
   cmRC_t         cmTunedHpcpTuneAndFilter( cmHpcp* p);
-
-
   //------------------------------------------------------------------------------------------------------------
-  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmBeatHist file_desc:"Generate a beat candidate histogram." kw:[proc]}
 
   struct cmFftRR_str;
   struct cmIFftRR_str;
@@ -579,9 +552,11 @@ extern "C" {
   cmRC_t      cmBeatHistFinal( cmBeatHist* p );
   cmRC_t      cmBeatHistExec(  cmBeatHist* p, cmSample_t df );
   cmRC_t      cmBeatHistCalc(  cmBeatHist* p );
-
   //------------------------------------------------------------------------------------------------------------
-  // Gaussian Mixture Model containing N Gaussian PDF's each of dimension D
+  //)
+
+  //( { label:cmGmm file_desc"Gaussian Mixture Model containing N Gaussian PDF's each of dimension D." kw:[proc model]}
+  
   typedef struct
   {
     cmObj     obj;
@@ -639,9 +614,11 @@ extern "C" {
   void     cmGmmPrint( cmGmm_t* p, bool detailsFl );
 
   void     cmGmmTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH );
-
   //------------------------------------------------------------------------------------------------------------
-  // Continuous Hidden Markov Model
+  //)
+  
+  //( { label:cmChmm file_desc:"Continuous Hidden Markov Model" kw:[proc model]}
+  
   typedef struct
   {
     cmObj       obj;
@@ -652,9 +629,7 @@ extern "C" {
     cmReal_t*   aM;       // aM[ N x N] transition probability mtx
     cmGmm_t**   bV;       // bV[ N ] observation probability mtx (array of pointers to GMM's) 
     cmReal_t*   bM;       // bM[ N,T]  state-observation probability matrix 
-
     cmMtxFile* mfp;
-
   } cmChmm_t;
 
   // Continuous HMM consisting of stateN states where the observations 
@@ -706,10 +681,11 @@ extern "C" {
   void      cmChmmPrint(    cmChmm_t* p );
 
   void      cmChmmTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH  );
-
-
   //------------------------------------------------------------------------------------------------------------
-  // Chord recognizer
+  //)
+
+
+  //( { label:cmChord file_desc:"HMM based chord recognizer." kw:[proc]}
 
   typedef struct 
   {
@@ -739,14 +715,16 @@ extern "C" {
     cmReal_t  cdtsVar;      
 
   } cmChord;
-
+  
   cmChord*   cmChordAlloc( cmCtx* c, cmChord*  p, const cmReal_t* chromaM, unsigned T );
   cmRC_t     cmChordFree(  cmChord** p );
   cmRC_t     cmChordInit(  cmChord*  p, const cmReal_t* chromaM, unsigned T );
   cmRC_t     cmChordFinal( cmChord*  p );
 
   void       cmChordTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH ); 
-
+  //------------------------------------------------------------------------------------------------------------
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

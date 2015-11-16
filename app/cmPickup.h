@@ -5,7 +5,8 @@
 extern "C" {
 #endif
 
-
+  //( { file_desc:"'fluxo' channel calibration and gain normalization program." kw:[fluxo]}
+  
   enum
   {
     kOkPuRC = cmOkRC,
@@ -88,7 +89,8 @@ extern "C" {
   void cmPuReport( cmPuH_t h, cmRpt_t* rpt );
 
   void cmPuTest(cmCtx_t* ctx);
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

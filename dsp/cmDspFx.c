@@ -1,3 +1,5 @@
+//( { file_desc:"'snap' audio effects processor units." kw:[snap]}
+
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmFloatTypes.h"
@@ -40,7 +42,9 @@
 
 #include "cmDspSys.h"
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspDelay file_desc:"Simple audio delay with feedback." kw:[sunit] }
 enum
 {
   kBypassDyId,
@@ -155,7 +159,7 @@ cmDspRC_t _cmDspDelayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   return rc;
 }
 
-struct cmDspClass_str* cmDelayClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmDelayClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmDelayDC,ctx,"Delay",
     NULL,
@@ -170,7 +174,9 @@ struct cmDspClass_str* cmDelayClassCons( cmDspCtx_t* ctx )
   return &_cmDelayDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspMtDelay file_desc:"Multi-tap audio delay with feedback." kw:[sunit] }
 enum
 {
   kBypassMtId,
@@ -345,7 +351,7 @@ cmDspRC_t _cmDspMtDelayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return rc;
 }
 
-cmDspRC_t  _cmDspMtDelayRecvFunc(   cmDspCtx_t* ctx, struct cmDspInst_str* inst,  unsigned attrSymId, const cmDspValue_t* value )
+cmDspRC_t  _cmDspMtDelayRecvFunc(   cmDspCtx_t* ctx, cmDspInst_t*  inst,  unsigned attrSymId, const cmDspValue_t* value )
 {
   cmDspRC_t       rc = kOkDspRC;
   cmDspMtDelay_t* p  = (cmDspMtDelay_t*)inst;
@@ -364,7 +370,7 @@ cmDspRC_t  _cmDspMtDelayRecvFunc(   cmDspCtx_t* ctx, struct cmDspInst_str* inst,
 }
 
 
-struct cmDspClass_str* cmMtDelayClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmMtDelayClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmMtDelayDC,ctx,"MtDelay",
     NULL,
@@ -380,7 +386,9 @@ struct cmDspClass_str* cmMtDelayClassCons( cmDspCtx_t* ctx )
   return &_cmMtDelayDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspPShift file_desc:"Time-domain pitch shifter." kw:[sunit] }
 enum
 {
   kBypassPsId,
@@ -468,7 +476,7 @@ cmDspRC_t _cmDspPShiftRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   return cmDspSetEvent(ctx,inst,evt);
 }
 
-struct cmDspClass_str* cmPShiftClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmPShiftClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmPShiftDC,ctx,"PShift",
     NULL,
@@ -483,7 +491,9 @@ struct cmDspClass_str* cmPShiftClassCons( cmDspCtx_t* ctx )
   return &_cmPShiftDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspLoopRecd file_desc:"Loop recorder." kw:[sunit] }
 enum
 {
   kTimeLrId,
@@ -616,7 +626,7 @@ cmDspRC_t _cmDspLoopRecdRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return rc;
 }
 
-struct cmDspClass_str* cmLoopRecdClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmLoopRecdClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmLoopRecdDC,ctx,"LoopRecd",
     NULL,
@@ -631,7 +641,9 @@ struct cmDspClass_str* cmLoopRecdClassCons( cmDspCtx_t* ctx )
   return &_cmLoopRecdDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspRectify file_desc:"Full-wave rectifier." kw:[sunit] }
 enum
 {
   kBypassRcId,
@@ -715,7 +727,7 @@ cmDspRC_t _cmDspRectifyRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return cmDspSetEvent(ctx,inst,evt);
 }
 
-struct cmDspClass_str* cmRectifyClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmRectifyClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmRectifyDC,ctx,"Rectify",
     NULL,
@@ -731,7 +743,9 @@ struct cmDspClass_str* cmRectifyClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspGateDetect file_desc:"Track the onset and offset of an incoming signal." kw:[sunit] }
 enum
 {
   kWndMsGdId,
@@ -862,7 +876,7 @@ cmDspRC_t _cmDspGateDetectRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
   return rc;
 }
 
-struct cmDspClass_str* cmGateDetectClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmGateDetectClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmGateDetectDC,ctx,"GateDetect",
     NULL,
@@ -878,62 +892,62 @@ struct cmDspClass_str* cmGateDetectClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
-/*
-  The purpose of this object is to calculate, store and retrieve gain coefficents
-  for a set of audio channels.  The gain coefficients are designed to balance the
-  volume of each channel relative to the others.  During gain calibration
-  a sample of each channel is taken and it's average volume is determined.  
-  After an example of all channels has been received a new set of gain coefficients
-  is calculated which decreases the volume of loud channels and increases the
-  volume of quiet channels.
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspAutoGain file_desc:"Normalize a set of audio input signals to acheive a consistent level." kw:[sunit] }
+// The purpose of this object is to calculate, store and retrieve gain coefficents
+// for a set of audio channels.  The gain coefficients are designed to balance the
+// volume of each channel relative to the others.  During gain calibration
+// a sample of each channel is taken and it's average volume is determined.  
+// After an example of all channels has been received a new set of gain coefficients
+// is calculated which decreases the volume of loud channels and increases the
+// volume of quiet channels.
+//
+//  The gain coefficents are made available via a set of 'gain-###' output ports.
+//
+//  This object acts as an interface to the cmAutoGain processor.  
+//
+//  As input it takes a channel configuration JSON file of the form:
+//  {
+//    ch_array : 
+//    [ ["ch","ssi","pitch","midi","gain"]
+//      [ 0,    0,    "C4",   60,    1.0 ]
+//               ....
+//      [ n     0,    "C5",   72,    1.0 ]
+//    ] 
+//  }      
+//
+//  Each array in 'ch_array' gives the configuration of a channel.
+//  
+//
+//  It also requires a JSON resource object of the form
+//    gdParms: 
+//    {
+//      medCnt: 5                   
+//      avgCnt: 9       
+//      suprCnt: 6       
+//      offCnt: 3       
+//      suprCoeff: 1.400000       
+//      onThreshDb: -53.000000       
+//      offThreshDb: -80.000000       
+//    }    
+//
+//    These arguments are used to configure the cmAutoGain Proessor gate detector function.
+//
+//  During runtime the object accepts the following action selector symbol id's:
+//    a. start  - begin a new calibration  session 
+//    b. proc   - end a calibration session and calculate new gain coeff's
+//    c. cancel - cancel a calibration session   
+//    d. write  - write the channel configuration file 
+//    e. print  - print the current auto gain calibration state
+//
+//  After a 'start' msg the object accepts channel id's throught its 'id' input port.
+//  Each 'id' identifies the channel which it will process next.
+//  Upon reception of a channel id the object routes subsequent audio to its
+//  internal cmAutoGain processor until it receives the next channel id 
+//  or a 'proc' or 'cancel' symbol.
 
-  The gain coefficents are made available via a set of 'gain-###' output ports.
 
-  This object acts as an interface to the cmAutoGain processor.  
-
-  As input it takes a channel configuration JSON file of the form:
-  {
-    ch_array : 
-    [ ["ch","ssi","pitch","midi","gain"]
-      [ 0,    0,    "C4",   60,    1.0 ]
-               ....
-      [ n     0,    "C5",   72,    1.0 ]
-    ] 
-  }      
-
-  Each array in 'ch_array' gives the configuration of a channel.
-  
-
-  It also requires a JSON resource object of the form
-    gdParms: 
-    {
-      medCnt: 5                   
-      avgCnt: 9       
-      suprCnt: 6       
-      offCnt: 3       
-      suprCoeff: 1.400000       
-      onThreshDb: -53.000000       
-      offThreshDb: -80.000000       
-    }    
-
-    These arguments are used to configure the cmAutoGain Proessor gate detector function.
-
-  During runtime the object accepts the following action selector symbol id's:
-    a. start  - begin a new calibration  session 
-    b. proc   - end a calibration session and calculate new gain coeff's
-    c. cancel - cancel a calibration session   
-    d. write  - write the channel configuration file 
-    e. print  - print the current auto gain calibration state
-
-  After a 'start' msg the object accepts channel id's throught its 'id' input port.
-  Each 'id' identifies the channel which it will process next.
-  Upon reception of a channel id the object routes subsequent audio to its
-  internal cmAutoGain processor until it receives the next channel id 
-  or a 'proc' or 'cancel' symbol.
-
-
-*/
 //==========================================================================================================================================
 enum
 {
@@ -1202,7 +1216,7 @@ cmDspRC_t _cmDspAutoGainRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return rc;
 }
 
-struct cmDspClass_str* cmAutoGainClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmAutoGainClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmAutoGainDC,ctx,"AutoGain",
     NULL,
@@ -1217,7 +1231,9 @@ struct cmDspClass_str* cmAutoGainClassCons( cmDspCtx_t* ctx )
   return &_cmAutoGainDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspEnvFollow file_desc:"Generate a control signal from by analyzing the power envelope of an incoming audio signal." kw:[sunit] }
 enum
 {
   kHopMsEfId,     // RMS window length in milliseconds
@@ -1388,7 +1404,7 @@ cmDspRC_t _cmDspEnvFollowRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
   return rc;
 }
 
-struct cmDspClass_str* cmEnvFollowClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmEnvFollowClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmEnvFollowDC,ctx,"EnvFollow",
     NULL,
@@ -1403,7 +1419,9 @@ struct cmDspClass_str* cmEnvFollowClassCons( cmDspCtx_t* ctx )
   return &_cmEnvFollowDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspXfader file_desc:"Gate controlled fader bank." kw:[sunit] }
 // Fade in and out an arbitrary number of audio signals based on gate signals.
 // When the gate is high the signal fades in and when the gate is low the signal fades out.
 // Constructor Args:
@@ -1646,7 +1664,7 @@ cmDspRC_t _cmDspXfaderRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   return rc;
 }
 
-struct cmDspClass_str* cmXfaderClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmXfaderClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmXfaderDC,ctx,"Xfader",
     NULL,
@@ -1662,7 +1680,9 @@ struct cmDspClass_str* cmXfaderClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspChCfg file_desc:"Configure a 'fluxo' channel." kw:[sunit] }
 
 enum
 {
@@ -1864,7 +1884,7 @@ cmDspRC_t _cmDspChCfgRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   return rc;
 }
 
-struct cmDspClass_str* cmChCfgClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmChCfgClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmChCfgDC,ctx,"ChCfg",
     NULL,
@@ -1879,7 +1899,9 @@ struct cmDspClass_str* cmChCfgClassCons( cmDspCtx_t* ctx )
   return &_cmChCfgDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspChordDetect file_desc:"Detect a predefined chord based on signal gates." kw:[sunit] }
 enum
 {
   kRsrcCdId,
@@ -2062,7 +2084,7 @@ cmDspRC_t _cmDspChordDetectRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspE
   return rc;
 }
 
-struct cmDspClass_str* cmChordDetectClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmChordDetectClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmChordDetectDC,ctx,"ChordDetect",
     NULL,
@@ -2077,7 +2099,10 @@ struct cmDspClass_str* cmChordDetectClassCons( cmDspCtx_t* ctx )
   return &_cmChordDetectDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspFader file_desc:"Single channel gate controlled fader." kw:[sunit] }
+
 enum
 {
   kTimeFaId,
@@ -2168,7 +2193,7 @@ cmDspRC_t _cmDspFaderRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   return rc;
 }
 
-struct cmDspClass_str* cmFaderClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmFaderClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmFaderDC,ctx,"Fader",
     NULL,
@@ -2183,7 +2208,9 @@ struct cmDspClass_str* cmFaderClassCons( cmDspCtx_t* ctx )
   return &_cmFaderDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspNoteSelect file_desc:"'fluxo' gate based logic controller." kw:[sunit fluxo] }
 enum
 {
   kChCntNsId,
@@ -2421,7 +2448,7 @@ cmDspRC_t _cmDspNoteSelectRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
   return rc;
 }
 
-struct cmDspClass_str* cmNoteSelectClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmNoteSelectClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmNoteSelectDC,ctx,"NoteSelect",
     NULL,
@@ -2436,7 +2463,9 @@ struct cmDspClass_str* cmNoteSelectClassCons( cmDspCtx_t* ctx )
   return &_cmNoteSelectDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspNetNoteSelect file_desc:"'fluxo' transmit gate information over the UDP network." kw:[sunit fluxo] }
 
 enum
 {
@@ -2708,7 +2737,7 @@ cmDspRC_t _cmDspNetNoteSelectRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDs
   return rc;
 }
 
-struct cmDspClass_str* cmNetNoteSelectClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmNetNoteSelectClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmNetNoteSelectDC,ctx,"NetNoteSelect",
     NULL,
@@ -2724,7 +2753,9 @@ struct cmDspClass_str* cmNetNoteSelectClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspCombFilt file_desc:"Comb and Inverse comb filter." kw:[sunit] }
 enum
 {
   kBypassCfId,
@@ -2840,7 +2871,7 @@ cmDspRC_t _cmDspCombFiltRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return rc;
 }
 
-struct cmDspClass_str* cmCombFiltClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmCombFiltClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmCombFiltDC,ctx,"CombFilt",
     NULL,
@@ -2855,7 +2886,9 @@ struct cmDspClass_str* cmCombFiltClassCons( cmDspCtx_t* ctx )
   return &_cmCombFiltDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspScalarOp file_desc:"Perform arithmetic functions on scalar values." kw:[sunit] }
 enum
 {
   kPortCntSoId,
@@ -3012,7 +3045,7 @@ cmDspRC_t _cmDspScalarOpRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return rc;
 }
 
-struct cmDspClass_str* cmScalarOpClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmScalarOpClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmScalarOpDC,ctx,"ScalarOp",
     NULL,
@@ -3027,7 +3060,9 @@ struct cmDspClass_str* cmScalarOpClassCons( cmDspCtx_t* ctx )
   return &_cmScalarOpDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspGroupSel file_desc:"Select one group of audio channels from a set of audio channel groups." kw:[sunit] }
 
 enum
 {
@@ -3182,7 +3217,7 @@ cmDspRC_t _cmDspGroupSelRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return rc;
 }
 
-struct cmDspClass_str* cmGroupSelClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmGroupSelClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmGroupSelDC,ctx,"GroupSel",
     NULL,
@@ -3198,7 +3233,9 @@ struct cmDspClass_str* cmGroupSelClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspNofM file_desc:"Select N channels from a set of M channels based on their current gate states." kw:[sunit] }
 
 enum
 {
@@ -3348,7 +3385,7 @@ cmDspRC_t _cmDspAudioNofM_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
   return rc;
 }
 
-struct cmDspClass_str* cmAudioNofMClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmAudioNofMClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmAudioNofM_DC,ctx,"AudioNofM",
     NULL,
@@ -3365,7 +3402,9 @@ struct cmDspClass_str* cmAudioNofMClassCons( cmDspCtx_t* ctx )
 
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspRingMod file_desc:"Ring modulator." kw:[sunit] }
 enum
 {
   kInChCntRmId,
@@ -3467,7 +3506,7 @@ cmDspRC_t _cmDspRingModRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return cmDspSetEvent(ctx,inst,evt);
 }
 
-struct cmDspClass_str* cmRingModClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmRingModClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmRingModDC,ctx,"RingMod",
     NULL,
@@ -3482,7 +3521,9 @@ struct cmDspClass_str* cmRingModClassCons( cmDspCtx_t* ctx )
   return &_cmRingModDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspMsgDelay file_desc:"Delay an arbitrary value." kw:[sunit] }
 enum
 {
   kMaxCntMdId,
@@ -3703,7 +3744,7 @@ cmDspRC_t _cmDspMsgDelayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return rc;
 }
 
-struct cmDspClass_str* cmMsgDelayClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmMsgDelayClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmMsgDelayDC,ctx,"MsgDelay",
     NULL,
@@ -3718,7 +3759,9 @@ struct cmDspClass_str* cmMsgDelayClassCons( cmDspCtx_t* ctx )
   return &_cmMsgDelayDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspLine file_desc:"Programmable line generator." kw:[sunit] }
 enum
 {
   kBegLnId,
@@ -3874,7 +3917,7 @@ cmDspRC_t _cmDspLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* e
   return rc;
 }
 
-struct cmDspClass_str* cmLineClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmLineClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmLineDC,ctx,"Line",
     NULL,
@@ -3890,7 +3933,10 @@ struct cmDspClass_str* cmLineClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspAdsr file_desc:"ADSR envelope generator." kw:[sunit] }
+
 enum
 {
   kTrigModeAdId,
@@ -4007,14 +4053,12 @@ cmDspRC_t _cmDspAdsrExec( cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   // HACK HACK HACK HACK
   //
 
-  /*
-  double db  = rms<0.00001 ? -100.0 :  20.0*log10(rms);
-  double dbMax = -15.0;
-  double dbMin = -58.0;
-
-  db = cmMin(dbMax,cmMax(dbMin,db));
-  double scale =  (db - dbMin) / (dbMax-dbMin);
-  */
+  //  double db  = rms<0.00001 ? -100.0 :  20.0*log10(rms);
+  //  double dbMax = -15.0;
+  //  double dbMin = -58.0;
+  //
+  //  db = cmMin(dbMax,cmMax(dbMin,db));
+  //  double scale =  (db - dbMin) / (dbMax-dbMin);
 
   cmReal_t     out    = cmAdsrExec( p->p, cmDspSamplesPerCycle(ctx), gateFl, tscale, ascale );
 
@@ -4083,7 +4127,7 @@ cmDspRC_t _cmDspAdsrRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* e
   return rc;
 }
 
-struct cmDspClass_str* cmAdsrClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmAdsrClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmAdsrDC,ctx,"Adsr",
     NULL,
@@ -4098,7 +4142,9 @@ struct cmDspClass_str* cmAdsrClassCons( cmDspCtx_t* ctx )
   return &_cmAdsrDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspAdsr file_desc:"Audio dynamics compressor." kw:[sunit] }
 enum
 {
   kBypassCmId,
@@ -4251,7 +4297,7 @@ cmDspRC_t _cmDspCompressorRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
   return rc;
 }
 
-struct cmDspClass_str* cmCompressorClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmCompressorClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmCompressorDC,ctx,"Compressor",
     NULL,
@@ -4266,7 +4312,9 @@ struct cmDspClass_str* cmCompressorClassCons( cmDspCtx_t* ctx )
   return &_cmCompressorDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspBiquad file_desc:"Programmable Biquad EQ filter." kw:[sunit] }
 enum
 {
   kBypassBqId,
@@ -4435,7 +4483,7 @@ cmDspRC_t _cmDspBiQuadEqRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return rc;
 }
 
-struct cmDspClass_str* cmBiQuadEqClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmBiQuadEqClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmBiQuadEqDC,ctx,"BiQuadEq",
     NULL,
@@ -4450,7 +4498,10 @@ struct cmDspClass_str* cmBiQuadEqClassCons( cmDspCtx_t* ctx )
   return &_cmBiQuadEqDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspDistDs file_desc:"Guitar style distortion effect." kw:[sunit] }
+
 enum
 {
   kBypassDsId,
@@ -4593,7 +4644,7 @@ cmDspRC_t _cmDspDistDsRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   return rc;
 }
 
-struct cmDspClass_str* cmDistDsClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmDistDsClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmDistDsDC,ctx,"DistDs",
     NULL,
@@ -4608,7 +4659,9 @@ struct cmDspClass_str* cmDistDsClassCons( cmDspCtx_t* ctx )
   return &_cmDistDsDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspDbToLin file_desc:"Convert decibel units to linear units." kw:[sunit] }
 enum
 {
   kInDlId,
@@ -4660,7 +4713,7 @@ cmDspRC_t _cmDspDbToLinRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return rc;
 }
 
-struct cmDspClass_str* cmDbToLinClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmDbToLinClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmDbToLinDC,ctx,"DbToLin",
     NULL,
@@ -4675,7 +4728,10 @@ struct cmDspClass_str* cmDbToLinClassCons( cmDspCtx_t* ctx )
   return &_cmDbToLinDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspNofM2 file_desc:"Pass an N of M possible inputs to the output." kw:[sunit] }
+
 // Pass any N of M inputs
 enum
 {
@@ -5055,7 +5111,7 @@ cmDspRC_t _cmDspNofM_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   return rc;
 }
 
-struct cmDspClass_str* cmNofMClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmNofMClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmNofM_DC,ctx,"NofM",
     NULL,
@@ -5071,7 +5127,9 @@ struct cmDspClass_str* cmNofMClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDsp1ofN file_desc:"Pass 1 or N possible inputs to the output." kw:[sunit] }
 
 enum
 {
@@ -5247,7 +5305,7 @@ cmDspRC_t _cmDsp1ofN_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   return rc;
 }
 
-struct cmDspClass_str* cm1ofNClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cm1ofNClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cm1ofN_DC,ctx,"1ofN",
     NULL,
@@ -5262,7 +5320,10 @@ struct cmDspClass_str* cm1ofNClassCons( cmDspCtx_t* ctx )
   return &_cm1ofN_DC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDsp1Up file_desc:"Send 'true' on the selected channel and 'false' on the deselected channel." kw:[sunit] }
+
 // Send a 'true' out on the selected channel.
 // Send a 'false' out on the deselected channel.
 enum
@@ -5358,7 +5419,7 @@ cmDspRC_t _cmDsp1Up_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* e
   return rc;
 }
 
-struct cmDspClass_str* cm1UpClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cm1UpClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cm1Up_DC,ctx,"1Up",
     NULL,
@@ -5373,8 +5434,10 @@ struct cmDspClass_str* cm1UpClassCons( cmDspCtx_t* ctx )
   return &_cm1Up_DC;
 }
 
-//==========================================================================================================================================
-// Convert a 'true'/'false' gate to an 'on'/'off' symbol
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspGateToSym file_desc:"Convert a 'true'/'false' gate to an 'on'/'off' symbol." kw:[sunit] }
+// 
 enum
 {
   kOnSymGsId,
@@ -5456,7 +5519,7 @@ cmDspRC_t _cmDspGateToSym_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
   return rc;
 }
 
-struct cmDspClass_str* cmGateToSymClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmGateToSymClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmGateToSym_DC,ctx,"GateToSym",
     NULL,
@@ -5471,7 +5534,9 @@ struct cmDspClass_str* cmGateToSymClassCons( cmDspCtx_t* ctx )
   return &_cmGateToSym_DC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspPortToSym file_desc:"Send a pre-defined symbol every time a message arrives a given input port." kw:[sunit] }
 enum
 {
   kOutPtsId,
@@ -5571,7 +5636,7 @@ cmDspRC_t _cmDspPortToSym_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
   return rc;
 }
 
-struct cmDspClass_str* cmPortToSymClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmPortToSymClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmPortToSym_DC,ctx,"PortToSym",
     NULL,
@@ -5586,7 +5651,9 @@ struct cmDspClass_str* cmPortToSymClassCons( cmDspCtx_t* ctx )
   return &_cmPortToSym_DC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspRouter file_desc:"Route the input value to one of multiple output ports." kw:[sunit] }
  
 enum
 {
@@ -5729,13 +5796,11 @@ cmDspRC_t _cmDspRouter_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
     return kOkDspRC;
   } 
 
-  /*
-  if( evt->dstVarId == kOutChIdxRtId && cmDsvGetUInt(evt->valuePtr) < p->oChCnt )
-  {
-    const cmChar_t* symLbl = cmSymTblLabel(ctx->stH,inst->symId);
-    cmDspInstErr(ctx,inst,kOkDspRC,"Router: ch:%i %s\n",cmDsvGetUInt(evt->valuePtr),symLbl==NULL?"":symLbl);
-  }
-  */
+//  if( evt->dstVarId == kOutChIdxRtId && cmDsvGetUInt(evt->valuePtr) < p->oChCnt )
+//  {
+//    const cmChar_t* symLbl = cmSymTblLabel(ctx->stH,inst->symId);
+//    cmDspInstErr(ctx,inst,kOkDspRC,"Router: ch:%i %s\n",cmDsvGetUInt(evt->valuePtr),symLbl==NULL?"":symLbl);
+//  }
   
   // store the incoming value
   if( evt->dstVarId < p->baseBaseOutRtId )
@@ -5763,7 +5828,7 @@ cmDspRC_t _cmDspRouter_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return rc;
 }
 
-struct cmDspClass_str* cmRouterClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmRouterClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmRouter_DC,ctx,"Router",
     NULL,
@@ -5778,7 +5843,10 @@ struct cmDspClass_str* cmRouterClassCons( cmDspCtx_t* ctx )
   return &_cmRouter_DC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspAvailCh file_desc:"Track active an inactive processing channels." kw:[sunit] }
+//
 // Purpose: AvailCh can be used to implement a channel switching circuit.
 // 
 // Inputs:
@@ -6061,7 +6129,7 @@ cmDspRC_t _cmDspAvailCh_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return rc;
 }
 
-struct cmDspClass_str* cmAvailChClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmAvailChClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmAvailCh_DC,ctx,"AvailCh",
     NULL,
@@ -6077,7 +6145,9 @@ struct cmDspClass_str* cmAvailChClassCons( cmDspCtx_t* ctx )
 }
 
  
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspPreset file_desc:"Store and recall preset.  Show a preset list user interface unit." kw:[sunit] }
  
 enum
 {
@@ -6333,7 +6403,7 @@ cmDspRC_t _cmDspPreset_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return rc;
 }
 
-struct cmDspClass_str* cmPresetClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmPresetClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmPreset_DC,ctx,"Preset",
     NULL,
@@ -6349,7 +6419,9 @@ struct cmDspClass_str* cmPresetClassCons( cmDspCtx_t* ctx )
 }
 
  
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspBcastSym file_desc:"Broadcast a symbol/value to all units registered to listen for the symbol." kw:[sunit] }
 
 enum
 {
@@ -6412,7 +6484,7 @@ cmDspRC_t _cmDspBcastSym_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
   return rc;
 }
 
-struct cmDspClass_str* cmBcastSymClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmBcastSymClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmBcastSym_DC,ctx,"BcastSym",
     NULL,
@@ -6427,7 +6499,9 @@ struct cmDspClass_str* cmBcastSymClassCons( cmDspCtx_t* ctx )
   return &_cmBcastSym_DC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspSegLine file_desc:"Line segment generator." kw:[sunit] }
 enum
 {
   kRsrcSlId,
@@ -6545,7 +6619,7 @@ cmDspRC_t _cmDspSegLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return rc;
 }
 
-struct cmDspClass_str* cmSegLineClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmSegLineClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmSegLineDC,ctx,"SegLine",
     NULL,
@@ -6560,3 +6634,4 @@ struct cmDspClass_str* cmSegLineClassCons( cmDspCtx_t* ctx )
   return &_cmSegLineDC;
 }
 
+//)

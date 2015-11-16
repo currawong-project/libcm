@@ -4,6 +4,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+  //( { file_desc:"A class for managing persistent device configuration information." kw:[audio hardware] }
+  
   /*
     IMPLEMENTATION:
     1) A 'cfg' record is a device reference with a 'cfg label'.
@@ -210,7 +213,8 @@ extern "C" {
   // Set 'fn' to NULL to use filename from cmDevCfgAlloc()
   cmDcRC_t cmDevCfgWrite( cmDevCfgH_t h, const cmChar_t* fn );
   
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

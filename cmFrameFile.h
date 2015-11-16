@@ -1,15 +1,16 @@
 #ifndef cmFrameFile_h
 #define cmFrameFile_h
 
-/*
-  file  -> cmFfFile_t frame*
-  frame -> cmFfFrame_t mtx*
-  mtx   -> cmFfMtx_t data*   
- */
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+  //( { file_desc:"File reader and writer for time series data as used by cmFeatFile" kw:[file audio]}
+  //
+  // file  -> cmFfFile_t frame*
+  // frame -> cmFfFrame_t mtx*
+  // mtx   -> cmFfMtx_t data*   
+  //
 
 
   enum
@@ -139,7 +140,7 @@ extern "C" {
     {
       unsigned sampleIdx;
       double   seconds;
-    } time;
+    } tm;
     
   } cmFfFrame_t;
 
@@ -353,6 +354,8 @@ extern "C" {
 #define kRealFmtId              kDoubleFmtId
 #endif
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif
