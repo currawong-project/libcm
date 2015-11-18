@@ -778,6 +778,8 @@ cmTlRC_t _cmTlAllocMidiFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
 
 cmTlRC_t _cmTlAllocMarkerRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmChar_t* refIdStr, int begSmpIdx, unsigned durSmpCnt, unsigned seqId, const cmChar_t* text, unsigned bar, const cmChar_t* sectionStr, unsigned markerTypeId, cmTlObj_t* refObjPtr )
 {
+  assert( refObjPtr != NULL );
+  
   cmTlRC_t        rc      = kOkTlRC;
   _cmTlObj_t*     op      = NULL;
   const cmChar_t* textStr = text==NULL       ? "" : text;
@@ -1363,7 +1365,7 @@ cmTlRC_t cmTimeLineReadJson(  cmTlH_t* hp, const cmChar_t* ifn )
 
   if( cmJsonMemberValues(jnp,&errLabelPtr,
       "srate",kRealTId,&p->srate,
-      "onset",kObjectTId,&cnp,
+      "onset",kObjectTId | kOptArgJsFl,&cnp,
       "objArray",kArrayTId,&jnp,
       NULL) != kOkJsRC )
   {
@@ -1374,28 +1376,31 @@ cmTlRC_t cmTimeLineReadJson(  cmTlH_t* hp, const cmChar_t* ifn )
     goto errLabel;
   }
 
-  if((jsRC = cmJsonMemberValues(cnp,&errLabelPtr,
-      "wndMs",        kRealTId, &p->onsetCfg.wndMs,
-      "hopFact",      kIntTId,  &p->onsetCfg.hopFact,
-      "audioChIdx",   kIntTId,  &p->onsetCfg.audioChIdx,
-      "wndFrmCnt",    kIntTId,  &p->onsetCfg.wndFrmCnt,
-      "preWndMult",   kRealTId, &p->onsetCfg.preWndMult,
-      "threshold",    kRealTId, &p->onsetCfg.threshold,
-      "maxFrqHz",     kRealTId, &p->onsetCfg.maxFrqHz,
-      "filtCoeff",    kRealTId, &p->onsetCfg.filtCoeff,
-      "medFiltWndMs", kRealTId, &p->onsetCfg.medFiltWndMs,
-      "filterId",     kIntTId,  &p->onsetCfg.filterId,
-      "preDelayMs",   kRealTId, &p->onsetCfg.preDelayMs,
-        NULL)) !=        kOkJsRC )
+  if( cnp != NULL )
   {
+    if((jsRC = cmJsonMemberValues(cnp,&errLabelPtr,
+          "wndMs",        kRealTId, &p->onsetCfg.wndMs,
+          "hopFact",      kIntTId,  &p->onsetCfg.hopFact,
+          "audioChIdx",   kIntTId,  &p->onsetCfg.audioChIdx,
+          "wndFrmCnt",    kIntTId,  &p->onsetCfg.wndFrmCnt,
+          "preWndMult",   kRealTId, &p->onsetCfg.preWndMult,
+          "threshold",    kRealTId, &p->onsetCfg.threshold,
+          "maxFrqHz",     kRealTId, &p->onsetCfg.maxFrqHz,
+          "filtCoeff",    kRealTId, &p->onsetCfg.filtCoeff,
+          "medFiltWndMs", kRealTId, &p->onsetCfg.medFiltWndMs,
+          "filterId",     kIntTId,  &p->onsetCfg.filterId,
+          "preDelayMs",   kRealTId, &p->onsetCfg.preDelayMs,
+          NULL)) !=        kOkJsRC )
+    {
     
-    if(jsRC == kNodeNotFoundJsRC )
-      rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' onset analysizer cfg. required field:'%s' was not found in '%s'.",errLabelPtr,cmStringNullGuard(ifn));
-    else
-      rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' onset analyzer cfg.  in '%s'.",cmStringNullGuard(ifn));
-    goto errLabel;
+      if(jsRC == kNodeNotFoundJsRC )
+        rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' onset analysizer cfg. required field:'%s' was not found in '%s'.",errLabelPtr,cmStringNullGuard(ifn));
+      else
+        rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' onset analyzer cfg.  in '%s'.",cmStringNullGuard(ifn));
+      goto errLabel;
+    }
   }
-
+  
   for(i=0; i<cmJsonChildCount(jnp); ++i)
   {
     const cmJsonNode_t* rp = cmJsonArrayElementC(jnp,i);
@@ -1477,6 +1482,12 @@ cmTlRC_t cmTimeLineGenOnsetMarks( cmTlH_t h, unsigned seqId )
   unsigned   bar        = cmInvalidIdx;
   unsigned   i,j;
   unsigned   smpIdx;
+
+  if( p->onsetCfg.wndMs == 0 )
+  {
+    rc = cmErrMsg(&p->err,kOnsetFailTlRC,"Audio onset analyzer not-configured.");
+    goto errLabel;    
+  }
 
   // initialize the audio onset analyzer
   if( cmOnsetInitialize(&p->ctx, &onsH ) != kOkOnRC )
