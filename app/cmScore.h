@@ -157,7 +157,7 @@ extern "C" {
 
   const cmChar_t* cmScEvtTypeIdToLabel( unsigned id );
   const cmChar_t* cmScDynIdToLabel( unsigned id );
-
+  const cmChar_t* cmScStatusToOpString( unsigned id );
 
   // Initialize a score object from a CSV File generated from a score spreadsheet.
   // The dynRefArray[dynRefCnt] and cbFunc(cbArg) are optional if these 
