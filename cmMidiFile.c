@@ -1112,8 +1112,7 @@ void cmMidiFileTickToMicros( cmMidiFileH_t h )
     return;
 
   unsigned mi;
-  double r             = 1.0; //1000.0/(1000-.8);
-  double microsPerQN   = r*60000000/120; // default tempo
+  double microsPerQN   = 60000000/120; // default tempo
   double microsPerTick = microsPerQN / p->ticksPerQN;
 
   for(mi=0; mi<p->msgN; ++mi)
@@ -1121,8 +1120,8 @@ void cmMidiFileTickToMicros( cmMidiFileH_t h )
     cmMidiTrackMsg_t* mp = p->msgV[mi];
 
     if( mp->status == kMetaStId && mp->metaId == kTempoMdId )
-      microsPerTick = r*mp->u.iVal / p->ticksPerQN;
-
+      microsPerTick = mp->u.iVal / p->ticksPerQN;
+    
     mp->dtick = round(microsPerTick*mp->dtick);
   }
   
@@ -1139,8 +1138,7 @@ void cmMidiFileTickToSamples( cmMidiFileH_t h, double srate, bool absFl )
     return;
 
   unsigned mi;
-  double r             = 1.0; //1000.0/(1000-.8);
-  double microsPerQN   = r*60000000/120; // default tempo
+  double microsPerQN   = 60000000/120; // default tempo
   double microsPerTick = microsPerQN / p->ticksPerQN;
   double absSmp = 0;
 
@@ -1149,7 +1147,7 @@ void cmMidiFileTickToSamples( cmMidiFileH_t h, double srate, bool absFl )
     cmMidiTrackMsg_t* mp = p->msgV[mi];
 
     if( mp->status == kMetaStId && mp->metaId == kTempoMdId )
-      microsPerTick = r*mp->u.iVal / p->ticksPerQN;
+      microsPerTick = mp->u.iVal / p->ticksPerQN;
 
     double delta = microsPerTick*mp->dtick*srate/1000000.0;
 
@@ -1389,16 +1387,52 @@ cmMidiTrackMsg_t*     cmMidiFilePackTrackMsg( const cmMidiTrackMsg_t* m, void* b
   return (cmMidiTrackMsg_t*)buf;
 }
 
-
-
-void cmMidiFilePrint( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt )
+void _cmMidiFilePrintHdr( const _cmMidiFile_t* mfp, cmRpt_t* rpt )
 {
-  const _cmMidiFile_t* mfp = _cmMidiFileHandleToPtr(h);
-
   if( mfp->fn != NULL )
     cmRptPrintf(rpt,"%s ",mfp->fn);
 
   cmRptPrintf(rpt,"fmt:%i ticksPerQN:%i tracks:%i\n",mfp->fmtId,mfp->ticksPerQN,mfp->trkN);
+}
+
+void _cmMidiFilePrintMsg( cmRpt_t* rpt, const cmMidiTrackMsg_t* tmp )
+{
+  //cmRptPrintf(rpt,"%5.5f ", tmp->dtick/1000000.0 );
+  cmRptPrintf(rpt,"%f ",    (double)tmp->dtick );
+
+  if( tmp->status == kMetaStId )
+    cmRptPrintf(rpt,"%s ", cmMidiMetaStatusToLabel(tmp->metaId)); 
+  else
+  {
+    cmRptPrintf(rpt,"%4s %3i %3i %3i", cmMidiStatusToLabel(tmp->status),tmp->u.chMsgPtr->ch,tmp->u.chMsgPtr->d0,tmp->u.chMsgPtr->d1);
+    
+  }
+  
+  cmRptPrintf(rpt,"\n");
+}
+
+void cmMidiFilePrintMsgs( cmMidiFileH_t h, cmRpt_t* rpt )
+{
+  const _cmMidiFile_t* p = _cmMidiFileHandleToPtr(h);
+  unsigned mi;
+  
+  _cmMidiFilePrintHdr(p,rpt);
+
+  for(mi=0; mi<p->msgN; ++mi)
+  {
+    cmMidiTrackMsg_t* mp = p->msgV[mi];
+
+    if( mp != NULL )
+      _cmMidiFilePrintMsg(rpt,mp);
+  }
+  
+}
+
+void cmMidiFilePrintTracks( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt )
+{
+  const _cmMidiFile_t* mfp = _cmMidiFileHandleToPtr(h);
+
+  _cmMidiFilePrintHdr(mfp,rpt);
 
   int i = trkIdx == cmInvalidIdx ? 0         : trkIdx;
   int n = trkIdx == cmInvalidIdx ? mfp->trkN : trkIdx+1;
@@ -1410,17 +1444,7 @@ void cmMidiFilePrint( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt )
     cmMidiTrackMsg_t* tmp = mfp->trkV[i].base;
     while( tmp != NULL )
     {
-      cmRptPrintf(rpt,"%5i ", tmp->dtick );
-
-      if( tmp->status == kMetaStId )
-        cmRptPrintf(rpt,"%s ", cmMidiMetaStatusToLabel(tmp->metaId)); 
-      else
-      {
-        cmRptPrintf(rpt,"%4s %3i %3i %3i", cmMidiStatusToLabel(tmp->status),tmp->u.chMsgPtr->ch,tmp->u.chMsgPtr->d0,tmp->u.chMsgPtr->d1);
-        
-      }
-
-      cmRptPrintf(rpt,"\n");
+      _cmMidiFilePrintMsg(rpt,tmp);
       tmp = tmp->link;
     }
   }  
@@ -1475,7 +1499,14 @@ void cmMidiFileTest( const char* fn, cmCtx_t* ctx )
     return;
   }
 
-  if(1)
+  if( 1 )
+  {
+    //cmMidiFileTickToMicros( h );
+    cmMidiFileTickToSamples(h,96000,false);
+    cmMidiFilePrintMsgs(h,&ctx->rpt);
+  }
+
+  if( 0 )
   {
     //cmMidiFilePrint(h,cmMidiFileTrackCount(h)-1,&ctx->rpt);
     //cmMidiFilePrint(h,cmInvalidIdx,&ctx->rpt);

@@ -172,7 +172,8 @@ extern "C" {
   cmMidiTrackMsg_t*     cmMidiFilePackTrackMsg( const cmMidiTrackMsg_t* m, void* buf, unsigned bufByteCnt );
   unsigned              cmMidiFilePackTrackMsgBufByteCount( const cmMidiTrackMsg_t* m );
 
-  void                  cmMidiFilePrint( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt );
+  void                  cmMidiFilePrintMsgs( cmMidiFileH_t h, cmRpt_t* rpt );
+  void                  cmMidiFilePrintTrack( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt );
   bool                  cmMidiFileIsNull( cmMidiFileH_t h );
   void                  cmMidiFileTest( const char* fn, cmCtx_t* ctx );
 
