@@ -226,7 +226,9 @@ cmMfpRC_t cmMfpClock(  cmMfpH_t h, unsigned dusecs )
     
     
     p->cbFunc( p->userCbPtr, p->mtime, mp );
-      
+
+    unsigned atick0 = mp->atick;
+    
     ++(p->msgIdx);
 
     if( p->msgIdx >= p->msgN )
@@ -235,13 +237,16 @@ cmMfpRC_t cmMfpClock(  cmMfpH_t h, unsigned dusecs )
     // get the next msg to send
     mp        = p->msgV[p->msgIdx];
 
+    assert( mp->atick >= atick0 );
+    unsigned dtick = mp->atick - atick0;
+
     // we probably went past the actual mtime - so update etime
     // with the delta usecs from the msg just sent and the current time
     p->etime -= p->mtime;
 
     // calc the delta usecs from the message just sent to the next msg to send
     //p->mtime  = (mp->tick - p->msgV[p->msgIdx-1]->tick) * p->microsPerTick;
-    p->mtime  = mp->dtick * p->microsPerTick;
+    p->mtime  = dtick * p->microsPerTick;
 
   }
 
