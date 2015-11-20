@@ -11,7 +11,7 @@ cmRpt_t cmRptNull = { NULL, NULL, NULL };
 void _cmDefaultPrint( void* userPtr, const cmChar_t* text )
 { 
   if( text != NULL )
-    fputs(text,stdin);
+    fputs(text,stdout);
 }
 
 void _cmDefaultError( void* userPtr, const cmChar_t* text )
