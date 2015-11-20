@@ -2433,13 +2433,8 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
     goto errLabel;
   }
 
-    printf("secs:%f smps:%f\n",cmMidiFileDurSecs(mfH),cmMidiFileDurSecs(mfH)*96000);
+  //printf("secs:%f smps:%f\n",cmMidiFileDurSecs(mfH),cmMidiFileDurSecs(mfH)*96000);
   
-
-  // Convert the track message 'dtick' field to delta-microseconds.
-  cmMidiFileTickToMicros(mfH);
-
-
   unsigned                 msgCnt = cmMidiFileMsgCount(mfH);
   unsigned                 i;
   const cmMidiTrackMsg_t** tmpp   = cmMidiFileMsgArray(mfH);
@@ -2474,7 +2469,7 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
     unsigned                d0     = 0;
     unsigned                d1     = 0;
     unsigned                metaId = 0;
-    double                  dsecs  = (double)tmp->dtick / 1000000.0;
+    double                  dsecs  = (double)tmp->amicro / 1000000.0;
 
     acc_secs += dsecs;
 
@@ -2666,10 +2661,6 @@ void cmScoreFix( cmCtx_t* ctx )
   if( cmMidiFileOpen(mfn,&mfH,ctx) != kOkMfRC )
     goto errLabel;
 
-  cmMidiFileTickToMicros(mfH);
-
-  cmMidiFileCalcNoteDurations(mfH);
-
   mn = cmMidiFileMsgCount(mfH);
 
   msg = cmMidiFileMsgArray(mfH);
@@ -2699,7 +2690,7 @@ void cmScoreFix( cmCtx_t* ctx )
         const cmMidiTrackMsg_t* m = msg[mi];
 
         assert( mi+1 <= id );
-        secs += m->dtick/1000000.0;
+        secs += m->amicro/1000000.0;
 
         if( mi+1 != id )
         {
@@ -2715,7 +2706,7 @@ void cmScoreFix( cmCtx_t* ctx )
           ++mi;
 
           if( m->status == kNoteOnMdId )
-            cmCsvSetCellDouble(   csvH, ci, kDSecsColScIdx, m->u.chMsgPtr->durTicks/1000000.0 );
+            cmCsvSetCellDouble(   csvH, ci, kDSecsColScIdx, m->u.chMsgPtr->durMicros  /1000000.0 );
           break;
         }
         

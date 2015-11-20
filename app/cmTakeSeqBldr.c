@@ -956,14 +956,15 @@ cmTsbRC_t cmTakeSeqBldrLoadTake( cmTakeSeqBldrH_t h, unsigned tlMarkUid, bool ov
   }
 
   // convert the dtick field to delta samples
-  cmMidiFileTickToSamples( mfH, cmTimeLineSampleRate(p->tlH), false );
+  //cmMidiFileTickToSamples( mfH, cmTimeLineSampleRate(p->tlH), false );
   
   // calculate MIDI note and pedal durations (see cmMidiChMsg_t.durTicks)
   cmMidiFileCalcNoteDurations( mfH );
   
-  unsigned                 i   = 0;
-  unsigned                 n   = cmMidiFileMsgCount(mfH);
-  const cmMidiTrackMsg_t** a   = cmMidiFileMsgArray(mfH);
+  unsigned                 i     = 0;
+  unsigned                 n     = cmMidiFileMsgCount(mfH);
+  const cmMidiTrackMsg_t** a     = cmMidiFileMsgArray(mfH);
+  double                   srate = cmTimeLineSampleRate(p->tlH);        
   
   // allocate and link a new take render record
   cmTakeTsb_t* t = cmMemAllocZ(cmTakeTsb_t,1);
@@ -1011,8 +1012,8 @@ cmTsbRC_t cmTakeSeqBldrLoadTake( cmTakeSeqBldrH_t h, unsigned tlMarkUid, bool ov
     m1->scEvtIdx  = stm != NULL ? stm->scEvtIdx : cmInvalidIdx;
     m1->flags     = stm != NULL ? stm->flags    : 0;
     m1->ref       = m0;
-    m1->offsetSmp = mf0 == NULL ? 0 : mf1->dtick;
-    m1->durSmp    = mf1->u.chMsgPtr->durTicks;
+    m1->offsetSmp = mf0 == NULL ? 0 : round(mf1->amicro * srate / 1000000.0);
+    m1->durSmp    = mf1->u.chMsgPtr->durMicros * srate / 1000000.0;
     m1->d0        = mf1->u.chMsgPtr->d0;
     m1->d1        = mf1->u.chMsgPtr->d1;
     m1->status    = mf1->status;
