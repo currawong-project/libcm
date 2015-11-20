@@ -392,7 +392,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   bool     useWtFl      = false;
   bool     useChain1Fl  = true;
   bool     useInputEqFl = false;
-  bool     useInCompFl  = true;
+  bool     useInCompFl  = false;
 
   unsigned wtLoopCnt    = 1;    // 1=play once (-1=loop forever)
   unsigned wtInitMode   = 0;    // initial wt mode is 'silence'
@@ -1210,15 +1210,15 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
 //( { label:cmDspPgm_Tksb file_desc:"Audio/MIDI sequencer for analyzing the score vs. the performance from user selected MIDI fragments and generating related audio transforms." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Tksb(cmDspSysH_t h, void** userPtrPtr )
 {
-  cmDspRC_t       rc         = kOkDspRC;
-  cmCtx_t*        cmCtx      = cmDspSysPgmCtx(h);
-  cmErr_t         err;
-  krRsrc_t        r;
-  bool     fragFl       = false;
-  bool     useWtFl      = false;
-  bool     useChain1Fl  = true;
-  bool     useInputEqFl = false;
-  bool     useInCompFl  = true;
+  cmDspRC_t rc           = kOkDspRC;
+  cmCtx_t*  cmCtx        = cmDspSysPgmCtx(h);
+  cmErr_t   err;
+  krRsrc_t  r;
+  bool      fragFl       = false;
+  bool      useWtFl      = false;
+  bool      useChain1Fl  = true;
+  bool      useInputEqFl = false;
+  bool      useInCompFl  = true;
 
   unsigned        sfBufCnt    = 7;     // length of the MIDI event buffer
   unsigned        sfMaxWndCnt = 10;    // length of the score event buffer
