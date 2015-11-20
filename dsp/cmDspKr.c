@@ -756,7 +756,7 @@ unsigned _cmDspMidiFilePlaySeekMsgIdx( cmDspCtx_t* ctx, cmDspInst_t* inst, unsig
   const cmMidiTrackMsg_t** a     = cmMidiFileMsgArray(p->mfH);
 
   for(i=0; i<n; ++i)
-    if( a[i]->dtick > smpIdx )
+    if( (a[i]->amicro * cmDspSampleRate(ctx) / 1000000.0) >= smpIdx )
       break;
 
   return i==n ? cmInvalidIdx : i;
@@ -786,7 +786,7 @@ cmDspRC_t _cmDspMidiFilePlayOpen(cmDspCtx_t* ctx, cmDspInst_t* inst )
     cmMidiFileSetDelay(p->mfH, cmMidiFileTicksPerQN(p->mfH) );
 
     // convert midi msg times to absolute time in samples
-    cmMidiFileTickToSamples(p->mfH,cmDspSampleRate(ctx),true);
+    //cmMidiFileTickToSamples(p->mfH,cmDspSampleRate(ctx),true);
 
   }
   return rc;
@@ -820,23 +820,37 @@ cmDspRC_t _cmDspMidiFilePlayExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDsp
 
     const cmMidiTrackMsg_t** mpp   = cmMidiFileMsgArray(p->mfH);
     unsigned                 msgN  = cmMidiFileMsgCount(p->mfH);
-  
-    for(; p->curMsgIdx < msgN && p->csi <= mpp[p->curMsgIdx]->dtick  &&  mpp[p->curMsgIdx]->dtick < (p->csi + sPc); ++p->curMsgIdx )
+    
+    do
     {
+      if( p->curMsgIdx >= msgN )
+        break;
+
       const cmMidiTrackMsg_t* mp = mpp[p->curMsgIdx];
+
+      // convert the absolute time in microseconds to samples
+      unsigned  curMsgTimeSmp = round(mp->amicro * cmDspSampleRate(ctx) / 1000000.0);
+
+      // if this midi event falls inside this execution window
+      if( p->csi > curMsgTimeSmp  ||  curMsgTimeSmp >= (p->csi + sPc))
+        break;
+        
       switch( mp->status )
       {
         case kNoteOffMdId:
         case kNoteOnMdId:
         case kCtlMdId:
-          cmDspSetUInt(ctx,inst, kSmpIdxMfId, mp->dtick);
+          cmDspSetUInt(ctx,inst, kSmpIdxMfId, curMsgTimeSmp);
           cmDspSetUInt(ctx,inst, kD1MfId,     mp->u.chMsgPtr->d1);
           cmDspSetUInt(ctx,inst, kD0MfId,     mp->u.chMsgPtr->d0);
           cmDspSetUInt(ctx,inst, kStatusMfId, mp->status);
           cmDspSetUInt(ctx,inst, kIdMfId,     mp->uid);
           break;
       }
-    }
+
+      p->curMsgIdx += 1;
+      
+    }while(1);
   }
 
   p->csi += sPc;
