@@ -57,15 +57,17 @@ extern "C" {
     cmMidiByte_t ch;
     cmMidiByte_t d0;
     cmMidiByte_t d1;
-    unsigned     durTicks; // note duration calc'd by cmMidiFileCalcNoteDurations();
+    unsigned     durMicros;  // note duration in microseconds (corrected for tempo changes)
   } cmMidiChMsg_t;
 
 
   typedef struct cmMidiTrackMsg_str
   {
     unsigned                   uid;     // uid's are unique among all msg's in the file
-    unsigned                   dtick;   // delta ticks
-    unsigned                   atick;   // accumulated ticks
+    unsigned                   dtick;   // delta ticks between events on this track
+    unsigned                   dmicro;  // delta microseconds between events on this track adjusted for tempo changes
+    unsigned                   atick;   // global (all tracks interleaved) accumulated ticks
+    unsigned                   amicro;  // global (all tracks interleaved) accumulated microseconds adjusted for tempo changes
     cmMidiByte_t               status;  // ch msg's have the channel value removed (it is stored in u.chMsgPtr->ch)
     cmMidiByte_t               metaId;  //
     unsigned short             trkIdx;  //  
@@ -152,13 +154,6 @@ extern "C" {
   unsigned              cmMidiFileSeekUsecs( cmMidiFileH_t h, unsigned usecsOffs, unsigned* msgUsecsPtr, unsigned* newMicrosPerTickPtr );
 
   double                cmMidiFileDurSecs( cmMidiFileH_t h );
-
-  // Convert the track message 'dtick' field to delta-microseconds.
-  void                  cmMidiFileTickToMicros( cmMidiFileH_t h );
-
-  // Convert the track message 'dtick' field to samples.
-  // If the absFl is set then the delta times are converted to absolute time.
-  void                  cmMidiFileTickToSamples( cmMidiFileH_t h, double srate, bool absFl );
 
   // Calculate Note Duration 
   void                  cmMidiFileCalcNoteDurations( cmMidiFileH_t h );
