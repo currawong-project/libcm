@@ -9,7 +9,8 @@ extern "C" {
   {
     kOkXmlRC = cmOkRC,
     kMemAllocErrXmlRC,
-    kLHeapXmlRC
+    kLHeapXmlRC,
+    kLexErrXmlRC
   }; 
   
   typedef struct cmXmlAttr_str
