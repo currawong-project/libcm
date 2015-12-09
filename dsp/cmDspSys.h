@@ -4,7 +4,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+  //( { file_desc:"Host application interface to the 'snap' data flow system." kw:[snap] }
+  
 
   extern cmDspSysH_t cmDspNullHandle;
 
@@ -274,6 +275,7 @@ extern "C" {
 
   cmDspRC_t cmDspRsrcWriteString(  cmDspSysH_t h, const cmChar_t* v, ... );
 
+  //)
 
 #ifdef __cplusplus
   }

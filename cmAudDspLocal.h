@@ -5,6 +5,20 @@
 extern "C" {
 #endif
 
+  //( { file_desc: "Implementation of the audio DSP interface for local, in-memory, communication." kw:[rt]}
+  //
+  //  This class instantiates an audio-DSP engine (cmAudDsp),
+  //  an interface for communicating with it (cmAudDspIF),
+  //  and message delivery functions for copying messages
+  //  in both directions between cmAuDsp and cmAudDspIF.
+  //
+  //  Note that the underlying inteface which allows an application to
+  //  control, and receive message from, cmAudDsp is provided by
+  //  cmAudDspIF - which this class provides a handle to.
+  //)  
+
+  //(
+  
   enum
   {
     kOkAdlRC = cmOkRC,
@@ -32,6 +46,7 @@ extern "C" {
 
   cmAiH_t   cmAudDspLocalIF_Handle( cmAdlH_t h );
   
+  //)
 
 #ifdef __cplusplus
 }

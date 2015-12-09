@@ -4,6 +4,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+  //( { file_desc:"Device independent plotting window with one or more plot views." kw:[plot]}
   
   enum
   {
@@ -74,7 +76,11 @@ extern "C" {
   const cmChar_t*  cmGrPageLabelFuncLabel(    cmGrPgH_t h, unsigned id );
   void*            cmGrPageLabelFuncArg(      cmGrPgH_t h, unsigned id );
 
-
+  //----------------------------------------------------------------------------
+  //)
+  //( { label:cmGrView file_desc:"Device independent plotting view." kw:[plot]}
+  //
+  
   // Get a view handle from the view index.
   cmGrVwH_t cmGrPageViewHandle( cmGrPgH_t h,  unsigned vwIdx );
 
@@ -132,9 +138,14 @@ extern "C" {
     kSelH_VwId
   } cmGrViewValueId_t;
   const cmChar_t* cmGrViewValue( cmGrVwH_t h, cmGrViewValueId_t id, cmChar_t* buf, unsigned bufCharCnt );
-
+  
   // Get an axis handle.
   cmGrAxH_t     cmGrViewAxisHandle(    cmGrVwH_t h,  cmGrAxisIdx_t axisIdx  );
+
+  //----------------------------------------------------------------------------
+  //)  
+  //( { label:cmGrAxis file_desc:"Device independent plotting axis." kw:[plot]}
+  //
   
   bool            cmGrAxisIsValid(            cmGrAxH_t h );
   // kHashMarkGrFl | kHashLabelGrFl
@@ -161,6 +172,8 @@ extern "C" {
   // or cmGrPageLabelFuncIndexToId().
   void            cmGrAxisSetLabelFunc(      cmGrAxH_t h, unsigned pgLabelFuncId );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

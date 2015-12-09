@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Audio device driver which generates the callbacks to run cmAudioPort in a non-real time mode." kw:[audio rt]}
+  
   cmApRC_t cmApNrtAllocate( cmRpt_t* rpt );
 
   cmApRC_t cmApNrtFree();
@@ -57,7 +59,8 @@ extern "C" {
   /// Return true if the device is currently started.
   bool          cmApNrtDeviceIsStarted( unsigned devIdx );
 
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

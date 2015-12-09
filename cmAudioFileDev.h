@@ -1,6 +1,11 @@
 #ifndef cmAudioFileDev_h
 #define cmAudioFileDev_h
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+//( { file_desc:"Implements cmAudioFileDev for reading and writing audio files under control of cmAudioPort.", kw:[audio file rt]}
 enum
 {
   kOkAfdRC = cmOkRC,
@@ -71,5 +76,11 @@ bool      cmAudioFileDevIsStarted( cmAfdH_t h );
 void      cmAudioFileDevReport( cmAfdH_t h, cmRpt_t* rpt );
 
 void      cmAudioFileDevTest( cmRpt_t* rpt );
+
+//)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -2106,7 +2106,7 @@ cmFtRC_t        cmFtReaderAdvance( cmFtFileH_t h, cmFtFrameDesc_t* fdp )
   {
     if( rc == kOkFtRC )
     {
-      fdp->smpIdx = frameDescPtr->time.sampleIdx;
+      fdp->smpIdx = frameDescPtr->tm.sampleIdx;
       fdp->frmIdx = cmFrameFileFrameLoadedIndex(fp->ffH);
     }
     else

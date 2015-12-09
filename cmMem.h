@@ -1,6 +1,4 @@
-//{
-//(
-// The cmMem class implements a memory allocation manager interface.
+//( { file_desc: "Implements a memory allocation manager interface." kw:[ base ]}
 //
 //
 // Using cmMem allows memory leaks and some instances of memory corruption 
@@ -19,13 +17,16 @@
 // 1. A client memory manager creates and configures a cmMm object via cmMmInitialize().
 // As part of the configuration the client gives callback functions which implement
 // actual memory allocation and release.  In practice this means the callback probably
-// call malloc() or free(). 
+// call malloc() or free().
+//
 // 2. At some point later when the client needs to allocate a block of memory it calls
 // cmMmAllocate() with the size of the requested block.  cmMm translates this request
 // into a call to the client provided memory allocation callback to get a block of raw
 // memory which is slightly larger than the request block.
+//
 // 3. Given the raw memory block cmMm conditions it in the following ways and returns
 // it to the client.
+//
 // * The base of the blocks data area is shifted such that it is has an arbitrary 
 // address aligned according to the value set by the alignByteCnt parameter to cmMmInitialize().
 // Address aligment is sometimes required by routines which make use of the the SIMD
@@ -54,9 +55,11 @@
 // writes to freed memory areas.  When deferred release is enabled the freeFunc() is not called
 // on any blocks until cmMmFinalize().  If the program continually allocates memory over the 
 // life of the program this may mean that the program will eventually exhaust physical memory.
+//
 // 2. If tracking is enabled (kTrackMmFl) then the block pointer is looked up in the internal database.
 // If the pointer is not found then a kMissingRecdRC is returned indicating an attempt to release
-// a non-allocated block.  
+// a non-allocated block.
+//
 // 3. If tracking is enabled (kTrackMmFl) then the block is marked as released in the 
 // internal tracking database. At the end of the program all blocks should be marked for release
 // otherwise they are considered leaks.  
@@ -223,7 +226,6 @@ extern "C" {
   cmMmRC_t cmMmCheckAllGuards( cmMmH_t h );
 
   //)
-  //}
 #ifdef __cplusplus
 }
 #endif

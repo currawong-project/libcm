@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-/*
+/*( { file_desc:"UDP based network object." kw:[network] }
   A cmUdpNet is a wrapper around a single cmUdpPort. This object
   maintains an array of remote nodes which map application defined
   node label/id's to IP address/port. This allows the application
@@ -136,6 +136,8 @@ void     cmUdpNetReport( cmUdpNetH_t h, cmRpt_t* rpt );
 
 cmRC_t cmUdpNetTest( cmCtx_t* ctx, int argc, const char* argv[] );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

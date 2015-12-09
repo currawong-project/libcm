@@ -133,19 +133,19 @@ typedef struct
 
 cmScEvtRef_t _cmScEvtRefArray[] = 
 {
-  { kTimeSigEvtScId, 0, "tsg" },
-  { kKeySigEvtScId, 0,  "ksg" },
-  { kTempoEvtScId, 0,   "tmp" },
-  { kTrackEvtScId, 0,   "trk" },
-  { kTextEvtScId, 0,    "txt" },
-  { kNameEvtScId, 0,    "nam" },
-  { kEOTrackEvtScId, 0, "eot" },
-  { kCopyEvtScId, 0,    "cpy" },
-  { kBlankEvtScId, 0,   "blk" },
-  { kBarEvtScId, 0,     "bar" },
-  { kPgmEvtScId, 0,     "pgm" },
-  { kCtlEvtScId, 0,     "ctl" },
-  { kNonEvtScId, 0,     "non" },
+  { kTimeSigEvtScId, kTimeSigMdId,  "tsg" },
+  { kKeySigEvtScId,  kKeySigMdId,   "ksg" },
+  { kTempoEvtScId,   kTempoMdId,    "tmp" },
+  { kTrackEvtScId,   kTrkNameMdId,  "trk" },
+  { kTextEvtScId,    kTextMdId,     "txt" },
+  { kNameEvtScId,    kInstrNameMdId,"nam" },
+  { kEOTrackEvtScId, kEndOfTrkMdId, "eot" },
+  { kCopyEvtScId,    kCopyMdId,     "cpy" },
+  { kBlankEvtScId,   0,             "blk" },
+  { kBarEvtScId,     0,             "bar" },
+  { kPgmEvtScId,     kPgmMdId,      "pgm" },
+  { kCtlEvtScId,     kCtlMdId,      "ctl" },
+  { kNonEvtScId,     kNoteOnMdId,   "non" },
   { kInvalidEvtScId, 0, "***" }
 };
 
@@ -195,6 +195,20 @@ const cmChar_t* cmScEvtTypeIdToLabel( unsigned id )
       return r->label;
   return NULL;
 }
+
+const cmChar_t* cmScStatusToOpString( unsigned id )
+{
+  if( id == 0 )
+    return "<unknown>";
+  
+  cmScEvtRef_t* r = _cmScEvtRefArray;
+  for(; r->id != kInvalidEvtScId; ++r )
+    if( r->flag == id )
+      return r->label;
+  return NULL;
+  
+}
+
 
 unsigned _cmScDynLabelToId( const cmChar_t* label )
 {
@@ -2419,10 +2433,8 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
     goto errLabel;
   }
 
-  // Convert the track message 'dtick' field to delta-microseconds.
-  cmMidiFileTickToMicros(mfH);
-
-
+  //printf("secs:%f smps:%f\n",cmMidiFileDurSecs(mfH),cmMidiFileDurSecs(mfH)*96000);
+  
   unsigned                 msgCnt = cmMidiFileMsgCount(mfH);
   unsigned                 i;
   const cmMidiTrackMsg_t** tmpp   = cmMidiFileMsgArray(mfH);
@@ -2456,14 +2468,15 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
     unsigned                midiCh = 0;
     unsigned                d0     = 0;
     unsigned                d1     = 0;
-    unsigned metaId = 0;
-    double   dsecs  = (double)tmp->dtick / 1000000.0;
+    unsigned                metaId = 0;
+    double                  dsecs  = (double)tmp->amicro / 1000000.0;
 
     acc_secs += dsecs;
 
     if( tmp->status == kMetaStId )
     {
-      opStr  = cmMidiMetaStatusToLabel(tmp->metaId);
+      //opStr  = cmMidiMetaStatusToLabel(tmp->metaId);
+      opStr  = cmScStatusToOpString(tmp->metaId);
       metaId = tmp->metaId;
 
       switch( tmp->metaId )
@@ -2474,7 +2487,8 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
     }
     else
     {
-      opStr = cmMidiStatusToLabel(tmp->status);
+      //opStr = cmMidiStatusToLabel(tmp->status);
+      opStr = cmScStatusToOpString(tmp->status);
       if( cmMidiIsChStatus( tmp->status ) )
       {
         midiCh = tmp->u.chMsgPtr->ch;
@@ -2647,10 +2661,6 @@ void cmScoreFix( cmCtx_t* ctx )
   if( cmMidiFileOpen(mfn,&mfH,ctx) != kOkMfRC )
     goto errLabel;
 
-  cmMidiFileTickToMicros(mfH);
-
-  cmMidiFileCalcNoteDurations(mfH);
-
   mn = cmMidiFileMsgCount(mfH);
 
   msg = cmMidiFileMsgArray(mfH);
@@ -2680,7 +2690,7 @@ void cmScoreFix( cmCtx_t* ctx )
         const cmMidiTrackMsg_t* m = msg[mi];
 
         assert( mi+1 <= id );
-        secs += m->dtick/1000000.0;
+        secs += m->amicro/1000000.0;
 
         if( mi+1 != id )
         {
@@ -2696,7 +2706,7 @@ void cmScoreFix( cmCtx_t* ctx )
           ++mi;
 
           if( m->status == kNoteOnMdId )
-            cmCsvSetCellDouble(   csvH, ci, kDSecsColScIdx, m->u.chMsgPtr->durTicks/1000000.0 );
+            cmCsvSetCellDouble(   csvH, ci, kDSecsColScIdx, m->u.chMsgPtr->durMicros  /1000000.0 );
           break;
         }
         

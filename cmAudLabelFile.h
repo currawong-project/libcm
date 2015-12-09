@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Read and write Audacity label files." kw:[audio file] }
+  
 enum
 {
   kOkAlfRC = cmOkRC,
@@ -43,6 +45,8 @@ enum
   
   void cmAudLabelFileTest( cmCtx_t* ctx );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

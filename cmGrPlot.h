@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Device indenpendent, multi-axis, interactive, plotting system based on cmGrPage, cmGrAxis and cmGr." kw:[plot]}
+  
   enum
   {
     kOkGrPlRC,
@@ -229,6 +231,7 @@ extern "C" {
   // Set the default object callback and arg.
   void         cmGrPlotSetCb( cmGrPlH_t h, cmGrPlotCbFunc_t func, void* arg );
 
+  //)
 
 #ifdef __cplusplus
 }

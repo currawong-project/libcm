@@ -5,11 +5,12 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Processor Library 4" kw:[proclib]}
+  //)
 
-  //=======================================================================================================================  
-  //
-  // Simplified string alignment function based on Levenshtein edit distance.
-  //
+  
+  //( { label:cmEditDist file_desc:"Simplified string alignment function based on Levenshtein edit distance." kw:[proc] } 
+  
   enum { kEdMinIdx, kEdSubIdx, kEdDelIdx, kEdInsIdx, kEdCnt };
 
   typedef struct
@@ -87,7 +88,10 @@ extern "C" {
   // Main test function.
   void ed_main();
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmScoreMatch file_desc:"Event oriented local score matching algorithm based on edit distance." kw:[proc] } 
   enum 
   { 
     kSmMinIdx, // 
@@ -200,9 +204,10 @@ extern "C" {
   // necessarily an error.
   cmRC_t     cmScMatchExec(  cmScMatch* p, unsigned locIdx, unsigned locN, const cmScMatchMidi_t* midiV, unsigned midiN, double min_cost );
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
 
-
+  //( { label:cmScoreMatcher file_desc:"MIDI score following algorithm based cmScoreMatch." kw:[proc] } 
   typedef struct
   {
     unsigned locIdx;    // index into cmScMatch_t.loc[]
@@ -245,8 +250,6 @@ extern "C" {
  
     bool                 printFl;
   } cmScMatcher;
-
-
 
   cmScMatcher* cmScMatcherAlloc( 
     cmCtx*          c,        // Program context.
@@ -310,7 +313,10 @@ extern "C" {
 
   void cmScMatcherPrint( cmScMatcher* p );
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmScMeas file_desc:"Measure and report some differences between the score and the performance." kw:[proc] } 
 
   typedef struct
   {
@@ -391,7 +397,10 @@ extern "C" {
   // notes in each marker region and the score. 
   void       cmScAlignScanMarkers(  cmRpt_t* rpt, cmTlH_t tlH, cmScH_t scH );
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmScMod file_desc:"Store and recall parameter information under score follower control." kw:[proc] } 
   /*
     Syntax: <loc> <mod> <var> <type>   <params>
     <loc> - score location
@@ -421,6 +430,7 @@ extern "C" {
   enum
   {
     kInvalidModTId,
+    kDeclModTId,     // declare a variable but do not associate a value with it (allows a variable to be connected to w/o sending a value) 
     kSetModTId,      // set variable to parray[0] at scLocIdx
     kLineModTId,     // linear ramp variable to parray[0] over parray[1] seconds
     kSetLineModTId,  // set variable to parray[0] and ramp to parray[1] over parray[2] seconds
@@ -522,7 +532,10 @@ extern "C" {
   cmRC_t         cmScModulatorExec(  cmScModulator* p, unsigned scLocIdx );
   cmRC_t         cmScModulatorDump(  cmScModulator* p );
 
-  //=======================================================================================================================
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmRecdPlay file_desc:"Record fragments of audio, store them,and play them back at a later time." kw:[proc] } 
   //
   // Record fragments of audio, store them, and play them back at a later time.
   //
@@ -593,7 +606,9 @@ extern "C" {
   cmRC_t         cmRecdPlayBeginFade(   cmRecdPlay* p, unsigned labelSymId, double fadeDbPerSec );
 
   cmRC_t         cmRecdPlayExec(        cmRecdPlay* p, const cmSample_t** iChs, cmSample_t** oChs, unsigned chCnt, unsigned smpCnt );
+  //)
 
+  
 #ifdef __cplusplus
 }
 #endif

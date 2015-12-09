@@ -5,10 +5,24 @@
 extern "C" {
 #endif
 
+  //( { file_desc: "Virtual interface to the audio DSP system." kw:[rt]}
+  //
+  // This class provides a two-way interface to the audio DSP system.
+  // It is designed to work independenty of the physical
+  // method of communication.  For example, when used by
+  // cmAudDspLocal, it  supports in memory transfer of messages
+  // between the application and the audio-DSP engine.
+  // Another implementation however could use it to support
+  // a networked communication scheme to a remote audio-DSP
+  // system.  Note that in either case, however, this class
+  // resides with, and is linked to, the application, and not
+  // the engine.  
+  
   // This API has two basic responsibilities:
   //
   // 1) Provides a function based interface to the audio DSP system for the
-  // client application.
+  // client application.  This is more convenient, and safer, than the lower level
+  // message based interface provided by cmAudDsp.h.
   //    The client calls these API functions to send commands to the audio DSP
   //    system. Internally the cmAdIfxxx functions converts the commands to 
   //    raw message packets and passes them to a transmission service
@@ -29,9 +43,9 @@ extern "C" {
   //    client provided cmAdIfDispatch_t function (ssInitFunc,statusFunc or uiFunc).
   //    Note that this entire chain of calls occurs in the client thread
   //    and in the context of the cmAdIfDispatchMsgToHost() procedure.
-                         
-  
+  //)
 
+  //(
   enum
   {
     kOkAiRC = cmOkRC,
@@ -163,7 +177,8 @@ extern "C" {
                               
    */
 
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

@@ -1,14 +1,13 @@
-//{
-//(
-// cmGlobal.h contains the global macros, header files, and 
-//  typedefs availale to all other cm modules. 
+
+
+#ifndef cmGlobal_h
+#define cmGlobal_h
+
+//( { file_desc:"This is the globally included prefix file for all 'cm' files." kw:[base] }
 //
 // All operating system dependencies should be resolved in this file via 
 // testing for OS_LINUX, OS_OSX, or OS_W32.
 //)
-
-#ifndef cmGlobal_h
-#define cmGlobal_h
 
 //(
 #include "config.h" // created by 'configure'
@@ -150,6 +149,5 @@ extern "C" {
 #endif
 
 //)
-//}
 
 #endif

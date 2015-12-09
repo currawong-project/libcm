@@ -530,15 +530,13 @@ cmTlRC_t _cmTlAllocRecd2(
   tp->flags      = 0;
   tp->text       = NULL;
 
+  //printf("%9i %9i %9i %9i\n",tp->begSmpIdx,tp->durSmpCnt,refPtr==NULL?0:refPtr->obj->seqSmpIdx, tp->seqSmpIdx);
+  
   op->obj        = tp;
   op->mem        = mem;
   op->memByteCnt = byteCnt;
   op->next       = NULL;
   op->prev       = NULL;
-
-
-  //if( seqId == 4 )
-  //  printf("seq:%i id:%i type:%i accum:%i ref:%i offs:%i %f\n",seqId, tp->uid, tp->typeId, tp->seqSmpIdx, refPtr==NULL?-1:refPtr->obj->uid, begSmpIdx, begSmpIdx/(96000.0*60.0) );
 
   _cmTlInsertAfter(p, _cmTlFindRecdBefore(p,op), op );
 
@@ -651,36 +649,36 @@ cmTlRC_t _cmTlProcMidiFile( _cmTl_t* p,  _cmTlObj_t* op, cmMidiFileH_t mfH )
   const cmMidiTrackMsg_t** mapp         = cmMidiFileMsgArray(mfH);
   unsigned                 mi           = 0;
   _cmTlObj_t*              refOp        = op;
+  double                   smpPerMicro  = p->srate / 1000000.0;
+  unsigned                 begSmpIdx0   = 0;
   mfp->noteOnCnt = 0;
   
   // for each midi message
   for(; mi<mn; ++mi)
   {
-    _cmTlObj_t*             meop = NULL;
-    const cmMidiTrackMsg_t* mp   = mapp[mi];
-
-    int      begSmpIdx         = mp->dtick;
-    int      durSmpCnt         = 0;
-    unsigned midiTrkMsgByteCnt = cmMidiFilePackTrackMsgBufByteCount( mp );
-    unsigned recdByteCnt       = sizeof(cmTlMidiEvt_t) + midiTrkMsgByteCnt;
-
-    //if( mfp->obj.seqId==4 && mi<=25 )
-    //  printf("%s: bsi:%9i acc:%f smp acc:%f min %s\n", mp->status == kNoteOnMdId?"non":"   ", begSmpIdx, accum, accum / (p->srate * 60),cmStringNullGuard(mfp->obj.name));
+    _cmTlObj_t*             meop              = NULL;
+    const cmMidiTrackMsg_t* mp                = mapp[mi];
+    int                     begSmpIdx         = mp->amicro * smpPerMicro;
+    int                     durSmpCnt         = 0;
+    unsigned                midiTrkMsgByteCnt = cmMidiFilePackTrackMsgBufByteCount( mp );
+    unsigned                recdByteCnt       = sizeof(cmTlMidiEvt_t) + midiTrkMsgByteCnt;
 
     // count the note-on messages
     if( cmMidiIsNoteOn(mp->status) )
     {
-      durSmpCnt = mp->u.chMsgPtr->durTicks;
+      durSmpCnt = mp->u.chMsgPtr->durMicros * smpPerMicro;
       ++mfp->noteOnCnt;
     }
 
     if( cmMidiIsCtl(mp->status) && cmMidiIsSustainPedal(mp->status,mp->u.chMsgPtr->d0) )
-      durSmpCnt = mp->u.chMsgPtr->durTicks;
+      durSmpCnt = mp->u.chMsgPtr->durMicros * smpPerMicro;
 
     // allocate the generic time-line object record
-    if((rc = _cmTlAllocRecd2(p, NULL, refOp, begSmpIdx, durSmpCnt, kMidiEvtTlId, mfp->obj.seqId, recdByteCnt, &meop)) != kOkTlRC )
+    if((rc = _cmTlAllocRecd2(p, NULL, refOp, begSmpIdx-begSmpIdx0, durSmpCnt, kMidiEvtTlId, mfp->obj.seqId, recdByteCnt, &meop)) != kOkTlRC )
       goto errLabel;
 
+    begSmpIdx0 = begSmpIdx;
+    
     assert( meop != NULL );
     
     cmTlMidiEvt_t* mep = _cmTimeLineMidiEvtObjPtr(p,meop->obj);
@@ -731,7 +729,7 @@ cmTlRC_t _cmTlAllocMidiFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
   unsigned durSmpCnt = floor(cmMidiFileDurSecs(mfH)*p->srate);
 
   // convert the midi file from delta ticks to delta samples
-  cmMidiFileTickToSamples(mfH,p->srate,false);
+  //cmMidiFileTickToSamples(mfH,p->srate,false);
 
   // assign note durations to all note-on msg's
   cmMidiFileCalcNoteDurations(mfH);
@@ -756,6 +754,7 @@ cmTlRC_t _cmTlAllocMidiFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
   assert( mp->fn + strlen(mp->fn) + 1 == cp + recdByteCnt );
 
   op->obj->text = mp->fn;
+
 
   // insert the events in the midi file as individual time line objects
   if((rc = _cmTlProcMidiFile(p, op, mfH)) != kOkTlRC )
@@ -1363,7 +1362,7 @@ cmTlRC_t cmTimeLineReadJson(  cmTlH_t* hp, const cmChar_t* ifn )
 
   if( cmJsonMemberValues(jnp,&errLabelPtr,
       "srate",kRealTId,&p->srate,
-      "onset",kObjectTId,&cnp,
+      "onset",kObjectTId | kOptArgJsFl,&cnp,
       "objArray",kArrayTId,&jnp,
       NULL) != kOkJsRC )
   {
@@ -1374,28 +1373,31 @@ cmTlRC_t cmTimeLineReadJson(  cmTlH_t* hp, const cmChar_t* ifn )
     goto errLabel;
   }
 
-  if((jsRC = cmJsonMemberValues(cnp,&errLabelPtr,
-      "wndMs",        kRealTId, &p->onsetCfg.wndMs,
-      "hopFact",      kIntTId,  &p->onsetCfg.hopFact,
-      "audioChIdx",   kIntTId,  &p->onsetCfg.audioChIdx,
-      "wndFrmCnt",    kIntTId,  &p->onsetCfg.wndFrmCnt,
-      "preWndMult",   kRealTId, &p->onsetCfg.preWndMult,
-      "threshold",    kRealTId, &p->onsetCfg.threshold,
-      "maxFrqHz",     kRealTId, &p->onsetCfg.maxFrqHz,
-      "filtCoeff",    kRealTId, &p->onsetCfg.filtCoeff,
-      "medFiltWndMs", kRealTId, &p->onsetCfg.medFiltWndMs,
-      "filterId",     kIntTId,  &p->onsetCfg.filterId,
-      "preDelayMs",   kRealTId, &p->onsetCfg.preDelayMs,
-        NULL)) !=        kOkJsRC )
+  if( cnp != NULL )
   {
+    if((jsRC = cmJsonMemberValues(cnp,&errLabelPtr,
+          "wndMs",        kRealTId, &p->onsetCfg.wndMs,
+          "hopFact",      kIntTId,  &p->onsetCfg.hopFact,
+          "audioChIdx",   kIntTId,  &p->onsetCfg.audioChIdx,
+          "wndFrmCnt",    kIntTId,  &p->onsetCfg.wndFrmCnt,
+          "preWndMult",   kRealTId, &p->onsetCfg.preWndMult,
+          "threshold",    kRealTId, &p->onsetCfg.threshold,
+          "maxFrqHz",     kRealTId, &p->onsetCfg.maxFrqHz,
+          "filtCoeff",    kRealTId, &p->onsetCfg.filtCoeff,
+          "medFiltWndMs", kRealTId, &p->onsetCfg.medFiltWndMs,
+          "filterId",     kIntTId,  &p->onsetCfg.filterId,
+          "preDelayMs",   kRealTId, &p->onsetCfg.preDelayMs,
+          NULL)) !=        kOkJsRC )
+    {
     
-    if(jsRC == kNodeNotFoundJsRC )
-      rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' onset analysizer cfg. required field:'%s' was not found in '%s'.",errLabelPtr,cmStringNullGuard(ifn));
-    else
-      rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' onset analyzer cfg.  in '%s'.",cmStringNullGuard(ifn));
-    goto errLabel;
+      if(jsRC == kNodeNotFoundJsRC )
+        rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' onset analysizer cfg. required field:'%s' was not found in '%s'.",errLabelPtr,cmStringNullGuard(ifn));
+      else
+        rc = cmErrMsg(&p->err,kParseFailTlRC,"The JSON 'time_line' onset analyzer cfg.  in '%s'.",cmStringNullGuard(ifn));
+      goto errLabel;
+    }
   }
-
+  
   for(i=0; i<cmJsonChildCount(jnp); ++i)
   {
     const cmJsonNode_t* rp = cmJsonArrayElementC(jnp,i);
@@ -1477,6 +1479,12 @@ cmTlRC_t cmTimeLineGenOnsetMarks( cmTlH_t h, unsigned seqId )
   unsigned   bar        = cmInvalidIdx;
   unsigned   i,j;
   unsigned   smpIdx;
+
+  if( p->onsetCfg.wndMs == 0 )
+  {
+    rc = cmErrMsg(&p->err,kOnsetFailTlRC,"Audio onset analyzer not-configured.");
+    goto errLabel;    
+  }
 
   // initialize the audio onset analyzer
   if( cmOnsetInitialize(&p->ctx, &onsH ) != kOkOnRC )

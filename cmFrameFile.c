@@ -1031,7 +1031,7 @@ cmFfRC_t cmFrameFileFrameCreate( cmFrameFileH_t h, unsigned frameType, unsigned 
   p->frame.f.mtxCnt       = 0;
   p->frame.f.streamId     = streamId;
   p->frame.f.flags        = flags;
-  p->frame.f.time.seconds = 0;
+  p->frame.f.tm.seconds = 0;
 
   return rc;
 }
@@ -1327,10 +1327,10 @@ cmFfRC_t cmFrameFileFrameNext( cmFrameFileH_t h, unsigned keyFrameTypeId, unsign
     return rc;
 
   if( cmIsFlag(p->frame.f.flags,kSampleIdxTimeFl) )
-    p->frame.f.time.sampleIdx = sampleIdx;
+    p->frame.f.tm.sampleIdx = sampleIdx;
 
   if( cmIsFlag(p->frame.f.flags,kSecondsTimeFl) )
-    p->frame.f.time.seconds = seconds;
+    p->frame.f.tm.seconds = seconds;
 
   
   return rc;

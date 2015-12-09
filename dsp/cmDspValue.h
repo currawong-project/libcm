@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"'snap' variable value class." kw:[snap] }
+  
   typedef unsigned cmDsvRC_t;
   
   enum
@@ -330,6 +332,8 @@ extern "C" {
 
   void     cmDsvPrint( const cmDspValue_t* vp, const cmChar_t* label,  cmRpt_t* rpt );
 
+  //)
+  
 #define cmDsvCopy( d, s ) (*(d)) = (*(s))
 
 #ifdef __cplusplus

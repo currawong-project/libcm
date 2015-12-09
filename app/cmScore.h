@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Object for managing musical score data." kw:[score]}
+  
   enum
   {
     kOkScRC = cmOkRC,
@@ -155,7 +157,7 @@ extern "C" {
 
   const cmChar_t* cmScEvtTypeIdToLabel( unsigned id );
   const cmChar_t* cmScDynIdToLabel( unsigned id );
-
+  const cmChar_t* cmScStatusToOpString( unsigned id );
 
   // Initialize a score object from a CSV File generated from a score spreadsheet.
   // The dynRefArray[dynRefCnt] and cbFunc(cbArg) are optional if these 
@@ -273,7 +275,8 @@ extern "C" {
 
   void          cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn );
 
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

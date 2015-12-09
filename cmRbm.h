@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Restricted Bolzmann Machine object." kw:[model] }
 enum
 {
   kOkRbmRC = cmOkRC,
@@ -38,6 +39,8 @@ enum
 
   void cmRbmBinaryTest(cmCtx_t* ctx);
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

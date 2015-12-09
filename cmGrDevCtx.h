@@ -4,7 +4,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+  //( { file_desc:"Device independent graphics context object used by cmGr." kw:[plot]}
+  
   enum
   {
     kOkGrDcRC = cmOkRC,
@@ -195,6 +196,8 @@ extern "C" {
   // Is any of the rectangle visible in this drawing context.
   bool            cmGrDcRectIsVisible(  cmGrDcH_t h, const cmGrPExt_t* r );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

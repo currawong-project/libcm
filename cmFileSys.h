@@ -1,6 +1,5 @@
-//{
-//(
-// A collection of file system utility functions.
+
+//( { file_desc:"A collection of file system utility functions." kw:[system file]}
 //
 // Note that cmFileSysInitialize() creates an internal cmLHeapH_t based
 // heap manager from which it allocates memory for some returned objects.
@@ -242,7 +241,6 @@ extern "C" {
   cmFsRC_t    cmFileSysTest( cmCtx_t* ctx );  
 
   //)
-  //}
 
 #ifdef __cplusplus
 }

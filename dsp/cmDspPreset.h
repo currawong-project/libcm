@@ -6,6 +6,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"'snap' unit state store/recall implementation." kw:[snap] }
+  
   typedef struct _cmDspPreVar_str
   {
     unsigned                 symId;
@@ -73,7 +75,8 @@ extern "C" {
   cmDspRC_t _cmDspPresetRecallInstance(  cmDspPresetMgr_t* p, unsigned instSymId );
   cmDspRC_t _cmDspPresetRecallVar(       cmDspPresetMgr_t* p, unsigned varSymId, cmDspValue_t* valPtr );
   
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

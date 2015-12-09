@@ -5,8 +5,8 @@
 extern "C" {
 #endif
 
-  //{
-  //(
+  //( { file_desc:"Text processing functions." kw:[text]}
+  //
   // The cmText API supports two basic tasks: the generation of
   // formatted text into dynamic arrays and text to number parsing.
   // 
@@ -297,7 +297,6 @@ extern "C" {
 
 
   //)
-  //}
 
 #ifdef __cplusplus
 }

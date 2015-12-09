@@ -1,6 +1,11 @@
-//{ { label:cmMd }
-//(
-// Implements an extended memory allocation and tracking manager.
+#ifndef cmMallocDebug_h
+#define cmMallocDebug_h
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+//( { file_desc:"Implements an extended memory allocation and tracking manager." kw:[base] }
 //
 // cmMallocDebug is a wrapper to cmMem.h for calls to malloc() and free().
 // Most of the cmMdXXX() calls are directly associated with same named 
@@ -8,15 +13,8 @@
 // cmMm object where malloc() and free() are the callback functions 
 // provided to cmMmInitialize().
 // 
-//)
-
-#ifndef cmMallocDebug_h
-#define cmMallocDebug_h
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-  //(
+//
+  
   // Initialize the malloc debug manager. guardByteCnt, alignByteeCnt, flags, and rpt
   // are used to initialize an internal cmMm object.  See cmMm for their semantics.
   cmMmRC_t  cmMdInitialize( unsigned guardByteCnt, unsigned alignByteCnt, unsigned flags, cmRpt_t* rptPtr );
@@ -164,7 +162,5 @@ extern "C" {
 }
 #endif
 
-
-//}
 
 #endif

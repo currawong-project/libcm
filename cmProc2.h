@@ -5,7 +5,11 @@
 extern "C" {
 #endif
 
-  //------------------------------------------------------------------------------------------------------------
+  //( { file_desc:"Processor Library 2" kw:[proclib]}
+  //)
+
+  //( { label:cmArray file_desc:"Expandable array designed to work easily with the cmProcObj model" kw:[proc]}
+  
   // cmArray is an expandable array designed to work easily with the alloc/init/final/free model
   // used by this library.  The arrays can be safely used by using the cmArrayAllocXXX macros 
   // with static cmArray member fields during object allocation. cmArrayResizeXXX macros are then
@@ -53,8 +57,10 @@ extern "C" {
 #define cmArrayPtr(     type, p )            (type*)(p)->ptr
 #define cmArrayCount(   p )                  (p)->eleCnt
 
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+  //( { label:cmAudioFileWr file_desc:"Audio file writer" kw:[proc]}
+    
   typedef struct
   {
     cmObj         obj;
@@ -72,8 +78,10 @@ extern "C" {
   cmRC_t             cmAudioFileWrFinal( cmAudioFileWr* p );
   cmRC_t             cmAudioFileWrExec(  cmAudioFileWr* p, unsigned chIdx, const cmSample_t* sp, unsigned sn );
   void               cmAudioFileWrTest();
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmMatrixBuf file_desc:"Store and recall real values in matrix form." kw:[proc]}
   typedef struct
   {
     cmObj      obj;
@@ -98,6 +106,9 @@ extern "C" {
 
 
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmSigGen file_desc:"Generate periodic and noise signals." kw:[proc]}
 
   enum
   {
@@ -139,6 +150,9 @@ extern "C" {
   cmRC_t    cmSigGenExec(  cmSigGen*  p );
 
   //------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmDelay file_desc:"Fixed length audio delay." kw:[proc]}
   typedef struct
   {
     cmObj*      obj;
@@ -160,8 +174,10 @@ extern "C" {
   cmRC_t            cmDelayAdvance( cmDelay* p, unsigned sn );
   cmRC_t            cmDelayExec(    cmDelay* p, const cmSample_t* sp, unsigned sn, bool bypassFl );
   void              cmDelayTest();
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmFIR file_desc:"Finite impulse response filter." kw:[proc]}
   typedef struct
   {
     cmObj       obj;
@@ -192,10 +208,11 @@ extern "C" {
   cmRC_t cmFIRExec(       cmFIR* p, const cmSample_t* sp, unsigned sn );
   void   cmFIRTest0( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH );
   void   cmFIRTest1( cmCtx* ctx );
-  
-  //------------------------------------------------------------------------------------------------------------
-  // Apply a generic function to a windowed signal with a one sample hop size.
 
+  //------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmFuncFilter file_desc:"Apply a generic function to a windowed signal with a one sample hop size.." kw:[proc]}
   typedef cmSample_t (*cmFuncFiltPtr_t)( const cmSample_t* sp, unsigned sn, void* userPtr );
 
   typedef struct
@@ -217,8 +234,10 @@ extern "C" {
   cmRC_t        cmFuncFilterFinal( cmFuncFilter* p );
   cmRC_t        cmFuncFilterExec(  cmFuncFilter* p, const cmSample_t* sp, unsigned sn );
   void          cmFuncFilterTest();
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmDhmm file_desc:"Discrete observation HMM" kw:[proc]}
   typedef struct
   {
     cmObj           obj;
@@ -245,6 +264,9 @@ extern "C" {
   void    cmDhmmTest();
 
   //------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmConvolve file_desc:"Convolve a signal with an impulse response." kw:[proc]}
   typedef struct
   {
     cmObj     obj;
@@ -285,6 +307,9 @@ extern "C" {
   cmRC_t      cmConvolveTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH );
 
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmBfcc file_desc:"Generate Bark Frequency Cepstral Coefficients from STFT frames." kw:[proc]}
   typedef struct
   {
     cmObj     obj; 
@@ -304,6 +329,8 @@ extern "C" {
   void    cmBfccTest( cmRpt_t* rpt, cmLHeapH_t lhH, cmSymTblH_t stH );
 
   //------------------------------------------------------------------------------------------------------------
+  //)
+  //( { label:cmCepstrum file_desc:"Generate Cepstral Coefficients from STFT frames." kw:[proc]}
   typedef struct
   {
     cmObj     obj; 
@@ -324,7 +351,10 @@ extern "C" {
   cmRC_t  cmCepsFinal( cmCeps* p );
   cmRC_t  cmCepsExec(  cmCeps* p, const cmReal_t* magV, const cmReal_t* phsV, unsigned binCnt );
 
+  //------------------------------------------------------------------------------------------------------------
+  //)
 
+  //( { label:cmOla file_desc:"Generate a signal from an via overlap-add." kw:[proc]}
   //------------------------------------------------------------------------------------------------------------
   typedef struct
   {
@@ -355,9 +385,10 @@ extern "C" {
   cmRC_t cmOlaExecS( cmOla* p, const cmSample_t* xV, unsigned xN );
   cmRC_t cmOlaExecR( cmOla* p, const cmReal_t*   xV, unsigned xN );
   const cmSample_t* cmOlaExecOut(cmOla* p );
+  //------------------------------------------------------------------------------------------------------------
+  //)
 
-
-
+  //( { label:cmPhsToFrq file_desc:"Given STFT phase spectrum frames return the instantaneous frequency." kw:[proc]}
   //------------------------------------------------------------------------------------------------------------
 
   typedef struct
@@ -380,9 +411,11 @@ extern "C" {
   cmRC_t  cmPhsToFrqFinal(cmPhsToFrq*  p );
   cmRC_t  cmPhsToFrqExec( cmPhsToFrq*  p, const cmReal_t* phsV );
  
-
   //------------------------------------------------------------------------------------------------------------
-
+  //)
+  
+  //( { label:cmPvAnl file_desc:"Perform the phase-vocoder analysis stage." kw:[proc]}
+ 
   enum 
   {
     kNoCalcHzPvaFl = 0x00,
@@ -420,6 +453,8 @@ extern "C" {
   bool     cmPvAnlExec( cmPvAnl* p, const cmSample_t* x, unsigned xN );
 
   //------------------------------------------------------------------------------------------------------------
+  //)
+  //( { label:cmPvSyn file_desc:"Perform the phase-vocoder synthesis stage." kw:[proc]}
 
   typedef struct
   {
@@ -451,11 +486,10 @@ extern "C" {
   cmRC_t     cmPvSynExec( cmPvSyn* p, const cmReal_t* magV, const cmReal_t* phsV );
   const cmSample_t* cmPvSynExecOut(cmPvSyn* p );
 
-
-
   //------------------------------------------------------------------------------------------------------------
-
-
+  //)
+  
+  //( { label:cmMidiSynth file_desc:"Synthesis independent MIDI synthesizer control structure." kw:[proc]}
   // callback selector values
   enum
   {
@@ -532,8 +566,10 @@ extern "C" {
   cmRC_t       cmMidiSynthOnMidi(cmMidiSynth* p, const cmMidiPacket_t* pktArray, unsigned pktCnt );
   cmRC_t       cmMidiSynthExec(  cmMidiSynth* p, cmSample_t** outChArray, unsigned outChCnt );
 
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmWtVoice file_desc:"Wavetable oscillator implementation for use with cmMidiSyn." kw:[proc]}
 
   // state id's
   enum
@@ -568,6 +604,8 @@ extern "C" {
 
 
   //------------------------------------------------------------------------------------------------------------
+  //)
+  //( { label:cmWtVoiceBank file_desc:"A bank of cmWtVoice oscillator for use with cmMidiSynth." kw:[proc]}
 
   typedef struct
   {
@@ -596,8 +634,9 @@ extern "C" {
   int        cmWtVoiceBankExec( cmWtVoiceBank* p, struct cmMidiVoice_str* voicePtr, unsigned sel, cmSample_t* chArray[], unsigned chCnt );
 
 
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+  //( { label:cmAudioFileBuf file_desc:"Generate a signal by caching all or part of an audio file." kw:[proc]}
 
   typedef struct
   {
@@ -620,8 +659,10 @@ extern "C" {
   // If less than outN samples are available then the remaining samples are set to 0.  
   unsigned        cmAudioFileBufExec( cmAudioFileBuf* p, unsigned smpIdx, cmSample_t* outV, unsigned outN, bool sumIntoOutFl );
 
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmMDelay file_desc:"Multi-tap audio delay with feedback." kw:[proc]} 
   // Multi-delay.  Each of the taps of this delay operates as a independent delay with feedback.
   
   // Delay line specification.
@@ -657,6 +698,9 @@ extern "C" {
   void      cmMDelayReport( cmMDelay* p, cmRpt_t* rpt );
 
   //------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmAudioSegPlayer file_desc:"Buffer and playback an arbitrary number of audio signals." kw:[proc]}
   enum
   {
     kEnableAspFl  = 0x01,
@@ -696,9 +740,9 @@ extern "C" {
   cmRC_t            cmAudioSegPlayerEnable( cmAudioSegPlayer* p, unsigned id, bool enableFl, unsigned outSmpIdx );
   cmRC_t            cmAudioSegPlayerReset(  cmAudioSegPlayer* p );
   cmRC_t            cmAudioSegPlayerExec(   cmAudioSegPlayer* p, cmSample_t** outChPtr, unsigned chCnt, unsigned outSmpCnt );
-
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+
   /*
   cmReal_t (*cmCluster0DistFunc_t)( void* userPtr, const cmReal_t* v0, const cmReal_t* v1, unsigned binCnt );
 
@@ -729,7 +773,7 @@ extern "C" {
   cmRC_t           cmCluster0Exec(  cmCluster0* p, const cmReal_t* v, unsigned vn );
   */
 
-  //------------------------------------------------------------------------------------------------------------
+  //( { label:cmNmf file_desc:"Non-negative matrix factorization implementation." kw:[proc]}
   typedef struct
   {
     cmObj     obj;
@@ -770,8 +814,10 @@ extern "C" {
   // 
   cmRC_t   cmNmfExec( cmNmf_t* p, const cmReal_t* v, unsigned cn );
 
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmVectArray file_desc:"Store and recall arrays of arbitrary length numeric vectors." kw:[proc]}
   // cmVectArray buffers row vectors of arbitrary length in  memory.
   // The buffers may then be access using the cmVectArrayGetXXX() functions.
   // The entire contents of the file may be written to a file using atVectArrayWrite().
@@ -943,7 +989,10 @@ extern "C" {
   cmRC_t   cmVectArrayFormVectColU( cmVectArray_t* p, unsigned groupIdx, unsigned groupCnt, unsigned colIdx, unsigned** vRef, unsigned* vnRef );
   cmRC_t   cmVectArrayTest( cmCtx* ctx, const char* fn, bool genFl );  
 
-  //-----------------------------------------------------------------------------------------------------------------------
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmWhFilt file_desc:"Spectral whitening filter." kw:[proc]}  
   // Spectral whitening filter.
   // Based on: Klapuri, A., 2006: Multiple fundamental frequency estimation by summing
   //  harmonic amplitudes.
@@ -967,6 +1016,9 @@ extern "C" {
   cmRC_t    cmWhFiltExec( cmWhFilt* p, const cmReal_t* xV, cmReal_t* yV, unsigned xyN );
 
   //-----------------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmFrqTrk file_desc:"Track sinusoids from STFT frame data." kw:[proc]}  
   typedef enum
   {
     kNoStateFrqTrkId,
@@ -1089,8 +1141,10 @@ extern "C" {
   cmRC_t    cmFrqTrkExec( cmFrqTrk* p, const cmReal_t* magV, const cmReal_t* phsV, const cmReal_t* hzV );
   void      cmFrqTrkPrint( cmFrqTrk* p );
 
-  //------------------------------------------------------------------------------------------------------------
-
+  //-----------------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmFbCtl file_desc:"Perform acoustic feedback control by attenuating loud sinusoid signals." kw:[proc]}  
   typedef struct
   {
     double   srate;
@@ -1122,7 +1176,10 @@ extern "C" {
   cmRC_t     cmFbCtlFinal(cmFbCtl_t* p );
   cmRC_t     cmFbCtlExec( cmFbCtl_t* p, const cmReal_t* xV );
 
-  //-----------------------------------------------------------------------------------------------------------------------
+  //------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmExpander file_desc:"Expander implementation for audio dynamics processing." kw:[proc]}    
 
   typedef struct
   {
@@ -1148,7 +1205,11 @@ extern "C" {
   cmRC_t      cmExpanderFinal( cmExpander* p );
   cmRC_t      cmExpanderExec( cmExpander* p, cmSample_t* x, cmSample_t* y, unsigned xyN );
   cmRC_t      cmExpanderExecD( cmExpander* p, double* x, double* y, unsigned xyN );
+
   //-----------------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmExpanderBank file_desc:"Bank of audio dynamics expanders based on cmExpander." kw:[proc]}    
   typedef struct
   {
     cmObj obj;
@@ -1166,8 +1227,10 @@ extern "C" {
   cmRC_t      cmExpanderBankExec(  cmExpanderBank* p, cmSample_t* x, unsigned bandN );
   cmRC_t      cmExpanderBankExecD(  cmExpanderBank* p, double* x, unsigned bandN );
   
-
-  //------------------------------------------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmSpecDist file_desc:"Spectral distortion algorithm based on non-linear transform." kw:[proc]}    
 
   enum
   {
@@ -1224,6 +1287,7 @@ extern "C" {
     cmReal_t  aeUnit;
 
     cmReal_t ogain;
+    cmReal_t ogain0;
 
     unsigned phaseModIndex;
 
@@ -1236,6 +1300,7 @@ extern "C" {
     cmReal_t*      oSpecM;      // oSpecMtx[hN binN]
     cmReal_t*      oSpecV;      // mean of rows of oSpecM
     cmVectArray_t* oSpecVa;
+    cmVectArray_t* statVa;
 
   } cmSpecDist_t;
 
@@ -1246,8 +1311,11 @@ extern "C" {
   cmRC_t            cmSpecDistExec( cmSpecDist_t* p, const cmSample_t* sp, unsigned sn );
   const cmSample_t* cmSpecDistOut(  cmSpecDist_t* p );
 
-
   //------------------------------------------------------------------------------------------------------------
+  //)
+  
+  //( { label:cmBinMtxFile file_desc:"Write a binary matrix which can be read by readBinFile.m." kw:[proc]}
+  
   // Write a binary matrix file in the format acceppted by the octave function readBinFile.m
 
   typedef struct cmBinMtxFile_str
@@ -1289,7 +1357,7 @@ extern "C" {
   // Use cmBinMtxFileSize() to determine the buffer size prior to calling this function.
   // colCntV[colCnt] is optional.
   cmRC_t cmBinMtxFileRead( cmCtx_t* ctx, const cmChar_t* fn, unsigned rowCnt, unsigned colCnt, unsigned eleByteCnt, void* buf, unsigned* colCntV );
-
+  //)
 
 
 

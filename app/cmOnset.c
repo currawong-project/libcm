@@ -286,12 +286,13 @@ cmOnRC_t cmOnsetProc( cmOnH_t h, const cmOnsetCfg_t* cfg, const cmChar_t* inAudi
   p->medFiltFrmCnt = cmMax(3,floor(cfg->medFiltWndMs * p->afInfo.srate / (1000.0 * p->hopSmpCnt)));
   p->preDelaySmpCnt= floor(cfg->preDelayMs * p->afInfo.srate / 1000.0);
 
+  cmRptPrintf(p->err.rpt,"wndFrmCnt:%i preWndMult:%f thresh:%f maxHz:%f filtCoeff:%f filterId:%i preDelayMs:%f\n",cfg->wndFrmCnt,cfg->preWndMult,cfg->threshold,cfg->maxFrqHz,cfg->filtCoeff,cfg->medFiltWndMs,cfg->filterId,cfg->preDelayMs );
   cmRptPrintf(p->err.rpt,"Analysis Hop Duration: %8.2f ms %i smp\n",(double)p->hopSmpCnt*1000/p->afInfo.srate,p->hopSmpCnt);  
   cmRptPrintf(p->err.rpt,"Median Filter Window:  %8.2f ms %i frames\n",cfg->medFiltWndMs,p->medFiltFrmCnt);
   cmRptPrintf(p->err.rpt,"Detection Pre-delay:   %8.2f ms %i smp\n",cfg->preDelayMs, p->preDelaySmpCnt);
 
   // initialize the audio file reader
-  if( cmAudioFileRdOpen( p->afRdPtr, p->hopSmpCnt, inAudioFn, p->cfg.audioChIdx, 0, cmInvalidIdx ) != cmOkRC )
+  if( cmAudioFileRdOpen( p->afRdPtr, p->hopSmpCnt, inAudioFn, p->cfg.audioChIdx, 0, 0 ) != cmOkRC )
   {
     rc =  cmErrMsg(&p->err,kDspProcFailOnRC, "The audio file reader open failed.");
     goto errLabel;

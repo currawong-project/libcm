@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Low level device independent API for descibing interactive graphics objects." kw:[plot] }
   enum 
   {
     kAliceBlueGrId            = 0xf0f8ff,
@@ -867,6 +868,7 @@ extern "C" {
 
   void     cmGrReport( cmGrH_t h, cmRpt_t* rpt );
 
+  //)
   
 #ifdef __cplusplus
 }

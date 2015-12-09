@@ -2693,6 +2693,7 @@ typedef struct
 
 _cmScModTypeMap_t _cmScModTypeArray[] =
 {
+  { kDeclModTId,    0, "decl" },
   { kSetModTId,     1, "set" },
   { kLineModTId,    2, "line" },
   { kSetLineModTId, 3, "sline" },
@@ -3164,6 +3165,7 @@ cmRC_t _cmScModActivate(cmScModulator* p, cmScModEntry_t* ep )
 
   switch( ep->typeId )
   {
+    case kDeclModTId:
     case kSetModTId:
       break;
 
@@ -3220,6 +3222,11 @@ bool  _cmScModExec( cmScModulator* p, cmScModVar_t* vp )
 
   switch( vp->entry->typeId )
   {
+    case kDeclModTId:
+      sendFl = false;
+      fl     = true;
+      break;
+      
     case kSetModTId:
       {
         if((rc = _cmScModGetParam(p,&vp->entry->beg,&vp->value)) != cmOkRC )

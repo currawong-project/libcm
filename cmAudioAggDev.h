@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc: "Audio device driver for cmAudioPort which aggregates multiple hardware devices to appear as a single devices." kw:[rt] }
+  
   enum
   {
     kOkAgRC = cmOkRC,
@@ -95,7 +97,8 @@ extern "C" {
 
   int cmApAggTest(  bool runFl, cmCtx_t* ctx, int argc, const char* argv[] );
 
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

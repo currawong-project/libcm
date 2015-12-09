@@ -1250,7 +1250,7 @@ void cmPgmOptPrintHelp( cmPgmOptH_t h, cmRpt_t* rpt )
       reqLabel = reqStr;
 
     if( mstr != NULL )
-      cmRptPrintf(rpt,"Enumerated group: %s %s",mstr->mstrStr==NULL ? "" : mstr->mstrStr, cmIsFlag(mstr->cflags,kReqPoFl) ? reqStr : "" );
+      cmRptPrintf(rpt,"Enumerated group: %s %s\n",mstr->mstrStr==NULL ? "" : mstr->mstrStr, cmIsFlag(mstr->cflags,kReqPoFl) ? reqStr : "" );
    
     cmRptPrintf(rpt,"%s-%c --%s %s %s",indentStr,r->charId,r->wordId,valueTypeLabel,reqLabel);
 

@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Manage persistent application preferences." kw:[base] }
+  
   typedef unsigned cmPrRC_t;
   typedef cmHandle_t cmPrH_t;
 
@@ -188,7 +190,8 @@ extern "C" {
 
   void cmPrefsTest( cmCtx_t* ctx, const char* ifn, const char* ofn );
     
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

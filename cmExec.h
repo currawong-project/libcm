@@ -6,6 +6,7 @@
 extern "C" {
 #endif
 
+  //( file_desc:"Run a child process via 'execvp()'" kw[system]
   enum
   {
     kOkExRC,
@@ -22,6 +23,8 @@ extern "C" {
   cmExRC_t cmExecV( cmErr_t* err, int* returnValRef, const cmChar_t* pgmFn, va_list vl );
   cmExRC_t cmExec(  cmErr_t* err, int* returnValRef, const cmChar_t* pgmFn, ... );  
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

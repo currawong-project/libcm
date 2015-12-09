@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-  /*
+  /*( { file_desc:"Base class for all 'proc' objects." kw:[proclib] } 
 
     The first field in all objects must be an cmObj record.
 
@@ -164,7 +164,8 @@ extern "C" {
 #define cmMtxFileRealExecN(f,p,n,s) cmMtxFileDoubleExec((f),(p),(n),(s))
 #endif
 
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

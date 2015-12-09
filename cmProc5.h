@@ -5,10 +5,11 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Process Library 5", kw:[proclib]}
+  //)
 
-  //=======================================================================================================================
-  // Goertzel Filter
-  //
+  
+  //( { label:cmGoertzel file_desc:"Goertzel tone detection filter." kw:[proc]}
 
   typedef struct
   {
@@ -38,10 +39,10 @@ extern "C" {
   cmRC_t cmGoertzelSetFcHz( cmGoertzel* p, unsigned chIdx, double hz );
   cmRC_t cmGoertzelExec( cmGoertzel* p, const cmSample_t* in, unsigned procSmpCnt,  double* outV, unsigned chCnt );
 
+  //------------------------------------------------------------------------------------------------------------
+  //)
 
-  //=======================================================================================================================
-  // Gold Code Signal Generator
-  //
+  //( { label:cmGoldCode file_desc:"Gold code random generator." kw:[proc]}
 
   typedef struct
   {
@@ -110,9 +111,10 @@ extern "C" {
   cmRC_t cmGoldSigTest( cmCtx* ctx );
 
 
-  //=======================================================================================================================
-  // Phase aligned transform generalized cross correlator
-  //
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmPhat file_desc:"Phase-aligned transform for generalized cross correlator." kw:[proc]}
 
   // Flags for use with the 'flags' argument to cmPhatAlloc() 
   enum
@@ -192,9 +194,10 @@ extern "C" {
   cmRC_t cmPhatWrite( cmPhat_t* p, const char* dirStr );
 
 
-  //=======================================================================================================================
-  // 
-  //
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmReflectCal file_desc:"Calculate the time of flight of Gold code acoustic reflections." kw:[proc]}
 
 
   typedef struct
@@ -225,9 +228,11 @@ extern "C" {
   cmRC_t cmReflectCalcExec(  cmReflectCalc_t* p, const cmSample_t* xV, cmSample_t* yV, unsigned xyN );
   cmRC_t cmReflectCalcWrite( cmReflectCalc_t* p, const char* dirStr );
 
-  //=======================================================================================================================
-  // 
-  //
+  //------------------------------------------------------------------------------------------------------------
+  //)
+
+  //( { label:cmNlms file_desc:"Normalized least mean squares echo canceller." kw:[proc]}
+  
   typedef struct
   {
     cmObj          obj;
@@ -260,7 +265,8 @@ extern "C" {
   void        cmNlmsEcSetMu(     cmNlmsEc_t* p, float mu );
   void        cmNlmsEcSetDelayN( cmNlmsEc_t* p, unsigned delayN );
   void        cmNlmsEcSetIrN(    cmNlmsEc_t* p, unsigned irN );
-  
+  //)
+
   
 #ifdef __cplusplus
 }

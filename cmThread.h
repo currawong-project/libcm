@@ -4,6 +4,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+  //( { file_desc:"Threads and thread safe containers." kw:[parallel] }
 
   typedef cmHandle_t cmThreadH_t;
   typedef unsigned   cmThRC_t;
@@ -85,8 +86,10 @@ extern "C" {
   void          cmThreadSetWaitTimeOutMicros( cmThreadH_t h, unsigned usecs );
 
   void          cmThreadTest( cmRpt_t* rpt );
+  //)
 
-
+  //( { label:cmThreadMutex file_desc:"Thread mutex object." kw[parallel]}
+  //============================================================================
   typedef struct
   {
     void* h;
@@ -109,6 +112,9 @@ extern "C" {
   cmThRC_t cmThreadMutexSignalCondVar( cmThreadMutexH_t h );
 
 
+  //)
+  //( { label:cmTsQueue file_desc:"Thread safe message queue." kw[parallel]}
+  //============================================================================
 
   // cmThread safe message queue.
   //
@@ -190,6 +196,9 @@ extern "C" {
  
   bool     cmTsQueueIsValid(    cmTsQueueH_t h);
 
+  //)
+  //( { label:cmTs1p1c file_desc:"Single producer/Single consumer non-blocking thread safe queue." kw[parallel]}
+  //============================================================================
 
   // Single producer / Single consumer thread-safe queue.
   // These functions have identical semantics and return values
@@ -221,6 +230,9 @@ extern "C" {
   
   bool       cmTs1p1cIsValid( cmTs1p1cH_t h );  
 
+  //)
+  //( { label:cmThCAS file_desc:"Non-blocking primitive operations." kw[parallel]}
+  //============================================================================
 
   // Thread safe compare-and-swap (actualy compare-and-test). 
   // Returns true if the *addr==new when the function returns 
@@ -241,6 +253,9 @@ extern "C" {
   void     cmThUIntDecr( unsigned* addr, unsigned decr );
   void     cmThFloatDecr(float*    addr, float    decr );
 
+  //)
+  //( { label:cmMp1c file_desc:"Multiple producer, single consumer non-blocking thread-safe queue." kw[parallel]}
+  //============================================================================
   // Multiple producer / Single consumer thread-safe queue.
   // These functions have identical semantics and return values
   // to the same named cmTsQueueXXXX() calls above.
@@ -272,15 +287,17 @@ extern "C" {
   
   bool       cmTsMp1cIsValid( cmTsMp1cH_t h );  
 
-
-  // Sleep functions
-  void cmSleepUs( unsigned microseconds );
-  void cmSleepMs( unsigned milliseconds );
-
-
   void cmTsQueueTest( cmRpt_t* rpt );
   void cmTs1p1cTest( cmRpt_t* rpt );
   void cmTsMp1cTest( cmRpt_t* rpt );
+  
+  //)
+  //( { label:cmSleep file_desc:"Sleep related functions." kw:[time] }
+  // Sleep functions
+  void cmSleepUs( unsigned microseconds );
+  void cmSleepMs( unsigned milliseconds );
+  //)
+
 #ifdef __cplusplus
 }
 #endif

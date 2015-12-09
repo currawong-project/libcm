@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"MIDI file reader and writer." kw:[midi file]}  
   // MIDI file timing:
   // Messages in the MIDI file are time tagged with a delta offset in 'ticks'
   // from the previous message in the same track.
@@ -22,9 +23,9 @@ extern "C" {
   //
   // As part of the file reading process, the status byte of note-on messages 
   // with velocity=0 are is changed to a note-off message. See _cmMidiFileReadChannelMsg().
-
-
-
+  //)
+  
+  //(
   typedef cmHandle_t cmMidiFileH_t;
   typedef unsigned   cmMfRC_t;
 
@@ -56,15 +57,17 @@ extern "C" {
     cmMidiByte_t ch;
     cmMidiByte_t d0;
     cmMidiByte_t d1;
-    unsigned     durTicks; // note duration calc'd by cmMidiFileCalcNoteDurations();
+    unsigned     durMicros;  // note duration in microseconds (corrected for tempo changes)
   } cmMidiChMsg_t;
 
 
   typedef struct cmMidiTrackMsg_str
   {
     unsigned                   uid;     // uid's are unique among all msg's in the file
-    unsigned                   dtick;   // delta ticks
-    unsigned                   atick;   // accumulated ticks
+    unsigned                   dtick;   // delta ticks between events on this track
+    unsigned                   dmicro;  // delta microseconds between events on this track adjusted for tempo changes
+    unsigned                   atick;   // global (all tracks interleaved) accumulated ticks
+    unsigned                   amicro;  // global (all tracks interleaved) accumulated microseconds adjusted for tempo changes
     cmMidiByte_t               status;  // ch msg's have the channel value removed (it is stored in u.chMsgPtr->ch)
     cmMidiByte_t               metaId;  //
     unsigned short             trkIdx;  //  
@@ -152,13 +155,6 @@ extern "C" {
 
   double                cmMidiFileDurSecs( cmMidiFileH_t h );
 
-  // Convert the track message 'dtick' field to delta-microseconds.
-  void                  cmMidiFileTickToMicros( cmMidiFileH_t h );
-
-  // Convert the track message 'dtick' field to samples.
-  // If the absFl is set then the delta times are converted to absolute time.
-  void                  cmMidiFileTickToSamples( cmMidiFileH_t h, double srate, bool absFl );
-
   // Calculate Note Duration 
   void                  cmMidiFileCalcNoteDurations( cmMidiFileH_t h );
 
@@ -171,10 +167,13 @@ extern "C" {
   cmMidiTrackMsg_t*     cmMidiFilePackTrackMsg( const cmMidiTrackMsg_t* m, void* buf, unsigned bufByteCnt );
   unsigned              cmMidiFilePackTrackMsgBufByteCount( const cmMidiTrackMsg_t* m );
 
-  void                  cmMidiFilePrint( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt );
+  void                  cmMidiFilePrintMsgs( cmMidiFileH_t h, cmRpt_t* rpt );
+  void                  cmMidiFilePrintTrack( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt );
   bool                  cmMidiFileIsNull( cmMidiFileH_t h );
   void                  cmMidiFileTest( const char* fn, cmCtx_t* ctx );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

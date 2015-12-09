@@ -5,14 +5,8 @@
 extern "C" {
 #endif
 
-  //{
-  //(
-  // cmSerialize is an API for serializing data structures into 
-  // byte streams and then deserializing them back into data structures.
-  //
-  //)
-
-  //(
+  //( { file_desc:" An API for serializing data structures into byte streams and then deserializing them back into data structures." kw:[base]}
+  
 
   // Result codes
   enum
@@ -299,7 +293,6 @@ extern "C" {
   cmSrRC_t cmSrTest( cmCtx_t* ctx );
 
   //)
-  //}
 
 #ifdef __cplusplus
 }

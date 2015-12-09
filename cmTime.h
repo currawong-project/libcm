@@ -1,8 +1,7 @@
 
-//{ { label:cmTime
-//    kw: [ time ] }
+//( { file_desc:"Time cand clock related functions." kw: [ time system ] }
 //
-//( 
+//
 // This interface is used to read the systems high resolution timer and 
 // calculate elapsed time.
 //)
@@ -16,12 +15,9 @@ extern "C" {
 #endif
 
   //(
-
   typedef  struct timespec cmTimeSpec_t;
 
-  /* 
-     get the time 
-   */
+  // Get the time 
   void cmTimeGet( cmTimeSpec_t* t );
 
   // Return the elapsed time (t1 - t0) in microseconds
@@ -51,7 +47,6 @@ extern "C" {
   void cmTimeSetZero( cmTimeSpec_t* t0 );
 
   //)
-  //}
 
 #ifdef __cplusplus
 }

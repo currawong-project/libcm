@@ -1,5 +1,6 @@
-//{ 
-//(
+ 
+//( { file_desc:"Global application context record." kw[base] }
+//
 // cmCtx_t is used to hold application supplied cmRpt_t, cmErr_t and
 // other global values for easy distribution throughtout a cm based application.
 //
@@ -44,8 +45,7 @@ extern "C" {
     unsigned         mmFlags      //  Initialization flags used to configure \ref cmMallocDebug.h
                    );
   //)
-  //}
-
+ 
 #ifdef __cplusplus
 }
 #endif

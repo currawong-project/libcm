@@ -7,6 +7,7 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Global constants and data structures for transmiting messages between threads and network nodes.", kw:[real_time]}
   #define cmAudDspSys_FILENAME "aud_dsp.js"
 
 
@@ -134,6 +135,8 @@ extern "C" {
   cmMsgRC_t cmMsgPeekInstId(     const void* msgArray[], unsigned msgByteCntArray[], unsigned segCnt, unsigned* retValPtr );
   cmMsgRC_t cmMsgPeekInstVarId(  const void* msgArray[], unsigned msgByteCntArray[], unsigned segCnt, unsigned* retValPtr );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

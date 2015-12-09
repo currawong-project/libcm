@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"'snap' unit processor interface." kw:[snap] }
+  
   typedef unsigned   cmDspRC_t;
 
   enum
@@ -416,7 +418,8 @@ extern "C" {
   cmDspRC_t   cmDspUiMsgListCreate(cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned height, unsigned listVarId, unsigned selVarId );
 
  
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

@@ -1,5 +1,5 @@
-//{ 
-//(
+//( { file_desc:"Format error messages and track the last error generated." kw:[base]}
+//
 // This class is used to format error messages and track the last error generated.
 //
 // Most of the cmHandle_t based classes use cmErr_t to format error messages with a 
@@ -75,7 +75,6 @@ extern "C" {
   cmRC_t cmErrClearRC( cmErr_t* err );
    
   //)
-  //}
 
 #ifdef __cplusplus
 }

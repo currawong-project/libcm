@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Push-down stack data structure for binary blobs." kw:[container] }
+  
   enum
   {
     kOkStRC = cmOkRC,
@@ -62,7 +64,8 @@ extern "C" {
 
 #define cmStackEle(h,t,i) (*(t*)cmStackGet(h,i))
 
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

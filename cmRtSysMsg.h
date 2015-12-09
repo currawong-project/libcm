@@ -4,7 +4,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+  //( { file_desc:"rtSys message contants and data structures." kw:[rtsys] }
+  
   // Reserved DSP message selector id's (second field of all 
   // host<->audio system messages)
   enum
@@ -105,7 +106,8 @@ extern "C" {
     // char msg[ msgByteCnt ]
   } cmRtNetMsg_t;
 
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

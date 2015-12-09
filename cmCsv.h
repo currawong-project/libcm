@@ -6,6 +6,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Comma seperated value file reader and writer." kw[file] }
+  
   enum
   {
     kOkCsvRC = 0,
@@ -146,6 +148,8 @@ extern "C" {
 
   cmCsvRC_t  cmCsvPrint( cmCsvH_t h, unsigned rowCnt );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( {file_desc:"UI independent driver used by an rtSys application to communicate with the UI." kw:[rtsys]}
+  
   typedef unsigned cmUiRC_t;
 
   // cmUi result codes
@@ -170,6 +172,7 @@ extern "C" {
   double          cmUiDriverArgGetDouble( const cmUiDriverArg_t* a );
   const cmChar_t* cmUiDriverArgGetString( const cmUiDriverArg_t* a );
 
+  //)
 
 #ifdef __cplusplus
 }

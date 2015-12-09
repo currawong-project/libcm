@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"This is an audio device driver for cmAudioPort which supports reading and writing audio files as though they are real-time devices." kw[audio file rt] } 
+  
   cmApRC_t      cmApFileAllocate( cmRpt_t* rpt );
   cmApRC_t      cmApFileFree();
 
@@ -41,6 +43,8 @@ extern "C" {
   void          cmApFileReport( cmRpt_t* rpt );
   void          cmApFileTest( cmRpt_t* rpt );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

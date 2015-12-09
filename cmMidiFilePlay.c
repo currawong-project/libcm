@@ -148,9 +148,6 @@ cmMfpRC_t cmMfpLoadHandle( cmMfpH_t h, cmMidiFileH_t mfH )
   p->mtime      = 0;
   p->closeFileFl= false;
 
-  //if( p->msgIdx > 0 )
-  //  p->mtime = p->msgV[0]->tick * p->microsPerTick;
-
   return kOkMfpRC;
 }
 
@@ -213,35 +210,31 @@ cmMfpRC_t cmMfpClock(  cmMfpH_t h, unsigned dusecs )
   // sent and the end of the time window for this mfpClock() cycle
   p->etime += dusecs;
 
-  //printf("init e:%i d:%i\n",p->etime, p->mtime);
-
   // if the elapsed time (etime) since the last msg is greater or equal
   // to the delta time to the next msg (mtime)
   while( p->etime >= p->mtime )
   {      
-    //printf("e:%i d:%i\n",p->etime, p->mtime);
 
-    if( mp->status == kMetaStId && mp->metaId == kTempoMdId )
-      _cmMfpUpdateMicrosPerTick(p,mp->u.iVal );
-    
-    
+    // send the current message
     p->cbFunc( p->userCbPtr, p->mtime, mp );
-      
+
+    unsigned amicro = mp->amicro;
+    
     ++(p->msgIdx);
 
     if( p->msgIdx >= p->msgN )
       break;
 
     // get the next msg to send
-    mp        = p->msgV[p->msgIdx];
+    mp   = p->msgV[p->msgIdx];
+
 
     // we probably went past the actual mtime - so update etime
     // with the delta usecs from the msg just sent and the current time
     p->etime -= p->mtime;
 
     // calc the delta usecs from the message just sent to the next msg to send
-    //p->mtime  = (mp->tick - p->msgV[p->msgIdx-1]->tick) * p->microsPerTick;
-    p->mtime  = mp->dtick * p->microsPerTick;
+    p->mtime  = mp->amicro - amicro;
 
   }
 

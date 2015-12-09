@@ -5,7 +5,8 @@
 extern "C" {
 #endif
 
-
+  //( { file_desc:"Concatenate multipel overlapping MIDI performances into a single virtual performance based by associating score information with the MIDI events." kw:[seq] }
+  
   enum
   {
     kOkTsbRC = cmOkRC,
@@ -123,6 +124,8 @@ extern "C" {
 
   cmTsbRC_t cmTakeSeqBldrTest( cmCtx_t* ctx );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

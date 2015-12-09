@@ -5,8 +5,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  //{
-  //(
+  
+  //( { file_desc: "JSON reader and writer" kw:[file] }
   //
   //  Limitations:
   //
@@ -501,7 +501,6 @@ extern "C" {
   cmJsRC_t      cmJsonTest( const char* fn, cmCtx_t* ctx );
 
   //)
-  //}
 
 #ifdef __cplusplus
 }

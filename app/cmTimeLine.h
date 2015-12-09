@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Manage, save, and restore a time-line containing  MIDI files, Audio files, Audio events, and arbitrary markers ." kw[seq] }
+ 
 
   typedef cmHandle_t cmTlH_t;
 
@@ -248,6 +250,8 @@ extern "C" {
   // callback function.
   cmTlRC_t cmTimeLineDecode( const void* msg, unsigned msgByteCnt, cmTlUiMsg_t* uiMsg );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

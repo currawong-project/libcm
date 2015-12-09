@@ -1,8 +1,8 @@
 #ifndef cmPgmOpts_h
 #define cmPgmOpts_h
 
-//{
-//(
+//( { file_desc:"Command line argument description and parsing API." kw:[base]}
+//
 // Command line program option syntax:
 //
 //
@@ -206,7 +206,6 @@ extern "C" {
   void cmPgmOptPrintParms(   cmPgmOptH_t h, cmRpt_t* rpt );
 
   //)
-  //}
 
 #ifdef __cplusplus
 }

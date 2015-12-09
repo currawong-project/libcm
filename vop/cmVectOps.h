@@ -103,9 +103,12 @@ cmReal_t cmVOI_Variance(const int* sp, unsigned sn, const cmReal_t* mean);
 // Complex vector * matrix multiply
 // dbp[1,dn] = v[1,vn] * m[vn,dn]
 cmComplexR_t* cmVORC_MultVVM( cmComplexR_t* dbp, unsigned dn, const cmComplexR_t* vp, unsigned vn, const cmComplexR_t* m );
+  
+  unsigned _cmVOU_Abs(unsigned x );
 
-#define cmAbs(x)              _Generic((x),  double:fabs,       float:fabsf,      int:abs,        unsigned:abs,        default:fabs )(x)  
-#define cmIsClose(x0,x1,eps)  _Generic((x0), double:cmIsCloseD, float:cmIsCloseF, int:cmIsCloseI, unsigned:cmIsCloseU, default:cmIsCloseD)(x0,x1,eps)
+#define cmAbs(x)                 _Generic((x),  double:fabs,       float:fabsf, unsigned:_cmVOU_Abs, char:abs, int:abs,  bool:_cmVOU_Abs )(x)  
+#define cmIsClose(x0,x1,eps)     _Generic((x0), double:cmIsCloseD, float:cmIsCloseF, int:cmIsCloseI, unsigned:cmIsCloseU, default:cmIsCloseD)(x0,x1,eps)
+
   
 #ifdef __cplusplus
 }

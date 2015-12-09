@@ -6,6 +6,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Dynamic generic array with user programmable indexing and sorting capablity." kw:[container] }
+  
   enum
   {
     kOkDlRC = cmOkRC,
@@ -86,7 +88,7 @@ extern "C" {
   // which this iterator is attached to.
   const void* cmDListIterFind(      cmDListIterH_t  iH, const void* key, unsigned keyN, unsigned* recdByteNRef);
 
-
+  //) 
 #ifdef __cplusplus
 }
 #endif

@@ -1,3 +1,5 @@
+//( { file_desc:"Built-in 'snap' processor units." kw:[snap]}
+
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmFloatTypes.h"
@@ -46,411 +48,10 @@
 
 #include "sa/cmSaProc.h"
 
-/*
-About variables:
-1) Variables represent data fields within a DSP object.
 
-2) Variables may also act as input (kInDsvFl) and/or output (kOutDsvFl) ports.
-    A. Audio Ports
-       - Audio output ports (kAudioBufDsvFl) publish a buffer of samples to subscribing 
-         audio input ports on other instances. (See cmDspSysConnectAudio(). )
-
-       - Output audio ports are instantiated with physical buffers to hold samples of
-         audio. Input audio ports contain internal pointers with point to the
-         audio buffers of connected output ports.
-
-       - Set cmDspVarArg_t.cn to the number of channels of audio the buffer will contain.
-
-    B. Non-Audio Ports
-       - Non-audio input ports may register to be called when output port values change.
-         via cmDspSysInstallCb(). 
-
-       - Type checking is done to guarantee that the output port data type matches one of the
-         input port types or can be converted to one of the input port types.
-         [TODO: Check how this is handled in cmDspSetEvent().  Let's say that an input port
-         takes either a number or string. This conversion is not possible within the
-         cmDspValue() framework - and yet it should work - or give an error ]
-
-
-3) Creating variable instances.
-   A. All variables must be given default values in the instance constructor 
-      _cmDspXXXAlloc(). This can be done automatically be giving default values 
-      in the var args section of the cmDspSysAllocInst() call or by explicitely 
-      setting default values via cmDspSetDefaultXXX() in _cmDspXXXAlloc().
-   
-   B. The _cmDspXXXReset() function automatically resets all the instance variables to their
-      default value.  By default, variables do not transmit their values when they are 
-      reset to their default value - unless the variable is marked with the kSendDfltDsvFl.
-      (See cmDspClass.c:cmDspApplyDefault()). The 'out' port on cmDspScalar_t and cmDspButton_t
-      are examples of instances that transmit their default value on reset.
-
-      The order that instances are reset is determined by the order that they were created.
-
-      A subtle case can arise when relying on default values to set the initial value of
-      another object.  Given two object instances A and B. Where The output of A has the
-      the kSendDfltDsvFl set and is connected to an input port on B.  If instance A was
-      created before instance B then instance A will reset before instance B.  During reset
-      the output port of A will transmit it's default value to B - as expected. However
-      when reset is called on instance B it will overwrite this value with it's own 
-      default value. 
-
-      In order for this scenario to work - that is the output of instance A sets the initial
-      value of instance B - instance B must be created first.
-
-      Since creation order also determines execution order this solution may not always 
-      be possible. It may be that we would simultaneously like instance A to exeute first 
-      and also recieve its initial value from instance B.  Given the above example however 
-      these two goals are mutually exclusive.
-      
-      [*] This could be solved by explicitely allowing a variable to be reset via
-      a callback.  In this case if a variable was set via a callback during reset
-      then it would not overwrite that value with its own internal value. This
-      functionality would need to be set on a per instance bases - which might
-      not work well with the current cmDspSysAllocInst() var args scheme.
-
-      When a single output port is connected to multiple input ports the input ports
-      are called in the order that the connections were made.
-
-      To overcome this problem the reset cycle has been broken into two parts.
-      In the first part the resetFunc is called on each instance in creation order.
-      (as described above).  Following this pass a second pass is made where the
-      sysRecvFunc on any instance tagged with the '_reset' attribute is called.
-      This allows an event callback chain to be executed prior to the first 
-      set of execFunc calls.  Note that the event callback chain(s) are programmed
-      by cmDspInstallCb() connections which are setup on a per application basis.
-      This allows the initial state of the network to be set outside of the
-      creation order.  
-
-      The 'button' instance implements a sysRecvFunc which will send the buttons 
-      value and symbol when called with the '_reset' attribute symbol. If a 
-      'reset' button is created and assigned the '_reset' attribute symbol 
-      (via cmDspSysAssignAttrSymbol()) then the output of the button can be used 
-      to drive a networks initial state in an order determined by the application
-      programmer.
-      
-
-      [TODO: Add a check that all instance variables have default values at the end of
-       the network reset. This should be easy because the instance variable flag
-       kDfltSetDsvFl is set in cmDspValueSet() when the default value is set.]
-
-  C. The default value of variables may be set via the var args portion of cmDspSysAllocInst().
-
-     There is currently a weakness during variable instance creation function
-     cmDspInstAlloc() uses the cmDspVarArg_t.flags to determine the type of the var arg
-     argument.  cmDspVarArg_t.flags can therefore only be set to one DSV type - and the
-     actual argument in the cmDspSysAllocInst() call must match that type.  This is very
-      easy to mess up - for example by setting the flag to kIntDsvFl and then putting
-     0.0 as the var arg value. This limitation also prevents ports which are also 
-     required arguments to cmDspSysAllocInst() (i.e. kReqArgDsvFl) from supporting 
-     multiple types.
-
-     There are two possible ways to fix this:
-     1) Include the type flag in the var args list.
-     2) Specify a seperate var args flag in cmDspVarArg_t.
-     Option 1 seems better because:
-       a. [**] It would allow setting other per instance flags in the cmDspSysAllocInst() call [*].  
-       b. It would support setting a var arg termination flag rather than relying on the current
-          explicit argument count.
-       c. This is also the method used in cmJsonMemberValues() and it has worked well there.
-     Either of these options requires a substantial change to existing code.
-     This change should therefore be made sooner rather than later.
-
-     As the system currently works it is possible, and it often happens, that
-     an instance's recv function will be called before it is reset. It seems like
-     this is a bad thing.  Maybe the process of resetting and transmitting dflt
-     values should be broken into seperate passes. This idea could be extended
-     to type checking as follows:
-         a. a reset-0 pass is made to set the internal state of each instance to
-            known values.
-
-         b. a type check pass is made where each output port
-            sends a type msg to all connected input ports to provide the types that
-            it will send.
-
-         c. a reset-1 pass is made allowing all of the type information to be 
-            used to determine the initial state.
-
-         d. an initial default value transmission pass is made where some instances
-            (like scalars) may transmit initial values 
-
-         e. a reset-2 pass is made allowing the initial values to be acted on.
-
-         f. runtime occurs
-
-  D. Questions:
-     0) What are the ways that an instance variable can get set?
-        a. cmDspValueSet()    - This is the canonical value setting function.
-           All other value setting function call this function.  
-           The cmDspSetXXX() are type safe wrappers to this function.
-
-        b. cmDspApplyDefault() - assign the default value to the actual variable
-           via a call to cmDspValueSet().  This function is automatically called
-           by cmDspApplyAllDefaults() which is usually in the instance reset function.
-
-        c. cmDspSetEvent() - assign the value embedded in an event message
-           to a variable. This is a wrapper function for cmDspValueSet() which 
-           checks to see if the value need to be echoed to the UI.  See 
-           more about UI echoing in the next section.
-
-     1) Where do events arriving at an instance receive function originate from?
-           There are two sources of events:
-              1. The output ports of other instances.
-              2. The UI (client application).
-                  
-            Events arriving from the UI can be distinguished from events arriving
-            from other instances because they have the evt.kUiDspFl flag set.
-
-     2) How does UI updating and echoing actually work? 
-         a. Overview:
-            On creation (in cmDsUi.c) variables whose value must be reflected to the UI
-            are marked with the kUiDsvFl - these variables are called 'UI variables'.  
-            When a UI variable receive a new value 
-            the new value must be reflected in the associated UI GUI control.
-
-            When and how this is accomplished depends on the source of the new
-            variable value.  There are two sources of events arriving at 
-            an instance's receive function: the output port of another instance 
-            or the UI.  
-
-            Events which originate from the UI are marked with a evt.kUiDspFl.  
-            (cmDspSys.c:_cmDspSysHandleUiMsg())
-
-            When a UI variable receives a value from the output port of another
-            instance (i.e. kUiDspFl not set) then it must always send that value to 
-            the UI.  In other words if the evt.kUiDspFl is NOT set then the
-            value must be sent to the UI.
-
-            When a UI variable receives a value from the UI (i.e. the evt.kUiDspFl is set)
-            it may or may not need to reflect the value.  If the UI already
-            reflects the value then the value does not need to be sent back
-            otherwise it does.
-
-            The UI control determines whether it wants to receive the value it 
-            is sending back by setting the kDuplexDuiFl flag in it's msg to the engine.
-            Upon receipt of this msg, in cmDspSys.c:_cmDspSysHandleUiMsg(),
-            the system converts the msg to an event.  If the kDuplexDuiFl
-            is set then the kUiEchoDspFl is set in the event.
-
-            When a UI variable receives a value from the UI and the evt.kUiEchoDspFl
-            is set then the value must be reflected, otherwise it must not.
-
-            The rules for updating UI variables (var. w/ kUiDsvFl set) can 
-            be summarized as follows:
-
-            kUiDspFl   kUiEchoDspFl    Send to UI  Notes
-            --------   ------------    ----------  -------------------------------------------------------------
-                0           0            Yes       The value originated from another port and therefore must be reflected.
-                0           1           <invalid>  If kUiEchoDspFl is set then so must kUiDspFl.
-                1           0             No       
-                1           1            Yes       The value originated from the UI and ehco was requested.
-
-            This logic is automatically handled together by 
-            cmDspSetEvent() and cmDspValueSet().
-            
-
-         b. Variable values are sent and received to and from the UI using
-            kValueDuiId messages.
-            
-         c. It is possible to prevent values generated in the engine from being 
-            reflected to the UI by setting the kNoUpdateUiDspFl in the call to
-            cmDspValueSet(). 
-         
-         d. Instance variables are marked as UI variables by the cmDspUIXXXCreate() 
-            functions. Note that instances that have assoicated UI controls generally
-            have multiple UI variables.  (e.g. min,max,step,label,value).  
-
-         e. Messages arriving from the UI are handled by cmDspSys.c:_cmDspSysHandleUiMsg()
-            where they are converted to cmDspEvt_t's.  All events generated from
-            msgs arriving from the UI are marked with the kUiDspFl.  If the msg kDuplexDuiFl 
-            is set then the event flag kUiEchoDspFl is set - to indicate that the instance
-            should send the value back to the UI.
-            
-            This leads to the following potential situation: The msg with  kUiEchoDspFl 
-            set arrives at its target instance - which in turn calls cmDspSetEvent() to update
-            the target variable value. Because kUiEchoDspFl is set the value is automatically
-            reflected to the UI as expected.  However as part of the call to 
-            cmDspValueSet() within cmDspSetEvent() the event is also sent to any connected
-            instances - a problem would occur if kUiEchoDspFl remained set when it
-            was sent to the connected instances - because they might then also try to update
-            their own UI inappropriately.  In fact this is not a problem because
-            _cmDspSendEvt() zeros the the evt.flags value prior to resending the event.
-                
-
-     3) Proposed Data Typing Framework:
-        a. Instance variables are assigned 3 data types:
-          1. cmDspSysAllocInst() var args type.  This is the type that the var args argument
-           to the instance constructor must be.  The value provided by this method 
-           becomes the default value for the variable.  This type must be unique - multiple
-           type flags cannot be used for this value.
-
-          2. Strict data type. This is the type used to define the variable value. 
-           Any values which will be used to set the value of this variable must be able
-           to be converted to this type.  
-
-           If the variable is used as on input then the system will warn if an output port
-           is assigned which cannot be converted to this type.  If the variable is used as
-           an output then this is the type the variable will publish as the output type.
-         
-           All values arriving at the functions 'recv' function are guaranteed to be
-           able to be converted to this type.
-
-          3. Alternate data types.  Multiple types may be given to this type.
-           If no strict data type is given then this will be the set of types accepted 
-           for input and reported for output.  
-
-           All value messages for the instance which do not fit the strict data type,
-           but do fit the alternate data type, will be sent to the  'altRecvFunc'
-           function.  The data type of events arriving at this function may therefore
-           need to be decoded in order to use the assoicated values.
-           
-        b. Connections from an output with a strict data type can be type checked in
-           advance - since they are guaranteed to emit a specific data type.
-
-           Connections from outputs without strict data types can only be type checked
-           at runtime - since it is possible for the type to change once the execution
-           starts.
-           
-        c. Other notes about data types:
-         It seems like cmDsvValues() should in general only allow one type flag (along with
-         the kMtxDsvFl) to be set at a time if the flag state is legal. Is this always the
-         case?  Can a macro be included to routinely check this?  Are we careful to
-         not confuse the actual and possible type flags in DSP instance variables?
-         This is important when checking the types of variables arriving at in input port.
-         Include a macro to test the legality of the actual value type leaving output ports 
-         and entering input ports.
-
-         Note that the cmXXXDsvFl flags have the problem that it is not possible to 
-         specify some multiple types. For example it is not possible to specify both 
-         scalar and matrix types simultaneously.  Once the matrix flag is set it must
-         be assumed that all specific data types then are matrices.  
-         THIS IS A FUNDAMENTAL PROBLEM THAT MUST BE ADDRESSED.
-
-         Note that scalar numeric values can easily be cheaply converted to other numeric
-         types. It could be expensive however if vectors required conversion.  
-         Vectors are currently being passed as pointers.  No conversion is occurring.
-
-         d. Another proposal:
-         Following connection time there is a type determination pass.  The network
-         is traversed in execution order.  Each instance computes and emits the single 
-         type assigned to each of its output ports. Once emited these types will not
-         change during runtime.
-
-         Note that this does not preclude an input receiving multiple types. 
-         If a variable arrives at an input port which does not match the type of
-         the variable associated with that type then it is sent to the NoTypeRecv()
-         instance function.
-         
-         
-
-     2. Do values only get sent on change?  If not - why not?
-        No - based on cmDspClass.ccmDspValueSet() values are transmitted
-        whenever they are set - there is not check for a change of value.
-
-
-     3. Write a function to support generating multiple enumerated
-        ports - as is required by AMix or ASplit. 
-        (This is now done: See cmDspClass.h:cmDspArgSetup() )
-        Update the existing code to use this scheme. (This still needs to be done.)
-        Similar functions need to be written for connecting groups of ports
-        in cmDspPgm.c. (This still needs to be done.)
-
-
-     5.  It does not appear that the kInDsvFl and kOutDsvFl are actually used during 
-         the connection process.  This means that a variable marked as an output
-         could be used as an input and v.v.. Likewise variable marked as neither input
-         nor output could be accessed. What are the input and output flags actually
-         used for?  
-         
-         In fact kInDsvFl and kOutDsvFl are not used at all. (3/18/12).
-
-         It might be nice to allow everything to be an output - but to 
-         force inputs to be explicitely named.
-         
-
-     6.  Is there any implication for marking a variable as both an input and an output?
-     7.  The audio buffers allocated in cmDspInstAlloc() may not  be memory aligned.
-     8.  Is there a way to add a generic enable/disable function to all instances?
-     9.  Should all output audio buffers be zeroed by default during _cmDspXXXReset()?
-     10. Is the kConstDsvFl used? respected? necessary?
-          yes - it is necessary because some variables cannot be changed after the constructor
-          is completed.  For example any instance that take an argument giving the 
-          number of ports as a variable.  The port count argument cannot change because it
-          might invalidate connections which had been already made to the existing ports.
-          TODO: find all variables which cannot be changed after the constructor and mark 
-          them as const and prevent them from being the target of connections or events.
-
-     11. Is it OK to not assign a variable as either an input or an output.  (this would
-         allow it to be set from cmDspSysAllocInst() but then only changed internally).
-     
-     12. Write some template DSP instances that provide commented examples of the
-         common scenarios which an actual instance might encounter.
-
-     13. All errors in instances should use cmDspClassErr() or cmDspInstErr() not cmErrMsg().
-         Update existing code.
-
-     14. The way that the master controls are created is wrong.  The master controls should
-         be created during the cmDspSysLoad() process rather than being created in kcApp.cpp.
-         This would make them essentially identical to other controls - and would allow the
-         master controls to be manipulated easily from inside a DSP instance.
-
-     15. The code for creating and decoding messages seems to be distributed everywhere.
-         All of this functionality should be moved to cmMsgProtocol.c.  See the code
-         for encoding/decoding messages in cmAudioSys.c as an example.
-     
-     16. The default behavior of buttons should be to to NOT send out their default values or 
-         symbols on instance reset. Determining whether an output value is sent on instance
-         reset (as they all are currently ??? or are only UI sent out on reset???) 
-         could be another argument flag setting [**].
-
-     17. cmDspInstAlloc() should include another version called cmDspInstAllocV() 
-         which takes the cmDspArg_t fields as var args.  This would allow
-         array variables which currently use cmDspArgSetupN() to be given
-         in one call - which would be less error prone than using cmDspArgSetupN().
-
-     18. Add helper functions to create common dsp instances like:
-         scalar,button,check,file,audio in,audio out.  These functions should
-         support default values through literals or through resource paths.
-
-     19. Design a sub-net function for making sub-nets of instance nets
-         that can then be treated like instances themselves. 
-         For example make a network of audio sources:
-         audio file, signal generator, audio input, with gain and frequency
-         controls.
-
-     20. Network construction (cmDspPgm.c) is divided into two parts.
-         First the instances are allocated and then they are connected.
-         There should always be a test for a failure between construction
-         phase and the connection phase and then again after the connection phase.
-
-     21. The existing instances are not using cmReal_t and cmSample_t as they should.
-
-     22. It is possible for cmDspInstAlloc() to fail in an instance constructor and 
-         yet we are not testing for it in many instances.
-         When a failure occurs after cmDspInstAlloc() how is the instance deleted
-         prior to returning? ... is it necessary to delete it prior to returning?
-
-     23. For instances which act as files and which take a file name as at an input
-         port - the correct way to implement the object is to open/reopen the file
-         both on reset and when a new file name is received.
-         The reset open covers the case where the default filename is used.
-         The receieve open covers the case where a filename is received via the input port.
-
-     24. After each call to an instance member function (reset,recv,exec,etc.) the
-         interal error object should be checked.  This way an invalid state can
-         be signaled inside one of the functions without having to worry about
-         propagating the error to the return value.  THis means that as long as
-         a member function can report and safely complete it doesn't have to do
-         much error handling internally.
-
-     25. As it is currently implemented all audio system sub-system share a 
-         single UDP network managers.  This is NOT thread-safe.  If more than
-         one audio sub-system is actually used the program will crash.
-         This can be solved by giving each sub-system it's own UDP network 
-         manager, where each sub-system is given it's own port number.
-
-*/
-
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspPrinter file_desc:"Console printing unit." kw:[sunit] }
 enum
 {
   kLblPrId,
@@ -513,7 +114,7 @@ cmDspRC_t _cmDspPrinterRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmPrinterClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmPrinterClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmPrinterDC,ctx,"Printer",
     NULL,
@@ -529,7 +130,9 @@ struct cmDspClass_str* cmPrinterClassCons( cmDspCtx_t* ctx )
   return &_cmPrinterDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspCounter file_desc:"Counter unit." kw:[sunit] }
 enum
 {
   kMinCntId,
@@ -691,7 +294,7 @@ cmDspRC_t _cmDspCounterRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
 
 
 
-struct cmDspClass_str* cmCounterClassCons( cmDspCtx_t* ctx )
+cmDspClass_t* cmCounterClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmCounterDC,ctx,"Counter",
     NULL,
@@ -708,8 +311,10 @@ struct cmDspClass_str* cmCounterClassCons( cmDspCtx_t* ctx )
 }
 
 
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspPhasor file_desc:"Ramp signal generator." kw:[sunit] }
 
-//==========================================================================================================================================
 enum
 {
   kMaxPhId,
@@ -799,7 +404,7 @@ cmDspRC_t _cmDspPhasorRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmPhasorClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmPhasorClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmPhasorDC,ctx,"Phasor",
     NULL,
@@ -815,7 +420,9 @@ struct cmDspClass_str* cmPhasorClassCons( cmDspCtx_t* ctx )
   return &_cmPhasorDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspSigGen file_desc:"Programmable periodic and noise signal generator." kw:[sunit] }
 enum
 {
   kHzSgId,
@@ -974,7 +581,7 @@ cmDspRC_t _cmDspSigGenRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 
 
 
-struct cmDspClass_str* cmSigGenClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmSigGenClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmSigGenDC,ctx,"SigGen",
     NULL,
@@ -990,7 +597,9 @@ struct cmDspClass_str* cmSigGenClassCons( cmDspCtx_t* ctx )
   return &_cmSigGenDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspMidiIn file_desc:"MIDI input port." kw:[sunit] }
 enum
 {
   kDeviceMiId,
@@ -1045,7 +654,7 @@ cmDspRC_t _cmDspMidiInReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return rc;
 } 
 
-cmDspRC_t  _cmDspMidiInRecvFunc(   cmDspCtx_t* ctx, struct cmDspInst_str* inst,  unsigned attrSymId, const cmDspValue_t* value )
+cmDspRC_t  _cmDspMidiInRecvFunc(   cmDspCtx_t* ctx, cmDspInst_t* inst,  unsigned attrSymId, const cmDspValue_t* value )
 {
   cmDspMidiIn_t* p = (cmDspMidiIn_t*)inst;
 
@@ -1083,7 +692,7 @@ cmDspRC_t  _cmDspMidiInRecvFunc(   cmDspCtx_t* ctx, struct cmDspInst_str* inst, 
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmMidiInClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmMidiInClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmMidiInDC,ctx,"MidiIn",
     NULL,
@@ -1099,7 +708,9 @@ struct cmDspClass_str* cmMidiInClassCons( cmDspCtx_t* ctx )
   return &_cmMidiInDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspMidiOut file_desc:"MIDI output port." kw:[sunit] }
 enum
 {
   kDeviceMoId,
@@ -1239,7 +850,7 @@ cmDspRC_t _cmDspMidiOutRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmMidiOutClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmMidiOutClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmMidiOutDC,ctx,"MidiOut",
     NULL,
@@ -1255,7 +866,9 @@ struct cmDspClass_str* cmMidiOutClassCons( cmDspCtx_t* ctx )
   return &_cmMidiOutDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspAudioIn file_desc:"Audio input port." kw:[sunit] }
 enum
 {
   kChAiId,
@@ -1356,7 +969,7 @@ cmDspRC_t _cmDspAudioInRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return rc;
 }
 
-struct cmDspClass_str* cmAudioInClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmAudioInClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmAudioInDC,ctx,"AudioIn",
     NULL,
@@ -1375,7 +988,9 @@ struct cmDspClass_str* cmAudioInClassCons( cmDspCtx_t* ctx )
 
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspAudioOut file_desc:"Audio output port." kw:[sunit] }
 enum
 {
   kChAoId,
@@ -1471,7 +1086,7 @@ cmDspRC_t _cmDspAudioOutRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return rc;
 }
 
-struct cmDspClass_str* cmAudioOutClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmAudioOutClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmAudioOutDC,ctx,"AudioOut",
     NULL,
@@ -1486,7 +1101,9 @@ struct cmDspClass_str* cmAudioOutClassCons( cmDspCtx_t* ctx )
   return &_cmAudioOutDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspAudioFileOut file_desc:"Audio output port which is sent to an audio file." kw:[sunit] }
 enum
 {
   kFnAofId,
@@ -1669,7 +1286,7 @@ cmDspRC_t _cmDspAudioFileOutRecv( cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDs
   return rc;
 }
 
-cmDspRC_t  _cmDspAudioFileOutFree( cmDspCtx_t* ctx, struct cmDspInst_str*  inst,  const cmDspEvt_t* evtPtr )
+cmDspRC_t  _cmDspAudioFileOutFree( cmDspCtx_t* ctx, cmDspInst_t*  inst,  const cmDspEvt_t* evtPtr )
 {
   cmDspAudioFileOut_t* p     = (cmDspAudioFileOut_t*)inst;  
 
@@ -1681,7 +1298,7 @@ cmDspRC_t  _cmDspAudioFileOutFree( cmDspCtx_t* ctx, struct cmDspInst_str*  inst,
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmAudioFileOutClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmAudioFileOutClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmAudioFileOutDC,ctx,"AudioFileOut",
     NULL,
@@ -1696,7 +1313,9 @@ struct cmDspClass_str* cmAudioFileOutClassCons( cmDspCtx_t* ctx )
   return &_cmAudioFileOutDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspScalar file_desc:"User interface unit which represents a single scalar value." kw:[sunit] }
 enum
 {
   kTypScId,
@@ -1783,7 +1402,7 @@ cmDspRC_t  _cmDspScalarPresetRdWr( cmDspCtx_t* ctx, cmDspInst_t*  inst,  bool st
   return cmDspVarPresetRdWr(ctx,inst,kValScId,storeFl); 
 }
 
-struct cmDspClass_str* cmScalarClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmScalarClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmScalarDC,ctx,"Scalar",
     NULL,
@@ -1799,7 +1418,9 @@ struct cmDspClass_str* cmScalarClassCons( cmDspCtx_t* ctx )
   return &_cmScalarDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspText file_desc:"User interface unit which allows text input." kw:[sunit] }
 enum
 {
   kValTxId,
@@ -1852,7 +1473,7 @@ cmDspRC_t _cmDspTextRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* e
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmTextClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmTextClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmTextDC,ctx,"Text",
     NULL,
@@ -1868,7 +1489,9 @@ struct cmDspClass_str* cmTextClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspMeter file_desc:"User interface progress bar which displays the current value of a scalar variable." kw:[sunit] }
 enum
 {
   kInMtId,
@@ -1970,7 +1593,7 @@ cmDspRC_t _cmDspMeterRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
 
 }
 
-struct cmDspClass_str* cmMeterClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmMeterClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmMeterDC,ctx,"Meter",
     NULL,
@@ -1986,7 +1609,9 @@ struct cmDspClass_str* cmMeterClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspLabel file_desc:"User interface unit which displays read-only text." kw:[sunit] }
 enum
 {
   kInLbId,
@@ -2030,7 +1655,7 @@ cmDspRC_t _cmDspLabelRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   return cmDspSetEvent(ctx,inst,evt);
 }
 
-struct cmDspClass_str* cmLabelClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmLabelClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmLabelDC,ctx,"Label",
     NULL,
@@ -2046,7 +1671,9 @@ struct cmDspClass_str* cmLabelClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspButton file_desc:"User interface sends a user defined value from a graphic button press." kw:[sunit] }
 enum
 {
   kTypBtId,
@@ -2141,7 +1768,7 @@ cmDspRC_t  _cmDspButtonPresetRdWr( cmDspCtx_t* ctx, cmDspInst_t*  inst,  bool st
   return rc;
 }
 
-cmDspRC_t  _cmDspButtonSysRecvFunc(   cmDspCtx_t* ctx, struct cmDspInst_str* inst,  unsigned attrSymId, const cmDspValue_t* value )
+cmDspRC_t  _cmDspButtonSysRecvFunc(   cmDspCtx_t* ctx, cmDspInst_t* inst,  unsigned attrSymId, const cmDspValue_t* value )
 {
   cmDspButton_t* p = (cmDspButton_t*)inst;
   if( attrSymId == p->resetSymId )
@@ -2153,7 +1780,7 @@ cmDspRC_t  _cmDspButtonSysRecvFunc(   cmDspCtx_t* ctx, struct cmDspInst_str* ins
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmButtonClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmButtonClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmButtonDC,ctx,"Button",
     NULL,
@@ -2169,7 +1796,9 @@ struct cmDspClass_str* cmButtonClassCons( cmDspCtx_t* ctx )
   return &_cmButtonDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspCheckbox file_desc:"Graphic checkbox user interface unit." kw:[sunit] }
 enum
 {
   kLblCbId,
@@ -2312,7 +1941,7 @@ cmDspRC_t  _cmDspCheckboxPresetRdWr( cmDspCtx_t* ctx, cmDspInst_t*  inst,  bool 
   return cmDspVarPresetRdWr(ctx,inst,kOutCbId,storeFl); 
 }
 
-cmDspRC_t  _cmDspCheckboxSysRecvFunc(   cmDspCtx_t* ctx, struct cmDspInst_str* inst,  unsigned attrSymId, const cmDspValue_t* value )
+cmDspRC_t  _cmDspCheckboxSysRecvFunc(   cmDspCtx_t* ctx, cmDspInst_t* inst,  unsigned attrSymId, const cmDspValue_t* value )
 {
   cmDspCheckbox_t* p = (cmDspCheckbox_t*)inst;
   if( attrSymId == p->resetSymId )
@@ -2324,7 +1953,7 @@ cmDspRC_t  _cmDspCheckboxSysRecvFunc(   cmDspCtx_t* ctx, struct cmDspInst_str* i
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmCheckboxClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmCheckboxClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmCheckboxDC,ctx,"Checkbox",
     NULL,
@@ -2340,7 +1969,10 @@ struct cmDspClass_str* cmCheckboxClassCons( cmDspCtx_t* ctx )
   return &_cmCheckboxDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspReorder file_desc:"Collect inputs in any order and transmit them in a defined order." kw:[sunit] }
+
 cmDspClass_t _cmReorderDC;
 
 typedef struct
@@ -2467,7 +2099,7 @@ cmDspRC_t _cmDspReorderRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return rc;
 }
 
-struct cmDspClass_str* cmReorderClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmReorderClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmReorderDC,ctx,"Reorder",
     NULL,
@@ -2482,8 +2114,9 @@ struct cmDspClass_str* cmReorderClassCons( cmDspCtx_t* ctx )
   return &_cmReorderDC;
 }
 
-
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspFname file_desc:"User interface file or directory name input unit." kw:[sunit] }
 enum
 {
   kDirFnId,
@@ -2557,7 +2190,7 @@ cmDspRC_t _cmDspFnameRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmFnameClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmFnameClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmFnameDC,ctx,"Fname",
     NULL,
@@ -2572,7 +2205,9 @@ struct cmDspClass_str* cmFnameClassCons( cmDspCtx_t* ctx )
   return &_cmFnameDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspMsgList file_desc:"User interface list unit." kw:[sunit] }
 
 cmDspClass_t _cmMsgListDC;
 
@@ -3169,7 +2804,7 @@ cmDspRC_t  _cmDspMsgListPresetRdWr( cmDspCtx_t* ctx, cmDspInst_t*  inst,  bool s
 }
 
 
-struct cmDspClass_str* cmMsgListClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmMsgListClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmMsgListDC,ctx,"MsgList",
     NULL,
@@ -3185,7 +2820,9 @@ struct cmDspClass_str* cmMsgListClassCons( cmDspCtx_t* ctx )
   return &_cmMsgListDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspWavetable file_desc:"Programmable wavetable unit." kw:[sunit] }
 
 enum
 {
@@ -3259,7 +2896,7 @@ cmDspInst_t*  _cmDspWaveTableAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsi
   cmDspVarArg_t args[] =
   {
     { "len",    kLenWtId,    0, 0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "Wave table length in samples" },
-    { "shape",  kShapeWtId,  0, 0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "Wave shape 0=silent 1=file 2=sine 3=white"   },
+    { "shape",  kShapeWtId,  0, 0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "Wave shape 0=silent 1=file 2=white 3=pink 4=sine, 5=cos 6=sqr 7=tri 8=saw 9=pulse 10=impulse 11=phasor"   },
     { "fn",     kFnWtId,     0, 0, kInDsvFl  | kStrzDsvFl | kOptArgDsvFl, "Optional audio file name"     },
     { "loop",   kLoopWtId,   0, 0, kInDsvFl  | kIntDsvFl  | kOptArgDsvFl, "-1=loop forever  >0=loop count (dflt:-1)"},
     { "beg",    kBegWtId,    0, 0, kInDsvFl  | kIntDsvFl  | kOptArgDsvFl, "File begin sample index" },
@@ -3841,7 +3478,7 @@ cmDspRC_t _cmDspWaveTableRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
 
 
 
-struct cmDspClass_str* cmWaveTableClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmWaveTableClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmWaveTableDC,ctx,"WaveTable",
     NULL,
@@ -3857,7 +3494,9 @@ struct cmDspClass_str* cmWaveTableClassCons( cmDspCtx_t* ctx )
   return &_cmWaveTableDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspSprintf file_desc:"Printf like string formatting unit." kw:[sunit] }
 enum
 {
   kFmtSpId,
@@ -4218,7 +3857,7 @@ cmDspRC_t _cmDspSprintfRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return rc;
 }
 
-struct cmDspClass_str* cmSprintfClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmSprintfClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmSprintfDC,ctx,"Sprintf",
     NULL,
@@ -4233,7 +3872,9 @@ struct cmDspClass_str* cmSprintfClassCons( cmDspCtx_t* ctx )
   return &_cmSprintfDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspAMix file_desc:"Audio mixer." kw:[sunit] }
 enum
 {
   kOutAmId,
@@ -4372,7 +4013,7 @@ cmDspRC_t _cmDspAMixRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* e
   return rc;
 }
 
-struct cmDspClass_str* cmAMixClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmAMixClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmAMixDC,ctx,"AMix",
     NULL,
@@ -4387,7 +4028,9 @@ struct cmDspClass_str* cmAMixClassCons( cmDspCtx_t* ctx )
   return &_cmAMixDC;
 } 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspASplit file_desc:"Audio splitter with individual gain control." kw:[sunit] }
 enum
 {
   kInAsId,
@@ -4527,7 +4170,7 @@ cmDspRC_t _cmDspASplitRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   return rc;
 }
 
-struct cmDspClass_str* cmASplitClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmASplitClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmASplitDC,ctx,"ASplit",
     NULL,
@@ -4542,7 +4185,9 @@ struct cmDspClass_str* cmASplitClassCons( cmDspCtx_t* ctx )
   return &_cmASplitDC;
 } 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspAMeter file_desc:"Audio level meter." kw:[sunit] }
 enum
 {
   kInAmId,
@@ -4645,7 +4290,7 @@ cmDspRC_t _cmDspAMeterExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 }
 
 
-struct cmDspClass_str* cmAMeterClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmAMeterClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmAMeterDC,ctx,"AMeter",
     NULL,
@@ -4660,7 +4305,9 @@ struct cmDspClass_str* cmAMeterClassCons( cmDspCtx_t* ctx )
   return &_cmAMeterDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspTextFile file_desc:"Create text files which can be read by the Octave function cmTextFile.m." kw:[sunit] }
 
 //
 //
@@ -4790,7 +4437,7 @@ cmDspRC_t _cmDspTextFileRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmTextFileClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmTextFileClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmTextFileDC,ctx,"TextFile",
     NULL,
@@ -4805,7 +4452,9 @@ struct cmDspClass_str* cmTextFileClassCons( cmDspCtx_t* ctx )
   return &_cmTextFileDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspArray file_desc:"Read in a symbol/value list from a resource and selectively transmit values." kw:[sunit] }
 enum
 {
   kRsrcArId,
@@ -4949,7 +4598,7 @@ cmDspRC_t _cmDspArrayRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmArrayClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmArrayClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmArrayDC,ctx,"Array",
     NULL,
@@ -4965,7 +4614,9 @@ struct cmDspClass_str* cmArrayClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspPitchCvt file_desc:"Convert between MIDI,scientific pitch, and pitch ratio values." kw:[sunit] }
 
 enum
 {
@@ -5058,7 +4709,7 @@ cmDspRC_t _cmDspPitchCvtRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return rc;
 }
 
-struct cmDspClass_str* cmPitchCvtClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmPitchCvtClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmPitchCvtDC,ctx,"PitchCvt",
     NULL,
@@ -5073,13 +4724,10 @@ struct cmDspClass_str* cmPitchCvtClassCons( cmDspCtx_t* ctx )
   return &_cmPitchCvtDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspBinMtx file_desc:"Create a file which can be read by the Octave function readBinFile.m." kw:[sunit] }
 
-//
-//
-//  Create a file which can be read by readBinFile.m
-//
-//
 
 enum
 {
@@ -5210,7 +4858,7 @@ cmDspRC_t _cmDspBinMtxFileRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
   return rc;
 }
 
-struct cmDspClass_str* cmBinMtxFileClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmBinMtxFileClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmBinMtxFileDC,ctx,"BinMtxFile",
     NULL,
@@ -5226,7 +4874,9 @@ struct cmDspClass_str* cmBinMtxFileClassCons( cmDspCtx_t* ctx )
 }
 
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspShiftBuf file_desc:"Real-time shift buffer." kw:[sunit] }
 enum
 {
   kHopMsSbId,
@@ -5330,7 +4980,7 @@ cmDspRC_t _cmDspShiftBufExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   return kOkDspRC;
 }
 
-struct cmDspClass_str* cmShiftBufClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmShiftBufClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmShiftBufDC,ctx,"ShiftBuf",
     NULL,
@@ -5345,7 +4995,9 @@ struct cmDspClass_str* cmShiftBufClassCons( cmDspCtx_t* ctx )
   return &_cmShiftBufDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspNetSend file_desc:"Transmit a value to a remote 'snap' host over the 'snap' UDP network." kw:[sunit] }
 enum
 {
   kInNsId
@@ -5388,7 +5040,7 @@ cmDspRC_t _cmDspNetSendRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
   return _cmDspSysNetSendEvent(ctx->dspH, p->srcConnPtr->dstNetNodeId, p->srcConnPtr->dstId, evt );
 }
 
-struct cmDspClass_str* cmNetSendClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmNetSendClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmNetSendDC,ctx,"NetSend",
     NULL,
@@ -5403,7 +5055,9 @@ struct cmDspClass_str* cmNetSendClassCons( cmDspCtx_t* ctx )
   return &_cmNetSendDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspRsrWr file_desc:"Set a 'snap' resource value." kw:[sunit] }
 enum
 {
   kBaseInPtsId,
@@ -5500,7 +5154,7 @@ cmDspRC_t _cmDspRsrcWrRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   return rc;
 }
 
-struct cmDspClass_str* cmRsrcWrClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmRsrcWrClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmRsrcWrDC,ctx,"RsrcWr",
     NULL,
@@ -5516,7 +5170,10 @@ struct cmDspClass_str* cmRsrcWrClassCons( cmDspCtx_t* ctx )
   return &_cmRsrcWrDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspBinEnc file_desc:"HRTF binaural encoder." kw:[sunit] }
+
 enum
 {
   kModeBeId,
@@ -5649,7 +5306,7 @@ cmDspRC_t _cmDspBinEncRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   return rc;
 }
 
-struct cmDspClass_str* cmBinEncClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cmBinEncClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cmBeDC,ctx,"BinauralEnc",
     NULL,
@@ -5664,7 +5321,9 @@ struct cmDspClass_str* cmBinEncClassCons( cmDspCtx_t* ctx )
   return &_cmBeDC;
 }
 
-//==========================================================================================================================================
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDsp2d file_desc:"Two dimension graphic user interface controller." kw:[sunit] }
 enum
 {
   kX2dId,
@@ -5718,7 +5377,7 @@ cmDspRC_t _cmDsp2dRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt
 }
 
 
-struct cmDspClass_str* cm2dClassCons( cmDspCtx_t* ctx )
+cmDspClass_t*  cm2dClassCons( cmDspCtx_t* ctx )
 {
   cmDspClassSetup(&_cm2dDC,ctx,"twod",
     NULL,
@@ -5733,12 +5392,10 @@ struct cmDspClass_str* cm2dClassCons( cmDspCtx_t* ctx )
 
   return &_cm2dDC;
 }
-
-
-//==========================================================================================================================================
+//)
 
 //==========================================================================================================================================
-
+//(
 
 cmDspClassConsFunc_t _cmDspClassBuiltInArray[] = 
 {
@@ -5851,3 +5508,4 @@ cmDspClassConsFunc_t cmDspClassGetBuiltIn( unsigned index )
 
   return _cmDspClassBuiltInArray[index];
 }
+//)

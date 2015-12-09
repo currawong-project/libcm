@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Hash table for storing arbitary data blobs." kw:[container]}
+  
   enum
   {
     kOkHtRC,
@@ -60,6 +62,8 @@ extern "C" {
 
   cmHtRC_t cmHashTblTest( cmCtx_t* ctx );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

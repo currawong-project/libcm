@@ -1,9 +1,3 @@
-//{
-//( 
-// File abstraction class which slightly extends the C standard file handling routines
-// to cm style error handling.
-//)
-//
 #ifndef cmFile_h
 #define cmFile_h
 
@@ -11,7 +5,13 @@
 extern "C" {
 #endif
 
-  //(
+  //( { file_desc: "File abstraction class." kw:[file system base]}
+  // 
+  // The cmFile API extends the C standard file handling routines
+  // with cm style error handling. All cm file input and output occurs
+  // through this interface."
+  //
+  
   enum
   {
     kOkFileRC = cmOkRC,
@@ -244,7 +244,6 @@ extern "C" {
   cmFileRC_t cmFileSetRC( cmFileH_t h, cmFileRC_t rc );
   
   //)
-  //}
 
 #ifdef __cplusplus
 }

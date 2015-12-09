@@ -1,5 +1,4 @@
-// cmAudioSys.h
-// Implements a real-time audio processing engine.
+//( { file_desc: "This is the kernel of a real-time audio processing engine." kw:[audio rt] }
 //
 // The audio system is composed a collection of independent sub-systems.
 // Each sub-system maintains a thread which runs asynchrounsly
@@ -49,9 +48,7 @@
 // delivered to the DSP procedure at the end of the DSP execution
 // procedure.
 //
-// Usage example and testing code:
-// See  cmAudioSysTest().
-// \snippet cmAudioSys.c cmAudioSysTest
+//)
 
 #ifndef cmAudioSys_h
 #define cmAudioSys_h
@@ -59,7 +56,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+  
+  //(
   // Audio system result codes
   enum
   {
@@ -296,7 +294,8 @@ extern "C" {
   // Audio system test and example function.
   void      cmAudioSysTest( cmRpt_t* rpt, int argc, const char* argv[] );
 
-
+  //)
+  
 
 #ifdef __cplusplus
 }

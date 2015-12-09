@@ -30,7 +30,7 @@
 #include "dsp/cmDspClass.h"
 #include "dsp/cmDspSys.h"
 #include "cmAudDsp.h"
-
+#include "cmDspPgmJsonToDot.h"
 
 cmAdH_t cmAdNullHandle = cmSTATIC_NULL_HANDLE;
 
@@ -1005,6 +1005,11 @@ cmAdRC_t _cmAudDspPrintPgm( cmAd_t* p, unsigned asSubSysIdx, const cmChar_t* fn 
     {
       if( cmDspSysPrintPgm(p->dsSsArray[i].dsH,fn) != kOkDspRC )
         rc = cmErrMsg(&p->err,kDspSysFailAdRC,"The program print failed.");
+      else
+      {
+        if( cmDspPgmJsonToDot(&p->ctx,fn,fn) != kOkDspRC )
+          rc = cmErrMsg(&p->err,kDspSysFailAdRC,"The program print conversion to DOT failed.");
+      }
       
       break;
     }
