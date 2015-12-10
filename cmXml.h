@@ -10,22 +10,39 @@ extern "C" {
     kOkXmlRC = cmOkRC,
     kMemAllocErrXmlRC,
     kLHeapXmlRC,
-    kLexErrXmlRC
+    kLexErrXmlRC,
+    kSyntaxErrorXmlRC
   }; 
   
   typedef struct cmXmlAttr_str
   {
-    const cmChar_t*      label;
-    const cmChar_t*      value;
+    const cmChar_t*       label;
+    const cmChar_t*       value;    
     struct cmXmlAttr_str* link;
   } cmXmlAttr_t;
+
+  enum
+  {
+    kDeclXmlFl    = 0x0001,
+    kDoctypeXmlFl = 0x0002,
+    kNormalXmlFl  = 0x0004,
+    
+  };
   
   typedef struct cmXmlNode_str
   {
+    unsigned              flags;
+    
+    const cmChar_t*       label;
+    const cmChar_t*       dataStr;
+    
+    cmXmlAttr_t*          attr;
+    
     struct cmXmlNode_str* parent;
     struct cmXmlNode_str* children;
     struct cmXmlNode_str* sibling;
-    cmXmlAttr_t*          attr;
+    
+    
   } cmXmlNode_t;
 
   typedef cmHandle_t cmXmlH_t;
