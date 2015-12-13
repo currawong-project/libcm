@@ -766,7 +766,7 @@ cmRC_t cmPlotLineMD( const double* x, const double* y, const double* z, unsigned
 }
 
 
-inline const double* _cmPrintData( int fd, unsigned i, const double* p, double minV, double fact )
+const double* _cmPrintData( int fd, unsigned i, const double* p, double minV, double fact )
 {
   if( p != NULL )
     _cmPrintf(fd,"%f ",*p++);
