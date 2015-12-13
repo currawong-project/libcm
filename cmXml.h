@@ -23,10 +23,11 @@ extern "C" {
 
   enum
   {
-    kDeclXmlFl    = 0x0001,
-    kDoctypeXmlFl = 0x0002,
-    kNormalXmlFl  = 0x0004,
-    
+    kRootXmlFl    = 0x0001,
+    kDeclXmlFl    = 0x0002,
+    kDoctypeXmlFl = 0x0004,
+    kNormalXmlFl  = 0x0008,
+    kClosedXmlFl  = 0x0010
   };
   
   typedef struct cmXmlNode_str
@@ -56,8 +57,9 @@ extern "C" {
   
   cmXmlRC_t cmXmlParse( cmXmlH_t h, const cmChar_t* fn );
   cmXmlRC_t cmXmlClear( cmXmlH_t h );
+  void      cmXmlPrint( cmXmlH_t h , cmRpt_t* rpt );
 
-  
+  cmXmlRC_t cmXmlTest( cmCtx_t* ctx, const cmChar_t* fn );
   
 #ifdef __cpluspus
 }

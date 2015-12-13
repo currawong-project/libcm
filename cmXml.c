@@ -13,106 +13,13 @@
 #include "cmXml.h"
 
 /*
-file     -> decl doctype node
-decl     -> "<?" attr-list "?>"
-doctype  -> "<!DOCTYPE" dt-text ">"
-node     -> beg-node node-body end-node
-         |  "<!--" cmmt-text "-->"
-
-node-body -> data-text
-          |  node
-  
-beg-node   -> "<" tag-label  attr-list {"/"} ">"
-end-node   -> "<" tag-label "/>"
-attr-list  -> attr*
-attr       -> attr-label "=" qstring
-
-attr-label -> A string of characters ending with an '=' or <space>.
-              Attribute labels may not contain '<' or '>'.
-
-tag-label  -> A string of characters ending with:
-                <space>, '>' or '/>'.
-              Tag labels may not contain '<' or '>'.
-
-data-text  -> A string of characters ending with '<'.
-
-dt-text    -> A string of characters beginning with a non-whitespace
-               and ending with '>'
-
-cmmt-text  -> A string of characters ending with '-->'
-
-*/
-
-/*
-
-
-t = get_next_attr_token(p,end_char, tn* )
-{
-
-}
-
-parse_attr_list(p,end_char)
-{
-}
-
-read_beg_tag(p)
-{
-   c = goto_next_non_white_char(p)
-
-   if( c != '<' )
-     error();
-
-   c = goto_next_non_white_char(p)
-
-   if c == '?'
-   {
-      end_tag_str = "?";
-      if( scan_past(p,"xml") == false )
-        error();
-
-      parse_attr_list(p,'?');
-   }
-
-   if c == '!'
-   {
-      if( scan_past(p,"--") )
-      {
-         if(go_past(p,"-->")==false)
-           error();
-      }
-
-      if( scan_past(p,"DOCTYPE") )
-      {
-          while( s = get_next_attr_token(p,'>') != NULL )
-             store_attr(p,s,"");
-      }
-   }
-    
-}
-
-read_body( p )
-{
-  c = goto_next_non_white_char(p);
-
-  if c == '<'
-    read_node(p)
-  else
-    read_data_string(p)
-}
-
-n = read_node( p )
-{
-   t = read_beg_tag(p);
-
-   if( is_beg_tag(t) )
-   {
-      read_body()
-      read_end_tag()
-   }
-}
+To do:
+1) Escape node data strings and attribute values.
+2) Attribute values must be quoted by they may be quoted with either single or double quotes.
+3) Consider not buffering the XML file and reading directly from the file.
 
  */
- 
+
 cmXmlH_t cmXmlNullHandle = cmSTATIC_NULL_HANDLE;
 
 typedef struct
@@ -123,9 +30,9 @@ typedef struct
   cmChar_t*    b;       // base of the text buffer
   unsigned     bn;      // length of the text buffer in characters
   cmChar_t*    c;       // current lexer position
+  unsigned     line;    // lexer line number
   
   cmXmlNode_t* root;    // root XML tree node
-  cmXmlNode_t* decl;    // xml declaratoin node <? ... ?>
   cmXmlNode_t* doctype; // DOCTYPE  node
 
   cmXmlNode_t* stack;   // parsing stack
@@ -141,40 +48,16 @@ cmXml_t* _cmXmlHandleToPtr( cmXmlH_t h )
 
 cmXmlRC_t _cmXmlFree( cmXml_t* p )
 {
-  cmLHeapDestroy( &p->heapH );
-  cmLexDestroy( &p->lexH );
-}
-
-cmXmlRC_t _cmXmlParse( cmXml_t* p, const cmChar_t* fn )
-{
   cmXmlRC_t rc = kOkXmlRC;
   
-  if( cmLexReset( p->lexH ) != kOkLexRC )
-  {
-    rc = cmErrMsg(&p->err,kLexErrXmlRC,"Lexer reset failed.");
-    goto errLabel:
-  }
+  cmLHeapDestroy( &p->heapH );
 
-  if( cmLexSetFile( p->lexH, fn ) != kOkLexRC )
-  {
-    rc = cmErrMsg(&p->err,kLexErrXmlRC,"Lexer parse failed on '%s'.",cmStringNullGuard(fn));
-    goto errLabel;
-  }
-
-  unsigned tokId;
+  cmMemPtrFree(&p->b);
+  p->bn = 0;
+  p->c  = NULL;
   
-  while((tokId = cmLexGetNextToken( cmLexH h )) != kEofRC && tokId != kErrorLexTId )
-  {
-    switch(tokId)
-    {
-      case kTagBegLexTId:
-      case kTagEndLexTid:
-      case kEqualLexTId:
-      case kQStrLexTId:
-    }
-  }
+  cmMemFree(p);
 
- errLabel:
   return rc;
 }
 
@@ -200,26 +83,8 @@ cmXmlRC_t cmXmlAlloc( cmCtx_t* ctx, cmXmlH_t* hp, const cmChar_t* fn )
     goto errLabel;
   }
 
-  // allocate the lexer
-  if(cmLexIsValid(p->lexH = cmLexInit(NULL,0,0,&ctx->rpt)) == false )
-  {
-    rc = cmErrMsg(&p->err,kLexErrXmlRC,"Lex allocation failed.");
-    goto errLabel;
-  }
-
-  // register xml specific tokens with the lexer
-  for(i=0; _cmXmlTokenArray[i].id != kErrorLexTId; ++i)
-  {
-    cmRC_t lexRC;
-    if( (lexRC = cmLexRegisterToken(p->lexH, _cmXmlTokenArray[i].id, _cmXmlTokenArray[i].text )) != kOkLexRC )
-    {
-      rc = cmErrMsg(&p->err,kLexErrXmlRC,"Lex token registration failed for:'%s'.",_cmXmlTokenArray[i].text );
-      goto errLabel;
-    }
-  }
-  
   hp->h = p;
-  
+
  errLabel:
   if(rc != kOkXmlRC )
     _cmXmlFree(p);
@@ -231,7 +96,7 @@ cmXmlRC_t cmXmlFree(  cmXmlH_t* hp )
 {
   cmXmlRC_t rc = kOkXmlRC;
   
-  if( hp!=NULL || cmXmlIsValid(*hp)==false )
+  if( hp==NULL || cmXmlIsValid(*hp)==false )
     return kOkXmlRC;
 
   cmXml_t* p = _cmXmlHandleToPtr(*hp);
@@ -248,66 +113,61 @@ bool      cmXmlIsValid( cmXmlH_t h )
 { return h.h != NULL; }
 
   
-cmXmlRC_t cmXmlParse( cmXmlH_t h, const cmChar_t* fn )
-{
-}
-
-cmXmlRC_t cmXmlClear( cmXmlH_t h )
-{
-}
-
 cmXmlRC_t _cmXmlSyntaxError( cmXml_t* p )
 {
-  return _cmErrMsg(&p->err,kSyntaxErrorXmlRC,"Syntax error on line '%i.",p->line);
+  return cmErrMsg(&p->err,kSyntaxErrorXmlRC,"Syntax error on line '%i.",p->line);
 }
 
 cmXmlNode_t* _cmXmlNodeAlloc( cmXml_t* p, unsigned flags, const cmChar_t* label, unsigned labelN )
 {
   cmXmlNode_t* np = cmLhAllocZ(p->heapH,cmXmlNode_t,1);
 
-  if( cmIsFlag(kNormalXmlFl) )
-  {  
-    if( p->root == NULL )
-      p->root = np;
+  np->parent = p->stack;
 
-    if( p->stack == NULL )
-      p->stack = np;
+  if( p->stack != NULL )
+  {
+    if( p->stack->children == NULL )
+      p->stack->children = np;
     else
     {
-      np->parent = p->stack;
-      
-      if( p->stack->children == NULL )
-        p->stack->children = np;
-      else
-      {
-        cmXmlNode_t* n0p = NULL;
-        cmXmlNode_t* n1p = p->stack->children;
-        
-        for(; n1p != NULL; n1p=n1p->sibling )
-          n0p = n1p;
-
-        n0p->sibling = np;
-      }
+      cmXmlNode_t* n0p = NULL;
+    cmXmlNode_t* n1p = p->stack->children;
+    
+    for(; n1p != NULL; n1p=n1p->sibling )
+      n0p = n1p;
+    
+    n0p->sibling = np;    
     }
   }
+  
+  p->stack = np;
+    
+  if( cmIsFlag(flags,kRootXmlFl) )
+    p->root = np;
   else
   {
-    if( cmIsFlag(kDeclXmlFl) )
-      p->decl = np;
+    if( cmIsFlag(flags,kDeclXmlFl) )
+    {
+    }
     else
     {
-      if( cmIsFlag(kDoctypeXmlF0 ) )
+      if( cmIsFlag(flags,kDoctypeXmlFl ) )
         p->doctype = np;
       else
       {
-        _cmXmlSyntaxError(p);
-        return NULL;
+        if( !cmIsFlag(flags,kNormalXmlFl ) )
+        {
+          _cmXmlSyntaxError(p);
+          return NULL;
+        }
       }
     }
   }
   
   if( label != NULL )
     np->label = cmLhAllocStrN(p->heapH,label,labelN);
+
+  np->flags = flags;
 
   return np;
 }
@@ -317,10 +177,10 @@ cmXmlNode_t* _cmXmlAttrAlloc( cmXml_t* p, cmXmlNode_t* np, const cmChar_t* label
   cmXmlAttr_t* ap = cmLhAllocZ(p->heapH, cmXmlAttr_t,1);
 
   if( label != NULL && labelN > 0 )
-    ap->label = cmLhAllocStr(p->heapH,label,labelN);
+    ap->label = cmLhAllocStrN(p->heapH,label,labelN);
 
-  if( value != NULL and valueN > 0 )
-    ap->value = cmLhAllocStr(p->attrH,value,valueN);
+  if( value != NULL && valueN > 0 )
+    ap->value = cmLhAllocStrN(p->heapH,value,valueN);
   
   ap->link  = np->attr;
   np->attr  = ap;
@@ -403,16 +263,17 @@ const cmChar_t* _cmXmlAdvanceToNext( cmXml_t* p, cmChar_t* s )
   unsigned i = 0;
   unsigned n = strlen(s);
 
-  while( _cmXmlAdvance(p) )
+  while( i<n && _cmXmlAdvance(p) )
   {
-    if( *p->c != s[i] )
-      i = 0;
+    if( i>0 && *p->c == s[i] )
+    {
+      i += 1;
+    }
     else
     {
-      i+= 1;
-      if( i == n )
-        break;
+      i = *p->c==s[0];
     }
+    
   }
   return p->c;
 }
@@ -428,7 +289,7 @@ const cmChar_t* _cmXmlAdvanceOne( cmXml_t* p )
   return _cmXmlIsEof(p) ? NULL : p->c;
 }
 
-cmXmlRC_t  _cmXmlParseAttr( cmXml_t* p, cmChar_t endChar )
+cmXmlRC_t  _cmXmlParseAttr( cmXml_t* p, cmChar_t endChar,  cmXmlNode_t* np )
 {
   cmXmlRC_t       rc = kOkXmlRC;
   const cmChar_t* l0 = NULL;
@@ -453,44 +314,62 @@ cmXmlRC_t  _cmXmlParseAttr( cmXml_t* p, cmChar_t endChar )
     return _cmXmlSyntaxError(p);
   
   // advance to the next non-white character
-  if( (v0 = _cmXmlAdvanceToNextNonWhite(p)) == NULL )
+  if((v0 = _cmXmlAdvanceToNextNonWhite(p)) == NULL )
     return _cmXmlSyntaxError(p);
 
   // the first character in the value must be a single quote
-  if( *p->c != '\'' )
-    return _cmXmlSyntaxError(p);
-  
-  // advance to the next single quote
-  if( (v1 = _cmXmlAdvanceToNext(p,"'")) == NULL )
+  if( *p->c == '\'' )
+  {
+    if((v0 = _cmXmlAdvanceOne(p)) == NULL )
+      return _cmXmlSyntaxError(p);
+    
+    // advance to the next single quote
+    v1 = _cmXmlAdvanceToNext(p,"'");
+  }
+  else
+  {
+    v1 = _cmXmlAdvanceToNextWhiteOr(p,endChar,' ');
+  }
+
+  if( v1 == NULL )
     return _cmXmlSyntaxError(p);
 
+  
   // advance past the ending single quote
-  if( _cmXmlAdvanceOne(p) == NULL )
-    return _cmXmlSyntaxError(p);
+  if( *p->c != endChar )
+    if( _cmXmlAdvanceOne(p) == NULL )
+      return _cmXmlSyntaxError(p);
+
+  _cmXmlAttrAlloc(p, np, l0, l1-l0, v0, v1-v0 );
+  
 
   // p->c now points just past the ending single quote
   return rc;
 }
 
-cmXmlRC_t _cmXmlParseAttrList( cmXml_t* p, cmChar_t endChar )
+cmXmlRC_t _cmXmlParseAttrList( cmXml_t* p, cmChar_t endChar, cmXmlNode_t* np )
 {
   cmXmlRC_t rc = kOkXmlRC;
-
   
   while( *p->c != endChar && *p->c != '>' )
-    if((rc = _cmXmlParseAttr(p,endChar)) != kOkXmlRC )
+    if((rc = _cmXmlParseAttr(p,endChar,np)) != kOkXmlRC )
       break;
 
   if( *p->c == endChar )
   {
-    if( endChar = '/' )
+    // if this node is terminated at the end of its beginning tag
+    if( endChar == '/' )
     {
-      // this is a simple node
+      np->flags = cmSetFlag(np->flags,kClosedXmlFl);
+      
+      //p->stack  = p->stack->parent;
+      
     }
     
     if( _cmXmlAdvanceOne(p) == NULL )
       return _cmXmlSyntaxError(p);
   }
+
   
   if( *p->c != '>' )
     return _cmXmlSyntaxError(p);
@@ -524,6 +403,10 @@ cmXmlRC_t _cmXmlParseDoctypeToken( cmXml_t* p, cmXmlNode_t* np )
   {
     if((t1 = _cmXmlAdvanceToNext(p,"'")) == NULL )
       return _cmXmlSyntaxError(p);
+
+    if( _cmXmlAdvanceOne(p) == NULL )
+      return _cmXmlSyntaxError(p);
+    
   }
   else
   {
@@ -533,27 +416,29 @@ cmXmlRC_t _cmXmlParseDoctypeToken( cmXml_t* p, cmXmlNode_t* np )
 
   // t1 and p->c now point just past the last character in the token
 
-  return rc;  
+  return kOkXmlRC;  
 }
 
-cmXmlRC_t _cmXmlParseDoctype( cmXml_t* p )
+cmXmlRC_t _cmXmlParseDoctype( cmXml_t* p, cmXmlNode_t** newNodeRef )
 {
   cmXmlRC_t rc = kOkXmlRC;
-  cmXmlNode_t* np;
   
-  if((np = _cmXmlNodeAlloc(p,kDoctypeXmlFl,"DOCTYPE",strlen("DOCTYPE"))) == NULL )
+  if((*newNodeRef = _cmXmlNodeAlloc(p,kDoctypeXmlFl | kClosedXmlFl,"DOCTYPE",strlen("DOCTYPE"))) == NULL )
     return cmErrLastRC(&p->err);
   
   while( *p->c != '>' )
-    if((rc = _cmXmlParseDoctypeToken(p,np)) != kOkXmlRC )
+    if((rc = _cmXmlParseDoctypeToken(p,*newNodeRef)) != kOkXmlRC )
       break;
 
+  if( *p->c == '>' )
+    _cmXmlAdvanceOne(p);
+  
   return rc;
 }
 
 // Node tags are tags that begin with a '<' and are not
 // followed by any special character.
-cmXmlRC_t _cmXmlParseNodeTag( cmXml_t* p )
+cmXmlRC_t _cmXmlParseNodeTag( cmXml_t* p, cmXmlNode_t** newNodeRef )
 {
   cmXmlRC_t       rc = kOkXmlRC;
   const cmChar_t* l0 = NULL;
@@ -567,8 +452,12 @@ cmXmlRC_t _cmXmlParseNodeTag( cmXml_t* p )
   if((l1 = _cmXmlAdvanceToNextWhiteOr(p,'/','>')) == NULL )
     return _cmXmlSyntaxError(p);
 
+  // Create the node.
+  if( (*newNodeRef = _cmXmlNodeAlloc(p,kNormalXmlFl,l0,l1-l0)) == NULL )
+    return cmErrLastRC(&p->err);
+  
   // look for attributes
-  if((rc = _cmXmlParseAttrList(p,'/')) != kOkXmlRC )
+  if((rc = _cmXmlParseAttrList(p,'/',*newNodeRef)) != kOkXmlRC )
       return _cmXmlSyntaxError(p);
 
   // p->c is now past the ending '>'
@@ -576,7 +465,26 @@ cmXmlRC_t _cmXmlParseNodeTag( cmXml_t* p )
   return rc;
 }
 
-cmXmlRC_t _cmXmlReadEndTag( cmXml_t* p )
+cmXmlRC_t _cmXmlParseDeclTag( cmXml_t* p, cmXmlNode_t** newNodeRef )
+{
+  assert( *p->c == '?' );
+  
+  const cmChar_t* l0 = NULL;
+  const cmChar_t* l1 = NULL;
+
+  if((l0 = _cmXmlAdvanceOne(p)) == NULL)
+    return _cmXmlSyntaxError(p);
+  
+  if((l1 = _cmXmlAdvanceToNextWhiteOr(p,'?',' ')) == NULL )
+    return _cmXmlSyntaxError(p);
+      
+  if( (*newNodeRef = _cmXmlNodeAlloc(p,kDeclXmlFl | kClosedXmlFl,l0,l1-l0)) == NULL )
+    return cmErrLastRC(&p->err);
+      
+  return _cmXmlParseAttrList(p,'?',*newNodeRef);
+}
+
+cmXmlRC_t _cmXmlReadEndTag( cmXml_t* p, cmXmlNode_t* np )
 {
   const cmChar_t* l0 = NULL;
   const cmChar_t* l1 = NULL;
@@ -606,23 +514,26 @@ cmXmlRC_t _cmXmlReadEndTag( cmXml_t* p )
 
   assert( !isspace(*l1) );
 
-  // the label should match the node on the top of the stack
+  // if the label on the top of the stack does not match this label
   if( strncmp( p->stack->label, l0, (l1-l0)+1 ) )
-    return _cmXmlSyntaxError(p);
+    return kOkXmlRC;
 
   // since we just parsed an end-tag there should be at least one node on the stack
   if( p->stack == NULL )
     return _cmXmlSyntaxError(p);
 
+  p->stack->flags = cmSetFlag(p->stack->flags,kClosedXmlFl);
+
   // pop the stack
-  p->stack = p->stack->parent;
+  //p->stack = p->stack->parent;
+
+  
   
   return kOkXmlRC;  
 }
   
-
-
-// 
+// *newNodeRef will be NULL on error or if the
+// the parsed tag was an end tag, or if the last line is comment node.
 cmXmlRC_t  _cmXmlReadTag( cmXml_t* p, cmXmlNode_t** newNodeRef )
 {
   cmXmlRC_t rc = kOkXmlRC;
@@ -634,7 +545,8 @@ cmXmlRC_t  _cmXmlReadTag( cmXml_t* p, cmXmlNode_t** newNodeRef )
   if( _cmXmlAdvancePast(p,"<") == NULL )
   {
     // error or EOF
-    return NULL;  
+    
+    return _cmXmlIsEof(p) ? kOkXmlRC : cmErrLastRC(&p->err);  
   }
 
   // examine the character following the opening '<'
@@ -642,41 +554,43 @@ cmXmlRC_t  _cmXmlReadTag( cmXml_t* p, cmXmlNode_t** newNodeRef )
   {
     // node end tag
     case '/':
-      return _cmXmlReadEndTag(p);
+      return _cmXmlReadEndTag(p,*newNodeRef);
     
     // declaration tag
     case '?':
-      if( _cmXmlAdvancePast(p,"xml") == NULL )
-        return _cmXmlSyntaxError(p);
-
-      if( _cmXmlNodeAlloc(p,kDeclXmlFl, "xml",strlen("xml") ) == NULL )
-        return cmErrLastRC(&p->err);
-      
-      if((rc = _cmXmlParseAttrList(p,'?')) != kOkXmlRC )
-        return rc;
-      
+      rc = _cmXmlParseDeclTag(p,newNodeRef);
       break;
       
     case '!':
-      switch( *(p->c+1) )
+      
+      if( _cmXmlAdvanceOne(p) == NULL )
+        return _cmXmlSyntaxError(p);
+      
+      switch( *p->c )
       {
         // comment node
         case '-':
           if( _cmXmlAdvancePast(p,"--") == NULL )
             return _cmXmlSyntaxError(p);
         
-          if( _cmXmlAdvanceToNext("->") == NULL )
+          if( _cmXmlAdvanceToNext(p,"->") == NULL )
+            return _cmXmlSyntaxError(p);
+
+          if( _cmXmlAdvanceOne(p) == NULL )
             return _cmXmlSyntaxError(p);
 
           // p->c is just after "-->"
-          break;
+
+          // Recurse to avoid returning NULL in newNodeRef.
+          // (*newNodeRef can only be NULL if we just parsed an end-tag).
+          return _cmXmlReadTag(p,newNodeRef);
           
           // DOCTYPE node
         case 'D':
-          if( _cmXmlAdvancePast(P,"DOCTYPE")==NULL )
+          if( _cmXmlAdvancePast(p,"DOCTYPE")==NULL )
             return _cmXmlSyntaxError(p);
-        
-          if((rc = _cmXmlParseDocType(p)) != kOkXmlRC )
+
+          if((rc = _cmXmlParseDoctype(p,newNodeRef)) != kOkXmlRC )
             return _cmXmlSyntaxError(p);
 
           // p->c is just after ">"
@@ -690,7 +604,7 @@ cmXmlRC_t  _cmXmlReadTag( cmXml_t* p, cmXmlNode_t** newNodeRef )
       
     default:
       // normal node
-      if((rc = _cmXmlParseNodeTag(p)) != kOkXmlRC )
+      if((rc = _cmXmlParseNodeTag(p,newNodeRef)) != kOkXmlRC )
         return rc;
 
       // p->c is just after ">"
@@ -700,6 +614,150 @@ cmXmlRC_t  _cmXmlReadTag( cmXml_t* p, cmXmlNode_t** newNodeRef )
   return rc;
 }
 
-cmXmlRC_t  _cmXmlReadNode( cmXml_t* p )
+cmXmlRC_t _cmXmlReadNode( cmXml_t* p, cmXmlNode_t* parent )
 {
+  cmXmlRC_t rc;
+
+
+  while( !_cmXmlIsEof(p) )
+  {
+    cmXmlNode_t* np = NULL;
+
+    // Read a tag.
+    if((rc = _cmXmlReadTag(p,&np)) != kOkXmlRC )
+      return rc;
+
+    // If we just read the parents end-tag
+    if( cmIsFlag(parent->flags,kClosedXmlFl) )
+    {
+      assert(np==NULL && parent == p->stack );
+      
+      p->stack = p->stack->parent;
+      return rc;
+    }
+
+    // if an  end-tag was just read or node was created but closed then pop the stack
+    if( np==NULL || (np==p->stack && cmIsFlag(np->flags,kClosedXmlFl)) )
+      p->stack = p->stack->parent;
+    
+    // if we just read an end-tag or a special node then there is no node-body
+    if( np == NULL || cmIsFlag(np->flags,kClosedXmlFl) )
+      continue;    
+
+  
+    // Advance to the node body.
+    if( _cmXmlAdvanceToNextNonWhite(p) == NULL )
+      return _cmXmlSyntaxError(p);
+  
+    // if the the node body contains nodes
+    if( *p->c == '<' )
+    {
+      if((rc = _cmXmlReadNode(p,np)) != kOkXmlRC )
+        return rc;
+    }
+    else // the node body contains a string
+    {
+      const cmChar_t* s0 = p->c;
+      const cmChar_t* s1 = NULL;
+      
+      if((s1 = _cmXmlAdvanceToNext(p,"<")) == NULL )
+        return _cmXmlSyntaxError(p);
+
+      np->dataStr = cmLhAllocStrN(p->heapH,s0,s1-s0);
+    }
+  }
+
+  return rc;
+
+}
+
+
+cmXmlRC_t cmXmlParse( cmXmlH_t h, const cmChar_t* fn )
+{
+  cmXmlRC_t rc = kOkXmlRC;
+  cmXml_t*  p  = _cmXmlHandleToPtr(h);
+  cmXmlNode_t* np = NULL;
+  
+  cmLHeapClear( p->heapH, false );
+
+  cmMemPtrFree(&p->b);
+  
+  if( (p->b = cmFileFnToBuf(fn, p->err.rpt, &p->bn )) == NULL )
+  {
+    rc = cmErrMsg(&p->err,kMemAllocErrXmlRC,"Unable to buffer the file '%s'.",cmStringNullGuard(fn));
+    goto errLabel;
+  }
+
+  p->c    = p->b;
+  p->line = 1;
+
+  
+  if((np = _cmXmlNodeAlloc(p,kRootXmlFl,"root",strlen("root"))) == NULL )
+  {
+    rc = cmErrMsg(&p->err,kMemAllocErrXmlRC,"Root node alloc failed.");
+    goto errLabel;
+  }
+  
+  if((rc = _cmXmlReadNode(p,np)) != kOkXmlRC )
+    goto errLabel;
+  
+ errLabel:
+  return rc;
+}
+
+cmXmlRC_t cmXmlClear( cmXmlH_t h )
+{
+  cmXmlRC_t rc = kOkXmlRC;
+  return rc;
+}
+
+void _cmXmlPrintNode( const cmXmlNode_t* np, cmRpt_t* rpt, unsigned indent )
+{
+  cmChar_t s[ indent + 1 ];
+  memset(s,' ',indent);
+  s[indent] = 0;
+  cmRptPrintf(rpt,"%s%s: ",s,np->label);
+
+  cmXmlAttr_t* ap = np->attr;
+  for(; ap!=NULL; ap=ap->link)
+    cmRptPrintf(rpt,"%s='%s' ",ap->label,ap->value);
+
+  if( np->dataStr != NULL )
+    cmRptPrintf(rpt," (%s)",np->dataStr);
+
+  cmRptPrintf(rpt,"\n");
+
+  cmXmlNode_t* cnp = np->children;
+
+  for(; cnp!=NULL; cnp=cnp->sibling )
+    _cmXmlPrintNode(cnp,rpt,indent+2);
+
+ 
+}
+
+void      cmXmlPrint( cmXmlH_t h , cmRpt_t* rpt )
+{
+  cmXml_t*  p  = _cmXmlHandleToPtr(h);
+  if( p->root != NULL )
+    _cmXmlPrintNode(p->root,rpt,0);
+}
+
+
+cmXmlRC_t cmXmlTest( cmCtx_t* ctx, const cmChar_t* fn )
+{
+  cmXmlRC_t rc = kOkXmlRC;
+  cmXmlH_t   h = cmXmlNullHandle;
+
+  if((rc = cmXmlAlloc(ctx, &h, fn )) != kOkXmlRC )
+    return cmErrMsg(&ctx->err,rc,"XML alloc failed.");
+
+  if((rc = cmXmlParse(h,fn)) != kOkXmlRC )
+    goto errLabel;
+
+  cmXmlPrint(h,&ctx->rpt);
+
+ errLabel:
+  cmXmlFree(&h);
+  
+  return rc;  
 }
