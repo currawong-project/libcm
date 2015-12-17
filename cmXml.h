@@ -10,8 +10,10 @@ extern "C" {
     kOkXmlRC = cmOkRC,
     kMemAllocErrXmlRC,
     kLHeapXmlRC,
-    kLexErrXmlRC,
-    kSyntaxErrorXmlRC
+    kSyntaxErrorXmlRC,
+    kTestFailXmlRC,
+    kInvalidTypeXmlRC,
+    kNodeNotFoundXmlRC
   }; 
   
   typedef struct cmXmlAttr_str
@@ -27,6 +29,7 @@ extern "C" {
     kDeclXmlFl    = 0x0002,
     kDoctypeXmlFl = 0x0004,
     kNormalXmlFl  = 0x0008,
+    kTypeXmlFlags = kRootXmlFl | kDeclXmlFl | kDoctypeXmlFl | kNormalXmlFl,    
     kClosedXmlFl  = 0x0010
   };
   
@@ -55,9 +58,15 @@ extern "C" {
   cmXmlRC_t cmXmlFree(  cmXmlH_t* hh );
   bool      cmXmlIsValid( cmXmlH_t h );
   
-  cmXmlRC_t cmXmlParse( cmXmlH_t h, const cmChar_t* fn );
-  cmXmlRC_t cmXmlClear( cmXmlH_t h );
-  void      cmXmlPrint( cmXmlH_t h , cmRpt_t* rpt );
+  cmXmlRC_t          cmXmlParse( cmXmlH_t h, const cmChar_t* fn );
+  cmXmlRC_t          cmXmlClear( cmXmlH_t h );
+  const cmXmlNode_t* cmXmlRoot(  cmXmlH_t h );
+  void               cmXmlPrint( cmXmlH_t h, cmRpt_t* rpt );
+
+  const cmXmlNode_t* cmXmlSearch( const cmXmlNode_t* np, const cmChar_t* label, const cmXmlAttr_t* attrV, unsigned attrN );
+
+  
+  
 
   cmXmlRC_t cmXmlTest( cmCtx_t* ctx, const cmChar_t* fn );
   

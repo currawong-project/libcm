@@ -11,9 +11,10 @@
 #include "cmLinkedHeap.h"
 #include "cmFile.h"
 #include "cmXml.h"
+#include "cmText.h"
 
 /*
-To do:
+To Do:
 1) Escape node data strings and attribute values.
 2) Attribute values must be quoted by they may be quoted with either single or double quotes.
 3) Consider not buffering the XML file and reading directly from the file.
@@ -131,38 +132,35 @@ cmXmlNode_t* _cmXmlNodeAlloc( cmXml_t* p, unsigned flags, const cmChar_t* label,
     else
     {
       cmXmlNode_t* n0p = NULL;
-    cmXmlNode_t* n1p = p->stack->children;
+      cmXmlNode_t* n1p = p->stack->children;
     
-    for(; n1p != NULL; n1p=n1p->sibling )
-      n0p = n1p;
+      for(; n1p != NULL; n1p=n1p->sibling )
+        n0p = n1p;
     
-    n0p->sibling = np;    
+      n0p->sibling = np;    
     }
+  }
+
+  // all new nodes are put on the top of the stack
+  p->stack = np;
+
+  // all nodes must have a valid 'type' flag
+  if( (flags & kTypeXmlFlags) == 0 )
+  {
+    _cmXmlSyntaxError(p);
+    return NULL;
   }
   
-  p->stack = np;
-    
+  // if this is the root node
   if( cmIsFlag(flags,kRootXmlFl) )
-    p->root = np;
-  else
   {
-    if( cmIsFlag(flags,kDeclXmlFl) )
-    {
-    }
-    else
-    {
-      if( cmIsFlag(flags,kDoctypeXmlFl ) )
-        p->doctype = np;
-      else
-      {
-        if( !cmIsFlag(flags,kNormalXmlFl ) )
-        {
-          _cmXmlSyntaxError(p);
-          return NULL;
-        }
-      }
-    }
+    assert( p->root == NULL );
+    p->root = np;
   }
+
+  // if this is the 'doctype' node
+  if( cmIsFlag(flags,kDoctypeXmlFl ) )
+    p->doctype = np;
   
   if( label != NULL )
     np->label = cmLhAllocStrN(p->heapH,label,labelN);
@@ -674,8 +672,8 @@ cmXmlRC_t _cmXmlReadNode( cmXml_t* p, cmXmlNode_t* parent )
 
 cmXmlRC_t cmXmlParse( cmXmlH_t h, const cmChar_t* fn )
 {
-  cmXmlRC_t rc = kOkXmlRC;
-  cmXml_t*  p  = _cmXmlHandleToPtr(h);
+  cmXmlRC_t    rc = kOkXmlRC;
+  cmXml_t*     p  = _cmXmlHandleToPtr(h);
   cmXmlNode_t* np = NULL;
   
   cmLHeapClear( p->heapH, false );
@@ -711,24 +709,35 @@ cmXmlRC_t cmXmlClear( cmXmlH_t h )
   return rc;
 }
 
+const cmXmlNode_t* cmXmlRoot( cmXmlH_t h )
+{
+  cmXml_t*  p  = _cmXmlHandleToPtr(h);
+  return p->root;
+}
+
+
 void _cmXmlPrintNode( const cmXmlNode_t* np, cmRpt_t* rpt, unsigned indent )
 {
   cmChar_t s[ indent + 1 ];
   memset(s,' ',indent);
   s[indent] = 0;
+
+  // print indent and label
   cmRptPrintf(rpt,"%s%s: ",s,np->label);
 
+  // print this node's attributes
   cmXmlAttr_t* ap = np->attr;
   for(; ap!=NULL; ap=ap->link)
     cmRptPrintf(rpt,"%s='%s' ",ap->label,ap->value);
 
+  // print this nodes data string
   if( np->dataStr != NULL )
     cmRptPrintf(rpt," (%s)",np->dataStr);
 
   cmRptPrintf(rpt,"\n");
 
+  // print this nodes children via recursion
   cmXmlNode_t* cnp = np->children;
-
   for(; cnp!=NULL; cnp=cnp->sibling )
     _cmXmlPrintNode(cnp,rpt,indent+2);
 
@@ -740,6 +749,132 @@ void      cmXmlPrint( cmXmlH_t h , cmRpt_t* rpt )
   cmXml_t*  p  = _cmXmlHandleToPtr(h);
   if( p->root != NULL )
     _cmXmlPrintNode(p->root,rpt,0);
+}
+
+const cmXmlNode_t* cmXmlSearch( const cmXmlNode_t* np, const cmChar_t* label, const cmXmlAttr_t* attrV, unsigned attrN )
+{
+  // if the 'label' matches this node's label ...
+  if( cmTextCmp(np->label,label) == 0 )
+  {
+    unsigned           matchN = 0;
+    const cmXmlAttr_t* a      = np->attr;
+    unsigned           i;
+    
+    // ... then check for attribute matches also.
+    for(i=0; i<attrN; ++i)
+    {
+      for(; a!=NULL; a=a->link)
+      {
+        if( cmTextCmp(a->label,attrV[i].label) == 0 && cmTextCmp(a->value,attrV[i].value) == 0 )
+        {
+          ++matchN;
+
+          // if a match was found for all attributes then the return np as the solution
+          if( matchN == attrN )
+            return np;
+          
+          break;
+        }
+      }
+    }    
+  }
+
+  // this node did not match - try each of this nodes children
+  const cmXmlNode_t* cnp = np->children;
+  for(; cnp!=NULL; cnp=cnp->sibling)
+    if(( np = cmXmlSearch(cnp,label,attrV,attrN)) != NULL )
+      return np;  // a child matched 
+
+  // no match was found.
+  return NULL; 
+}
+
+const cmXmlNode_t* cmXmlSearchV( const cmXmlNode_t* np, const cmChar_t* label, const cmXmlAttr_t* attrV, unsigned attrN, va_list vl )
+{
+
+  while( label != NULL  )
+  {
+    if((np = cmXmlSearch(np,label,attrV,attrN)) == NULL )
+      return NULL;
+
+    if((label = va_arg(vl,cmChar_t*)) != NULL)
+    {
+      attrV = va_arg(vl,const cmXmlAttr_t*);
+      attrN = va_arg(vl,unsigned);
+    }
+
+  }
+  
+  return np;
+}
+
+const cmXmlNode_t* cmXmlSearchN( const cmXmlNode_t* np, const cmChar_t* label, const cmXmlAttr_t* attrV, unsigned attrN, ... )
+{
+  va_list vl;
+  va_start(vl,attrN);
+  np = cmXmlSearchV(np,label,attrV,attrN,vl);
+  va_end(vl);
+  return np;
+}
+
+cmXmlRC_t cmXmlGetInt( const cmXmlNode_t* np, int* retRef, const cmChar_t* label, const cmXmlAttr_t* attrV, unsigned attrN, ... )
+{
+  cmXmlRC_t          rc = kNodeNotFoundXmlRC;
+  va_list            vl;
+  
+  va_start(vl,attrN);
+
+  // find the requsted node
+  if((np = cmXmlSearchV(np,label,attrV,attrN,vl)) != NULL )
+  {
+    // if the returned node does not have a data string
+    if( np->dataStr == NULL )      
+      return kInvalidTypeXmlRC;
+
+    errno = 0;
+
+    // convert the string to an integer
+    strtol(np->dataStr,NULL,10);
+    
+    if( errno != 0 )
+      return kInvalidTypeXmlRC;
+    
+    rc = kOkXmlRC;
+  }
+  
+  va_end(vl);
+  
+  return rc;
+}
+
+
+void _cmXmlPrintMeasure( const cmXmlNode_t* mnp )
+{
+}
+
+cmXmlRC_t _cmXmlPrintScore( cmXmlH_t h )
+{
+  cmXmlRC_t rc          = kOkXmlRC;
+  const int sN          = 32;
+  cmChar_t  s[sN+1];
+  unsigned  maxMeasNumb = 4;
+  unsigned  i;
+  cmXml_t*  p           = _cmXmlHandleToPtr(h);
+  
+  for(i=0; i<=maxMeasNumb; ++i)
+  {
+    snprintf(s,sN,"%i",i);
+    cmXmlAttr_t aV[] =
+    {
+      { "number",s }
+    };
+
+    const cmXmlNode_t* np;
+    if((np = cmXmlSearch(cmXmlRoot(h),"measure",aV,1)) == NULL )
+      return cmErrMsg(&p->err,kTestFailXmlRC,"Missing measure '%i'.",i);
+  }
+
+  return rc;
 }
 
 
@@ -754,7 +889,18 @@ cmXmlRC_t cmXmlTest( cmCtx_t* ctx, const cmChar_t* fn )
   if((rc = cmXmlParse(h,fn)) != kOkXmlRC )
     goto errLabel;
 
-  cmXmlPrint(h,&ctx->rpt);
+  cmXmlAttr_t aV[] =
+  {
+    { "id","P1"}
+  };
+
+  if( cmXmlSearch(cmXmlRoot(h),"part",aV,1) == NULL )
+  {
+    cmErrMsg(&ctx->err,kTestFailXmlRC,"Search failed.");
+    goto errLabel;
+  }
+  
+  //cmXmlPrint(h,&ctx->rpt);
 
  errLabel:
   cmXmlFree(&h);
