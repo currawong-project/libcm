@@ -73,11 +73,16 @@ extern "C" {
   const cmChar_t*    cmXmlNodeValueV( const cmXmlNode_t* np, va_list vl );
   const cmChar_t*    cmXmlNodeValue( const cmXmlNode_t* np, ... );
 
-  cmXmlRC_t          cmXmlNodeIntV( const cmXmlNode_t* np, int* retRef, va_list vl );
-  cmXmlRC_t          cmXmlNodeUIntV(const cmXmlNode_t* np, unsigned* retRef, va_list vl );
+  cmXmlRC_t          cmXmlNodeIntV(    const cmXmlNode_t* np, int* retRef, va_list vl );
+  cmXmlRC_t          cmXmlNodeUIntV(   const cmXmlNode_t* np, unsigned* retRef, va_list vl );
+  cmXmlRC_t          cmXmlNodeDoubleV( const cmXmlNode_t* np, double*   retRef, va_list vl );
 
-  cmXmlRC_t          cmXmlNodeInt(  const cmXmlNode_t* np, int* retRef, ... );
-  cmXmlRC_t          cmXmlNodeUInt( const cmXmlNode_t* np, unsigned* retRef, ... );
+  cmXmlRC_t          cmXmlNodeInt(   const cmXmlNode_t* np, int* retRef, ... );
+  cmXmlRC_t          cmXmlNodeUInt(  const cmXmlNode_t* np, unsigned* retRef, ... );
+  cmXmlRC_t          cmXmlNodeDouble(const cmXmlNode_t* np, double* retRef, ...);
+  
+  bool               cmXmlNodeHasChild( const cmXmlNode_t* np, const cmChar_t* label );
+
   
   cmXmlRC_t cmXmlTest( cmCtx_t* ctx, const cmChar_t* fn );
   

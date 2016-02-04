@@ -944,6 +944,23 @@ cmXmlRC_t          cmXmlNodeIntV(const cmXmlNode_t* np, int* retRef, va_list vl 
 cmXmlRC_t          cmXmlNodeUIntV(const cmXmlNode_t* np, unsigned* retRef, va_list vl )
 { return cmXmlNodeIntV(np,(int*)retRef,vl); }
 
+cmXmlRC_t          cmXmlNodeDoubleV(const cmXmlNode_t* np, double* retRef, va_list vl )
+{
+  const cmChar_t* valueStr;
+  if((valueStr = cmXmlNodeValueV(np,vl)) == NULL )
+    return kNodeNotFoundXmlRC;
+
+  errno = 0;
+
+  // convert the string to a double
+  *retRef = strtod(valueStr,NULL);
+    
+  if( errno != 0 )
+    return kInvalidTypeXmlRC;
+  
+  return kOkXmlRC;
+}
+
 cmXmlRC_t          cmXmlNodeInt( const cmXmlNode_t* np, int* retRef, ... )
 {
   cmXmlRC_t rc;
@@ -963,6 +980,28 @@ cmXmlRC_t          cmXmlNodeUInt( const cmXmlNode_t* np, unsigned* retRef, ... )
   va_end(vl);
   return rc;
 }
+
+cmXmlRC_t          cmXmlNodeDouble(const cmXmlNode_t* np, double* retRef, ...)
+{
+  cmXmlRC_t rc;
+  va_list vl;
+  va_start(vl,retRef);
+  rc = cmXmlNodeDoubleV(np,retRef,vl);
+  va_end(vl);
+  return rc;
+
+}
+
+bool    cmXmlNodeHasChild( const cmXmlNode_t* np, const cmChar_t* label )
+{
+  const cmXmlNode_t* cnp = np->children;
+  for(; cnp!=NULL; cnp=cnp->sibling)
+    if( cmTextCmp(cnp->label,label) == 0 )
+      return true;
+
+  return false;
+}
+
 
 
 cmXmlRC_t _cmXmlPrintScore( cmXmlH_t h )
