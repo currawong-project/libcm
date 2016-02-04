@@ -35,17 +35,16 @@ extern "C" {
   
   typedef struct cmXmlNode_str
   {
-    unsigned              flags;
+    unsigned              flags;    // See k???XmlFl
     
-    const cmChar_t*       label;
-    const cmChar_t*       dataStr;
+    const cmChar_t*       label;    // node label
+    const cmChar_t*       dataStr;  // node data string
     
-    cmXmlAttr_t*          attr;
+    cmXmlAttr_t*          attr;     // attribute list
     
-    struct cmXmlNode_str* parent;
-    struct cmXmlNode_str* children;
-    struct cmXmlNode_str* sibling;
-    
+    struct cmXmlNode_str* parent;   // parent node
+    struct cmXmlNode_str* children; // first child node list
+    struct cmXmlNode_str* sibling;  // 
     
   } cmXmlNode_t;
 
@@ -64,10 +63,22 @@ extern "C" {
   void               cmXmlPrint( cmXmlH_t h, cmRpt_t* rpt );
 
   const cmXmlNode_t* cmXmlSearch( const cmXmlNode_t* np, const cmChar_t* label, const cmXmlAttr_t* attrV, unsigned attrN );
+  const cmXmlAttr_t* cmXmlFindAttrib( const cmXmlNode_t* np, const cmChar_t* label );
 
+  cmXmlRC_t          cmXmlAttrInt(  const cmXmlNode_t* np, const cmChar_t* attrLabel, int* retRef );
+  cmXmlRC_t          cmXmlAttrUInt( const cmXmlNode_t* np, const cmChar_t* attrLabel, unsigned* retRef );
   
-  
+  // Return the data value for a node or attributes.
+  // List Syntax: node-label-0, node-label-1, NULL, attr-label-0 attr-label-1 
+  const cmChar_t*    cmXmlNodeValueV( const cmXmlNode_t* np, va_list vl );
+  const cmChar_t*    cmXmlNodeValue( const cmXmlNode_t* np, ... );
 
+  cmXmlRC_t          cmXmlNodeIntV( const cmXmlNode_t* np, int* retRef, va_list vl );
+  cmXmlRC_t          cmXmlNodeUIntV(const cmXmlNode_t* np, unsigned* retRef, va_list vl );
+
+  cmXmlRC_t          cmXmlNodeInt(  const cmXmlNode_t* np, int* retRef, ... );
+  cmXmlRC_t          cmXmlNodeUInt( const cmXmlNode_t* np, unsigned* retRef, ... );
+  
   cmXmlRC_t cmXmlTest( cmCtx_t* ctx, const cmChar_t* fn );
   
 #ifdef __cpluspus

@@ -86,6 +86,10 @@ cmXmlRC_t cmXmlAlloc( cmCtx_t* ctx, cmXmlH_t* hp, const cmChar_t* fn )
 
   hp->h = p;
 
+  if( fn != NULL )
+    if((rc = cmXmlParse(*hp,fn)) != kOkXmlRC )
+      hp->h = NULL;
+
  errLabel:
   if(rc != kOkXmlRC )
     _cmXmlFree(p);
@@ -116,7 +120,7 @@ bool      cmXmlIsValid( cmXmlH_t h )
   
 cmXmlRC_t _cmXmlSyntaxError( cmXml_t* p )
 {
-  return cmErrMsg(&p->err,kSyntaxErrorXmlRC,"Syntax error on line '%i.",p->line);
+  return cmErrMsg(&p->err,kSyntaxErrorXmlRC,"Syntax error on line %i.",p->line);
 }
 
 cmXmlNode_t* _cmXmlNodeAlloc( cmXml_t* p, unsigned flags, const cmChar_t* label, unsigned labelN )
@@ -756,6 +760,9 @@ const cmXmlNode_t* cmXmlSearch( const cmXmlNode_t* np, const cmChar_t* label, co
   // if the 'label' matches this node's label ...
   if( cmTextCmp(np->label,label) == 0 )
   {
+    if( attrN == 0 )
+      return np;
+    
     unsigned           matchN = 0;
     const cmXmlAttr_t* a      = np->attr;
     unsigned           i;
@@ -776,7 +783,8 @@ const cmXmlNode_t* cmXmlSearch( const cmXmlNode_t* np, const cmChar_t* label, co
           break;
         }
       }
-    }    
+    }
+
   }
 
   // this node did not match - try each of this nodes children
@@ -817,6 +825,44 @@ const cmXmlNode_t* cmXmlSearchN( const cmXmlNode_t* np, const cmChar_t* label, c
   return np;
 }
 
+const cmXmlAttr_t* cmXmlFindAttrib( const cmXmlNode_t* np, const cmChar_t* label )
+{
+  const cmXmlAttr_t* a = np->attr;
+  for(; a!=NULL; a=a->link)
+    if( cmTextCmp(a->label,label) == 0 )
+      return a;
+
+  return NULL;
+}
+
+cmXmlRC_t cmXmlAttrInt( const cmXmlNode_t* np, const cmChar_t* attrLabel, int* retRef )
+{
+  const cmXmlAttr_t* a;
+  if((a = cmXmlFindAttrib(np,attrLabel)) == NULL )
+    return kNodeNotFoundXmlRC;
+
+  assert(retRef != NULL);
+  
+  *retRef = 0;
+
+  if( a->value != NULL )
+  {
+    errno = 0;
+
+    // convert the string to an integer
+    *retRef = strtol(a->value,NULL,10);
+    
+    if( errno != 0 )
+      return kInvalidTypeXmlRC;
+  }
+  
+  return kOkXmlRC;
+  
+}
+
+cmXmlRC_t cmXmlAttrUInt( const cmXmlNode_t* np, const cmChar_t* attrLabel, unsigned* retRef )
+{ return cmXmlAttrInt(np,attrLabel,(int*)retRef); }
+
 cmXmlRC_t cmXmlGetInt( const cmXmlNode_t* np, int* retRef, const cmChar_t* label, const cmXmlAttr_t* attrV, unsigned attrN, ... )
 {
   cmXmlRC_t          rc = kNodeNotFoundXmlRC;
@@ -847,10 +893,77 @@ cmXmlRC_t cmXmlGetInt( const cmXmlNode_t* np, int* retRef, const cmChar_t* label
   return rc;
 }
 
-
-void _cmXmlPrintMeasure( const cmXmlNode_t* mnp )
+const cmXmlNode_t* _cmXmlNodeFindChild( const cmXmlNode_t* np, const cmChar_t* label )
 {
+  const cmXmlNode_t* cnp = np->children;
+  for(; cnp!=NULL; cnp=cnp->sibling)
+    if( cmTextCmp(cnp->label,label) == 0 )
+      return cnp;  
+  return NULL;
 }
+
+const cmChar_t*    cmXmlNodeValueV( const cmXmlNode_t* np, va_list vl )
+{
+  const cmChar_t* label;
+  
+  // for each node label
+  while( (label = va_arg(vl,const cmChar_t*)) != NULL )
+    if((np = _cmXmlNodeFindChild(np,label)) == NULL )
+      break;  
+  
+  return np==NULL ? NULL : np->dataStr;
+}
+
+const cmChar_t*    cmXmlNodeValue( const cmXmlNode_t* np, ... )
+{
+  va_list vl;
+  va_start(vl,np);
+  const cmChar_t* str = cmXmlNodeValueV(np,vl);
+  va_end(vl);
+  return str;
+}
+
+
+cmXmlRC_t          cmXmlNodeIntV(const cmXmlNode_t* np, int* retRef, va_list vl )
+{
+  const cmChar_t* valueStr;
+  if((valueStr = cmXmlNodeValueV(np,vl)) == NULL )
+    return kNodeNotFoundXmlRC;
+
+  errno = 0;
+
+  // convert the string to an integer
+  *retRef = strtol(valueStr,NULL,10);
+    
+  if( errno != 0 )
+    return kInvalidTypeXmlRC;
+  
+  return kOkXmlRC;
+}
+
+cmXmlRC_t          cmXmlNodeUIntV(const cmXmlNode_t* np, unsigned* retRef, va_list vl )
+{ return cmXmlNodeIntV(np,(int*)retRef,vl); }
+
+cmXmlRC_t          cmXmlNodeInt( const cmXmlNode_t* np, int* retRef, ... )
+{
+  cmXmlRC_t rc;
+  va_list vl;
+  va_start(vl,retRef);
+  rc = cmXmlNodeIntV(np,retRef,vl);
+  va_end(vl);
+  return rc;
+}
+
+cmXmlRC_t          cmXmlNodeUInt( const cmXmlNode_t* np, unsigned* retRef, ... )
+{
+  cmXmlRC_t rc;
+  va_list vl;
+  va_start(vl,retRef);
+  rc = cmXmlNodeUIntV(np,retRef,vl);
+  va_end(vl);
+  return rc;
+}
+
 
 cmXmlRC_t _cmXmlPrintScore( cmXmlH_t h )
 {
