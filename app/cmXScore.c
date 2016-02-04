@@ -10,11 +10,27 @@
 #include "cmXml.h"
 #include "cmText.h"
 #include "cmXScore.h"
+#include "cmTime.h"
+#include "cmMidi.h"
 
 cmXsH_t cmXsNullHandle = cmSTATIC_NULL_HANDLE;
 
+enum
+{
+  kRestXsFl    = 0x0001,
+  kGraceXsFl   = 0x0002,
+  kDotXsFl     = 0x0004
+};
+
+
 typedef struct cmXsNote_str
 {
+  unsigned flags;
+  unsigned pitch;     // midi pitch
+  unsigned duration;  // duration in ticks
+  unsigned rvalue;    // 1/type = rythmic value (1/4=quarter note, 1/8=eighth note, ...)
+  struct cmXsNote_str* link;
+  
 } cmXsNote_t;
 
 typedef struct cmXsVoice_str
@@ -128,11 +144,153 @@ cmXsRC_t _cmXScoreParsePartList( cmXScore_t* p )
   return rc;
 }
 
+cmXsRC_t  _cmXScoreParsePitch( cmXScore_t* p, const cmXmlNode_t* nnp, unsigned* midiPitchRef )
+{
+  cmXsRC_t        rc     = kOkXsRC;
+  unsigned        octave = 0;
+  double          alter  = 0;
+  const cmChar_t* step   = NULL;
 
-cmXsRC_t _cmXScoreParseMeasure(cmXScore_t* p, cmXsPart_t* pp, const cmXmlNode_t* mnp )
+  if((step = cmXmlNodeValue(nnp,"pitch","step",NULL)) == NULL )
+    return _cmXScoreMissingNode(p,"step",NULL);
+  
+  if((rc = cmXmlNodeUInt( nnp,&octave,"pitch","octave",NULL)) != kOkXmlRC )
+    return _cmXScoreMissingNode(p,"octave",NULL);
+  
+  cmXmlNodeDouble( nnp,&alter,"pitch","alter",NULL);
+
+  cmChar_t buf[3] = { *step, '0', '\0'};
+  unsigned midi = cmSciPitchToMidi(buf);
+
+  midi         += (12 * octave);
+
+  midi         += alter;
+
+  *midiPitchRef = midi;
+
+  return rc;  
+}
+
+unsigned _cmXScoreParseNoteType( const cmXmlNode_t* nnp )
+{
+  typedef struct map_str
+  {
+    unsigned        rvalue;
+    const cmChar_t* label;
+  } map_t;
+
+  map_t mapV[] =
+  {
+    { 1, "whole" },
+    { 2, "half"  },
+    { 4, "quarter" },
+    { 8, "eighth" },
+    { 16,"16th"},
+    { 32,"32nd"},
+    { 64,"64th"},
+    {128,"128th"},
+    {0,""}
+  };
+
+  if( cmXmlNodeHasChild(nnp,"type") )
+  {
+    const cmChar_t* str;
+    if((str = cmXmlNodeValue(nnp,"type",NULL)) == NULL)
+    {
+      unsigned i;
+      for(i=0; mapV[i].rvalue!=0; ++i)
+        if( cmTextCmp(mapV[i].label,str) == 0 )
+          return mapV[i].rvalue;
+    }
+
+  }
+
+  return 0;
+}
+
+cmXsVoice_t* _cmXScoreIdToVoice( cmXsMeas_t* meas, unsigned voiceId )
+{
+  cmXsVoice_t* v = meas->voiceL;
+  for(; v!=NULL; v=v->link)
+    if( v->id == voiceId )
+      return v;
+
+  return NULL;
+}
+
+cmXsRC_t _cmXScorePushNote( cmXScore_t* p, cmXsMeas_t* meas, unsigned voiceId, cmXsNote_t* note )
+{
+  cmXsVoice_t* v;
+  if((v = _cmXScoreIdToVoice(meas,voiceId)) == NULL)
+  {
+    v = cmLhAllocZ(p->lhH,cmXsVoice_t,1);
+    v->id = voiceId;
+    
+    if( meas->voiceL == NULL )
+      meas->voiceL = v;
+    else
+    {
+      cmXsVoice_t* vp =  meas->voiceL;
+      while( vp->link!=NULL )
+        vp = vp->link;
+
+      vp->link = v;      
+    }
+  }
+
+  if( v->noteL == NULL )
+    v->noteL = note;
+  else
+  {
+    cmXsNote_t* n = v->noteL;
+    while( n != NULL )
+      n = n->link;
+
+    n->link = note;
+  }
+
+  return kOkXsRC;
+}
+
+cmXsRC_t _cmXScoreParseNote(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* nnp)
+{
+  cmXsRC_t    rc   = kOkXsRC;
+  
+  cmXsNote_t* note = cmLhAllocZ(p->lhH,cmXsNote_t,1);
+  unsigned voiceId;
+
+  // get the voice id for this node
+  if( cmXmlNodeUInt(nnp,&voiceId,"voice",NULL) != kOkXmlRC )
+    return _cmXScoreMissingNode(p,"voice",NULL);
+
+  
+  // if this note has a pitch
+  if( cmXmlNodeHasChild(nnp,"pitch") )
+    if((rc = _cmXScoreParsePitch(p,nnp,&note->pitch)) != kOkXsRC )
+      return rc;
+
+  // is 'rest'
+  if( cmXmlNodeHasChild(nnp,"rest") )
+    note->flags |= kRestXsFl;
+
+  // is 'grace'
+  if( cmXmlNodeHasChild(nnp,"grace") )
+    note->flags |= kGraceXsFl;
+
+  // is 'dot'
+  if( cmXmlNodeHasChild(nnp,"dot") )
+    note->flags |= kDotXsFl;
+
+  if((note->rvalue =  _cmXScoreParseNoteType(nnp)) == 0 )
+    return _cmXScoreMissingNode(nnp,"type",NULL);
+    
+}
+
+cmXsRC_t _cmXScoreParseMeasure(cmXScore_t* p, cmXsPart_t* pp, const cmXmlNode_t* mnp)
 {
   cmXsRC_t rc = kOkXsRC;
 
+  // allocate the 'measure' record
   cmXsMeas_t* meas = cmLhAllocZ(p->lhH,cmXsMeas_t,1);
   const cmXmlNode_t* np;
 
@@ -157,6 +315,20 @@ cmXsRC_t _cmXScoreParseMeasure(cmXScore_t* p, cmXsPart_t* pp, const cmXmlNode_t*
   cmXmlNodeUInt(np,&meas->divisions,"divisions",NULL);
   cmXmlNodeUInt(np,&meas->beats,"time","beats",NULL);
   cmXmlNodeUInt(np,&meas->beat_type,"time","beat-type",NULL);
+
+  int tick = 0;
+  
+  np = mnp->children;
+  for(; np!=NULL; np=np->sibling)
+    if( cmTextCmp(np->label,"note") )
+    {
+      rc = _cmXScoreParseNote(p,meas,mnp);
+    }
+    else
+      if( cmTextCmp(np->label,"backup") )
+      {
+      }
+  
   
   return rc;
 }
