@@ -716,7 +716,7 @@ void _cmApAggPortCb2( cmApAudioPacket_t* inPktArray, unsigned inPktCnt, cmApAudi
 }
 
 
-  void recdPrint();
+//void recdPrint();
 
 // Audio Port testing function
 int cmApAggTest( bool runFl, cmCtx_t* ctx, int argc, const char* argv[] )
@@ -895,7 +895,7 @@ int cmApAggTest( bool runFl, cmCtx_t* ctx, int argc, const char* argv[] )
 
 
         case 'r':
-          recdPrint();
+          //recdPrint();
           break;
 
         default:
