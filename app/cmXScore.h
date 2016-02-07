@@ -7,11 +7,11 @@ extern "C" {
 
   enum
   {
-  kOkXsRC = cmOkRC,
+    kOkXsRC = cmOkRC,
     kXmlFailXsRC,
     kLHeapFailXsRC,
     kSyntaxErrorXsRC
-    };
+  };
 
   typedef cmRC_t     cmXsRC_t;
   typedef cmHandle_t cmXsH_t;
@@ -25,14 +25,16 @@ extern "C" {
   //       b. Emacs C-x <RET> f utf-8 <RET>
   //
   // 2) Replace "DoletSibelius Unknown Symbol Index" with "DoletSibelius unknownSymIdx"
-  
+  //
+  // 3) How to assigned dynamic markings.
+  // 4) Tempo syntax is inconsistent.
 
   cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn );
   cmXsRC_t cmXScoreFinalize( cmXsH_t* hp );
 
   bool     cmXScoreIsValid( cmXsH_t h );
 
-  void     cmXScoreReport( cmXsH_t h, cmRpt_t* rpt );
+  void     cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl );
 
   cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* fn );
   
