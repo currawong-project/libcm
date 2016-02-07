@@ -169,6 +169,7 @@ cmXmlNode_t* _cmXmlNodeAlloc( cmXml_t* p, unsigned flags, const cmChar_t* label,
   if( label != NULL )
     np->label = cmLhAllocStrN(p->heapH,label,labelN);
 
+  np->line  = p->line;
   np->flags = flags;
 
   return np;
@@ -992,14 +993,33 @@ cmXmlRC_t          cmXmlNodeDouble(const cmXmlNode_t* np, double* retRef, ...)
 
 }
 
-bool    cmXmlNodeHasChild( const cmXmlNode_t* np, const cmChar_t* label )
+bool    cmXmlNodeHasChildV( const cmXmlNode_t* np, const cmChar_t* label, va_list vl )
 {
-  const cmXmlNode_t* cnp = np->children;
-  for(; cnp!=NULL; cnp=cnp->sibling)
-    if( cmTextCmp(cnp->label,label) == 0 )
-      return true;
+  const cmChar_t* str = NULL;
 
-  return false;
+  // get next label to match
+  while( (str = va_arg(vl,const cmChar_t*)) == NULL )
+  {
+    np = np->children;
+    for(; np!=NULL; np=np->sibling)
+      if( cmTextCmp(np->label,label) == 0 )
+        break;
+
+    // if the end of the child list was encountered - with no match
+    if( np == NULL )
+      return false;
+  }
+
+  return true;
+}
+
+bool    cmXmlNodeHasChild( const cmXmlNode_t* np, const cmChar_t* label, ... )
+{
+  va_list vl;
+  va_start(vl,label);
+  bool fl = cmXmlNodeHasChildV(np,label,vl);
+  va_end(vl);
+  return fl;
 }
 
 
