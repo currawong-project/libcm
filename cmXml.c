@@ -1024,31 +1024,6 @@ bool    cmXmlNodeHasChild( const cmXmlNode_t* np, const cmChar_t* label, ... )
 
 
 
-cmXmlRC_t _cmXmlPrintScore( cmXmlH_t h )
-{
-  cmXmlRC_t rc          = kOkXmlRC;
-  const int sN          = 32;
-  cmChar_t  s[sN+1];
-  unsigned  maxMeasNumb = 4;
-  unsigned  i;
-  cmXml_t*  p           = _cmXmlHandleToPtr(h);
-  
-  for(i=0; i<=maxMeasNumb; ++i)
-  {
-    snprintf(s,sN,"%i",i);
-    cmXmlAttr_t aV[] =
-    {
-      { "number",s }
-    };
-
-    const cmXmlNode_t* np;
-    if((np = cmXmlSearch(cmXmlRoot(h),"measure",aV,1)) == NULL )
-      return cmErrMsg(&p->err,kTestFailXmlRC,"Missing measure '%i'.",i);
-  }
-
-  return rc;
-}
-
 
 cmXmlRC_t cmXmlTest( cmCtx_t* ctx, const cmChar_t* fn )
 {
