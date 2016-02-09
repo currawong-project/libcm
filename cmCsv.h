@@ -129,6 +129,8 @@ extern "C" {
   // cmCsvCell_t.lexTId in the new cell. There are no constraints on its value.
   //cmCsvRC_t  cmCsvInsertRowBefore(  cmCsvH_t h, unsigned row, cmCsvCell_t** cellPtrPtr, unsigned symId, unsigned flags, unsigned lexTId );
 
+  // Column 0 will be added if 'cellPtrPtr'!= NULL and 'symId'!=cmInvalidId.
+  // If cellPtrPtr and symId are not valid then 'flags' and 'lexTId' are ignored.
   cmCsvRC_t  cmCsvAppendRow( cmCsvH_t h, cmCsvCell_t** cellPtrPtr, unsigned symId, unsigned flags, unsigned lexTId );
 
   // Insert a new cell to the right of leftCellPtr.
