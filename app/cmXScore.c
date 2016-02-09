@@ -12,6 +12,8 @@
 #include "cmXScore.h"
 #include "cmTime.h"
 #include "cmMidi.h"
+#include "cmLex.h"
+#include "cmCsv.h"
 
 cmXsH_t cmXsNullHandle = cmSTATIC_NULL_HANDLE;
 
@@ -33,7 +35,6 @@ enum
 };
 
 
-
 typedef struct cmXsNote_str
 {
   unsigned             flags;    // See k???XsFl 
@@ -41,10 +42,10 @@ typedef struct cmXsNote_str
   unsigned             tick;     // 
   unsigned             duration; // duration in ticks
   unsigned             rvalue;   // 1/type = rythmic value (1/4=quarter note, 1/8=eighth note, ...)
+  const cmChar_t*      tvalue;   // text value
   struct cmXsNote_str* mlink;    // measure note list 
   struct cmXsNote_str* slink;    // time sorted event list
 } cmXsNote_t;
-
 
 typedef struct cmXsVoice_str
 {
@@ -55,14 +56,13 @@ typedef struct cmXsVoice_str
 
 typedef struct cmXsMeas_str
 {
-  unsigned             number;  // Measure number
+  unsigned number;      // Measure number
+  unsigned divisions;   // ticks-per-quarter-note
+  unsigned beats;       // beats per measure
+  unsigned beat_type;   // whole/half/quarter/eighth ...
   
-  unsigned             divisions; 
-  unsigned             beats;
-  unsigned             beat_type;
-  
-  cmXsVoice_t*         voiceL;  // List of voices in this measure   
-  cmXsNote_t*          noteL;   // List of time sorted notes in this measure
+  cmXsVoice_t* voiceL;  // List of voices in this measure   
+  cmXsNote_t*  noteL;   // List of time sorted notes in this measure
   
   struct cmXsMeas_str* link;    // Link to other measures in this part.
 } cmXsMeas_t;
@@ -76,10 +76,11 @@ typedef struct cmXsPart_str
 
 typedef struct
 {
-  cmErr_t              err;
-  cmXmlH_t             xmlH;
-  cmLHeapH_t           lhH;
-  cmXsPart_t*          partL;
+  cmErr_t     err;
+  cmXmlH_t    xmlH;
+  cmLHeapH_t  lhH;
+  cmXsPart_t* partL;
+  cmCsvH_t    csvH;  
 } cmXScore_t;
 
 cmXScore_t* _cmXScoreHandleToPtr( cmXsH_t h )
@@ -94,12 +95,13 @@ cmXsRC_t _cmXScoreFinalize( cmXScore_t* p )
   cmXsRC_t rc = kOkXsRC;
 
   // release the XML file
-  if( cmXmlIsValid(p->xmlH) )
-    cmXmlFree( &p->xmlH );
+  cmXmlFree( &p->xmlH );
 
   // release the local linked heap memory
-  if( cmLHeapIsValid(p->lhH) )
-    cmLHeapDestroy(&p->lhH);
+  cmLHeapDestroy(&p->lhH);
+
+  // release the CSV output object
+  cmCsvFinalize(&p->csvH);
   
   cmMemFree(p);
   
@@ -241,6 +243,7 @@ unsigned _cmXScoreParseNoteRValue( cmXScore_t* p, const cmXmlNode_t* nnp, const 
 
   map_t mapV[] =
   {
+    {  -1, "measure" },  // whole measure rest
     {   1, "whole"   },
     {   2, "half"    },
     {   4, "quarter" },
@@ -254,7 +257,15 @@ unsigned _cmXScoreParseNoteRValue( cmXScore_t* p, const cmXmlNode_t* nnp, const 
 
   const cmChar_t* str;
   if((str = cmXmlNodeValue(nnp,label,NULL)) == NULL)
+  {
+    if((nnp = cmXmlSearch(nnp,"rest",NULL,0)) != NULL )
+    {
+      const cmXmlAttr_t* a;
+      if((a = cmXmlFindAttrib(nnp,"measure")) != NULL && cmTextCmp(a->value,"yes")==0)
+        return -1;
+    }
     return 0;
+  }
   
   unsigned i;
   for(i=0; mapV[i].rvalue!=0; ++i)
@@ -354,7 +365,7 @@ cmXsRC_t _cmXScoreParseNote(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* 
   return _cmXScorePushNote(p, meas, voiceId, note );
 }
 
-cmXsRC_t _cmXScorePushNonNote( cmXScore_t* p, cmXsMeas_t* meas, unsigned tick, unsigned duration, unsigned rvalue, unsigned flags )
+cmXsRC_t _cmXScorePushNonNote( cmXScore_t* p, cmXsMeas_t* meas, unsigned tick, unsigned duration, unsigned rvalue, const cmChar_t* tvalue, unsigned flags )
 {
   cmXsNote_t* note    = cmLhAllocZ(p->lhH,cmXsNote_t,1);
   unsigned    voiceId = 0;    // non-note's are always assigned to voiceId=0;
@@ -362,6 +373,7 @@ cmXsRC_t _cmXScorePushNonNote( cmXScore_t* p, cmXsMeas_t* meas, unsigned tick, u
   note->tick     = tick;
   note->flags    = flags;
   note->rvalue   = rvalue;
+  note->tvalue   = tvalue;
   note->duration = duration;
   
   return _cmXScorePushNote(p, meas, voiceId, note );
@@ -374,6 +386,7 @@ cmXsRC_t  _cmXScoreParseDirection(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNo
   unsigned           flags    = 0;
   int                offset   = 0;
   unsigned           rvalue   = 0;
+  const cmChar_t*    tvalue   = NULL;
   unsigned           duration = 0;
 
   
@@ -419,16 +432,14 @@ cmXsRC_t  _cmXScoreParseDirection(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNo
   {
     if((a = cmXmlFindAttrib(np,"enclosure")) != NULL && cmTextCmp(a->value,"rectangle")==0 )
     {
-      if( cmXmlNodeUInt(np,&rvalue,NULL) != kOkXsRC )
-        return cmErrMsg(&p->err,kSyntaxErrorXsRC,"Error reading section number on line %i.",np->line);
+      if( cmTextIsEmpty( tvalue = np->dataStr ) )
+        return cmErrMsg(&p->err,kSyntaxErrorXsRC,"Section number is blank or missing on line %i.",np->line);
 
-      printf("rvalue=%i\n",rvalue);
-      
       flags = kSectionXsFl;
     }
   }
 
-  return _cmXScorePushNonNote(p,meas,tick+offset,duration,rvalue,flags);            
+  return _cmXScorePushNonNote(p,meas,tick+offset,duration,rvalue,tvalue,flags);            
       
 }
 
@@ -458,16 +469,15 @@ cmXsRC_t _cmXScoreParseMeasure(cmXScore_t* p, cmXsPart_t* pp, const cmXmlNode_t*
   }
   
   // get measure attributes node
-  if((np = cmXmlSearch(mnp,"attributes",NULL,0)) == NULL)
-    return rc;                  // (this measure does not have any attributes)
-
-
-  cmXmlNodeUInt(np,&meas->divisions,"divisions",NULL);
-  cmXmlNodeUInt(np,&meas->beats,    "time","beats",NULL);
-  cmXmlNodeUInt(np,&meas->beat_type,"time","beat-type",NULL);
-
+  if((np = cmXmlSearch(mnp,"attributes",NULL,0)) != NULL)
+  {
+    cmXmlNodeUInt(np,&meas->divisions,"divisions",NULL);
+    cmXmlNodeUInt(np,&meas->beats,    "time","beats",NULL);
+    cmXmlNodeUInt(np,&meas->beat_type,"time","beat-type",NULL);
+  }
+  
   // store the bar line
-  if((rc = _cmXScorePushNonNote(p,meas,tick,0,0,kBarXsFl)) != kOkXsRC )
+  if((rc = _cmXScorePushNonNote(p,meas,tick,0,0,NULL,kBarXsFl)) != kOkXsRC )
     return rc;
 
   
@@ -595,6 +605,8 @@ cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn )
     goto errLabel;
   }
 
+  //cmXmlPrint(p->xmlH,&ctx->rpt);  
+
   // parse the part-list
   if((rc = _cmXScoreParsePartList( p )) != kOkXsRC )
     goto errLabel;
@@ -606,7 +618,11 @@ cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn )
       goto errLabel;
 
   // fill in the note->slink chain to link the notes in each measure in time order
-  _cmXScoreSort(p); 
+  _cmXScoreSort(p);
+
+  // CSV output initialize failed.
+  if( cmCsvInitialize(&p->csvH,ctx) != kOkCsvRC )
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV output object create failed.");
   
  errLabel:
   if( rc != kOkXsRC )
@@ -655,17 +671,326 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
   cmRptPrintf(rpt,"      %5i %5i %2i %3s %s%s%s%s%s%s%s%s%s",note->tick,note->duration,note->rvalue,N,B,R,G,D,C,e,d,t,P);
 
   if( cmIsFlag(note->flags,kSectionXsFl) )
-    cmRptPrintf(rpt," %i",note->rvalue);
+    cmRptPrintf(rpt," %i",cmStringNullGuard(note->tvalue));
 
   printf("\n");
   
 }
 
+/*
+  kMidiFileIdColScIdx= 0,  
+  kTypeLabelColScIdx = 3,
+  kDSecsColScIdx     = 4,
+  kSecsColScIdx      = 5,
+  kD0ColScIdx        = 9,
+  kD1ColScIdx        = 10,
+  kPitchColScIdx     = 11,
+  kBarColScIdx       = 13,
+  kSkipColScIdx      = 14,
+  kEvenColScIdx      = 15,
+  kGraceColScIdx     = 16,
+  kTempoColScIdx     = 17,
+  kFracColScIdx      = 18,
+  kDynColScIdx       = 19,
+  kSectionColScIdx   = 20,
+  kRecdPlayColScIdx  = 21,
+  kRemarkColScIdx    = 22
+ */
+
+
+cmXsRC_t _cmXScoreWriteCsvHdr( cmXScore_t* p )
+{
+  const cmChar_t* s[] =
+  {
+    "id","trk","evt","opcode","dticks","micros","status",
+    "meta","ch","d0","d1","arg0","arg1","bar","skip",
+    "even","grace","tempo","t frac","dyn","section","play_recd","remark",NULL
+  };
+
+  cmCsvCell_t* lcp = NULL;
+  
+  if(  cmCsvAppendRow( p->csvH, &lcp, cmCsvInsertSymText(p->csvH,s[0]), 0, 0 ) != kOkCsvRC )
+    return cmErrMsg(&p->err,kCsvFailXsRC,"CSV append row failed.");
+  
+  unsigned i;
+  for(i=1; s[i]!=NULL; ++i)
+  {
+    if( cmCsvInsertTextColAfter(p->csvH, lcp, &lcp, s[i], 0 ) != kOkCsvRC )
+      return cmErrMsg(&p->err,kCsvFailXsRC,"CSV error inserting CSV title %i.\n",i);
+
+  }
+
+  return kOkXsRC;
+}
+
+cmXsRC_t _cmXScoreWriteCsvBlankCols( cmXScore_t* p, unsigned cnt, cmCsvCell_t** leftCellPtrPtr )
+{
+  unsigned i;
+  for(i=0; i<cnt; ++i)
+    if( cmCsvInsertTextColAfter(p->csvH,*leftCellPtrPtr,leftCellPtrPtr,0,0) != kOkCsvRC )
+      return cmErrMsg(&p->err,kCsvFailXsRC,"CSV output failed on blank column.");
+
+  return kOkCsvRC;    
+}
+
+cmXsRC_t _cmXScoreWriteCsvRow(
+  cmXScore_t*     p,
+  unsigned        rowIdx,
+  unsigned        bar,
+  const cmChar_t* sectionStr,
+  const cmChar_t* opCodeStr,
+  double          dsecs,
+  double          secs,
+  unsigned        d0,
+  unsigned        d1,
+  unsigned        pitch,
+  double          frac,
+  unsigned        flags )
+{
+  cmXsRC_t     rc  = kOkXsRC;
+  cmCsvCell_t* lcp = NULL;
+
+  // append an empty row to the CSV object
+  if(  cmCsvAppendRow( p->csvH, &lcp, cmCsvInsertSymUInt(p->csvH, rowIdx ), 0, 0 ) != kOkCsvRC )
+  {
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV append row failed.");
+    goto errLabel;
+  }
+
+  /*
+  // col 0 : blanks
+  if( cmCsvInsertUIntColAfter(p->csvH, lcp, &lcp, rowIdx,    0 ) != kOkCsvRC )
+  {
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV output row index failed.");
+    goto errLabel;
+  }
+  */
+  
+  // cols 1,2
+  if((rc = _cmXScoreWriteCsvBlankCols(p,2,&lcp)) != kOkXsRC )
+    goto errLabel;
+
+  // col 3 : output the opcode
+  if( cmCsvInsertTextColAfter(p->csvH,lcp,&lcp,opCodeStr,0) != kOkCsvRC )
+  {
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on opcode label.");
+    goto errLabel;
+  }
+
+  // col 4 : dsecs
+  if( cmCsvInsertDoubleColAfter(p->csvH,lcp,&lcp,dsecs,0) != kOkCsvRC )
+  {
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on 'dsecs'.");
+    goto errLabel;
+  }
+
+  // col 5 : secs
+  if( cmCsvInsertDoubleColAfter(p->csvH,lcp,&lcp,secs,0) != kOkCsvRC )
+  {
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on 'secs'.");
+    goto errLabel;
+  }
+  
+  // cols 6,7,8 blanks
+  if((rc = _cmXScoreWriteCsvBlankCols(p,3,&lcp)) != kOkXsRC )
+    goto errLabel;
+
+  // col 9 : d0
+  if( cmCsvInsertUIntColAfter(p->csvH,lcp,&lcp,d0,0) != kOkCsvRC )
+  {
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on 'd0'.");
+    goto errLabel;
+  }
+
+  // col 10 : d1
+  if( cmCsvInsertUIntColAfter(p->csvH,lcp,&lcp,d1,0) != kOkCsvRC )
+  {
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on 'd1'.");
+    goto errLabel;
+  }
+
+  // col 11 : pitch
+  if( cmCsvInsertUIntColAfter(p->csvH,lcp,&lcp,pitch,0) != kOkCsvRC )
+  {
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on 'pitch'.");
+    goto errLabel;
+  }
+  
+  // col 12 : blanks
+  if((rc = _cmXScoreWriteCsvBlankCols(p,1 + (cmIsFlag(flags,kBarXsFl) ? 0 : 1), &lcp)) != kOkXsRC )
+    goto errLabel;
+
+  // col 13 : bar number
+  if( cmIsFlag(flags,kBarXsFl) )
+  {
+    if( cmCsvInsertUIntColAfter(p->csvH,lcp,&lcp,bar,0) != kOkCsvRC )
+    {
+      rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on 'pitch'.");
+      goto errLabel;
+    }
+  }
+
+  // col 14 : skip (blank for now)
+  if((rc = _cmXScoreWriteCsvBlankCols(p,1,&lcp)) != kOkXsRC )
+    goto errLabel;
+
+  // col 15: even
+  if( cmCsvInsertTextColAfter(p->csvH,lcp,&lcp,cmIsFlag(flags,kEvenXsFl) ? "e" : "",0) != kOkCsvRC )
+  {
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on eveness flag label.");
+    goto errLabel;
+  }
+
+  // col 16: grace
+  if( cmCsvInsertTextColAfter(p->csvH,lcp,&lcp,cmIsFlag(flags,kGraceXsFl) ? "g" : "",0) != kOkCsvRC )
+  {
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on eveness flag label.");
+    goto errLabel;
+  }
+  
+  // col 17: tempo
+  if( cmCsvInsertTextColAfter(p->csvH,lcp,&lcp,cmIsFlag(flags,kTempoXsFl) ? "t" : "",0) != kOkCsvRC )
+  {
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on eveness flag label.");
+    goto errLabel;
+  }
+  
+  // col 18: frac
+  if( frac == 0 )
+  {
+    if((rc = _cmXScoreWriteCsvBlankCols(p,1,&lcp)) != kOkXsRC )
+      goto errLabel;
+  }
+  else
+  {
+    if( cmCsvInsertDoubleColAfter(p->csvH,lcp,&lcp,1.0/frac,0) != kOkCsvRC )
+    {
+      rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on 't frac'.");
+      goto errLabel;
+    }
+  }
+  
+  // col 19: dynamic marking (blank for now)
+  if((rc = _cmXScoreWriteCsvBlankCols(p,1,&lcp)) != kOkXsRC )
+    goto errLabel;
+  
+  // col 20: section
+  if( cmCsvInsertTextColAfter(p->csvH,lcp,&lcp,cmIsFlag(flags,kSectionXsFl) ? sectionStr : "",0) != kOkCsvRC )
+  {
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on eveness flag label.");
+    goto errLabel;
+  }
+  
+
+  // col 21, 22 : recd-play, remark (blank for now)
+  if((rc = _cmXScoreWriteCsvBlankCols(p,2,&lcp)) != kOkXsRC )
+    goto errLabel;
+  
+ errLabel:
+  return rc;
+  
+}
+
+cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
+{
+  cmXsRC_t        rc           = kOkXsRC;
+  cmXScore_t*     p            = _cmXScoreHandleToPtr(h);
+  unsigned        rowIdx       = 1;
+  double          tpqn         = 0; // ticks per quarter note
+  double          tps          = 0; // ticks per second
+  double          sec          = 0; // current time in seconds
+  const cmChar_t* sectionIdStr = NULL;
+        
+  
+  if( !cmCsvIsValid(p->csvH) )
+    return cmErrMsg(&p->err,kCsvFailXsRC,"The CSV output object is not initialized.");
+
+  if((rc = _cmXScoreWriteCsvHdr( p )) != kOkXsRC )
+    goto errLabel;
+  
+  cmXsPart_t* pp = p->partL;
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp = pp->measL;
+    for(; mp!=NULL; mp=mp->link)
+    {
+      if( mp->divisions != 0 )
+        tpqn = mp->divisions;
+      
+      cmXsNote_t* np = mp->noteL;
+      
+      double sec0 = sec;
+      
+      for(; np!=NULL; np=np->slink)
+      {
+
+        //  
+        if( cmIsFlag(np->flags,kMetronomeXsFl) )
+        {
+          double bpm = np->duration;
+          double bps = bpm / 60.0;
+          tps = bps * tpqn;
+        }
+
+        double meas_sec = tps == 0 ? 0 : np->tick / tps;
+        double sec1     = sec  + meas_sec;
+        double dsecs    = sec1 - sec0;
+        sec0            = sec1;
+
+        // if this is a section event
+        if( cmIsFlag(np->flags,kSectionXsFl) )
+          sectionIdStr = np->tvalue;
+        
+        // if this is a bar event
+        if( cmIsFlag(np->flags,kBarXsFl) )
+        {
+          _cmXScoreWriteCsvRow(p,rowIdx,mp->number,NULL,"bar",dsecs,sec1,0,0,0,0,np->flags);
+        }
+        else
+          
+        // if this is a pedal event
+        if( cmIsFlag(np->flags,kPedalDnXsFl|kPedalUpXsFl|kPedalUpDnXsFl) )
+        {
+          unsigned d0 = 64; // pedal MIDI ctl id
+          unsigned d1 = cmIsFlag(np->flags,kPedalDnXsFl) ? 64 : 0; // pedal-dn: d1>=64 pedal-up:<64
+          _cmXScoreWriteCsvRow(p,rowIdx,mp->number,NULL,"ctl",dsecs,sec1,d0,d1,0,0,np->flags);
+        }
+        else 
+
+
+          // if this is a sounding note event
+          if( cmIsNotFlag(np->flags,kRestXsFl) )
+          {
+            double frac = np->rvalue + (cmIsFlag(np->flags,kDotXsFl) ? (np->rvalue/2) : 0);
+        
+            // 
+            _cmXScoreWriteCsvRow(p,rowIdx,mp->number,sectionIdStr,"non",dsecs,sec1,0,0,np->pitch,frac,np->flags);
+            sectionIdStr = NULL;
+          }
+        
+        rowIdx += 1;
+        
+
+      }
+
+      sec = sec0;
+    }
+    
+  }
+
+  if( cmCsvWrite( p->csvH, csvFn ) != kOkCsvRC )
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"The CSV output write failed on file '%s'.",csvFn);
+
+ errLabel:
+  return rc;
+}
+
+
 void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
 {
-  cmXScore_t* p = _cmXScoreHandleToPtr(h);
-
+  cmXScore_t* p  = _cmXScoreHandleToPtr(h);
   cmXsPart_t* pp = p->partL;
+  
   for(; pp!=NULL; pp=pp->link)
   {
     cmRptPrintf(rpt,"Part:%s\n",pp->idStr);
@@ -708,6 +1033,7 @@ cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
   if((rc = cmXScoreInitialize( ctx, &h, fn)) != kOkXsRC )
     return cmErrMsg(&ctx->err,rc,"XScore alloc failed.");
 
+  cmXScoreWriteCsv(h,"/home/kevin/temp/a0.csv");
   cmXScoreReport(h,&ctx->rpt,true);
   
   return cmXScoreFinalize(&h);

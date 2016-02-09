@@ -10,7 +10,8 @@ extern "C" {
     kOkXsRC = cmOkRC,
     kXmlFailXsRC,
     kLHeapFailXsRC,
-    kSyntaxErrorXsRC
+    kSyntaxErrorXsRC,
+    kCsvFailXsRC
   };
 
   typedef cmRC_t     cmXsRC_t;
@@ -28,11 +29,18 @@ extern "C" {
   //
   // 3) How to assigned dynamic markings.
   // 4) Tempo syntax is inconsistent.
-
+  // 5) Heel is not being recognized
+  // 6) Sostenuto pedal events are not being parsed.
+  // 7) What is a 'pedal-change' event vs. a 'pedal-stop' event.
+  // 8) Verify the colors.
+  // 9) Remove blank bars at end.
+ 
   cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn );
   cmXsRC_t cmXScoreFinalize( cmXsH_t* hp );
 
   bool     cmXScoreIsValid( cmXsH_t h );
+
+  cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn );
 
   void     cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl );
 
