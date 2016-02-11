@@ -28,10 +28,11 @@ enum
   kDynXsFl       = 0x0040,
   kEvenXsFl      = 0x0080,
   kTempoXsFl     = 0x0100,
-  kPedalDnXsFl   = 0x0200,
-  kPedalUpXsFl   = 0x0400,
-  kPedalUpDnXsFl = 0x0800,
-  kMetronomeXsFl = 0x1000  // duration holds BPM 
+  kHeelXsFl      = 0x0200,
+  kPedalDnXsFl   = 0x0400,
+  kPedalUpXsFl   = 0x0800,
+  kPedalUpDnXsFl = 0x1000,
+  kMetronomeXsFl = 0x2000  // duration holds BPM 
 };
 
 
@@ -41,7 +42,7 @@ typedef struct cmXsNote_str
   unsigned             pitch;    // midi pitch
   unsigned             tick;     // 
   unsigned             duration; // duration in ticks
-  unsigned             rvalue;   // 1/type = rythmic value (1/4=quarter note, 1/8=eighth note, ...)
+  double               rvalue;   // 1/rvalue = rythmic value (1/0.5 double whole 1/1 whole 1/2 half 1/4=quarter note, 1/8=eighth note, ...)
   const cmChar_t*      tvalue;   // text value
   struct cmXsNote_str* mlink;    // measure note list 
   struct cmXsNote_str* slink;    // time sorted event list
@@ -233,46 +234,57 @@ cmXsRC_t  _cmXScoreParsePitch( cmXScore_t* p, const cmXmlNode_t* nnp, unsigned* 
   return rc;  
 }
 
-unsigned _cmXScoreParseNoteRValue( cmXScore_t* p, const cmXmlNode_t* nnp, const cmChar_t* label )
+cmXsRC_t  _cmXScoreParseNoteRValue( cmXScore_t* p, const cmXmlNode_t* nnp, const cmChar_t* label, double* rvalueRef )
 {
   typedef struct map_str
   {
-    unsigned        rvalue;
+    double         rvalue;
     const cmChar_t* label;
   } map_t;
 
   map_t mapV[] =
   {
-    {  -1, "measure" },  // whole measure rest
-    {   1, "whole"   },
-    {   2, "half"    },
-    {   4, "quarter" },
-    {   8, "eighth"  },
-    {  16, "16th"    },
-    {  32, "32nd"    },
-    {  64, "64th"    },
-    { 128, "128th"   },
-    {   0, ""        }
+    {-1.0, "measure" },  // whole measure rest
+    { 0.5, "breve"   },  // double whole
+    { 1.0, "whole"   },
+    { 2.0, "half"    },
+    { 4.0, "quarter" },
+    { 8.0, "eighth"  },
+    {16.0, "16th"    },
+    {32.0, "32nd"    },
+   { 64.0, "64th"    },
+   {128.0, "128th"   },
+   {  0.0, ""        }
   };
 
   const cmChar_t* str;
+  // get the XML rvalue label
   if((str = cmXmlNodeValue(nnp,label,NULL)) == NULL)
   {
     if((nnp = cmXmlSearch(nnp,"rest",NULL,0)) != NULL )
     {
       const cmXmlAttr_t* a;
       if((a = cmXmlFindAttrib(nnp,"measure")) != NULL && cmTextCmp(a->value,"yes")==0)
-        return -1;
+      {
+        *rvalueRef = -1;
+        return kOkXsRC;
+      }
     }
-    return 0;
+
+    return cmErrMsg(&p->err,kSyntaxErrorXsRC,"The 'beat-unit' metronome value is missing on line %i.",nnp->line);
   }
   
   unsigned i;
+  // lookup the rvalue numeric value from the mapV[] table
   for(i=0; mapV[i].rvalue!=0; ++i)
     if( cmTextCmp(mapV[i].label,str) == 0 )
-      return mapV[i].rvalue;
+    {
+      *rvalueRef = mapV[i].rvalue;
+      return kOkXsRC;
+    }
   
-  return 0;
+  // the rvalue label was not found
+  return cmErrMsg(&p->err,kSyntaxErrorXsRC,"Unknown rvalue type='%s'.",str);
 }
 
 cmXsRC_t  _cmXScoreParseColor( cmXScore_t* p, const cmXmlNode_t* nnp, cmXsNote_t* note )
@@ -288,28 +300,51 @@ cmXsRC_t  _cmXScoreParseColor( cmXScore_t* p, const cmXmlNode_t* nnp, cmXsNote_t
 
   map_t mapV[] =
   {
-    { kEvenXsFl,                         "#0000FF" },
-    { kTempoXsFl,                        "#00FF00" },
-    { kDynXsFl,                          "#FF0000" },
-    { kTempoXsFl | kEvenXsFl,            "#00FFFF" },
-    { kDynXsFl   | kEvenXsFl,            "#FF00FF" },    
-    { kDynXsFl   | kTempoXsFl,           "#FF7F00" },
-    { kTempoXsFl | kEvenXsFl | kDynXsFl, "#996633" },
-    { 0, "" }
+    { kEvenXsFl,                         "#0000FF" },  // blue (even)
+    { kTempoXsFl,                        "#00FF00" },  // green (tempo)
+    { kDynXsFl,                          "#FF0000" },  // red   (dynamics)
+    { kTempoXsFl | kEvenXsFl,            "#00FFFF" },  // green + blue (turquoise)
+    { kDynXsFl   | kEvenXsFl,            "#FF00FF" },  // red   + blue  
+    { kDynXsFl   | kEvenXsFl,            "#FF0CF7" },  // magenta (even+dyn)
+    { kDynXsFl   | kTempoXsFl,           "#FF7F00" },  // red   + green (brown)
+    { kTempoXsFl | kEvenXsFl | kDynXsFl, "#996633" },  // (purple)
+    { kDynXsFl,                          "#FF6A03" },  //   176 orange  (dynamics)
+    { kEvenXsFl,                         "#2F00E8" },  //  1001 blue (even)    
+    { kTempoXsFl,                        "#01CD1F" },  //  1196 green   (tempo)
+    { kEvenXsFl,                         "#3600E8" },  //  1627 blue (even)
+    { kDynXsFl | kTempoXsFl,             "#9E8F15" },  //  8827 brown (dyn + tempo)
+    { kEvenXsFl,                         "#2E00E6" },  //  5393 blue (even)
+    { kEvenXsFl,                         "#2C00DD" },  //  5895 blue (even)
+    { kDynXsFl,                          "#FF5B03" },  //  6498 orange (dyn)
+    { kDynXsFl,                          "#FF6104" },  //  6896 orange
+    { kEvenXsFl,                         "#2A00E6" },  //  7781 blue
+    { kEvenXsFl,                         "#2300DD" },  //  8300 blue (even)    
+    { kTempoXsFl,                        "#03CD22" },  // 10820 green (tempo)
+    { kEvenXsFl,                         "#3400DB" },  // 11627 blue (dyn)
+    { -1, "" }
   };
+
+  /*
+    orange  #FF6A03
+    magenta #FF0CF7
+    blue    #2F00E8
+    green   #01CD1F
+    gold    #9E8F15
+    green   #03CD22
+   */
   
   if((a = cmXmlFindAttrib(nnp, "color" )) != NULL )
   {
     unsigned i;
-    for(i=0; mapV[i].value != 0; ++i)
+    for(i=0; mapV[i].value != -1; ++i)
       if( cmTextCmp(a->value,mapV[i].label) == 0 )
       {
         note->flags += mapV[i].value;
         break;
       }
 
-    if( mapV[i].value == 0 )
-      rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"The note color '%s' was not found.",a->value);
+    if( mapV[i].value == -1 )
+      cmErrMsg(&p->err,kSyntaxErrorXsRC,"The note color '%s' was not found on line %i.",a->value,nnp->line);
   }
 
   return rc;
@@ -349,13 +384,17 @@ cmXsRC_t _cmXScoreParseNote(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* 
   if( cmXmlNodeHasChild(nnp,"chord",NULL) )
     note->flags |= kChordXsFl;
 
+  // has 'heel' mark
+  if( cmXmlNodeHasChild(nnp,"notations","technical","heel",NULL) )
+    note->flags |= kHeelXsFl;
+  
   // set color coded flags
   if((rc = _cmXScoreParseColor(p, nnp, note )) != kOkXsRC )
     return rc;
   
   // get the note's rythmic value
-  if((note->rvalue =  _cmXScoreParseNoteRValue(p,nnp,"type")) == 0 )
-    return _cmXScoreMissingNode(p,nnp,"type");
+  if((rc =  _cmXScoreParseNoteRValue(p,nnp,"type",&note->rvalue)) != kOkXsRC )
+    return rc;
 
   note->tick = *tickRef;
 
@@ -365,7 +404,7 @@ cmXsRC_t _cmXScoreParseNote(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* 
   return _cmXScorePushNote(p, meas, voiceId, note );
 }
 
-cmXsRC_t _cmXScorePushNonNote( cmXScore_t* p, cmXsMeas_t* meas, unsigned tick, unsigned duration, unsigned rvalue, const cmChar_t* tvalue, unsigned flags )
+cmXsRC_t _cmXScorePushNonNote( cmXScore_t* p, cmXsMeas_t* meas, unsigned tick, unsigned duration, double rvalue, const cmChar_t* tvalue, unsigned flags )
 {
   cmXsNote_t* note    = cmLhAllocZ(p->lhH,cmXsNote_t,1);
   unsigned    voiceId = 0;    // non-note's are always assigned to voiceId=0;
@@ -381,18 +420,17 @@ cmXsRC_t _cmXScorePushNonNote( cmXScore_t* p, cmXsMeas_t* meas, unsigned tick, u
 
 cmXsRC_t  _cmXScoreParseDirection(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* dnp, unsigned tick)
 {
-  const cmXmlNode_t* np = NULL;
-  const cmXmlAttr_t* a = NULL;
+  cmXsRC_t           rc       = kOkXsRC;
+  const cmXmlNode_t* np       = NULL;
+  const cmXmlAttr_t* a        = NULL;
   unsigned           flags    = 0;
   int                offset   = 0;
-  unsigned           rvalue   = 0;
+  double             rvalue   = 0;
   const cmChar_t*    tvalue   = NULL;
   unsigned           duration = 0;
 
-  
   cmXmlNodeInt(dnp, &offset, "offset", NULL );
    
- 
   // if this is a metronome direction
   if((np = cmXmlSearch( dnp, "metronome", NULL, 0)) != NULL )
   {
@@ -400,9 +438,9 @@ cmXsRC_t  _cmXScoreParseDirection(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNo
     if( cmXmlNodeUInt(np,&duration,"per-minute",NULL) != kOkXmlRC )
       return cmErrMsg(&p->err,kSyntaxErrorXsRC,"The 'per-minute' metronome value is missing on line %i.",np->line);
 
-    if((rvalue = _cmXScoreParseNoteRValue(p,np,"beat-unit")) == 0 )
-      return cmErrMsg(&p->err,kSyntaxErrorXsRC,"The 'beat-unit' metronome value is missing on line %i.",np->line);
-
+    if((rc = _cmXScoreParseNoteRValue(p,np,"beat-unit",&rvalue)) != kOkXsRC )
+      return rc;
+    
     flags = kMetronomeXsFl;
   }
   else
@@ -668,7 +706,7 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
   P = cmIsFlag(note->flags,kPedalUpXsFl)   ? "^" : P;
   P = cmIsFlag(note->flags,kPedalUpDnXsFl) ? "X" : P;
   const cmChar_t* N = note->pitch==0 ? " " : cmMidiToSciPitch( note->pitch, NULL, 0 );
-  cmRptPrintf(rpt,"      %5i %5i %2i %3s %s%s%s%s%s%s%s%s%s",note->tick,note->duration,note->rvalue,N,B,R,G,D,C,e,d,t,P);
+  cmRptPrintf(rpt,"      %5i %5i %4.1f %3s %s%s%s%s%s%s%s%s%s",note->tick,note->duration,note->rvalue,N,B,R,G,D,C,e,d,t,P);
 
   if( cmIsFlag(note->flags,kSectionXsFl) )
     cmRptPrintf(rpt," %i",cmStringNullGuard(note->tvalue));
@@ -1033,7 +1071,7 @@ cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
   if((rc = cmXScoreInitialize( ctx, &h, fn)) != kOkXsRC )
     return cmErrMsg(&ctx->err,rc,"XScore alloc failed.");
 
-  cmXScoreWriteCsv(h,"/home/kevin/temp/a0.csv");
+  cmXScoreWriteCsv(h,"/Users/kevin/temp/a0.csv");
   cmXScoreReport(h,&ctx->rpt,true);
   
   return cmXScoreFinalize(&h);

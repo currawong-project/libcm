@@ -27,13 +27,15 @@ extern "C" {
   //
   // 2) Replace "DoletSibelius Unknown Symbol Index" with "DoletSibelius unknownSymIdx"
   //
-  // 3) How to assigned dynamic markings.
-  // 4) Tempo syntax is inconsistent.
-  // 5) Heel is not being recognized
-  // 6) Sostenuto pedal events are not being parsed.
+  // 3) How to assigned dynamic markings (they are not attached to notes). (from MIDI file?)
+  // 4) Tempo syntax is inconsistent (only a problem in full part2 score)     
+  // 5) Heel is being parsed but not used. 
+  // 6) Sostenuto pedal events are not being parsed because they are not pedal events.
   // 7) What is a 'pedal-change' event vs. a 'pedal-stop' event.
   // 8) Verify the colors.
   // 9) Remove blank bars at end.
+  //10) Need to assign section targets (always default to next section)
+  //11) Mark tied notes for skip.
  
   cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn );
   cmXsRC_t cmXScoreFinalize( cmXsH_t* hp );
