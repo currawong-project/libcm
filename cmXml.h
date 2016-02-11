@@ -88,6 +88,17 @@ extern "C" {
   bool               cmXmlNodeHasChildV(const cmXmlNode_t* np, const cmChar_t* label, va_list vl );
   bool               cmXmlNodeHasChild( const cmXmlNode_t* np, const cmChar_t* label, ... );
 
+  // Last label in list is an attribute label.
+  // Terminate the list with NULL.
+  bool               cmXmlNodeHasChildWithAttrV( const cmXmlNode_t* np, const cmChar_t* label, va_list vl );
+  bool               cmXmlNodeHasChildWithAttr(  const cmXmlNode_t* np, const cmChar_t* label, ... );
+
+  // Last second to last label in the list is an attribute label.
+  // THe last label in the list is an attribute value.
+  // Terminate the list with NULL.
+  bool               cmXmlNodeHasChildWithAttrAndValueV( const cmXmlNode_t* np, const cmChar_t* label, va_list vl );
+  bool               cmXmlNodeHasChildWithAttrAndValue(  const cmXmlNode_t* np, const cmChar_t* label, ... );
+  
   
   cmXmlRC_t cmXmlTest( cmCtx_t* ctx, const cmChar_t* fn );
   
