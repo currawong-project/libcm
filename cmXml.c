@@ -1063,7 +1063,7 @@ bool    cmXmlNodeHasChild( const cmXmlNode_t* np, const cmChar_t* label, ... )
 bool    _cmXmlNodeHasChildWithAttrAndValueV( const cmXmlNode_t* np, const cmChar_t* label, va_list vl0, bool valueFl )
 {
   unsigned argN = _cmXmlLabelCount(label,vl0);
-  unsigned    n = valueFl ? 2 : 1;
+  unsigned    n = valueFl ? 2 : 1;  
   va_list vl1;
   unsigned i;
   
@@ -1072,15 +1072,17 @@ bool    _cmXmlNodeHasChildWithAttrAndValueV( const cmXmlNode_t* np, const cmChar
   if( argN <= n-1 )
     return false;
 
+  argN -= n;
+
   va_copy(vl1,vl0);
-  np = _cmXmlNodeHasChildV(np,label,vl1,argN-1);
+  np = _cmXmlNodeHasChildV(np,label,vl1,argN);
   va_end(vl1);
 
   if( np == NULL )
     return false;
-
+  
   // advance vl0 to the attribute label
-  for(i=0; i<argN-1; ++i)
+  for(i=1; i<argN; ++i)
   {
     label = va_arg(vl0,const cmChar_t*);
     assert( label != NULL );
