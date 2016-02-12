@@ -11,7 +11,9 @@ extern "C" {
     kXmlFailXsRC,
     kLHeapFailXsRC,
     kSyntaxErrorXsRC,
-    kCsvFailXsRC
+    kCsvFailXsRC,
+    kUnterminatedTieXsRC,
+    kUnterminatedSlurXsRC
   };
 
   typedef cmRC_t     cmXsRC_t;
@@ -24,6 +26,7 @@ extern "C" {
   // 1) Convert XML to UTF-8:
   //       a. Change: encoding='UTF-16' to encoding='UTF-8'
   //       b. Emacs C-x <RET> f utf-8 <RET>
+  //       c. Change: <?xml ... encoding='UTF-16' to encoding='UTF-8' ...?>
   //
   // 2) Replace "DoletSibelius Unknown Symbol Index" with "DoletSibelius unknownSymIdx"
   //
@@ -32,10 +35,12 @@ extern "C" {
   // 5) Heel is being parsed but not used. 
   // 6) Sostenuto pedal events are not being parsed because they are not pedal events.
   // 7) What is a 'pedal-change' event vs. a 'pedal-stop' event.
-  // 8) Verify the colors.
-  // 9) Remove blank bars at end.
+  // 8) Verify the colors. (done)
+  // 9) Remove blank bars at end (done in xml - do in score)
   //10) Need to assign section targets (always default to next section)
-  //11) Mark tied notes for skip.
+  //11) Mark tied notes for skip. (done)
+  //12) Determine note off locations based on ties and slurs - defer 'pedal' to player
+  
  
   cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn );
   cmXsRC_t cmXScoreFinalize( cmXsH_t* hp );
