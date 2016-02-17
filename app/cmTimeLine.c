@@ -720,7 +720,7 @@ cmTlRC_t _cmTlAllocMidiFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
   fn = cmFsMakeFn( p->prefixPath, fn, NULL, NULL );
 
   // open the midi file
-  if( cmMidiFileOpen(fn, &mfH, &p->ctx ) != kOkMfRC )
+  if( cmMidiFileOpen(&p->ctx, &mfH, fn ) != kOkMfRC )
     return cmErrMsg(&p->err,kMidiFileFailTlRC,"The time line midi file '%s' could not be opened.",cmStringNullGuard(fn));
 
   // force the first msg to occurr one quarter note into the file

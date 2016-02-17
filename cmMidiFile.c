@@ -445,7 +445,7 @@ cmMfRC_t _cmMidiFileClose( _cmMidiFile_t* mfp )
 }
 
 
-cmMfRC_t cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx )
+cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
 {
   cmMfRC_t       rc     = kOkMfRC;
   _cmMidiFile_t* mfp    = NULL;
@@ -1445,7 +1445,7 @@ void cmMidiFilePrintControlNumbers( cmCtx_t* ctx, const char* fn )
   cmMidiFileH_t h = cmMidiFileNullHandle;
   cmMfRC_t rc;
 
-  if((rc = cmMidiFileOpen(fn, &h, ctx )) != kOkMfRC )
+  if((rc = cmMidiFileOpen(ctx, &h, fn )) != kOkMfRC )
   {
     cmErrMsg(&ctx->err,rc,"MIDI file open failed on '%s'.",fn);
     goto errLabel;
@@ -1475,7 +1475,7 @@ void cmMidiFileTest( const char* fn, cmCtx_t* ctx )
   cmMfRC_t      rc;
   cmMidiFileH_t h = cmMidiFileNullHandle;
 
-  if((rc = cmMidiFileOpen(fn,&h,ctx)) != kOkMfRC )
+  if((rc = cmMidiFileOpen(ctx,&h,fn)) != kOkMfRC )
   {
     printf("Error:%i Unable to open the cmMidi file: %s\n",rc,fn);
     return;

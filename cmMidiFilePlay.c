@@ -107,7 +107,7 @@ cmMfpRC_t cmMfpLoadFile(   cmMfpH_t h, const char* fn )
   cmMfp_t*      p    = _cmMfpHandleToPtr(h);
   cmMidiFileH_t mfH  = cmMidiFileNullHandle;
 
-  if((rc = cmMidiFileOpen( fn, &mfH, &p->ctx )) != kOkMfRC )
+  if((rc = cmMidiFileOpen( &p->ctx, &mfH, fn  )) != kOkMfRC )
     return _cmMfpError(p,kFileOpenFailMfpRC);
 
   if((rc= cmMfpLoadHandle( h, mfH )) == kOkMfpRC )

@@ -106,7 +106,7 @@ extern "C" {
 
   extern cmMidiFileH_t cmMidiFileNullHandle;
 
-  cmMfRC_t              cmMidiFileOpen( const char* fn, cmMidiFileH_t* hPtr, cmCtx_t* ctx );
+  cmMfRC_t              cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn );
   cmMfRC_t              cmMidiFileClose( cmMidiFileH_t* hp );
 
   cmMfRC_t              cmMidiFileWrite( cmMidiFileH_t h, const char* fn );

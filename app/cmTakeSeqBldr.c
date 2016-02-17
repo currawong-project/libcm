@@ -949,7 +949,7 @@ cmTsbRC_t cmTakeSeqBldrLoadTake( cmTakeSeqBldrH_t h, unsigned tlMarkUid, bool ov
   }
 
   // open the MIDI file
-  if( cmMidiFileOpen( cmMidiFileName(mf->h), &mfH, &p->ctx ) != kOkMfRC )
+  if( cmMidiFileOpen( &p->ctx, &mfH, cmMidiFileName(mf->h) ) != kOkMfRC )
   {
     rc = cmErrMsg(&p->err,kInvalidArgTsbRC,"The MIDI file '%s' could not be opened.", cmStringNullGuard(cmMidiFileName(mf->h)));
     goto errLabel;

@@ -773,7 +773,7 @@ cmDspRC_t _cmDspMidiFilePlayOpen(cmDspCtx_t* ctx, cmDspInst_t* inst )
   if( fn==NULL || strlen(fn)==0 )
     return rc;
 
-  if( cmMidiFileOpen( fn, &p->mfH, ctx->cmCtx ) != kOkFileRC )
+  if( cmMidiFileOpen( ctx->cmCtx, &p->mfH, fn ) != kOkFileRC )
     rc = cmErrMsg(&inst->classPtr->err, kInstResetFailDspRC, "MIDI file open failed.");
   else
   {

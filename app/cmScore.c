@@ -2424,7 +2424,7 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
   
   cmErrSetup(&err,&ctx->rpt,"MIDI to Score");
 
-  if( cmMidiFileOpen(midiFn, &mfH, ctx ) != kOkMfRC )
+  if( cmMidiFileOpen(ctx, &mfH, midiFn ) != kOkMfRC )
     return cmErrMsg(&err,kMidiFileFailScRC,"Unable to open the MIDI file '%s'.",midiFn);
 
   if( cmCsvInitialize(&csvH,ctx) != kOkCsvRC )
@@ -2658,7 +2658,7 @@ void cmScoreFix( cmCtx_t* ctx )
   if( cmCsvParseFile(csvH, crfn, 0 ) != kOkCsvRC )
     goto errLabel;
 
-  if( cmMidiFileOpen(mfn,&mfH,ctx) != kOkMfRC )
+  if( cmMidiFileOpen(ctx,&mfH,mfn) != kOkMfRC )
     goto errLabel;
 
   mn = cmMidiFileMsgCount(mfH);
