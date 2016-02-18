@@ -40,6 +40,7 @@ extern "C" {
   //10) Need to assign section targets (always default to next section)
   //11) Mark tied notes for skip. (done)
   //12) Determine note off locations based on ties and slurs - defer 'pedal' to player
+  //13) Check that the measures are given in sorted order.
   
  
   cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn );
@@ -48,6 +49,8 @@ extern "C" {
   bool     cmXScoreIsValid( cmXsH_t h );
 
   cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn );
+
+  cmXsRC_t cmXScoreWriteMidi( cmXsH_t h, const cmChar_t* fn );
 
   void     cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl );
 

@@ -19,22 +19,23 @@ cmXsH_t cmXsNullHandle = cmSTATIC_NULL_HANDLE;
 
 enum
 {
-  kSectionXsFl   = 0x0001,  // rvalue holds section number
-  kBarXsFl       = 0x0002,
-  kRestXsFl      = 0x0004,
-  kGraceXsFl     = 0x0008,
-  kDotXsFl       = 0x0010,
-  kChordXsFl     = 0x0020,
-  kDynXsFl       = 0x0040,
-  kEvenXsFl      = 0x0080,
-  kTempoXsFl     = 0x0100,
-  kHeelXsFl      = 0x0200,
-  kTieBegXsFl    = 0x0400,
-  kTieEndXsFl    = 0x0800,
-  kPedalDnXsFl   = 0x1000,
-  kPedalUpXsFl   = 0x2000,
-  kPedalUpDnXsFl = 0x4000,
-  kMetronomeXsFl = 0x8000  // duration holds BPM
+  kSectionXsFl   = 0x00001,  // rvalue holds section number
+  kBarXsFl       = 0x00002,
+  kRestXsFl      = 0x00004,
+  kGraceXsFl     = 0x00008,
+  kDotXsFl       = 0x00010,
+  kChordXsFl     = 0x00020,
+  kDynXsFl       = 0x00040,
+  kEvenXsFl      = 0x00080,
+  kTempoXsFl     = 0x00100,
+  kHeelXsFl      = 0x00200,
+  kTieBegXsFl    = 0x00400,
+  kTieEndXsFl    = 0x00800,
+  kTieProcXsFl   = 0x01000,
+  kPedalDnXsFl   = 0x02000,
+  kPedalUpXsFl   = 0x04000,
+  kPedalUpDnXsFl = 0x08000,
+  kMetronomeXsFl = 0x10000  // duration holds BPM
 };
 
 struct cmXsMeas_str;
@@ -42,20 +43,23 @@ struct cmXsVoice_str;
 
 typedef struct cmXsNote_str
 {
-  unsigned             flags;    // See k???XsFl 
-  unsigned             pitch;    // midi pitch
-  unsigned             tick;     // 
-  unsigned             duration; // duration in ticks
-  unsigned             pticks;   // play ticks (0 for non-sounding notes)
-  double               rvalue;   // 1/rvalue = rythmic value (1/0.5 double whole 1/1 whole 1/2 half 1/4=quarter note, 1/8=eighth note, ...)
-  const cmChar_t*      tvalue;   // text value
+  unsigned                    flags;    // See k???XsFl 
+  unsigned                    pitch;    // midi pitch
+  cmChar_t                    step;     // A-G
+  unsigned                    octave;   // sci pitch octave
+  int                         alter;    // +n=sharps,-n=flats
+  unsigned                    tick;     // 
+  unsigned                    duration; // duration in ticks
+  double                      rvalue;   // 1/rvalue = rythmic value (1/0.5 double whole 1/1 whole 1/2 half 1/4=quarter note, 1/8=eighth note, ...)
+  const cmChar_t*             tvalue;   // text value
 
   const struct cmXsVoice_str* voice;    // voice this note belongs to 
   const struct cmXsMeas_str*  meas;     // measure this note belongs to
-  const cmXmlNode_t*   xmlNode;  // note xml ptr
 
-  struct cmXsNote_str* mlink;    // measure note list 
-  struct cmXsNote_str* slink;    // time sorted event list
+  const cmXmlNode_t*          xmlNode;  // note xml ptr
+  
+  struct cmXsNote_str*        mlink;    // measure note list 
+  struct cmXsNote_str*        slink;    // time sorted event list
   
 } cmXsNote_t;
 
@@ -232,7 +236,7 @@ cmXsRC_t _cmXScoreParsePartList( cmXScore_t* p )
   return rc;
 }
 
-cmXsRC_t  _cmXScoreParsePitch( cmXScore_t* p, const cmXmlNode_t* nnp, unsigned* midiPitchRef )
+cmXsRC_t  _cmXScoreParsePitch( cmXScore_t* p, const cmXmlNode_t* nnp, cmXsNote_t* np )
 {
   cmXsRC_t        rc     = kOkXsRC;
   unsigned        octave = 0;
@@ -254,168 +258,13 @@ cmXsRC_t  _cmXScoreParsePitch( cmXScore_t* p, const cmXmlNode_t* nnp, unsigned* 
 
   midi         += alter;
 
-  *midiPitchRef = midi;
+  np->pitch = midi;
+  np->step  = *step;
+  np->octave = octave;
+  np->alter  = alter;
 
   return rc;  
 }
-
-cmXsConnect_t* _cmXScoreFindTie( const cmXScore_t* p, unsigned pitch )
-{
-  cmXsConnect_t* c = p->tieL;
-  for(; c!=NULL; c=c->link)
-  {
-    assert( c->note != NULL );
-    if( c->doneFl == false && c->note->pitch == pitch )
-      return c;
-  }
-  return NULL;
-}
-
-cmXsRC_t _cmXScoreNewTie( cmXScore_t* p, const cmXsNote_t* note )
-{
-  cmXsConnect_t* c;
-
-  // check that an open tie with the same pitch does not exist
-  if((c = _cmXScoreFindTie(p,note->pitch)) != NULL )
-  {
-    cmErrWarnMsg(&p->err,kUnterminatedTieXsRC,"The tie begun from note on line %i was not terminated. (pitch=%i)",c->note->xmlNode->line,c->note->pitch);
-    c->doneFl = true; // close the unterminated tie
-  }
-  
-  // allocate a new connection record
-  c  = cmLhAllocZ(p->lhH,cmXsConnect_t,1);
-
-  // set the first note in the connection
-  c->note = note;
-
-  // append the new record to the end of the tie list
-  if(p->tieL == NULL )
-    p->tieL = c;
-  else
-  {
-    cmXsConnect_t* cp = p->tieL;
-    while( cp->link != NULL )
-      cp = cp->link;
-    
-    cp->link = c;
-  }
-  
-  return kOkXsRC;
-}
-
-cmXsRC_t _cmXScoreContinueTie( cmXScore_t* p, const cmXsNote_t* note, unsigned measNumb )
-{
-  cmXsConnect_t* c;
-
-  // find an open tie with the same pitch
-  if((c = _cmXScoreFindTie(p,note->pitch)) == NULL )
-  {
-    cmErrWarnMsg(&p->err,kUnterminatedTieXsRC,"The tie ending on the note on line %i does not have an associated starting note. (pitch=%i)",note->xmlNode->line,note->pitch);
-    return kOkXsRC;
-  }
-  
-  // allocate a new connection record
-  cmXsConnect_t* nc  = cmLhAllocZ(p->lhH,cmXsConnect_t,1);
-  nc->note = note;
-
-  // add the note to the end of the tie list
-  if( c->nlink == NULL )
-    c->nlink = nc;
-  else
-  {
-    cmXsConnect_t* cp = c->nlink;
-    while( cp->nlink != NULL )
-      cp=cp->nlink;
-    cp->nlink = nc;      
-  }
-    
-  // if this is the last note in the tie ...
-  if( cmIsFlag(note->flags,kTieEndXsFl) && cmIsNotFlag(note->flags,kTieBegXsFl) )
-  {
-    c->doneFl = true;  // ... mark the tie list as complete ...
-    c->closeFl= true;  // ... and properly closed
-    printf("tie done: meas=%i line=%i pitch=%i\n",measNumb,note->xmlNode->line,note->pitch);
-  }
-  return kOkXsRC;
-}
-
-cmXsRC_t _cmXScoreProcessTie( cmXScore_t* p, const cmXmlNode_t* np, cmXsNote_t* note, unsigned measNumb )
-{
-  cmXsRC_t rc = kOkXsRC;
-  
-  // is this is first note in a tied pair
-  if( cmXmlNodeHasChildWithAttrAndValue(np,"tie","type","start",NULL) )
-    note->flags |= kTieBegXsFl;
-
-  // is this is second note in a tied pair
-  if( cmXmlNodeHasChildWithAttrAndValue(np,"tie","type","stop",NULL) )
-    note->flags |= kTieEndXsFl;
-
-  // if this is a tie start (and not a tie continue) 
-  if( cmIsFlag(note->flags,kTieBegXsFl) && cmIsNotFlag(note->flags,kTieEndXsFl) )
-    rc = _cmXScoreNewTie(p,note);
-  else
-    // if this is a tie continue or end
-    if( cmIsFlag(note->flags,kTieEndXsFl) )
-      rc = _cmXScoreContinueTie(p,note,measNumb); // this is a tie end or continue
-      
-  return rc;
-}
-
-const cmXsNote_t*  _cmXScoreResolveTie( const cmXsNote_t* note )
-{
-  const cmXsMeas_t* m = note->meas;
-  const cmXsNote_t* n = note->slink;
-
-  while( n!=NULL )
-  {    
-    for(; n!=NULL; n=n->slink)
-      if( note->pitch==n->pitch && note->voice==n->voice )
-        return n;
-
-    if( m->link == NULL )
-      break;
-
-    // got to next measure
-    if((m = m->link) == NULL )
-      break;
-    
-    n = m->noteL;
-  }
-
-  return NULL;
-}
-
-cmXsRC_t  _cmXScoreResolveTies( cmXScore_t* p )
-{
-  cmXsRC_t rc = kOkXsRC;
-  
-  cmXsPart_t* pp = p->partL;
-  for(; pp!=NULL; pp=pp->link)
-  {
-    cmXsMeas_t* mp = pp->measL;
-    for(; mp!=NULL; mp=mp->link)
-    {
-      cmXsNote_t* np = mp->noteL;
-      for(; np!=NULL; np=np->slink)
-        if( cmIsFlag(np->flags,kTieBegXsFl) )
-        {
-          const cmXsNote_t* tnp;
-          if((tnp = _cmXScoreResolveTie(np)) == NULL)
-          {
-            
-          }
-          else
-          {
-          }
-        }
-    }
-  }
-
-  return rc;
-}
-
-
 
 cmXsRC_t  _cmXScoreParseNoteRValue( cmXScore_t* p, const cmXmlNode_t* nnp, const cmChar_t* label, double* rvalueRef )
 {
@@ -533,7 +382,7 @@ cmXsRC_t  _cmXScoreParseColor( cmXScore_t* p, const cmXmlNode_t* nnp, cmXsNote_t
   return rc;
 }
 
-cmXsRC_t _cmXScoreParseNote(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* nnp, unsigned* tickRef )
+cmXsRC_t _cmXScoreParseNote(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* nnp, unsigned* tick0Ref, unsigned* tickRef )
 {
   cmXsRC_t    rc   = kOkXsRC;
   cmXsNote_t* note = cmLhAllocZ(p->lhH,cmXsNote_t,1);
@@ -548,7 +397,7 @@ cmXsRC_t _cmXScoreParseNote(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* 
 
   // if this note has a pitch
   if( cmXmlNodeHasChild(nnp,"pitch",NULL) )
-    if((rc = _cmXScoreParsePitch(p,nnp,&note->pitch)) != kOkXsRC )
+    if((rc = _cmXScoreParsePitch(p,nnp,note)) != kOkXsRC )
       return rc;
 
   // get the note duration
@@ -570,9 +419,13 @@ cmXsRC_t _cmXScoreParseNote(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* 
   if( cmXmlNodeHasChild(nnp,"chord",NULL) )
     note->flags |= kChordXsFl;
 
-  // process ties attached to this note
-  if((rc = _cmXScoreProcessTie(p,nnp,note,meas->number)) != kOkXsRC )
-    return rc;
+  // is this is first note in a tied pair
+  if( cmXmlNodeHasChildWithAttrAndValue(nnp,"tie","type","start",NULL) )
+    note->flags |= kTieBegXsFl;
+    
+  // is this is second note in a tied pair
+  if( cmXmlNodeHasChildWithAttrAndValue(nnp,"tie","type","stop",NULL) )
+    note->flags |= kTieEndXsFl;
   
   // has 'heel' mark
   if( cmXmlNodeHasChild(nnp,"notations","technical","heel",NULL) )
@@ -586,10 +439,19 @@ cmXsRC_t _cmXScoreParseNote(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* 
   if((rc =  _cmXScoreParseNoteRValue(p,nnp,"type",&note->rvalue)) != kOkXsRC )
     return rc;
 
-  note->tick = *tickRef;
 
-  if( cmIsNotFlag(note->flags,kChordXsFl) )
+  // if this is a chord note 
+  if( cmIsFlag(note->flags,kChordXsFl) )
+  {
+    note->tick = *tick0Ref; // then use the onset time from the previous note and do not advance time
+  }
+  else
+  {
+    *tick0Ref  = *tickRef;
+    note->tick = *tickRef;
+
     *tickRef += note->duration;
+  }
   
   return _cmXScorePushNote(p, meas, voiceId, note );
 }
@@ -620,6 +482,7 @@ cmXsRC_t  _cmXScoreParseDirection(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNo
   double             rvalue   = 0;
   const cmChar_t*    tvalue   = NULL;
   unsigned           duration = 0;
+  bool               pushFl   = true;
 
   cmXmlNodeInt(dnp, &offset, "offset", NULL );
    
@@ -668,9 +531,15 @@ cmXsRC_t  _cmXScoreParseDirection(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNo
       flags = kSectionXsFl;
     }
   }
+  else
+  {
+    pushFl = false;
+  }
 
-  return _cmXScorePushNonNote(p,meas,dnp,tick+offset,duration,rvalue,tvalue,flags);            
-      
+  if( pushFl )
+   rc = _cmXScorePushNonNote(p,meas,dnp,tick+offset,duration,rvalue,tvalue,flags);            
+  
+  return rc;
 }
 
 
@@ -679,6 +548,7 @@ cmXsRC_t _cmXScoreParseMeasure(cmXScore_t* p, cmXsPart_t* pp, const cmXmlNode_t*
   cmXsRC_t           rc   = kOkXsRC;
   const cmXmlNode_t* np   = NULL;  
   unsigned           tick = 0;
+  unsigned           tick0= 0;
 
   // allocate the 'measure' record
   cmXsMeas_t* meas = cmLhAllocZ(p->lhH,cmXsMeas_t,1);
@@ -719,7 +589,7 @@ cmXsRC_t _cmXScoreParseMeasure(cmXScore_t* p, cmXsPart_t* pp, const cmXmlNode_t*
     // if this is a 'note' node
     if( cmTextCmp(np->label,"note") == 0 )
     {
-      rc = _cmXScoreParseNote(p,meas,np,&tick);
+      rc = _cmXScoreParseNote(p,meas,np,&tick0,&tick);
     }
     else
       // if this is a 'backup' node
@@ -728,6 +598,7 @@ cmXsRC_t _cmXScoreParseMeasure(cmXScore_t* p, cmXsPart_t* pp, const cmXmlNode_t*
         unsigned backup;
         cmXmlNodeUInt(np,&backup,"duration",NULL);
         tick -= backup;
+        tick0 = tick;
       }
       else
         // if this is a 'direction' node
@@ -813,6 +684,71 @@ void _cmXScoreSort( cmXScore_t* p )
   }
 }
 
+bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* np )
+{
+  cmXsNote_t* nnp      = np->slink;
+  unsigned    measNumb = mp->number;
+  unsigned    measNumb0= measNumb;
+  cmChar_t    acc      = np->alter==-1?'b' : (np->alter==1?'#':' ');
+
+  for(; mp!=NULL; mp=mp->link)
+  {
+    if( nnp == NULL )
+      nnp = mp->noteL;
+    
+    for(; nnp!=NULL; nnp=nnp->slink)
+    {
+      if( /*nnp->voice->id == np->voice->id &&*/ nnp->step == np->step && nnp->octave == np->octave )
+      {
+        nnp->flags |= kTieProcXsFl;
+
+        if( cmIsNotFlag(nnp->flags,kTieBegXsFl) )
+        {
+          return true;
+        }
+
+        measNumb0 = mp->number; 
+      }
+    }
+
+    // if a measure was completed and no end note was found ... then the tie is unterminated
+    // (a tie must be continued in every measure which it passes through)
+    if( measNumb0 < mp->number )
+      break;
+    
+  }
+
+  cmErrWarnMsg(&p->err,kUnterminatedTieXsRC,"The tied %c%c%i in measure %i was not terminated.",np->step,acc,np->octave,measNumb);
+  return false;
+}
+
+void  _cmXScoreProcessTies( cmXScore_t* p )
+{
+  unsigned n = 0;
+  unsigned m = 0;
+  
+  cmXsPart_t* pp = p->partL;
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp = pp->measL;
+    for(; mp!=NULL; mp=mp->link)
+    {
+      cmXsNote_t* np = mp->noteL;
+      
+      for(; np!=NULL; np=np->slink)
+        if( cmIsFlag(np->flags,kTieBegXsFl) && cmIsNotFlag(np->flags,kTieProcXsFl))
+        {
+          if( _cmXScoreFindTiedNote(p,mp,np) )
+            m += 1;
+          n += 1;
+        } 
+        
+    }
+  }
+
+  printf("Found:%i Not Found:%i\n",m,n-m);
+}
+
 cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn )
 {
   cmXsRC_t rc = kOkXsRC;
@@ -849,6 +785,8 @@ cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn )
 
   // fill in the note->slink chain to link the notes in each measure in time order
   _cmXScoreSort(p);
+
+  _cmXScoreProcessTies(p);
 
   // CSV output initialize failed.
   if( cmCsvInitialize(&p->csvH,ctx) != kOkCsvRC )
@@ -899,16 +837,26 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
   const cmChar_t* d  = cmIsFlag(note->flags,kDynXsFl)       ? "d" : "-";
   const cmChar_t* t  = cmIsFlag(note->flags,kTempoXsFl)     ? "t" : "-";
   const cmChar_t* P  = cmIsFlag(note->flags,kPedalDnXsFl)   ? "V" : "-";
+  const cmChar_t* S  = cmIsFlag(note->flags,kSectionXsFl)   ? "S" : "-";
   const cmChar_t* H  = cmIsFlag(note->flags,kHeelXsFl)      ? "H" : "-";
   const cmChar_t* T0 = cmIsFlag(note->flags,kTieBegXsFl)    ? "T" : "-";
   const cmChar_t* T1 = cmIsFlag(note->flags,kTieEndXsFl)    ? "_" : "-";
   P = cmIsFlag(note->flags,kPedalUpXsFl)   ? "^" : P;
   P = cmIsFlag(note->flags,kPedalUpDnXsFl) ? "X" : P;
-  const cmChar_t* N = note->pitch==0 ? " " : cmMidiToSciPitch( note->pitch, NULL, 0 );
-  cmRptPrintf(rpt,"      %5i %5i %4.1f %3s %s%s%s%s%s%s%s%s%s%s%s%s",note->tick,note->duration,note->rvalue,N,B,R,G,D,C,e,d,t,P,H,T0,T1);
+  //const cmChar_t* N = note->pitch==0 ? " " : cmMidiToSciPitch( note->pitch, NULL, 0 );
+
+  cmChar_t N[] = {'\0','\0','\0','\0'};
+  cmChar_t acc = note->alter==-1?'b':(note->alter==1?'#':' ');
+  snprintf(N,4,"%c%c%1i",note->step,acc,note->octave);
+  
+  
+  cmRptPrintf(rpt,"      %3i %5i %5i %4.1f %3s %s%s%s%s%s%s%s%s%s%s%s%s%s",note->voice->id,note->tick,note->duration,note->rvalue,N,B,R,G,D,C,e,d,t,P,S,H,T0,T1);
 
   if( cmIsFlag(note->flags,kSectionXsFl) )
     cmRptPrintf(rpt," %s",cmStringNullGuard(note->tvalue));
+
+  if( cmIsFlag(note->flags,kMetronomeXsFl) )
+    cmRptPrintf(rpt," %i bpm",note->duration);
 
   printf("\n");
   
@@ -1261,6 +1209,26 @@ void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
   }  
 }
 
+cmXsRC_t cmXScoreWriteMidi( cmXsH_t h, const cmChar_t* fn )
+{
+  assert(0); // function not implemented
+  cmXScore_t* p  = _cmXScoreHandleToPtr(h);
+  cmXsPart_t* pp = p->partL;
+  
+  for(; pp!=NULL; pp=pp->link)
+  {
+    const cmXsMeas_t* meas = pp->measL;
+    for(; meas!=NULL; meas=meas->link)
+    {
+
+      const cmXsNote_t* note = meas->noteL;
+      for(; note!=NULL; note=note->slink)
+      {
+        
+      }
+    }
+  }  
+}
 
 cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
 {
