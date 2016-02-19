@@ -13,7 +13,9 @@ extern "C" {
     kSyntaxErrorXsRC,
     kCsvFailXsRC,
     kUnterminatedTieXsRC,
-    kUnterminatedSlurXsRC
+    kUnterminatedSlurXsRC,
+    kUnterminatedOctaveShiftXsrRC,
+    kMidiFailXsRC
   };
 
   typedef cmRC_t     cmXsRC_t;
@@ -41,9 +43,10 @@ extern "C" {
   //11) Mark tied notes for skip. (done)
   //12) Determine note off locations based on ties and slurs - defer 'pedal' to player
   //13) Check that the measures are given in sorted order.
-  
+  //14) Current implementation assumes meter changes only occur at measure boundaries.
+  //15) Score Fixes: Add meter to bar 1, fix time errors (shown in voice report)
  
-  cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn );
+  cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* midiFn );
   cmXsRC_t cmXScoreFinalize( cmXsH_t* hp );
 
   bool     cmXScoreIsValid( cmXsH_t h );
@@ -54,7 +57,7 @@ extern "C" {
 
   void     cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl );
 
-  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* fn );
+  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midiFn );
   
 #ifdef __cplusplus
 }
