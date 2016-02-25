@@ -73,3 +73,5 @@
 
 #include "cmProcTemplateHdr.h"
 #include "cmProcTemplateCode.h"
+
+#include "cmProcTemplateUndef.h"
