@@ -1,6 +1,7 @@
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmFloatTypes.h"
+#include "cmComplexTypes.h"
 #include "cmRpt.h"
 #include "cmErr.h"
 #include "cmCtx.h"
@@ -15,6 +16,16 @@
 #include "cmMidiFile.h"
 #include "cmLex.h"
 #include "cmCsv.h"
+
+#include "cmFile.h"
+#include "cmSymTbl.h"
+#include "cmAudioFile.h"
+#include "cmAudioFile.h"
+#include "cmProcObj.h"
+#include "cmProcTemplate.h"
+#include "cmProc.h"
+#include "cmProc2.h"
+#include "cmProc5.h"
 
 cmXsH_t cmXsNullHandle = cmSTATIC_NULL_HANDLE;
 
@@ -51,9 +62,10 @@ typedef struct cmXsNote_str
   cmChar_t                    step;     // A-G
   unsigned                    octave;   // sci pitch octave
   int                         alter;    // +n=sharps,-n=flats
-  unsigned                    staff;
+  unsigned                    staff;    // 1=treble 2=bass
   unsigned                    tick;     // 
   unsigned                    duration; // duration in ticks
+  unsigned                    locIdx;    // location index (chords share the same location index)
   double                      rvalue;   // 1/rvalue = rythmic value (1/0.5 double whole 1/1 whole 1/2 half 1/4=quarter note, 1/8=eighth note, ...)
   const cmChar_t*             tvalue;   // text value
 
@@ -706,6 +718,8 @@ cmXsRC_t _cmXScoreParsePart( cmXScore_t* p, cmXsPart_t* pp )
   return rc;
 }
 
+// Insert note 'np' into the sorted note list based at 's0'.
+// Return a pointer to the base of the list after the insertion.
 cmXsNote_t*  _cmXScoreInsertSortedNote( cmXsNote_t* s0, cmXsNote_t* np )
 {
   if( s0 == NULL )
@@ -740,9 +754,11 @@ cmXsNote_t*  _cmXScoreInsertSortedNote( cmXsNote_t* s0, cmXsNote_t* np )
 
 void _cmXScoreSort( cmXScore_t* p )
 {
+  // for each part
   cmXsPart_t* pp = p->partL;
   for(; pp!=NULL; pp=pp->link)
   {
+    // for each measure in this part
     cmXsMeas_t* mp = pp->measL;
     for(; mp!=NULL; mp=mp->link)
     {   
@@ -750,6 +766,7 @@ void _cmXScoreSort( cmXScore_t* p )
       cmXsVoice_t* vp = mp->voiceL;
       for(; vp!=NULL; vp=vp->link)
       {
+        // for each note in this measure
         cmXsNote_t* np = vp->noteL;
         for(; np!=NULL; np=np->mlink)
           mp->noteL = _cmXScoreInsertSortedNote(mp->noteL,np);        
@@ -797,27 +814,44 @@ bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* np )
   return false;
 }
 
-void  _cmXScoreProcessTies( cmXScore_t* p )
+void  _cmXScoreResolveTiesAndLoc( cmXScore_t* p )
 {
-  unsigned n = 0;
-  unsigned m = 0;
+  unsigned n   = 0;
+  unsigned m   = 0;
   
   cmXsPart_t* pp = p->partL;
   for(; pp!=NULL; pp=pp->link)
   {
+    unsigned locIdx = 1;
     cmXsMeas_t* mp = pp->measL;
     for(; mp!=NULL; mp=mp->link)
     {
+      cmXsNote_t* n0 = NULL;
       cmXsNote_t* np = mp->noteL;
       
       for(; np!=NULL; np=np->slink)
+      {
+        // if this note begins a tie and has not yet been  processed
+        // (A note that continues a tie and therefore has a kTieBegXsFl set
+        //  may have already been processed by an earlier tied note.)
         if( cmIsFlag(np->flags,kTieBegXsFl) && cmIsNotFlag(np->flags,kTieProcXsFl))
         {
           if( _cmXScoreFindTiedNote(p,mp,np) )
             m += 1;
           n += 1;
-        } 
-        
+        }
+
+        // set the location 
+        if( cmIsFlag(np->flags,kOnsetXsFl) )
+        {
+          if( n0!=NULL && n0->tick!=np->tick)
+            locIdx += 1;
+
+          np->locIdx = locIdx;
+          n0         = np;
+        }
+
+      } 
     }
   }
 
@@ -911,6 +945,7 @@ cmXsNote_t* _cmXScoreNextNote( cmXsPart_t* pp, cmXsNote_t* note )
   return note;
 }
 
+
 cmXsRC_t    _cmXScoreProcessMidi(cmXScore_t* p, cmCtx_t* ctx, const cmChar_t* midiFn)
 {
   cmXsRC_t                 rc   = kOkXsRC;
@@ -924,6 +959,8 @@ cmXsRC_t    _cmXScoreProcessMidi(cmXScore_t* p, cmCtx_t* ctx, const cmChar_t* mi
   if( cmMidiFileOpen(ctx, &mfH, midiFn ) != kOkMfRC )
     return cmErrMsg(&p->err,kMidiFailXsRC,"The MIDI file object could not be opened from '%s'.",cmStringNullGuard(midiFn));
 
+  cmMidiFilePrintMsgs(mfH, p->err.rpt );
+  
   if( (m = cmMidiFileMsgArray(mfH)) == NULL || (mN = cmMidiFileMsgCount(mfH)) == 0 )
   {
     rc = cmErrMsg(&p->err,kMidiFailXsRC,"The MIDI file object appears to be empty.");
@@ -935,6 +972,37 @@ cmXsRC_t    _cmXScoreProcessMidi(cmXScore_t* p, cmCtx_t* ctx, const cmChar_t* mi
     rc = cmErrWarnMsg(&p->err,kSyntaxErrorXsRC,"No MIDI processing to be done. The score appears to be empty.");
     goto errLabel;
   }
+
+  cmCtx*        c = cmCtxAlloc( NULL, p->err.rpt, cmLHeapNullHandle, cmSymTblNullHandle );
+  cmSeqAlign_t* s = cmSeqAlignAlloc(c,NULL);
+  unsigned      offs = 0;
+  
+  for(; note!=NULL; note=_cmXScoreNextNote(p->partL,note))
+  {
+    if( cmIsFlag(note->flags,kGraceXsFl) )
+      offs += 1;
+    
+    cmSeqAlignInsert(s,0,note->locIdx+offs,note->pitch);
+  }
+
+  unsigned locIdx = 1;
+  for(i=0,j=0; i<mN; ++i)
+    if( (m[i]!=NULL) && cmMidiIsChStatus(m[i]->status) && cmMidiIsNoteOn(m[i]->status) && (m[i]->u.chMsgPtr->d1>0) )
+    {
+      if( m[j]->atick != m[i]->atick )
+        locIdx += 1;
+      
+      cmSeqAlignInsert(s,1,locIdx,m[i]->u.chMsgPtr->d0);
+
+      //printf("%i : %s\n",locIdx,cmMidiToSciPitch(m[i]->u.chMsgPtr->d0,NULL,0));
+      
+      j = i;
+    }
+
+  cmSeqAlignReport(s,p->err.rpt);
+  cmSeqAlignFree(&s);
+  cmCtxFree(&c);
+  goto errLabel;
 
   printf(" i     j    score    midi\n");
   printf("---- ---- --- ---- --- ----\n");
@@ -1002,7 +1070,7 @@ cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, c
   // fill in the note->slink chain to link the notes in each measure in time order
   _cmXScoreSort(p);
 
-  _cmXScoreProcessTies(p);
+  _cmXScoreResolveTiesAndLoc(p);
 
   //_cmXScoreResolveOctaveShift(p);
 
@@ -1065,9 +1133,8 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
   cmChar_t N[] = {'\0','\0','\0','\0'};
   cmChar_t acc = note->alter==-1?'b':(note->alter==1?'#':' ');
   snprintf(N,4,"%c%c%1i",note->step,acc,note->octave);
-  
-  
-  cmRptPrintf(rpt,"      %3i %5i %5i %4.1f %3s %s%s%s%s%s%s%s%s%s%s%s%s%s",note->voice->id,note->tick,note->duration,note->rvalue,N,B,R,G,D,C,e,d,t,P,S,H,T0,T1);
+    
+  cmRptPrintf(rpt,"      %3i %5i %5i %5i %4.1f %3s %s%s%s%s%s%s%s%s%s%s%s%s%s",note->voice->id,note->locIdx,note->tick,note->duration,note->rvalue,N,B,R,G,D,C,e,d,t,P,S,H,T0,T1);
 
   if( cmIsFlag(note->flags,kSectionXsFl) )
     cmRptPrintf(rpt," %s",cmStringNullGuard(note->tvalue));
@@ -1474,7 +1541,7 @@ cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midi
     return cmErrMsg(&ctx->err,rc,"XScore alloc failed.");
 
   cmXScoreWriteCsv(h,"/Users/kevin/temp/a0.csv");
-  cmXScoreReport(h,&ctx->rpt,false);
+  cmXScoreReport(h,&ctx->rpt,true);
   
   return cmXScoreFinalize(&h);
 
