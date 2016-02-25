@@ -1380,15 +1380,28 @@ void _cmMidiFilePrintHdr( const _cmMidiFile_t* mfp, cmRpt_t* rpt )
 
 void _cmMidiFilePrintMsg( cmRpt_t* rpt, const cmMidiTrackMsg_t* tmp )
 {
-  cmRptPrintf(rpt,"%8i %8i %8i %8i : ",   tmp->dtick, tmp->dmicro, tmp->atick, tmp->amicro );
+  cmRptPrintf(rpt,"%8i %8i %8i %8i : ",
+    tmp->dtick,
+    tmp->dmicro,
+    tmp->atick,
+    tmp->amicro );
 
   if( tmp->status == kMetaStId )
-    cmRptPrintf(rpt,"%s ", cmMidiMetaStatusToLabel(tmp->metaId)); 
+  {
+    cmRptPrintf(rpt,"%s ", cmMidiMetaStatusToLabel(tmp->metaId));
+  }
   else
   {
-    cmRptPrintf(rpt,"%4s %3i %3i %3i", cmMidiStatusToLabel(tmp->status),tmp->u.chMsgPtr->ch,tmp->u.chMsgPtr->d0,tmp->u.chMsgPtr->d1);
-    
+    cmRptPrintf(rpt,"%4s %3i %3i %3i",
+      cmMidiStatusToLabel(tmp->status),
+      tmp->u.chMsgPtr->ch,
+      tmp->u.chMsgPtr->d0,
+      tmp->u.chMsgPtr->d1);    
   }
+
+  if( cmMidiIsChStatus(tmp->status) && cmMidiIsNoteOn(tmp->status) && (tmp->u.chMsgPtr->d1>0) )
+    cmRptPrintf(rpt," %4s ",cmMidiToSciPitch(tmp->u.chMsgPtr->d0,NULL,0));
+    
   
   cmRptPrintf(rpt,"\n");
 }
