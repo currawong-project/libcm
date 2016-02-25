@@ -1098,3 +1098,207 @@ void cmNlmsEcSetIrN(    cmNlmsEc_t* p, unsigned hN )
   p->hN = hN;
 }
 
+//=======================================================================================================================
+// 
+//
+
+cmSeqAlign_t* cmSeqAlignAlloc(  cmCtx* ctx, cmSeqAlign_t* ap )
+{
+  cmSeqAlign_t* p = cmObjAlloc(cmSeqAlign_t,ctx,ap);
+
+  if( cmSeqAlignInit(p) != cmOkRC )
+    cmSeqAlignFree(&p);
+
+  return p;  
+}
+
+cmRC_t        cmSeqAlignFree(   cmSeqAlign_t** pp )
+{
+  cmRC_t rc = cmOkRC;
+
+  if( pp == NULL || *pp == NULL )
+    return rc;
+
+  cmSeqAlign_t* p = *pp;
+  if((rc = cmSeqAlignFinal(p)) != cmOkRC )
+    return rc;
+
+  while( p->seqL != NULL )
+  {
+    while( p->seqL->locL != NULL )
+    {
+      cmSeqAlignLoc_t* lp = p->seqL->locL->link;
+      cmMemFree(p->seqL->locL->vV);
+      cmMemFree(p->seqL->locL);
+      p->seqL->locL = lp;
+    }
+
+    cmSeqAlignSeq_t* sp = p->seqL->link;
+    cmMemFree(p->seqL);
+    p->seqL = sp;
+  }
+  
+  cmObjFree(pp);
+
+  return rc;
+}
+
+cmRC_t        cmSeqAlignInit(   cmSeqAlign_t* p )
+{ return cmOkRC; }
+
+cmRC_t        cmSeqAlignFinal(  cmSeqAlign_t* p )
+{ return cmOkRC; }
+
+cmSeqAlignSeq_t* _cmSeqAlignIdToSeq( cmSeqAlign_t* p, unsigned seqId )
+{
+  cmSeqAlignSeq_t* sp = p->seqL;
+  for(; sp!=NULL; sp=sp->link)
+    if( sp->id == seqId )
+      return sp;
+  return NULL;
+}
+
+cmSeqAlignLoc_t* _cmSeqAlignIdToLoc( cmSeqAlignSeq_t* sp, unsigned locId )
+{
+  cmSeqAlignLoc_t* lp = sp->locL;
+  for(; lp!=NULL; lp=lp->link)
+  {
+    // if the locId's match 
+    if( lp->id == locId )
+      return lp;
+
+    if( (lp->link != NULL && lp->link->id > locId) || lp->link==NULL )
+      return lp;  // return record previous to locId 
+  }
+
+  // return NULL: locId is less than all other locations id's in the list
+  return lp;
+}
+
+cmRC_t        cmSeqAlignInsert( cmSeqAlign_t* p, unsigned seqId, unsigned locId, unsigned value )
+{
+  cmSeqAlignSeq_t* sp;
+
+  // if the requested sequence does not already exist ...
+  if((sp = _cmSeqAlignIdToSeq(p,seqId)) == NULL )
+  {
+    // ... then create it
+    sp       = cmMemAllocZ(cmSeqAlignSeq_t,1);
+    sp->id   = seqId;
+
+    if( p->seqL == NULL )
+      p->seqL = sp;
+    else
+    {
+      cmSeqAlignSeq_t* s0 = p->seqL;
+      while( s0->link != NULL )
+        s0 = s0->link;
+
+      s0->link = sp;
+      
+    }    
+  }
+  assert(sp != NULL);
+
+  cmSeqAlignLoc_t* lp;
+
+  // if the requested location does not exist in the requested sequence ... 
+  if((lp = _cmSeqAlignIdToLoc(sp,locId)) == NULL || lp->id != locId)
+  {
+    // ... then create it
+    cmSeqAlignLoc_t* nlp = cmMemAllocZ(cmSeqAlignLoc_t,1);
+    nlp->id = locId;
+
+    // if lp is NULL then link nlp as first record in sequence
+    if( lp == NULL )
+    {      
+      // make new loc recd first on the list
+      nlp->link = sp->locL;
+      sp->locL  = nlp;
+    }
+    else // otherwise link nlp after lp
+    {
+      nlp->link = lp->link;
+      lp->link  = nlp;
+    }
+
+    lp = nlp;
+  }
+
+  assert( lp!=NULL );
+
+  // insert the new value
+  lp->vV = cmMemResizeP(unsigned,lp->vV,lp->vN+1);
+  lp->vV[ lp->vN ] = value;
+  lp->vN += 1;
+
+  return cmOkRC;
+}
+
+double _cmSeqAlignCompare( const cmSeqAlignLoc_t* l0, const cmSeqAlignLoc_t* l1)
+{
+  double dist = 0;
+  unsigned i=0;
+  for(i=0; i<l0->vN; ++i)
+  {
+    unsigned j=0;
+    for(j=0; j<l1->vN; ++j)
+      if( l0->vV[i] == l1->vV[j] )
+        break;
+
+    if( l0->vV[i] != l1->vV[j] )
+      dist += 1.0;
+  }
+  
+  return dist;
+}
+
+cmRC_t cmSeqAlignExec(   cmSeqAlign_t* p )
+{
+  
+  return cmOkRC;
+}
+
+void _cmSeqAlignReportLoc( cmRpt_t* rpt, const cmSeqAlignLoc_t* lp )
+{
+  //cmRptPrintf(rpt,"%5i : ",lp->id);
+  
+  unsigned i;
+  for(i=0; i<lp->vN; ++i)
+  {
+    //cmRptPrintf(rpt,"%3i ",lp->vV[i]);
+    cmRptPrintf(rpt,"%4s ",cmMidiToSciPitch(lp->vV[i],NULL,0));
+  }
+
+  cmRptPrintf(rpt," | ");
+}
+
+void cmSeqAlignReport( cmSeqAlign_t* p, cmRpt_t* rpt )
+{
+  cmSeqAlignLoc_t* slp = p->seqL->locL;
+
+  for(; slp!=NULL; slp=slp->link)
+  {
+    cmRptPrintf(rpt,"%5i : ",slp->id);
+    
+    // report the next location on the first sequence as the reference location
+    _cmSeqAlignReportLoc( rpt, slp );
+
+    // for each remaining sequence 
+    cmSeqAlignSeq_t* sp = p->seqL->link;
+    for(; sp!=NULL; sp=sp->link)
+    {
+      // locate the location with the same id as the reference location ...
+      cmSeqAlignLoc_t* lp;
+      
+      if((lp = _cmSeqAlignIdToLoc(sp,slp->id)) != NULL && lp->id == slp->id)
+      {
+        _cmSeqAlignReportLoc(rpt,lp); // ... and report it
+      }
+      
+    }
+
+    cmRptPrintf(rpt,"\n");
+  }
+}
+

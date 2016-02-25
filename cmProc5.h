@@ -265,8 +265,45 @@ extern "C" {
   void        cmNlmsEcSetMu(     cmNlmsEc_t* p, float mu );
   void        cmNlmsEcSetDelayN( cmNlmsEc_t* p, unsigned delayN );
   void        cmNlmsEcSetIrN(    cmNlmsEc_t* p, unsigned irN );
+  
+  //------------------------------------------------------------------------------------------------------------
   //)
 
+  //( { label:cmSeqAlign file_desc:"Align two sequences where each sequence is composed of records with varying numbers of features." kw:[proc]}
+
+  typedef struct cmSeqAlignLoc_str
+  {
+    unsigned                  id;  // location id
+    unsigned                  vN;  // 
+    unsigned*                 vV;  // vV[vN]
+    struct cmSeqAlignLoc_str* link;
+  } cmSeqAlignLoc_t;
+
+  typedef struct cmSeqAlignSeq_str
+  {
+    unsigned                  id;
+    cmSeqAlignLoc_t*          locL;
+    struct cmSeqAlignSeq_str* link;
+  } cmSeqAlignSeq_t;
+  
+  typedef struct
+  {
+    cmObj            obj;
+    cmSeqAlignSeq_t* seqL;
+    
+  } cmSeqAlign_t;
+
+  cmSeqAlign_t* cmSeqAlignAlloc(  cmCtx* ctx, cmSeqAlign_t* p );
+  cmRC_t        cmSeqAlignFree(   cmSeqAlign_t** p );
+  cmRC_t        cmSeqAlignInit(   cmSeqAlign_t* p );
+  cmRC_t        cmSeqAlignFinal(  cmSeqAlign_t* p );
+  cmRC_t        cmSeqAlignInsert( cmSeqAlign_t* p, unsigned seqId, unsigned locId, unsigned value );
+  cmRC_t        cmSeqAlignExec(   cmSeqAlign_t* p );
+  void          cmSeqAlignReport( cmSeqAlign_t* p, cmRpt_t* rpt );
+  
+  
+  //------------------------------------------------------------------------------------------------------------
+  //)
   
 #ifdef __cplusplus
 }
