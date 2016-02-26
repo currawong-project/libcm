@@ -15,7 +15,8 @@ extern "C" {
     kUnterminatedTieXsRC,
     kUnterminatedSlurXsRC,
     kUnterminatedOctaveShiftXsrRC,
-    kMidiFailXsRC
+    kMidiFailXsRC,
+    kFileFailXsRC
   };
 
   typedef cmRC_t     cmXsRC_t;

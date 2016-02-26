@@ -272,11 +272,10 @@ cmXsRC_t  _cmXScoreParsePitch( cmXScore_t* p, const cmXmlNode_t* nnp, cmXsNote_t
   unsigned midi = cmSciPitchToMidi(buf);
 
   midi         += (12 * octave);
-
   midi         += alter;
 
-  np->pitch = midi;
-  np->step  = *step;
+  np->pitch  = midi;
+  np->step   = *step;
   np->octave = octave;
   np->alter  = alter;
   np->flags |= kOnsetXsFl;
@@ -945,6 +944,76 @@ cmXsNote_t* _cmXScoreNextNote( cmXsPart_t* pp, cmXsNote_t* note )
   return note;
 }
 
+cmXsRC_t _cmXScoreWriteScorePlotFile( cmXScore_t* p, const cmChar_t* fn )
+{
+  cmXsRC_t  rc            = kOkXsRC;
+  cmFileH_t fH            = cmFileNullHandle;
+  double    ticks_per_sec = 0;
+  double    onset_secs    = 0;
+  
+  if( cmFileOpen(&fH,fn,kWriteFileFl,p->err.rpt) != kOkFileRC )
+    return cmErrMsg(&p->err,kFileFailXsRC,"Unable to create the file '%s'.",cmStringNullGuard(fn));
+  
+  cmXsPart_t* pp = p->partL;
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp   = pp->measL;
+    for(; mp!=NULL; mp=mp->link)
+    {
+      cmFilePrintf(fH,"b %f %i %s B\n",onset_secs,mp->number,"bar");
+
+      cmXsNote_t* np    = mp->noteL;
+      unsigned    tick0 = 0;
+      for(; np!=NULL; np=np->slink)
+      {
+        if( cmIsFlag(np->flags,kMetronomeXsFl) )
+        {
+          double bps =  np->duration / 60.0;
+
+          // t   b  t
+          // - = -  -
+          // s   s  b
+          
+          ticks_per_sec = bps * mp->divisions; 
+        }
+        else
+        {
+          if( cmIsFlag(np->flags,kOnsetXsFl) )
+          {
+            onset_secs += (np->tick - tick0) / ticks_per_sec;
+            tick0       = np->tick;
+            cmFilePrintf(fH,"n %f %f %s %s\n",onset_secs,np->duration/ticks_per_sec,cmMidiToSciPitch(np->pitch,NULL,0),cmIsFlag(np->flags,kGraceXsFl)?"G":"N");
+          }
+        }
+      }
+
+      onset_secs += (mp->divisions * mp->beats - tick0) / ticks_per_sec;
+    }
+  }
+
+  cmFileClose(&fH);
+
+  return rc;
+}
+
+cmXsRC_t _cmXScoreWriteMidiPlotFile( cmXScore_t* p, cmChar_t* fn, const cmMidiTrackMsg_t** m, unsigned mN )
+{
+  cmXsRC_t  rc = kOkXsRC;
+  cmFileH_t fH = cmFileNullHandle;
+  unsigned  i  = 0;
+  
+  if( cmFileOpen(&fH,fn,kWriteFileFl,p->err.rpt) != kOkFileRC )
+    return cmErrMsg(&p->err,kFileFailXsRC,"Unable to create the file '%s'.",cmStringNullGuard(fn));
+
+  for(i=0; i<mN; ++i)
+    if( (m[i]!=NULL) && cmMidiIsChStatus(m[i]->status) && cmMidiIsNoteOn(m[i]->status) && (m[i]->u.chMsgPtr->d1>0) )
+      cmFilePrintf(fH,"n %f %f %s\n",m[i]->amicro/1000000.0,m[i]->u.chMsgPtr->durMicros/1000000.0,cmMidiToSciPitch(m[i]->u.chMsgPtr->d0,NULL,0));
+
+  
+  cmFileClose(&fH);
+  return rc;
+}
+
 
 cmXsRC_t    _cmXScoreProcessMidi(cmXScore_t* p, cmCtx_t* ctx, const cmChar_t* midiFn)
 {
@@ -999,6 +1068,12 @@ cmXsRC_t    _cmXScoreProcessMidi(cmXScore_t* p, cmCtx_t* ctx, const cmChar_t* mi
       j = i;
     }
 
+  cmMidiFileCalcNoteDurations( mfH );
+  
+  _cmXScoreWriteScorePlotFile(p, "/Users/kevin/temp/score.txt" );
+  _cmXScoreWriteMidiPlotFile(p,  "/Users/kevin/temp/midi.txt", m, mN );
+
+
   cmSeqAlignReport(s,p->err.rpt);
   cmSeqAlignFree(&s);
   cmCtxFree(&c);
@@ -1031,7 +1106,6 @@ cmXsRC_t    _cmXScoreProcessMidi(cmXScore_t* p, cmCtx_t* ctx, const cmChar_t* mi
   cmMidiFileClose(&mfH);
   return rc;
 }
-
 
 cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* midiFn )
 {
@@ -1436,13 +1510,10 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
           }
         
         rowIdx += 1;
-        
-
       }
 
       sec = sec0;
-    }
-    
+    }    
   }
 
   if( cmCsvWrite( p->csvH, csvFn ) != kOkCsvRC )
@@ -1503,13 +1574,10 @@ void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
 
         }
       }
-
-      
-  
-
     }
   }  
 }
+
 
 cmXsRC_t cmXScoreWriteMidi( cmXsH_t h, const cmChar_t* fn )
 {
@@ -1541,7 +1609,7 @@ cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midi
     return cmErrMsg(&ctx->err,rc,"XScore alloc failed.");
 
   cmXScoreWriteCsv(h,"/Users/kevin/temp/a0.csv");
-  cmXScoreReport(h,&ctx->rpt,true);
+  cmXScoreReport(h,&ctx->rpt,false);
   
   return cmXScoreFinalize(&h);
 
