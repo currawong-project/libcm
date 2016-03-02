@@ -536,7 +536,7 @@ cmDspRC_t _cmDspPresetWriteCsv( cmDspPresetMgr_t* p, cmCtx_t* ctx, const cmChar_
               break;
 
             case kStrzDsvFl:
-              if( cmCsvInsertTextColAfter( csvH, cellPtr, &cellPtr, cmDsvGetStrcz(&vp->value), lexTId ) != kOkCsvRC )
+              if( cmCsvInsertQTextColAfter( csvH, cellPtr, &cellPtr, cmDsvGetStrcz(&vp->value), lexTId ) != kOkCsvRC )
               {
                 cmErrMsg(p->err,kCsvFailDspRC,"CSV preset write failed on 'string' value.");
                 goto errLabel;
