@@ -31,7 +31,8 @@ enum
 
 enum
 {
-  kMidiFileIdColScIdx= 0,  
+  kMidiFileIdColScIdx= 0,
+  kEventIdColScIdx   = 2,
   kTypeLabelColScIdx = 3,
   kDSecsColScIdx     = 4,
   kSecsColScIdx      = 5,
@@ -723,9 +724,12 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
   const cmChar_t* attr;
   double          secs;
   double          durSecs;
+  unsigned        eventId;
   const cmCsvCell_t* cell;
 
   s += scoreIdx;
+
+  eventId = cmCsvCellUInt(p->cH,rowIdx,kEventIdColScIdx);  
 
   // verify the scientific pitch cell was formatted correcly  
   if((cell = cmCsvCellPtr(p->cH,rowIdx,kPitchColScIdx)) == NULL || cell->lexTId != p->sciPitchLexTId )
@@ -736,7 +740,7 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
           
   if((midiPitch = cmSciPitchToMidi(sciPitch)) == kInvalidMidiPitch)
     return cmErrMsg(&p->err,kSyntaxErrScRC,"Unable to convert the scientific pitch '%s' to a MIDI value. ");
-
+  
   // get the sec's field - or DBL_MAX if it is not set
   if((secs =  cmCsvCellDouble(p->cH, rowIdx, kSecsColScIdx )) == DBL_MAX) // Returns DBL_MAX on error.
     flags += kInvalidScFl;
@@ -812,6 +816,7 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
   s->barNoteIdx = barNoteIdx;
   s->durSecs    = durSecs;
   s->csvRowNumb = rowIdx+1;
+  s->csvEventId = eventId;
   return rc;
 }
 
@@ -2451,7 +2456,7 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
 
   for(i=1; titles[i]!=NULL; ++i)
   {
-    if( cmCsvInsertTextColAfter(csvH, cp, &cp, titles[i], lexTId ) != kOkCsvRC )
+    if( cmCsvInsertIdentColAfter(csvH, cp, &cp, titles[i], lexTId ) != kOkCsvRC )
     {
       cmErrMsg(&err,kCsvFailScRC,"Error inserting column index '%i' label in '%s'.",i,cmStringNullGuard(scoreFn));
       goto errLabel;
@@ -2521,7 +2526,7 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
       goto errLabel;
     }
 
-    if( cmCsvInsertTextColAfter(csvH, cp, &cp, opStr, lexTId ) != kOkCsvRC )
+    if( cmCsvInsertQTextColAfter(csvH, cp, &cp, opStr, lexTId ) != kOkCsvRC )
     {
       cmErrMsg(&err,kCsvFailScRC,"Error inserting 'opcode' column in '%s'.",cmStringNullGuard(scoreFn));
       goto errLabel;
@@ -2572,7 +2577,7 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
     switch( tmp->status )
     {
       case kNoteOnMdId:
-        if( cmCsvInsertTextColAfter(csvH, cp, &cp, cmMidiToSciPitch(tmp->u.chMsgPtr->d0,NULL,0), lexTId ) != kOkCsvRC )
+        if( cmCsvInsertQTextColAfter(csvH, cp, &cp, cmMidiToSciPitch(tmp->u.chMsgPtr->d0,NULL,0), lexTId ) != kOkCsvRC )
         {
           cmErrMsg(&err,kCsvFailScRC,"Error inserting 'opcode' column in '%s'.",cmStringNullGuard(scoreFn));
           goto errLabel;

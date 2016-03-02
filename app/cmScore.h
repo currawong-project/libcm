@@ -96,6 +96,7 @@ extern "C" {
     unsigned     perfVel;      // Velocity of the performed note or 0 if the note was not performed.
     unsigned     perfDynLvl;   // Index into dynamic level ref. array assoc'd with perfVel  
     unsigned     line;         // Line number of this event in the score file.
+    unsigned     csvEventId;   // EventId from CSV 'evt' column.
   } cmScoreEvt_t;
 
   // A 'set' is a collection of events that are grouped in time and all marked with a given attribute.
