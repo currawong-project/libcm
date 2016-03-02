@@ -117,7 +117,8 @@ extern "C" {
 
 
   // Set the value associated with a cell.
-  cmCsvRC_t  cmCsvSetCellText(   cmCsvH_t h, unsigned row, unsigned col, const char* text );
+  cmCsvRC_t  cmCsvSetCellIdent(  cmCsvH_t h, unsigned row, unsigned col, const char* text );
+  cmCsvRC_t  cmCsvSetCellQText(  cmCsvH_t h, unsigned row, unsigned col, const char* text );
   cmCsvRC_t  cmCsvSetCellInt(    cmCsvH_t h, unsigned row, unsigned col, int v );
   cmCsvRC_t  cmCsvSetCellUInt(   cmCsvH_t h, unsigned row, unsigned col, unsigned v );
   cmCsvRC_t  cmCsvSetCellHex(    cmCsvH_t h, unsigned row, unsigned col, unsigned v );
@@ -138,7 +139,8 @@ extern "C" {
   // cmCsvCell_t.lexTId in the new cell. There are no constraints on its value.
   cmCsvRC_t  cmCsvInsertColAfter(  cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, unsigned symId, unsigned flags, unsigned lexTId );
 
-  cmCsvRC_t  cmCsvInsertTextColAfter(   cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, const char* val, unsigned lexTId );
+  cmCsvRC_t  cmCsvInsertIdentColAfter(  cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, const char* val, unsigned lexTId );
+  cmCsvRC_t  cmCsvInsertQTextColAfter(  cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, const char* val, unsigned lexTId );
   cmCsvRC_t  cmCsvInsertIntColAfter(    cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, int val,         unsigned lexTId );
   cmCsvRC_t  cmCsvInsertUIntColAfter(   cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, unsigned val,    unsigned lexTId );
   cmCsvRC_t  cmCsvInsertHexColAfter(    cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, unsigned val,    unsigned lexTId );

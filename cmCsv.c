@@ -772,6 +772,24 @@ unsigned   cmCsvInsertSymDouble( cmCsvH_t h, double v )
 
 }
 
+cmCsvRC_t  cmCsvSetCellIdent(   cmCsvH_t h, unsigned row, unsigned col, const char* text )
+{
+  cmCsvCell_t* cp;
+  unsigned     symId;
+
+  if((cp = _cmCsvCellPtr(h,row,col)) == NULL )
+    return cmErrLastRC(&_cmCsvHandleToPtr(h)->err);
+
+  if((symId = cmCsvInsertSymText(h,text)) == cmInvalidId )
+    return cmErrLastRC(&_cmCsvHandleToPtr(h)->err);
+  
+  cp->symId = symId;
+  cp->flags &= !kTypeTMask;
+  cp->flags |= kIdentCsvTFl;
+
+  return kOkCsvRC;  
+}
+
 cmCsvRC_t  cmCsvSetCellText(   cmCsvH_t h, unsigned row, unsigned col, const char* text )
 {
   cmCsvCell_t* cp;
@@ -1011,7 +1029,23 @@ cmCsvRC_t cmCsvInsertColAfter(  cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_
   
 }
 
-cmCsvRC_t  cmCsvInsertTextColAfter(   cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, const char* text, unsigned lexTId )
+cmCsvRC_t  cmCsvInsertIdentColAfter(   cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, const char* text, unsigned lexTId )
+{
+  cmCsvRC_t    rc;
+  cmCsvCell_t* ncp;
+
+  if( cellPtrPtr != NULL )
+    *cellPtrPtr = NULL;
+
+  if((rc = cmCsvInsertColAfter(h, leftCellPtr, &ncp, cmInvalidId, 0, lexTId )) == kOkCsvRC )
+    if((rc = cmCsvSetCellIdent(h, ncp->row, ncp->col, text )) == kOkCsvRC )
+      if( cellPtrPtr != NULL )
+        *cellPtrPtr = ncp;
+  
+  return rc;
+}
+
+cmCsvRC_t  cmCsvInsertQTextColAfter(   cmCsvH_t h, cmCsvCell_t* leftCellPtr, cmCsvCell_t** cellPtrPtr, const char* text, unsigned lexTId )
 {
   cmCsvRC_t    rc;
   cmCsvCell_t* ncp;
@@ -1137,12 +1171,12 @@ cmCsvRC_t  cmCsvWrite( cmCsvH_t h, const char* fn )
         if((tp = cmHashTblStr(p->htH,cp->symId)) == NULL )
           return _cmCsvError(p,kHashTblErrCsvRC,"Unable to locate the symbol text for cell at row:%i col:%i.",cp->row,cp->col);
 
-        if( cmIsFlag(cp->flags,kTextTMask) )
+        if( cmIsFlag(cp->flags,kStrCsvTFl) )
           fprintf(fp,"\"");
 
         fputs(tp,fp);
 
-        if( cmIsFlag(cp->flags,kTextTMask) )
+        if( cmIsFlag(cp->flags,kStrCsvTFl) )
           fprintf(fp,"\"");
 
         cp = cp->rowPtr;
