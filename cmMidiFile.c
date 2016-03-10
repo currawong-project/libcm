@@ -1380,7 +1380,8 @@ void _cmMidiFilePrintHdr( const _cmMidiFile_t* mfp, cmRpt_t* rpt )
 
 void _cmMidiFilePrintMsg( cmRpt_t* rpt, const cmMidiTrackMsg_t* tmp )
 {
-  cmRptPrintf(rpt,"%8i %8i %8i %8i : ",
+  cmRptPrintf(rpt,"%5i %8i %8i %8i %8i : ",
+    tmp->uid,
     tmp->dtick,
     tmp->dmicro,
     tmp->atick,
