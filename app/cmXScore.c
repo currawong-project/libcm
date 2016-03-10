@@ -779,22 +779,29 @@ void _cmXScoreSort( cmXScore_t* p )
 
 bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* np )
 {
-  cmXsNote_t* nnp      = np->slink;
+  cmXsNote_t* nnp      = np->slink;  // begin w/ note following np
   unsigned    measNumb = mp->number;
   unsigned    measNumb0= measNumb;
   cmChar_t    acc      = np->alter==-1?'b' : (np->alter==1?'#':' ');
 
+  printf("%i %s ",np->meas->number,cmMidiToSciPitch(np->pitch,NULL,0));
+  
+  // for each successive measure
   for(; mp!=NULL; mp=mp->link)
   {
     if( nnp == NULL )
       nnp = mp->noteL;
-    
+
+    // for each note starting at nnp
     for(; nnp!=NULL; nnp=nnp->slink)
     {
       if( /*nnp->voice->id == np->voice->id &&*/ nnp->step == np->step && nnp->octave == np->octave )
       {
         nnp->flags |= kTieProcXsFl;
-        nnp->flags  = cmClrFlag(nnp->flags,kOnsetXsFl); 
+        nnp->flags  = cmClrFlag(nnp->flags,kOnsetXsFl);
+
+        printf("---> %i %s ",nnp->meas->number,cmMidiToSciPitch(nnp->pitch,NULL,0));
+
 
         if( cmIsNotFlag(nnp->flags,kTieBegXsFl) )
         {
@@ -822,15 +829,20 @@ void  _cmXScoreResolveTiesAndLoc( cmXScore_t* p )
   unsigned m   = 0;
   
   cmXsPart_t* pp = p->partL;
+  
+  // for each part
   for(; pp!=NULL; pp=pp->link)
   {
     unsigned locIdx = 1;
     cmXsMeas_t* mp = pp->measL;
+
+    // for each measure
     for(; mp!=NULL; mp=mp->link)
     {
       cmXsNote_t* n0 = NULL;
       cmXsNote_t* np = mp->noteL;
-      
+
+      // for each note in this measure
       for(; np!=NULL; np=np->slink)
       {
         // if this note begins a tie and has not yet been  processed
@@ -840,6 +852,7 @@ void  _cmXScoreResolveTiesAndLoc( cmXScore_t* p )
         {
           if( _cmXScoreFindTiedNote(p,mp,np) )
             m += 1;
+          printf("\n");
           n += 1;
         }
 
@@ -1151,8 +1164,8 @@ cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, c
 
   //_cmXScoreResolveOctaveShift(p);
 
-  if( midiFn != NULL )
-    _cmXScoreProcessMidi(p,ctx,midiFn);
+  //if( midiFn != NULL )
+  //  _cmXScoreProcessMidi(p,ctx,midiFn);
 
   // CSV output initialize failed.
   if( cmCsvInitialize(&p->csvH,ctx) != kOkCsvRC )
