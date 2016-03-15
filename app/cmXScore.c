@@ -777,14 +777,15 @@ void _cmXScoreSort( cmXScore_t* p )
   }
 }
 
-bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* np )
+bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* np, bool rptFl )
 {
   cmXsNote_t* nnp      = np->slink;  // begin w/ note following np
   unsigned    measNumb = mp->number;
   unsigned    measNumb0= measNumb;
   cmChar_t    acc      = np->alter==-1?'b' : (np->alter==1?'#':' ');
 
-  printf("%i %s ",np->meas->number,cmMidiToSciPitch(np->pitch,NULL,0));
+  if( rptFl )
+    printf("%i %s ",np->meas->number,cmMidiToSciPitch(np->pitch,NULL,0));
   
   // for each successive measure
   for(; mp!=NULL; mp=mp->link)
@@ -800,9 +801,10 @@ bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* np )
         nnp->flags |= kTieProcXsFl;
         nnp->flags  = cmClrFlag(nnp->flags,kOnsetXsFl);
 
-        printf("---> %i %s ",nnp->meas->number,cmMidiToSciPitch(nnp->pitch,NULL,0));
+        if( rptFl )
+          printf("---> %i %s ",nnp->meas->number,cmMidiToSciPitch(nnp->pitch,NULL,0));
 
-
+        // if this note is not tied to a subsequent note
         if( cmIsNotFlag(nnp->flags,kTieBegXsFl) )
         {
           return true;
@@ -827,7 +829,7 @@ void  _cmXScoreResolveTiesAndLoc( cmXScore_t* p )
 {
   unsigned n   = 0;
   unsigned m   = 0;
-  
+  bool     rptFl = false;
   cmXsPart_t* pp = p->partL;
   
   // for each part
@@ -850,10 +852,19 @@ void  _cmXScoreResolveTiesAndLoc( cmXScore_t* p )
         //  may have already been processed by an earlier tied note.)
         if( cmIsFlag(np->flags,kTieBegXsFl) && cmIsNotFlag(np->flags,kTieProcXsFl))
         {
-          if( _cmXScoreFindTiedNote(p,mp,np) )
+          if( _cmXScoreFindTiedNote(p,mp,np,rptFl) )
             m += 1;
-          printf("\n");
+          
+          if( rptFl )
+            printf("\n");
+          
           n += 1;
+        }
+
+        if( cmIsFlag(np->flags,kTieEndXsFl) && cmIsFlag(np->flags,kOnsetXsFl) )
+        {
+          cmChar_t    acc  = np->alter==-1?'b' : (np->alter==1?'#':' ');
+          cmErrWarnMsg(&p->err,kUnterminatedTieXsRC,"The tied %c%c%i in measure %i marked as a tied note but is also marked to sound.",np->step,acc,np->octave,mp->number);
         }
 
         // set the location 
@@ -1648,7 +1659,7 @@ cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midi
   if((rc = cmXScoreInitialize( ctx, &h, xmlFn, midiFn)) != kOkXsRC )
     return cmErrMsg(&ctx->err,rc,"XScore alloc failed.");
 
-  cmXScoreWriteCsv(h,"/Users/kevin/temp/a0.csv");
+  cmXScoreWriteCsv(h,"/home/kevin/temp/a0.csv");
   cmXScoreReport(h,&ctx->rpt,false);
   
   return cmXScoreFinalize(&h);
