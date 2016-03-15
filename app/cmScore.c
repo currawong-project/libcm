@@ -2387,6 +2387,11 @@ void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
 {
   cmSc_t* p = _cmScHandleToPtr(h);
   unsigned i;
+
+  cmRptPrintf(rpt,"evnt  CSV       bar\n");
+  cmRptPrintf(rpt,"index line  bar idx type  pitch ETD Dynamic\n");
+  cmRptPrintf(rpt,"----- ----- --- --- ----- ----- --- -------\n");
+     
   for(i=0; i<p->cnt; ++i)
   {
     cmScoreEvt_t* r = p->array + i;
