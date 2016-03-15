@@ -287,19 +287,7 @@ const cmChar_t* _cmXmlAdvanceOne( cmXml_t* p )
   if( _cmXmlAdvance(p) )
     return p->c;
 
-  return NULL;
-  
-  /*
-  if( _cmXmlIsEof(p) )
-    return NULL;
-
-  p->c += 1;
-
-  if( *p->c == '\n' )
-    p->line += 1;
-  
-  return _cmXmlIsEof(p) ? NULL : p->c;
-  */
+  return NULL;  
 }
 
 cmXmlRC_t  _cmXmlParseAttr( cmXml_t* p, cmChar_t endChar,  cmXmlNode_t* np )
@@ -1021,7 +1009,40 @@ unsigned _cmXmlLabelCount( const cmChar_t* firstLabel, va_list vl )
   return n;
 }
 
+const cmXmlNode_t*  _cmXmlNodeHasChildR( const cmXmlNode_t* np, unsigned argIdx, const cmChar_t**argV, unsigned argN, const cmChar_t* attrLabel, const cmChar_t* valueStr)
+{
+  const cmXmlNode_t* cnp = np->children;
+  for(; cnp!=NULL; cnp=cnp->sibling)
+    if( cmTextCmp(cnp->label,argV[argIdx]) == 0 )
+    {
+      // The node path ending at cnp matches all node labels up through argV[argIdx]
 
+      // if there are still node labels to match in argV[]
+      if( argIdx < argN-1 )
+        return _cmXmlNodeHasChildR(cnp,argIdx+1,argV,argN,attrLabel,valueStr);
+
+      // The path ending at cnp matches all node labels in argV[].
+
+      // if an attr. label was given 
+      if( attrLabel != NULL )
+      {
+        const cmXmlAttr_t* a;
+        if((a = cmXmlFindAttrib(cnp,attrLabel)) == NULL )
+          continue;
+
+        // if a value string was given
+        if( valueStr != NULL )
+          if( cmTextCmp(a->value,valueStr) != 0 )
+            continue;
+      }
+
+      return cnp;      
+    }
+  
+  return NULL;
+}
+
+/*
 const cmXmlNode_t*  _cmXmlNodeHasChildR( const cmXmlNode_t* np, unsigned argIdx, const cmChar_t**argV, unsigned argN, const cmChar_t* attrLabel, const cmChar_t* valueStr)
 {
   if( argIdx == argN )
@@ -1032,19 +1053,23 @@ const cmXmlNode_t*  _cmXmlNodeHasChildR( const cmXmlNode_t* np, unsigned argIdx,
   for(; cnp!=NULL; cnp=cnp->sibling)
     if( cmTextCmp(cnp->label,argV[argIdx]) == 0 )
     {
-      const cmXmlNode_t* tnp = _cmXmlNodeHasChildR(cnp,argIdx+1,argV,argN,attrLabel,valueStr);
+      const cmXmlNode_t* tnp;
 
-      if( attrLabel != NULL )
+      if((tnp = _cmXmlNodeHasChildR(cnp,argIdx+1,argV,argN,attrLabel,valueStr)) != NULL)
       {
-        const cmXmlAttr_t* a;
-        if((a = cmXmlFindAttrib(np,attrLabel)) == NULL )
-          continue;
 
-
-        if( valueStr != NULL )
+        if( attrLabel != NULL )
         {
-          if( cmTextCmp(a->value,valueStr) != 0 )
+          const cmXmlAttr_t* a;
+          if((a = cmXmlFindAttrib(tnp,attrLabel)) == NULL )
             continue;
+
+
+          if( valueStr != NULL )
+          {
+            if( cmTextCmp(a->value,valueStr) != 0 )
+              continue;
+          }
         }
       }
       
@@ -1054,6 +1079,7 @@ const cmXmlNode_t*  _cmXmlNodeHasChildR( const cmXmlNode_t* np, unsigned argIdx,
 
   return NULL;
 }
+*/
 
 const cmXmlNode_t*  _cmXmlNodeHasChildV( const cmXmlNode_t* np, const cmChar_t* label, va_list vl, unsigned argN, const cmChar_t* attrLabel, const cmChar_t* valueStr )
 {
@@ -1065,33 +1091,6 @@ const cmXmlNode_t*  _cmXmlNodeHasChildV( const cmXmlNode_t* np, const cmChar_t* 
 
   return _cmXmlNodeHasChildR(np,0,argV,argN,attrLabel,valueStr);
 }
-
-/*
-const cmXmlNode_t*  _cmXmlNodeHasChildV( const cmXmlNode_t* np, const cmChar_t* label, va_list vl, unsigned argN )
-{
-  unsigned i;
-  
-  // get next label to match
-  for(i=0; i<argN; ++i)
-  {
-    assert( label != NULL);
-    
-    np = np->children;
-    for(; np!=NULL; np=np->sibling)
-      if( cmTextCmp(np->label,label) == 0 )
-        break;
-
-    // if the end of the child list was encountered - with no match
-    if( np == NULL )
-      return NULL;
-
-    label = va_arg(vl,const cmChar_t*);
-
-  }
-
-  return np;
-}
-*/
 
 bool    cmXmlNodeHasChildV( const cmXmlNode_t* np, const cmChar_t* label, va_list vl )
 {
@@ -1106,54 +1105,6 @@ bool    cmXmlNodeHasChild( const cmXmlNode_t* np, const cmChar_t* label, ... )
   va_end(vl);
   return fl;
 }
-
-/*
-bool    _cmXmlNodeHasChildWithAttrAndValueV( const cmXmlNode_t* np, const cmChar_t* label, va_list vl0, bool valueFl )
-{
-  unsigned argN = _cmXmlLabelCount(label,vl0);
-  unsigned    n = valueFl ? 2 : 1;  
-  va_list vl1;
-  unsigned i;
-  
-  assert( argN > n-1 ); // an attribute label must be given.
-
-  if( argN <= n-1 )
-    return false;
-
-  argN -= n;
-
-  va_copy(vl1,vl0);
-  np = _cmXmlNodeHasChildV(np,label,vl1,argN);
-  va_end(vl1);
-
-  if( np == NULL )
-    return false;
-  
-  // advance vl0 to the attribute label
-  for(i=1; i<argN; ++i)
-  {
-    label = va_arg(vl0,const cmChar_t*);
-    assert( label != NULL );
-  }
-
-  // get the attr label
-  label = va_arg(vl0,const cmChar_t*);
-
-  const cmXmlAttr_t* a;
-  if((a = cmXmlFindAttrib(np,label)) == NULL )
-    return false;
-
-
-  if( valueFl )
-  {
-    label = va_arg(vl0,const cmChar_t*);
-    if( cmTextCmp(a->value,label) != 0 )
-      return false;
-  }
-
-  return true;
- }
-*/
 
 bool    _cmXmlNodeHasChildWithAttrAndValueV( const cmXmlNode_t* np, const cmChar_t* label, va_list vl0, bool valueFl )
 {
