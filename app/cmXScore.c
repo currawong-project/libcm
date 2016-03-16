@@ -796,7 +796,7 @@ bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* np, bool
     // for each note starting at nnp
     for(; nnp!=NULL; nnp=nnp->slink)
     {
-      if( /*nnp->voice->id == np->voice->id &&*/ nnp->step == np->step && nnp->octave == np->octave )
+      if( nnp->voice->id == np->voice->id && nnp->step == np->step && nnp->octave == np->octave )
       {
         nnp->flags |= kTieProcXsFl;
         nnp->flags  = cmClrFlag(nnp->flags,kOnsetXsFl);
@@ -821,7 +821,7 @@ bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* np, bool
     
   }
 
-  cmErrWarnMsg(&p->err,kUnterminatedTieXsRC,"The tied %c%c%i in measure %i was not terminated.",np->step,acc,np->octave,measNumb);
+  cmErrWarnMsg(&p->err,kUnterminatedTieXsRC,"The tied %c%c%i in measure %i was not terminated.",np->step,acc,np->octave,measNumb0);
   return false;
 }
 
@@ -1659,7 +1659,7 @@ cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midi
   if((rc = cmXScoreInitialize( ctx, &h, xmlFn, midiFn)) != kOkXsRC )
     return cmErrMsg(&ctx->err,rc,"XScore alloc failed.");
 
-  cmXScoreWriteCsv(h,"/home/kevin/temp/a0.csv");
+  cmXScoreWriteCsv(h,"/Users/kevin/temp/a0.csv");
   cmXScoreReport(h,&ctx->rpt,false);
   
   return cmXScoreFinalize(&h);
