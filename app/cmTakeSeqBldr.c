@@ -14,6 +14,7 @@
 #include "cmAudioFile.h"
 #include "cmTimeLine.h"
 #include "cmSymTbl.h"
+#include "cmFile.h"
 #include "cmScore.h"
 #include "cmTakeSeqBldr.h"
 
