@@ -16,6 +16,7 @@
 #include "cmAudioFile.h"
 #include "cmTimeLine.h"
 #include "cmText.h"
+#include "cmFile.h"
 #include "cmScore.h"
 #include "cmVectOpsTemplateMain.h"
 
@@ -2424,6 +2425,134 @@ void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
   }
 }
 
+cmScRC_t cmScoreGraphicAlloc( cmScH_t h, cmScGraphic_t** vRef, unsigned* nRef)
+{
+  cmScRC_t       rc = kOkScRC;
+  cmSc_t*        p  = _cmScHandleToPtr(h);
+  cmScGraphic_t* v  = cmMemAllocZ(cmScGraphic_t,p->cnt);
+  unsigned       i,j,k;
+
+  unsigned       bordH = 5;
+  unsigned       bordW = 5;
+  unsigned       noteW = 100;
+  unsigned       noteH = 100;
+  unsigned       left  = 0;
+  unsigned       top   = 0;
+  unsigned       nextTop = 0;
+  
+  for(i=0,k=0; i<p->locCnt; ++i)
+  {
+    left += noteW + bordW;
+    top   = nextTop + bordH;
+    
+    for(j=0; j<p->loc[i].evtCnt; ++i)
+    {
+      const cmScoreEvt_t* e = p->loc[i].evtArray[j];
+      
+      switch( e->type)
+      {
+        case kBarEvtScId:          
+        case kNonEvtScId:
+          
+          assert( k < p->cnt );
+          
+          v[k].type     = e->type;
+          v[k].scEvtIdx = e->index;
+          v[k].left     = left;
+          v[k].top      = top;
+          v[k].width    = noteW;
+          v[k].height   = noteH;
+          
+          if( e->type == kBarEvtScId )
+            v[k].text = cmTsPrintfP(NULL,"%i",e->barNumb);
+          else
+            v[k].text = cmMemAllocStr( cmMidiToSciPitch( e->pitch, NULL, 0));
+          
+          top += noteH + bordH;
+          
+          if( top > nextTop )
+            nextTop = top;
+          
+          k += 1;
+          
+          break;
+      }
+    }
+  }
+
+  *nRef = k;
+  *vRef = v;
+  
+  return rc;
+}
+
+cmScRC_t cmScoreGraphicRelease( cmScH_t h, cmScGraphic_t** vRef, unsigned* nRef)
+{
+  if( vRef == NULL || nRef==NULL )
+    return kOkScRC;
+  
+  unsigned       i;
+  cmScGraphic_t* v = *vRef;
+  unsigned       n = *nRef;
+  for(i=0; i<n; ++i)
+    cmMemFree((cmChar_t*)v[i].text);
+  cmMemFree(v);
+  *vRef = NULL;
+  *nRef = 0;
+  return kOkScRC;
+}
+
+cmScRC_t      cmScoreGraphicWriteF(  cmScH_t h, const cmChar_t* fn, cmScGraphic_t* v, unsigned n )
+{
+  cmScRC_t  rc = kOkScRC;
+  cmSc_t*   p  = _cmScHandleToPtr(h);
+  cmFileH_t fH = cmFileNullHandle;
+  
+  if( cmFileOpen(&fH,fn,kWriteFileFl,p->err.rpt) != kOkFileRC )
+    return cmErrMsg(&p->err,kFileFailScRC,"Graphic file create failed for '%s'.",cmStringNullGuard(fn));
+
+  cmFilePrint(fH,"<!DOCTYPE html>\n<html>\n<body>\n<svg>\n");
+  
+  if((rc != cmScoreGraphicWrite(h,fH,v,n)) != kOkScRC )
+    goto errLabel;
+
+  cmFilePrint(fH,"</svg>\n</body>\n</html>\n");
+
+ errLabel:
+  cmFileClose(&fH);
+  return rc;
+}
+
+cmScRC_t      cmScoreGraphicWrite(   cmScH_t h, cmFileH_t fH, cmScGraphic_t* v, unsigned n )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  unsigned i;
+  for(i=0; i<n; ++i)
+  {
+    const cmScGraphic_t* g = v + i;
+    
+    if( cmFilePrintf(fH,"<rect x=\"%i\" y=\"%i\" width=\"%i\" height=\"%i\" fill=\"white\"/>\n",g->left,g->top,g->width,g->height) != kOkFileRC )
+      return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file output.");
+
+    if( g->text != NULL )
+    {
+      unsigned tx = g->left + g->width/2;
+      unsigned ty = g->top  + g->height/2;
+    
+      if( cmFilePrintf(fH,"<text x=\"%i\" y=\"%i\" alignment-baseline=\"middle\" text-anchor=\"middle\">%s</text>\n",tx,ty,g->text) != kOkFileRC )
+        return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file output.");
+    }
+    
+    //<rect x="0" y="0" width="200" height="100" stroke="red" stroke-width="3px" fill="white"/>
+    //<text x="50%" y="50%" alignment-baseline="middle" text-anchor="middle">TEXT</text>    
+    
+  }
+
+  return kOkScRC;
+}
+
+
+
 cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* scoreFn )
 {
   cmScRC_t      rc  = kOkScRC;
@@ -2466,10 +2595,7 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
       cmErrMsg(&err,kCsvFailScRC,"Error inserting column index '%i' label in '%s'.",i,cmStringNullGuard(scoreFn));
       goto errLabel;
     }
-
   }    
-
-
 
   for(i=0; i<msgCnt; ++i)
   {
@@ -2631,6 +2757,7 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
 
   return rc;
 }
+
 
 void cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
 {
