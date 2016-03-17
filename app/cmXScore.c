@@ -777,32 +777,84 @@ void _cmXScoreSort( cmXScore_t* p )
   }
 }
 
-bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* np, bool rptFl )
+bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* n0p, bool rptFl )
 {
-  cmXsNote_t* nnp      = np->slink;  // begin w/ note following np
-  unsigned    measNumb = mp->number;
-  unsigned    measNumb0= measNumb;
-  cmChar_t    acc      = np->alter==-1?'b' : (np->alter==1?'#':' ');
+  cmXsNote_t* nnp       = n0p->slink;  // begin w/ note following np
+  unsigned    measNumb  = mp->number;
+  cmChar_t    acc       = n0p->alter==-1?'b' : (n0p->alter==1?'#':' ');
 
   if( rptFl )
-    printf("%i %s ",np->meas->number,cmMidiToSciPitch(np->pitch,NULL,0));
+    printf("%i %i %s ",n0p->meas->number,n0p->tick,cmMidiToSciPitch(n0p->pitch,NULL,0));
+  
+  
+  while(1)
+  {
+    // if we are at the end of a measure advance to the next measure
+    if( nnp == NULL )
+    {
+      mp  = mp->link;
+      nnp = mp->noteL;
+
+    // if a measure was completed and no end note was found ... then the tie is unterminated
+    // (a tie must be continued in every measure which it passes through)      
+      if( mp->number > measNumb + 1 )
+        break;
+    }
+    
+    // for each note starting at nnp
+    for(; nnp!=NULL; nnp=nnp->slink)
+    {
+      // if this note is tied to the originating note (np)
+      if( nnp->voice->id == n0p->voice->id && nnp->step == n0p->step && nnp->octave == n0p->octave )
+      {
+        nnp->flags |= kTieProcXsFl;
+        nnp->flags  = cmClrFlag(nnp->flags,kOnsetXsFl);
+
+        if( rptFl )
+          printf("---> %i %i %s ",nnp->meas->number,nnp->tick,cmMidiToSciPitch(nnp->pitch,NULL,0));
+
+        // if this note is not tied to a subsequent note
+        if( cmIsNotFlag(nnp->flags,kTieBegXsFl) )
+          return true;
+
+        // record the measure number of the last note with a tie-start
+        measNumb = mp->number;
+      }
+    }
+    
+  }
+  
+  cmErrWarnMsg(&p->err,kUnterminatedTieXsRC,"The tied %c%c%i in measure %i was not terminated.",n0p->step,acc,n0p->octave,measNumb);
+  return false;
+}
+
+bool  _cmXScoreFindTiedNote1( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* np, bool rptFl )
+{
+  cmXsNote_t* nnp       = np->slink;  // begin w/ note following np
+  unsigned    measNumb  = mp->number;
+  unsigned    measNumb0 = measNumb;
+  cmChar_t    acc       = np->alter==-1?'b' : (np->alter==1?'#':' ');
+
+  if( rptFl )
+    printf("%i %i %s ",np->meas->number,np->tick,cmMidiToSciPitch(np->pitch,NULL,0));
   
   // for each successive measure
   for(; mp!=NULL; mp=mp->link)
   {
-    if( nnp == NULL )
-      nnp = mp->noteL;
+    //if( nnp == NULL )
+    //  nnp = mp->noteL;
 
     // for each note starting at nnp
     for(; nnp!=NULL; nnp=nnp->slink)
     {
+      // if this note is tied to the originating note (np)
       if( nnp->voice->id == np->voice->id && nnp->step == np->step && nnp->octave == np->octave )
       {
         nnp->flags |= kTieProcXsFl;
         nnp->flags  = cmClrFlag(nnp->flags,kOnsetXsFl);
 
         if( rptFl )
-          printf("---> %i %s ",nnp->meas->number,cmMidiToSciPitch(nnp->pitch,NULL,0));
+          printf("---> %i %i %s ",nnp->meas->number,nnp->tick,cmMidiToSciPitch(nnp->pitch,NULL,0));
 
         // if this note is not tied to a subsequent note
         if( cmIsNotFlag(nnp->flags,kTieBegXsFl) )
@@ -810,7 +862,7 @@ bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* np, bool
           return true;
         }
 
-        measNumb0 = mp->number; 
+        measNumb0 = mp->number;  
       }
     }
 
@@ -1212,6 +1264,12 @@ cmXsRC_t cmXScoreFinalize( cmXsH_t* hp )
 bool     cmXScoreIsValid( cmXsH_t h )
 { return h.h != NULL; }
 
+void _cmXScoreReportTitle( cmRpt_t* rpt )
+{
+  cmRptPrintf(rpt,"      voc  loc  tick  durtn rval        flags\n");
+  cmRptPrintf(rpt,"      --- ----- ----- ----- ---- --- -------------\n");
+}
+    
 void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
 {
   const cmChar_t* B  = cmIsFlag(note->flags,kBarXsFl)       ? "|" : "-";
@@ -1235,7 +1293,13 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
   cmChar_t acc = note->alter==-1?'b':(note->alter==1?'#':' ');
   snprintf(N,4,"%c%c%1i",note->step,acc,note->octave);
     
-  cmRptPrintf(rpt,"      %3i %5i %5i %5i %4.1f %3s %s%s%s%s%s%s%s%s%s%s%s%s%s",note->voice->id,note->locIdx,note->tick,note->duration,note->rvalue,N,B,R,G,D,C,e,d,t,P,S,H,T0,T1);
+  cmRptPrintf(rpt,"      %3i %5i %5i %5i %4.1f %3s %s%s%s%s%s%s%s%s%s%s%s%s%s",
+    note->voice->id,
+    note->locIdx,
+    note->tick,
+    note->duration,
+    note->rvalue,
+    N,B,R,G,D,C,e,d,t,P,S,H,T0,T1);
 
   if( cmIsFlag(note->flags,kSectionXsFl) )
     cmRptPrintf(rpt," %s",cmStringNullGuard(note->tvalue));
@@ -1591,6 +1655,8 @@ void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
 
       if( sortFl )
       {
+        _cmXScoreReportTitle(rpt);
+        
         const cmXsNote_t* note = meas->noteL;
         for(; note!=NULL; note=note->slink)
         {
@@ -1606,6 +1672,8 @@ void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
       else
       {
       
+        _cmXScoreReportTitle(rpt);
+        
         const cmXsVoice_t* v = meas->voiceL;
         for(; v!=NULL; v=v->link)
         {        
@@ -1660,7 +1728,7 @@ cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midi
     return cmErrMsg(&ctx->err,rc,"XScore alloc failed.");
 
   cmXScoreWriteCsv(h,"/Users/kevin/temp/a0.csv");
-  cmXScoreReport(h,&ctx->rpt,false);
+  cmXScoreReport(h,&ctx->rpt,true);
   
   return cmXScoreFinalize(&h);
 

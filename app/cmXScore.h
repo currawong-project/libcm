@@ -33,7 +33,7 @@ extern "C" {
   //
   // 2) Replace "DoletSibelius Unknown Symbol Index" with "DoletSibelius unknownSymIdx"
   //
-  // Steps one and two can be automated by in emacs by:
+  // Steps 1) and 2) can be automated by in emacs by:
   //
   // M-x load-file ~/src/emacs/rpoc_music_xml.el
   //
