@@ -22,10 +22,11 @@
 
 enum
 {
-  kBarSmgFl     = 0x0001,
-  kNoteSmgFl    = 0x0002,
-  kMidiSmgFl    = 0x0004,
-  kNoMatchSmgFl = 0x0008
+  kLocSmgFl     = 0x0001,
+  kBarSmgFl     = 0x0002,
+  kNoteSmgFl    = 0x0004,
+  kMidiSmgFl    = 0x0008,
+  kNoMatchSmgFl = 0x0010
 };
 
 typedef struct cmSmgBox_str
@@ -79,10 +80,13 @@ typedef struct
 typedef struct
 {
   cmErr_t      err;
-  cmSmgSc_t*   scV;
+  
+  cmSmgSc_t*   scV;   
   unsigned     scN;
+  
   cmSmgMidi_t* mV;
   unsigned     mN;
+  
   cmSmgLoc_t*  locV;
   unsigned     locN;
   cmSmgLine_t* lines;
@@ -135,9 +139,9 @@ cmSmgRC_t _cmSmgFree( cmSmg_t* p )
     l0 = l1;
   }
   
-  cmMemFree(&p->scV);
-  cmMemFree(&p->mV);
-  cmMemFree(&p->locV);
+  cmMemFree(p->scV);
+  cmMemFree(p->mV);
+  cmMemFree(p->locV);
   cmMemFree(p);
   return kOkSmgRC;
 }
@@ -152,7 +156,9 @@ cmSmgBox_t*  _cmSmgInsertBox( cmSmg_t* p, unsigned locIdx, unsigned flags, unsig
   b->text  = text;
 
   if( p->locV[locIdx].bV == NULL )
+  {
     p->locV[locIdx].bV = b;
+  }
   else
   {
     cmSmgBox_t* b0 = p->locV[locIdx].bV;
@@ -185,6 +191,9 @@ cmSmgRC_t _cmSmgInitFromScore( cmCtx_t* ctx, cmSmg_t* p, const cmChar_t* scoreFn
   {
     cmScoreLoc_t* l = cmScoreLoc(scH,i);
 
+    // insert the location label box
+    _cmSmgInsertBox(p, i, kLocSmgFl, cmInvalidId, cmTsPrintfP(NULL,"%i",i) );
+    
     // for each event in location i
     for(j=0; j<l->evtCnt; ++j)
     {
@@ -195,7 +204,8 @@ cmSmgRC_t _cmSmgInitFromScore( cmCtx_t* ctx, cmSmg_t* p, const cmChar_t* scoreFn
         case kBarEvtScId:
         case kNonEvtScId:
           {
-            unsigned  flags = e->type==kNonEvtScId ? kNoteSmgFl : kBarSmgFl;
+            // Note: Mark all score boxes as 'no-match' - this will be cleared in cmScoreMatchGraphicInsertMidi(). 
+            unsigned  flags = kNoMatchSmgFl | (e->type==kNonEvtScId ? kNoteSmgFl : kBarSmgFl);
             cmChar_t* text  = NULL;
           
             assert( k < p->scN );
@@ -218,6 +228,8 @@ cmSmgRC_t _cmSmgInitFromScore( cmCtx_t* ctx, cmSmg_t* p, const cmChar_t* scoreFn
     }
   }
 
+  p->scN = k;
+  
   cmScoreFinalize(&scH);
   
   return rc;
@@ -241,10 +253,14 @@ cmSmgRC_t _cmSmgInitFromMidi( cmCtx_t* ctx, cmSmg_t* p, const cmChar_t* midiFn )
   for(i=0,j=0; i<mN; ++i)
     if( (mV[i]!=NULL) && cmMidiIsChStatus(mV[i]->status) && cmMidiIsNoteOn(mV[i]->status) && (mV[i]->u.chMsgPtr->d1>0) )          
     {
+      assert(j < mN);
       p->mV[j].uid   = mV[i]->uid;
       p->mV[j].pitch = mV[i]->u.chMsgPtr->d0;
       p->mV[j].vel   = mV[i]->u.chMsgPtr->d1;
+      ++j;
     }
+
+  p->mN = j;
   
   cmMidiFileClose(&mfH);
 
@@ -275,6 +291,9 @@ cmSmgRC_t cmScoreMatchGraphicAlloc( cmCtx_t* ctx, cmSmgH_t* hp, const cmChar_t* 
   return rc;
 }
 
+bool cmScoreMatchGraphicIsValid( cmSmgH_t h )
+{ return h.h != NULL; }
+
 cmSmgRC_t cmScoreMatchGraphicFree( cmSmgH_t* hp )
 {
   cmSmgRC_t rc = kOkSmgRC;
@@ -300,18 +319,30 @@ cmSmgRC_t cmScoreMatchGraphicInsertMidi( cmSmgH_t h, unsigned midiUid, unsigned 
   cmSmg_t* p = _cmSmgHandleToPtr(h);
   unsigned i,j;
 
-  // for each MIDI event
+  // if this midi event did not match any score records
+  if( csvScoreEventId == cmInvalidId )
+    return kOkSmgRC;
+  
+  assert(midiUid != cmInvalidId );
+  assert(midiPitch<128 && midiVel<128);
+
+  // find the midi file record which matches the event
   for(i=0; i<p->mN; ++i)
     if( p->mV[i].uid == midiUid )
     {
-      // for each score record
+      // find the score record which matches the score event id
       for(j=0; j<p->scN; ++j)
         if( p->scV[j].csvEventId == csvScoreEventId )
         {
+          // create a match record
           cmSmgMatch_t* m = cmMemAllocZ(cmSmgMatch_t,1);
           
           m->score = p->scV + j;
 
+          // mark the box associated with this score record as 'matched' by clearing the kNoMatchSmgFl
+          p->scV[j].box->flags = cmClrFlag(p->scV[j].box->flags,kNoMatchSmgFl);
+
+          // insert the match record in the midi files match list
           if( p->mV[i].matchV == NULL )
             p->mV[i].matchV = m;
           else
@@ -322,6 +353,8 @@ cmSmgRC_t cmScoreMatchGraphicInsertMidi( cmSmgH_t h, unsigned midiUid, unsigned 
 
             m0->link = m;
           }
+
+          return kOkSmgRC;
         }
 
       return cmErrMsg(&p->err,kScoreFailSmgRC,"The score csv event id %i not found,",csvScoreEventId);
@@ -340,6 +373,7 @@ void _cmSmgResolveMidi( cmSmg_t* p )
   // for each midi record
   for(i=0; i<p->mN; ++i)
   {
+    // get the first match record for this MIDI event
     const cmSmgMatch_t* m = p->mV[i].matchV;
 
     // get the score location for this midi event
@@ -380,16 +414,18 @@ void _cmSmgLayout( cmSmg_t* p )
   unsigned bordY = 5;
   unsigned boxH  = 30;
   unsigned boxW  = 30;
-  unsigned top   = boxH + bordY;
+  unsigned top   = boxH + 2*bordY;
   unsigned left  = bordX;
   
   for(i=0; i<p->locN; ++i)
   {
     cmSmgLoc_t* l = p->locV + i;
     cmSmgBox_t* b = l->bV;
-    
+
+    // for each box attached to this location
     for(; b!=NULL; b=b->link)
     {
+      // bar boxes are always drawn at the top of the column
       if( cmIsFlag(b->flags,kBarSmgFl) )
         b->top = bordY;
       else
@@ -403,7 +439,8 @@ void _cmSmgLayout( cmSmg_t* p )
       b->height = boxH;
     }
 
-    left += boxW + bordX;
+    left += boxW + bordX;    
+    top   = boxH + 2*bordY;
   }
 }
 
@@ -416,7 +453,7 @@ void _cmSmgSvgSize( cmSmg_t* p, unsigned* widthRef, unsigned* heightRef )
   for(i=0; i<p->locN; ++i)
   {
     cmSmgBox_t* b = p->locV[i].bV;
-    while( b != NULL )
+    for(; b != NULL; b=b->link )
     {
       if( b->left + b->width > maxWidth )
         maxWidth = b->left + b->width;
@@ -437,21 +474,36 @@ cmSmgRC_t cmScoreMatchGraphicWrite( cmSmgH_t h, const cmChar_t* fn )
   unsigned  svgHeight = 0;
   unsigned  svgWidth  = 0;
   unsigned  i;
+
+  
+  // BUG BUG BUG : this can only be called once
+  // create a box for each midi event
+  _cmSmgResolveMidi( p );
+
+  // layout the boxes
+  _cmSmgLayout( p );
+
   
   if( cmFileOpen(&fH,fn,kWriteFileFl,p->err.rpt) != kOkFileRC )
     return cmErrMsg(&p->err,kFileFailScRC,"Graphic file create failed for '%s'.",cmStringNullGuard(fn));
 
   _cmSmgSvgSize(p,&svgWidth,&svgHeight);
 
+  svgHeight += 10; // add a right and lower border
+  svgWidth  += 10;
+
   cmFilePrintf(fH,"<!DOCTYPE html>\n<html>\n<head><link rel=\"stylesheet\" type=\"text/css\" href=\"score0.css\"></head><body>\n<svg width=\"%i\" height=\"%i\">\n",svgWidth,svgHeight);
 
   for(i=0; i<p->locN; ++i)
   {
     cmSmgBox_t* b = p->locV[i].bV;
-    while( b != NULL )
+    for(; b != NULL; b=b->link )
     {
       const cmChar_t* classStr = "score";
 
+      if( cmIsFlag(b->flags,kLocSmgFl) )
+        classStr = "loc";
+      
       if( cmIsFlag(b->flags,kMidiSmgFl) )
         classStr = "midi";
 
@@ -467,7 +519,7 @@ cmSmgRC_t cmScoreMatchGraphicWrite( cmSmgH_t h, const cmChar_t* fn )
         classStr = "bar";
       
       if( cmFilePrintf(fH,"<rect x=\"%i\" y=\"%i\" width=\"%i\" height=\"%i\" class=\"%s\"/>\n",b->left,b->top,b->width,b->height,classStr) != kOkFileRC )
-        return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file output.");
+        return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file rect output.");
 
       if( b->text != NULL )
       {
@@ -475,10 +527,22 @@ cmSmgRC_t cmScoreMatchGraphicWrite( cmSmgH_t h, const cmChar_t* fn )
         unsigned ty = b->top  + 20; //g->height/2;
         
         if( cmFilePrintf(fH,"<text x=\"%i\" y=\"%i\" text-anchor=\"middle\" class=\"stext\">%s</text>\n",tx,ty,b->text) != kOkFileRC )
-          return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file output.");
+          return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file text output.");
       }
       
     }
+  }
+
+  cmSmgLine_t* l = p->lines;
+  for(; l!=NULL; l=l->link)
+  {
+    unsigned x0 = l->b0->left + l->b0->width/2;
+    unsigned y0 = l->b0->top  + l->b0->height/2;
+    unsigned x1 = l->b1->left + l->b1->width/2;
+    unsigned y1 = l->b1->top  + l->b1->height/2;
+    
+    if( cmFilePrintf(fH,"<line x1=\"%i\" y1=\"%i\" x2=\"%i\" y2=\"%i\" class=\"sline\"/>\n",x0,y0,x1,y1) != kOkFileRC )
+      return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file line output.");
   }
     
   cmFilePrint(fH,"</svg>\n</body>\n</html>\n");
