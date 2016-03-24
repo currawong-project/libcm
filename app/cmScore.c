@@ -2430,38 +2430,43 @@ cmScRC_t cmScoreGraphicAlloc( cmScH_t h, cmScGraphic_t** vRef, unsigned* nRef)
   cmScRC_t       rc = kOkScRC;
   cmSc_t*        p  = _cmScHandleToPtr(h);
   cmScGraphic_t* v  = cmMemAllocZ(cmScGraphic_t,p->cnt);
-  unsigned       i,j,k;
+  unsigned       i,j,k,k0;
 
   unsigned       bordH = 5;
   unsigned       bordW = 5;
-  unsigned       noteW = 100;
-  unsigned       noteH = 100;
-  unsigned       left  = 0;
-  unsigned       top   = 0;
-  unsigned       nextTop = 0;
-  
+  unsigned       noteW = 30;
+  unsigned       noteH = 30;
+  unsigned       left  = bordH;
+  unsigned       top   = bordW;
+
+  // for each score location
   for(i=0,k=0; i<p->locCnt; ++i)
   {
-    left += noteW + bordW;
-    top   = nextTop + bordH;
-    
-    for(j=0; j<p->loc[i].evtCnt; ++i)
+    left += k0!=k ? noteW + bordW : 0;
+    top   = noteH + 2*bordH;
+
+    k0 = k;
+
+    // for each event in location i
+    for(j=0; j<p->loc[i].evtCnt; ++j)
     {
       const cmScoreEvt_t* e = p->loc[i].evtArray[j];
       
       switch( e->type)
       {
-        case kBarEvtScId:          
+        case kBarEvtScId:
+          top = bordH;
+          
         case kNonEvtScId:
           
           assert( k < p->cnt );
           
-          v[k].type     = e->type;
-          v[k].scEvtIdx = e->index;
-          v[k].left     = left;
-          v[k].top      = top;
-          v[k].width    = noteW;
-          v[k].height   = noteH;
+          v[k].type       = e->type;
+          v[k].csvEventId = e->csvEventId;
+          v[k].left       = left;
+          v[k].top        = top;
+          v[k].width      = noteW;
+          v[k].height     = noteH;
           
           if( e->type == kBarEvtScId )
             v[k].text = cmTsPrintfP(NULL,"%i",e->barNumb);
@@ -2470,8 +2475,6 @@ cmScRC_t cmScoreGraphicAlloc( cmScH_t h, cmScGraphic_t** vRef, unsigned* nRef)
           
           top += noteH + bordH;
           
-          if( top > nextTop )
-            nextTop = top;
           
           k += 1;
           
@@ -2507,11 +2510,21 @@ cmScRC_t      cmScoreGraphicWriteF(  cmScH_t h, const cmChar_t* fn, cmScGraphic_
   cmScRC_t  rc = kOkScRC;
   cmSc_t*   p  = _cmScHandleToPtr(h);
   cmFileH_t fH = cmFileNullHandle;
+  unsigned  i;
   
   if( cmFileOpen(&fH,fn,kWriteFileFl,p->err.rpt) != kOkFileRC )
     return cmErrMsg(&p->err,kFileFailScRC,"Graphic file create failed for '%s'.",cmStringNullGuard(fn));
 
-  cmFilePrint(fH,"<!DOCTYPE html>\n<html>\n<body>\n<svg>\n");
+  unsigned svgWidth  = v[n-1].left + v[n-1].width  + 10;
+  unsigned svgHeight = 0;
+
+  for(i=0; i<n; ++i)
+    if( v[i].top  + v[i].height > svgHeight )
+      svgHeight = v[i].top  + v[i].height;
+
+  svgHeight += 10;
+  
+  cmFilePrintf(fH,"<!DOCTYPE html>\n<html>\n<head><link rel=\"stylesheet\" type=\"text/css\" href=\"score0.css\"></head><body>\n<svg width=\"%i\" height=\"%i\">\n",svgWidth,svgHeight);
   
   if((rc != cmScoreGraphicWrite(h,fH,v,n)) != kOkScRC )
     goto errLabel;
@@ -2531,15 +2544,15 @@ cmScRC_t      cmScoreGraphicWrite(   cmScH_t h, cmFileH_t fH, cmScGraphic_t* v, 
   {
     const cmScGraphic_t* g = v + i;
     
-    if( cmFilePrintf(fH,"<rect x=\"%i\" y=\"%i\" width=\"%i\" height=\"%i\" fill=\"white\"/>\n",g->left,g->top,g->width,g->height) != kOkFileRC )
+    if( cmFilePrintf(fH,"<rect x=\"%i\" y=\"%i\" width=\"%i\" height=\"%i\" class=\"score\"/>\n",g->left,g->top,g->width,g->height) != kOkFileRC )
       return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file output.");
 
     if( g->text != NULL )
     {
       unsigned tx = g->left + g->width/2;
-      unsigned ty = g->top  + g->height/2;
+      unsigned ty = g->top  + 20; //g->height/2;
     
-      if( cmFilePrintf(fH,"<text x=\"%i\" y=\"%i\" alignment-baseline=\"middle\" text-anchor=\"middle\">%s</text>\n",tx,ty,g->text) != kOkFileRC )
+      if( cmFilePrintf(fH,"<text x=\"%i\" y=\"%i\" text-anchor=\"middle\" class=\"stext\">%s</text>\n",tx,ty,g->text) != kOkFileRC )
         return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file output.");
     }
     

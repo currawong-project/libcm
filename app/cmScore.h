@@ -275,7 +275,7 @@ extern "C" {
   typedef struct
   {
     unsigned        type;
-    unsigned        scEvtIdx;
+    unsigned        csvEventId;
     unsigned        left;
     unsigned        top;
     unsigned        width;
