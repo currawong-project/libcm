@@ -1719,7 +1719,7 @@ cmXsRC_t cmXScoreWriteMidi( cmXsH_t h, const cmChar_t* fn )
   }  
 }
 
-cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midiFn )
+cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midiFn, const cmChar_t* outFn )
 {
   cmXsRC_t rc;
   cmXsH_t h = cmXsNullHandle;
@@ -1727,7 +1727,8 @@ cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midi
   if((rc = cmXScoreInitialize( ctx, &h, xmlFn, midiFn)) != kOkXsRC )
     return cmErrMsg(&ctx->err,rc,"XScore alloc failed.");
 
-  cmXScoreWriteCsv(h,"/Users/kevin/temp/a0.csv");
+  if( outFn != NULL )
+    cmXScoreWriteCsv(h,outFn);
   cmXScoreReport(h,&ctx->rpt,true);
   
   return cmXScoreFinalize(&h);
