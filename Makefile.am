@@ -73,9 +73,6 @@ cmHDR += src/libcm/cmDList.h src/libcm/cmDListTpl.h
 cmHDR += src/libcm/cmProcObj.h src/libcm/cmProc.h src/libcm/cmProc2.h src/libcm/cmProc3.h src/libcm/cmProc4.h src/libcm/cmProc5.h src/libcm/cmProcTest.h
 cmSRC += src/libcm/cmProcObj.c src/libcm/cmProc.c src/libcm/cmProc2.c src/libcm/cmProc3.c src/libcm/cmProc4.c src/libcm/cmProc5.c src/libcm/cmProcTest.c
 
-
-cmHDR += src/libcm/app/cmOnset.h src/libcm/app/cmTimeLine.h src/libcm/app/cmScore.h src/libcm/app/cmScoreProc.h 
-
 cmHDR += src/libcm/cmErr.h src/libcm/cmCtx.h src/libcm/cmRpt.h src/libcm/cmGlobal.h src/libcm/cmComplexTypes.h src/libcm/cmFloatTypes.h src/libcm/cmPrefix.h
 cmSRC += src/libcm/cmErr.c src/libcm/cmCtx.c src/libcm/cmRpt.c src/libcm/cmGlobal.c src/libcm/cmComplexTypes.c
 
@@ -147,8 +144,8 @@ cmHDR += src/libcm/cmProcObj.h src/libcm/cmProc.h src/libcm/cmProc2.h src/libcm/
 cmSRC += src/libcm/cmProcObj.c src/libcm/cmProc.c src/libcm/cmProc2.c src/libcm/cmProc3.c src/libcm/cmProc4.c src/libcm/cmProc5.c src/libcm/cmProcTest.c
 
 
-cmHDR += src/libcm/app/cmOnset.h src/libcm/app/cmTimeLine.h src/libcm/app/cmScore.h src/libcm/app/cmScoreProc.h src/libcm/app/cmXScore.h 
-cmSRC += src/libcm/app/cmOnset.c src/libcm/app/cmTimeLine.c src/libcm/app/cmScore.c src/libcm/app/cmScoreProc.c src/libcm/app/cmXScore.c
+cmHDR += src/libcm/app/cmOnset.h src/libcm/app/cmTimeLine.h src/libcm/app/cmScore.h src/libcm/app/cmScoreProc.h src/libcm/app/cmXScore.h src/libcm/app/cmScoreMatchGraphic.h
+cmSRC += src/libcm/app/cmOnset.c src/libcm/app/cmTimeLine.c src/libcm/app/cmScore.c src/libcm/app/cmScoreProc.c src/libcm/app/cmXScore.c src/libcm/app/cmScoreMatchGraphic.c
 
 cmHDR += src/libcm/app/cmSdb.h  src/libcm/app/cmTakeSeqBldr.h  src/libcm/app/cmDspPgmJsonToDot.h
 cmSRC += src/libcm/app/cmSdb.c  src/libcm/app/cmTakeSeqBldr.c  src/libcm/app/cmDspPgmJsonToDot.c
