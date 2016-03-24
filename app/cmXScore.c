@@ -696,7 +696,7 @@ cmXsRC_t _cmXScoreParseMeasure(cmXScore_t* p, cmXsPart_t* pp, const cmXmlNode_t*
         }
   
   }
-  
+
   return rc;
 }
 
@@ -704,7 +704,7 @@ cmXsRC_t _cmXScoreParsePart( cmXScore_t* p, cmXsPart_t* pp )
 {
   cmXsRC_t           rc       = kOkXsRC;
   const cmXmlNode_t* xnp;
-  cmXmlAttr_t        partAttr = { "id", pp->idStr };
+  cmXmlAttr_t        partAttr  = { "id", pp->idStr };
   
   // find the 'part'
   if((xnp = cmXmlSearch( cmXmlRoot(p->xmlH), "part", &partAttr, 1)) == NULL )
@@ -828,55 +828,6 @@ bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* n0p, boo
   return false;
 }
 
-bool  _cmXScoreFindTiedNote1( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* np, bool rptFl )
-{
-  cmXsNote_t* nnp       = np->slink;  // begin w/ note following np
-  unsigned    measNumb  = mp->number;
-  unsigned    measNumb0 = measNumb;
-  cmChar_t    acc       = np->alter==-1?'b' : (np->alter==1?'#':' ');
-
-  if( rptFl )
-    printf("%i %i %s ",np->meas->number,np->tick,cmMidiToSciPitch(np->pitch,NULL,0));
-  
-  // for each successive measure
-  for(; mp!=NULL; mp=mp->link)
-  {
-    //if( nnp == NULL )
-    //  nnp = mp->noteL;
-
-    // for each note starting at nnp
-    for(; nnp!=NULL; nnp=nnp->slink)
-    {
-      // if this note is tied to the originating note (np)
-      if( nnp->voice->id == np->voice->id && nnp->step == np->step && nnp->octave == np->octave )
-      {
-        nnp->flags |= kTieProcXsFl;
-        nnp->flags  = cmClrFlag(nnp->flags,kOnsetXsFl);
-
-        if( rptFl )
-          printf("---> %i %i %s ",nnp->meas->number,nnp->tick,cmMidiToSciPitch(nnp->pitch,NULL,0));
-
-        // if this note is not tied to a subsequent note
-        if( cmIsNotFlag(nnp->flags,kTieBegXsFl) )
-        {
-          return true;
-        }
-
-        measNumb0 = mp->number;  
-      }
-    }
-
-    // if a measure was completed and no end note was found ... then the tie is unterminated
-    // (a tie must be continued in every measure which it passes through)
-    if( measNumb0 < mp->number )
-      break;
-    
-  }
-
-  cmErrWarnMsg(&p->err,kUnterminatedTieXsRC,"The tied %c%c%i in measure %i was not terminated.",np->step,acc,np->octave,measNumb0);
-  return false;
-}
-
 void  _cmXScoreResolveTiesAndLoc( cmXScore_t* p )
 {
   unsigned n   = 0;
@@ -920,9 +871,9 @@ void  _cmXScoreResolveTiesAndLoc( cmXScore_t* p )
         }
 
         // set the location 
-        if( cmIsFlag(np->flags,kOnsetXsFl) )
+        if( cmIsFlag(np->flags,kOnsetXsFl|kBarXsFl) )
         {
-          if( n0!=NULL && n0->tick!=np->tick)
+          if( cmIsFlag(np->flags,kBarXsFl) || (n0!=NULL && n0->tick!=np->tick))
             locIdx += 1;
 
           np->locIdx = locIdx;
@@ -967,6 +918,39 @@ cmXsRC_t  _cmXScoreResolveOctaveShift( cmXScore_t* p )
   return kOkXsRC;
 }
 
+
+// The identical pitch may be notated to play simultaneously on different voices.
+// As performed on the piano this will equate to a single sounding note.
+// This function clears the onset flag on all except one of the duplicated notes.
+void _cmXScoreRemoveDuplicateNotes( cmXScore_t* p )
+{
+  cmXsPart_t* pp = p->partL;
+ 
+  // for each part
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp = pp->measL;
+
+    // for each measure
+    for(; mp!=NULL; mp=mp->link)
+    {
+      cmXsNote_t* np = mp->noteL;
+
+      // for each note in this measure
+      for(; np!=NULL; np=np->slink)
+        if( cmIsFlag(np->flags,kOnsetXsFl) )
+        {
+          cmXsNote_t* n0p = mp->noteL;
+          for(; n0p!=NULL; n0p=n0p->slink)
+            if( n0p!=np && cmIsFlag(n0p->flags,kOnsetXsFl) && np->locIdx==n0p->locIdx && np->pitch==n0p->pitch )
+              n0p->flags = cmClrFlag(n0p->flags,kOnsetXsFl);
+          
+        }
+    }
+  }
+}
+
+      
 
 cmXsMeas_t* _cmXScoreNextNonEmptyMeas( cmXsPart_t* pp, cmXsMeas_t* meas )
 {
@@ -1225,6 +1209,8 @@ cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, c
 
   _cmXScoreResolveTiesAndLoc(p);
 
+  _cmXScoreRemoveDuplicateNotes(p);
+  
   //_cmXScoreResolveOctaveShift(p);
 
   //if( midiFn != NULL )
