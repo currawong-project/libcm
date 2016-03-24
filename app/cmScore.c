@@ -153,7 +153,7 @@ cmScEvtRef_t _cmScEvtRefArray[] =
 
 cmScEvtRef_t _cmScDynRefArray[] = 
 {
-  { 1, 0, "pppp" },
+  { 1, 0, "pppp"},
   { 2, 0, "ppp" },
   { 3, 0, "pp"  },
   { 4, 0, "p"   },
@@ -161,7 +161,7 @@ cmScEvtRef_t _cmScDynRefArray[] =
   { 6, 0, "mf"  },
   { 7, 0, "f"   },
   { 8, 0, "ff"  },
-  { 9,0, "fff" },
+  { 9, 0, "fff" },
   { kInvalidDynScId,0, "***" },
 };
 
@@ -2389,9 +2389,9 @@ void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
   cmSc_t* p = _cmScHandleToPtr(h);
   unsigned i;
 
-  cmRptPrintf(rpt,"evnt  CSV       bar\n");
-  cmRptPrintf(rpt,"index line  bar idx type  pitch ETD Dynamic\n");
-  cmRptPrintf(rpt,"----- ----- --- --- ----- ----- --- -------\n");
+  cmRptPrintf(rpt,"evnt  CSV             bar\n");
+  cmRptPrintf(rpt,"index line  loctn bar idx type  pitch ETD Dynamic\n");
+  cmRptPrintf(rpt,"----- ----- ----- --- --- ----- ----- --- -------\n");
      
   for(i=0; i<p->cnt; ++i)
   {
@@ -2406,9 +2406,10 @@ void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
         break;
 
       case kNonEvtScId:
-        cmRptPrintf(rpt,"%5i %5i %3i %3i %s %5s %c%c%c %s\n",
+        cmRptPrintf(rpt,"%5i %5i %5i %3i %3i %s %5s %c%c%c %s\n",
           i,
           r->line,
+          r->locIdx,
           r->barNumb,
           r->barNoteIdx,
           cmScEvtTypeIdToLabel(r->type),
