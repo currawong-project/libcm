@@ -37,7 +37,8 @@ typedef struct cmSmgBox_str
   unsigned             top;
   unsigned             width;
   unsigned             height;
-  cmChar_t*            text;
+  cmChar_t*            text0;
+  cmChar_t*            text1;
   struct cmSmgBox_str* link;  
 } cmSmgBox_t;
 
@@ -90,6 +91,9 @@ typedef struct
   cmSmgLoc_t*  locV;
   unsigned     locN;
   cmSmgLine_t* lines;
+
+  unsigned     boxW;
+  unsigned     boxH;
 } cmSmg_t;
 
 cmSmgH_t cmSmgNullHandle = cmSTATIC_NULL_HANDLE;
@@ -124,7 +128,8 @@ cmSmgRC_t _cmSmgFree( cmSmg_t* p )
     while(b0!=NULL)
     {
       b1 = b0->link;
-      cmMemFree(b0->text);
+      cmMemFree(b0->text0);
+      cmMemFree(b0->text1);
       cmMemFree(b0);
       b0 = b1;
     }
@@ -146,14 +151,15 @@ cmSmgRC_t _cmSmgFree( cmSmg_t* p )
   return kOkSmgRC;
 }
 
-cmSmgBox_t*  _cmSmgInsertBox( cmSmg_t* p, unsigned locIdx, unsigned flags, unsigned id, cmChar_t* text )
+cmSmgBox_t*  _cmSmgInsertBox( cmSmg_t* p, unsigned locIdx, unsigned flags, unsigned id, cmChar_t* text0, cmChar_t* text1 )
 {
   assert( locIdx < p->locN );
   
   cmSmgBox_t* b = cmMemAllocZ(cmSmgBox_t,1);
-  b->flags = flags;
-  b->id    = id;
-  b->text  = text;
+  b->flags  = flags;
+  b->id     = id;
+  b->text0  = text0;
+  b->text1  = text1;
 
   if( p->locV[locIdx].bV == NULL )
   {
@@ -192,7 +198,7 @@ cmSmgRC_t _cmSmgInitFromScore( cmCtx_t* ctx, cmSmg_t* p, const cmChar_t* scoreFn
     cmScoreLoc_t* l = cmScoreLoc(scH,i);
 
     // insert the location label box
-    _cmSmgInsertBox(p, i, kLocSmgFl, cmInvalidId, cmTsPrintfP(NULL,"%i",i) );
+    _cmSmgInsertBox(p, i, kLocSmgFl, cmInvalidId, cmTsPrintfP(NULL,"%i",i), NULL );
     
     // for each event in location i
     for(j=0; j<l->evtCnt; ++j)
@@ -219,7 +225,7 @@ cmSmgRC_t _cmSmgInitFromScore( cmCtx_t* ctx, cmSmg_t* p, const cmChar_t* scoreFn
             else
               text = cmMemAllocStr( cmMidiToSciPitch( e->pitch, NULL, 0));
     
-            p->scV[k].box = _cmSmgInsertBox(p, i, flags, e->csvEventId, text );
+            p->scV[k].box = _cmSmgInsertBox(p, i, flags, e->csvEventId, text, NULL );
           
             k += 1;
           }
@@ -282,6 +288,8 @@ cmSmgRC_t cmScoreMatchGraphicAlloc( cmCtx_t* ctx, cmSmgH_t* hp, const cmChar_t* 
   if((rc = _cmSmgInitFromMidi(ctx,p,midiFn)) != kOkSmgRC )
     goto errLabel;
 
+  p->boxW = 30;
+  p->boxH = 50;
   hp->h = p;
 
  errLabel:
@@ -385,7 +393,7 @@ void _cmSmgResolveMidi( cmSmg_t* p )
     cmChar_t* text  = cmMemAllocStr( cmMidiToSciPitch( p->mV[i].pitch, NULL, 0));
 
     // insert a box to represent this midi event
-    cmSmgBox_t* box = _cmSmgInsertBox( p, locIdx, flags, p->mV[i].uid, text );
+    cmSmgBox_t* box = _cmSmgInsertBox( p, locIdx, flags, p->mV[i].uid, text, cmTsPrintfP(NULL,"%i",p->mV[i].uid) );
 
     prevLocIdx = locIdx;
 
@@ -412,9 +420,7 @@ void _cmSmgLayout( cmSmg_t* p )
   unsigned i;
   unsigned bordX = 5;
   unsigned bordY = 5;
-  unsigned boxH  = 30;
-  unsigned boxW  = 30;
-  unsigned top   = boxH + 2*bordY;
+  unsigned top   = p->boxH + 2*bordY;
   unsigned left  = bordX;
   
   for(i=0; i<p->locN; ++i)
@@ -431,16 +437,16 @@ void _cmSmgLayout( cmSmg_t* p )
       else
       {
         b->top = top;
-        top   += boxH + bordY;
+        top   += p->boxH + bordY;
       }
       
       b->left   = left;
-      b->width  = boxW;
-      b->height = boxH;
+      b->width  = p->boxW;
+      b->height = p->boxH;
     }
 
-    left += boxW + bordX;    
-    top   = boxH + 2*bordY;
+    left += p->boxW + bordX;    
+    top   = p->boxH + 2*bordY;
   }
 }
 
@@ -521,12 +527,21 @@ cmSmgRC_t cmScoreMatchGraphicWrite( cmSmgH_t h, const cmChar_t* fn )
       if( cmFilePrintf(fH,"<rect x=\"%i\" y=\"%i\" width=\"%i\" height=\"%i\" class=\"%s\"/>\n",b->left,b->top,b->width,b->height,classStr) != kOkFileRC )
         return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file rect output.");
 
-      if( b->text != NULL )
+      if( b->text0 != NULL )
       {
         unsigned tx = b->left + b->width/2;
-        unsigned ty = b->top  + 20; //g->height/2;
+        unsigned ty = b->top  + 20;
         
-        if( cmFilePrintf(fH,"<text x=\"%i\" y=\"%i\" text-anchor=\"middle\" class=\"stext\">%s</text>\n",tx,ty,b->text) != kOkFileRC )
+        if( cmFilePrintf(fH,"<text x=\"%i\" y=\"%i\" text-anchor=\"middle\" class=\"stext\">%s</text>\n",tx,ty,b->text0) != kOkFileRC )
+          return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file text output.");
+      }
+
+      if( b->text1 != NULL )
+      {
+        unsigned tx = b->left + b->width/2;
+        unsigned ty = b->top  + 20 + 20;
+        
+        if( cmFilePrintf(fH,"<text x=\"%i\" y=\"%i\" text-anchor=\"middle\" class=\"stext\">%s</text>\n",tx,ty,b->text1) != kOkFileRC )
           return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file text output.");
       }
       
