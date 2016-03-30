@@ -272,22 +272,6 @@ extern "C" {
 
   void          cmScorePrint( cmScH_t h, cmRpt_t* rpt );
 
-  typedef struct
-  {
-    unsigned        type;
-    unsigned        csvEventId;
-    unsigned        left;
-    unsigned        top;
-    unsigned        width;
-    unsigned        height;
-    const cmChar_t* text;
-  } cmScGraphic_t;
-
-  cmScRC_t      cmScoreGraphicAlloc(   cmScH_t h, cmScGraphic_t** vRef, unsigned* nRef );
-  cmScRC_t      cmScoreGraphicRelease( cmScH_t h, cmScGraphic_t** vRef, unsigned* nRef );
-  cmScRC_t      cmScoreGraphicWriteF(  cmScH_t h, const cmChar_t* fn, cmScGraphic_t* v, unsigned n );
-  cmScRC_t      cmScoreGraphicWrite(   cmScH_t h, cmFileH_t fH, cmScGraphic_t* v, unsigned n );
-  
   // Generate a new score file from a MIDI file.
   cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* scoreFn );
 

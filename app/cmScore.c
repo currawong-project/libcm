@@ -2082,7 +2082,10 @@ bool _cmScPerfDyn( cmSc_t* p, cmScoreSet_t* stp, bool printMissFl)
 
     stp->eleArray[i]->perfDynLvl = j+1;
 
-    a += abs((j+1) - stp->eleArray[i]->dynVal);
+    if( j + 1 > stp->eleArray[i]->dynVal )
+      a += (j+1) - stp->eleArray[i]->dynVal;
+    else
+      a += stp->eleArray[i]->dynVal - (j+1);
 
     if( p->cbFunc != NULL )
     {
@@ -2425,146 +2428,6 @@ void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
     }
   }
 }
-
-cmScRC_t cmScoreGraphicAlloc( cmScH_t h, cmScGraphic_t** vRef, unsigned* nRef)
-{
-  cmScRC_t       rc = kOkScRC;
-  cmSc_t*        p  = _cmScHandleToPtr(h);
-  cmScGraphic_t* v  = cmMemAllocZ(cmScGraphic_t,p->cnt);
-  unsigned       i,j,k,k0;
-
-  unsigned       bordH = 5;
-  unsigned       bordW = 5;
-  unsigned       noteW = 30;
-  unsigned       noteH = 30;
-  unsigned       left  = bordH;
-  unsigned       top   = bordW;
-
-  // for each score location
-  for(i=0,k=0; i<p->locCnt; ++i)
-  {
-    left += k0!=k ? noteW + bordW : 0;
-    top   = noteH + 2*bordH;
-
-    k0 = k;
-
-    // for each event in location i
-    for(j=0; j<p->loc[i].evtCnt; ++j)
-    {
-      const cmScoreEvt_t* e = p->loc[i].evtArray[j];
-      
-      switch( e->type)
-      {
-        case kBarEvtScId:
-          top = bordH;
-          
-        case kNonEvtScId:
-          
-          assert( k < p->cnt );
-          
-          v[k].type       = e->type;
-          v[k].csvEventId = e->csvEventId;
-          v[k].left       = left;
-          v[k].top        = top;
-          v[k].width      = noteW;
-          v[k].height     = noteH;
-          
-          if( e->type == kBarEvtScId )
-            v[k].text = cmTsPrintfP(NULL,"%i",e->barNumb);
-          else
-            v[k].text = cmMemAllocStr( cmMidiToSciPitch( e->pitch, NULL, 0));
-          
-          top += noteH + bordH;
-          
-          
-          k += 1;
-          
-          break;
-      }
-    }
-  }
-
-  *nRef = k;
-  *vRef = v;
-  
-  return rc;
-}
-
-cmScRC_t cmScoreGraphicRelease( cmScH_t h, cmScGraphic_t** vRef, unsigned* nRef)
-{
-  if( vRef == NULL || nRef==NULL )
-    return kOkScRC;
-  
-  unsigned       i;
-  cmScGraphic_t* v = *vRef;
-  unsigned       n = *nRef;
-  for(i=0; i<n; ++i)
-    cmMemFree((cmChar_t*)v[i].text);
-  cmMemFree(v);
-  *vRef = NULL;
-  *nRef = 0;
-  return kOkScRC;
-}
-
-cmScRC_t      cmScoreGraphicWriteF(  cmScH_t h, const cmChar_t* fn, cmScGraphic_t* v, unsigned n )
-{
-  cmScRC_t  rc = kOkScRC;
-  cmSc_t*   p  = _cmScHandleToPtr(h);
-  cmFileH_t fH = cmFileNullHandle;
-  unsigned  i;
-  
-  if( cmFileOpen(&fH,fn,kWriteFileFl,p->err.rpt) != kOkFileRC )
-    return cmErrMsg(&p->err,kFileFailScRC,"Graphic file create failed for '%s'.",cmStringNullGuard(fn));
-
-  unsigned svgWidth  = v[n-1].left + v[n-1].width  + 10;
-  unsigned svgHeight = 0;
-
-  for(i=0; i<n; ++i)
-    if( v[i].top  + v[i].height > svgHeight )
-      svgHeight = v[i].top  + v[i].height;
-
-  svgHeight += 10;
-  
-  cmFilePrintf(fH,"<!DOCTYPE html>\n<html>\n<head><link rel=\"stylesheet\" type=\"text/css\" href=\"score0.css\"></head><body>\n<svg width=\"%i\" height=\"%i\">\n",svgWidth,svgHeight);
-  
-  if((rc != cmScoreGraphicWrite(h,fH,v,n)) != kOkScRC )
-    goto errLabel;
-
-  cmFilePrint(fH,"</svg>\n</body>\n</html>\n");
-
- errLabel:
-  cmFileClose(&fH);
-  return rc;
-}
-
-cmScRC_t      cmScoreGraphicWrite(   cmScH_t h, cmFileH_t fH, cmScGraphic_t* v, unsigned n )
-{
-  cmSc_t* p = _cmScHandleToPtr(h);
-  unsigned i;
-  for(i=0; i<n; ++i)
-  {
-    const cmScGraphic_t* g = v + i;
-    
-    if( cmFilePrintf(fH,"<rect x=\"%i\" y=\"%i\" width=\"%i\" height=\"%i\" class=\"score\"/>\n",g->left,g->top,g->width,g->height) != kOkFileRC )
-      return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file output.");
-
-    if( g->text != NULL )
-    {
-      unsigned tx = g->left + g->width/2;
-      unsigned ty = g->top  + 20; //g->height/2;
-    
-      if( cmFilePrintf(fH,"<text x=\"%i\" y=\"%i\" text-anchor=\"middle\" class=\"stext\">%s</text>\n",tx,ty,g->text) != kOkFileRC )
-        return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file output.");
-    }
-    
-    //<rect x="0" y="0" width="200" height="100" stroke="red" stroke-width="3px" fill="white"/>
-    //<text x="50%" y="50%" alignment-baseline="middle" text-anchor="middle">TEXT</text>    
-    
-  }
-
-  return kOkScRC;
-}
-
 
 
 cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* scoreFn )
