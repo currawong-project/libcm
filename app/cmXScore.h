@@ -27,9 +27,9 @@ extern "C" {
   // Prepare the MusicXML file:
   //
   // 1) Convert XML to UTF-8:
-  //       a. Change: encoding='UTF-16' to encoding='UTF-8'
+  //       a. Change: encoding           = 'UTF-16' to encoding='UTF-8'
   //       b. Emacs C-x <RET> f utf-8 <RET>
-  //       c. Change: <?xml ... encoding='UTF-16' to encoding='UTF-8' ...?>
+  //       c. Change: <?xml ... encoding = 'UTF-16' to encoding='UTF-8' ...?>
   //
   // 2) Replace "DoletSibelius Unknown Symbol Index" with "DoletSibelius unknownSymIdx"
   //
@@ -54,15 +54,15 @@ extern "C" {
   cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* midiFn );
   cmXsRC_t cmXScoreFinalize( cmXsH_t* hp );
 
-  bool     cmXScoreIsValid( cmXsH_t h );
+  bool cmXScoreIsValid( cmXsH_t h );
 
   cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn );
 
   cmXsRC_t cmXScoreWriteMidi( cmXsH_t h, const cmChar_t* fn );
 
-  void     cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl );
+  void cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl );
 
-  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midiFn, const cmChar_t* outFn );
+  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midiFn, const cmChar_t* outFn, const cmChar_t* dynFn );
   
 #ifdef __cplusplus
 }
