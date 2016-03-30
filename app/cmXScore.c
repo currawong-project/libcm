@@ -402,6 +402,10 @@ cmXsRC_t  _cmXScoreParseColor( cmXScore_t* p, const cmXmlNode_t* nnp, cmXsNote_t
   return rc;
 }
 
+// On input tick0Ref is set to the tick of the previous event.
+// On input tickRef is set to the tick of this event.
+// On output tick0Ref is set to the tick of this event.
+// On output tickRef is set to the tick of the next event.
 cmXsRC_t _cmXScoreParseNote(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* nnp, unsigned* tick0Ref, unsigned* tickRef )
 {
   cmXsRC_t    rc   = kOkXsRC;
@@ -623,11 +627,13 @@ cmXsRC_t  _cmXScoreParseDirection(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNo
 }
 
 
-cmXsRC_t _cmXScoreParseMeasure(cmXScore_t* p, cmXsPart_t* pp, const cmXmlNode_t* mnp)
+// On input tickRef is set to the absolute tick of the bar line and on output it is set
+// to the absolute tick of the next bar line.
+cmXsRC_t _cmXScoreParseMeasure(cmXScore_t* p, cmXsPart_t* pp, const cmXmlNode_t* mnp, unsigned* tickRef)
 {
   cmXsRC_t           rc   = kOkXsRC;
   const cmXmlNode_t* np   = NULL;  
-  unsigned           tick = 0;
+  unsigned           tick = *tickRef;
   unsigned           tick0= 0;
   cmXsMeas_t*        m    = NULL;
 
@@ -664,7 +670,6 @@ cmXsRC_t _cmXScoreParseMeasure(cmXScore_t* p, cmXsPart_t* pp, const cmXmlNode_t*
   if((rc = _cmXScorePushNonNote(p,meas,mnp,tick,0,0,NULL,kBarXsFl)) != kOkXsRC )
     return rc;
 
-  
   np = mnp->children;
 
   // for each child of the 'meas' XML node
@@ -697,6 +702,7 @@ cmXsRC_t _cmXScoreParseMeasure(cmXScore_t* p, cmXsPart_t* pp, const cmXmlNode_t*
   
   }
 
+  *tickRef = tick;
   return rc;
 }
 
@@ -705,7 +711,7 @@ cmXsRC_t _cmXScoreParsePart( cmXScore_t* p, cmXsPart_t* pp )
   cmXsRC_t           rc       = kOkXsRC;
   const cmXmlNode_t* xnp;
   cmXmlAttr_t        partAttr  = { "id", pp->idStr };
-  
+  unsigned           barTick   = 0;
   // find the 'part'
   if((xnp = cmXmlSearch( cmXmlRoot(p->xmlH), "part", &partAttr, 1)) == NULL )
     return cmErrMsg(&p->err,kSyntaxErrorXsRC,"The part '%s' was not found.",pp->idStr);
@@ -714,7 +720,7 @@ cmXsRC_t _cmXScoreParsePart( cmXScore_t* p, cmXsPart_t* pp )
   const cmXmlNode_t* cnp = xnp->children;
   for(; cnp!=NULL; cnp=cnp->sibling)
     if( cmTextCmp(cnp->label,"measure") == 0 )
-      if((rc = _cmXScoreParseMeasure(p,pp,cnp)) != kOkXsRC )
+      if((rc = _cmXScoreParseMeasure(p,pp,cnp,&barTick)) != kOkXsRC )
         return rc;
   
   return rc;
@@ -1252,8 +1258,8 @@ bool     cmXScoreIsValid( cmXsH_t h )
 
 void _cmXScoreReportTitle( cmRpt_t* rpt )
 {
-  cmRptPrintf(rpt,"      voc  loc  tick  durtn rval        flags\n");
-  cmRptPrintf(rpt,"      --- ----- ----- ----- ---- --- -------------\n");
+  cmRptPrintf(rpt,"      voc  loc    tick  durtn rval        flags\n");
+  cmRptPrintf(rpt,"      --- ----- ------- ----- ---- --- -------------\n");
 }
     
 void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
@@ -1279,7 +1285,7 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
   cmChar_t acc = note->alter==-1?'b':(note->alter==1?'#':' ');
   snprintf(N,4,"%c%c%1i",note->step,acc,note->octave);
     
-  cmRptPrintf(rpt,"      %3i %5i %5i %5i %4.1f %3s %s%s%s%s%s%s%s%s%s%s%s%s%s",
+  cmRptPrintf(rpt,"      %3i %5i %7i %5i %4.1f %3s %s%s%s%s%s%s%s%s%s%s%s%s%s",
     note->voice->id,
     note->locIdx,
     note->tick,
@@ -1540,9 +1546,10 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
   unsigned        rowIdx       = 1;
   double          tpqn         = 0; // ticks per quarter note
   double          tps          = 0; // ticks per second
-  double          sec          = 0; // current time in seconds
   const cmChar_t* sectionIdStr = NULL;
-        
+  unsigned        metro_tick   = 0;
+  double          metro_sec    = 0;
+  double          sec0         = 0;
   
   if( !cmCsvIsValid(p->csvH) )
     return cmErrMsg(&p->err,kCsvFailXsRC,"The CSV output object is not initialized.");
@@ -1561,24 +1568,28 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
       
       cmXsNote_t* np = mp->noteL;
       
-      double sec0 = sec;
-      
       for(; np!=NULL; np=np->slink)
       {
 
+        // Seconds are calculated as:
+        // dticks = np->tick - metro_tick;     // where metro_tick is the absolute tick of the last metro event
+        // secs   = (dticks/tps) + metro_secs; // where metro_secs is the absoute time of the last metro event
+        
+        unsigned dticks = np->tick - metro_tick;
+        double   secs   = tps==0 ? 0 : (dticks/tps) + metro_sec;
+        double   dsecs  = secs - sec0;
+        
         //  
         if( cmIsFlag(np->flags,kMetronomeXsFl) )
         {
           double bpm = np->duration;
           double bps = bpm / 60.0;
           tps = bps * tpqn;
+          metro_tick = np->tick;
+          metro_sec  = secs;
         }
-
-        double meas_sec = tps == 0 ? 0 : np->tick / tps;
-        double sec1     = sec  + meas_sec;
-        double dsecs    = sec1 - sec0;
-        sec0            = sec1;
-
+        
+        
         // if this is a section event
         if( cmIsFlag(np->flags,kSectionXsFl) )
           sectionIdStr = np->tvalue;
@@ -1586,7 +1597,8 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
         // if this is a bar event
         if( cmIsFlag(np->flags,kBarXsFl) )
         {
-          _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,NULL,"bar",dsecs,sec1,0,0,-1,0,np->flags);
+          _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,NULL,"bar",dsecs,secs,0,0,-1,0,np->flags);
+          sec0 = secs;
         }
         else
           
@@ -1595,7 +1607,8 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
         {
           unsigned d0 = 64; // pedal MIDI ctl id
           unsigned d1 = cmIsFlag(np->flags,kPedalDnXsFl) ? 64 : 0; // pedal-dn: d1>=64 pedal-up:<64
-          _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,NULL,"ctl",dsecs,sec1,d0,d1,-1,0,np->flags);
+          _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,NULL,"ctl",dsecs,secs,d0,d1,-1,0,np->flags);
+          sec0 = secs;
         }
         else 
 
@@ -1606,14 +1619,14 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
             double frac = np->rvalue + (cmIsFlag(np->flags,kDotXsFl) ? (np->rvalue/2) : 0);
         
             // 
-            _cmXScoreWriteCsvRow(p,rowIdx,np->uid,mp->number,sectionIdStr,"non",dsecs,sec1,np->pitch,60,np->pitch,frac,np->flags);
+            _cmXScoreWriteCsvRow(p,rowIdx,np->uid,mp->number,sectionIdStr,"non",dsecs,secs,np->pitch,60,np->pitch,frac,np->flags);
+            sec0 = secs;
             sectionIdStr = NULL;
           }
         
         rowIdx += 1;
       }
 
-      sec = sec0;
     }    
   }
 
