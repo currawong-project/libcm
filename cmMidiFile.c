@@ -1453,6 +1453,41 @@ bool cmMidiFileIsNull( cmMidiFileH_t h )
 void cmMidiFileTestPrint( void* printDataPtr, const char* fmt, va_list vl )
 { vprintf(fmt,vl); }
 
+cmMfRC_t cmMidiFileGenPlotFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outFn )
+{
+  cmMfRC_t                 rc  = kOkMfRC;
+  cmMidiFileH_t            mfH = cmMidiFileNullHandle;  
+  cmFileH_t                fH  = cmFileNullHandle;
+  unsigned                 i   = 0;
+  const cmMidiTrackMsg_t** m   = NULL;
+  unsigned                 mN  = 0;
+
+  if((rc = cmMidiFileOpen(ctx, &mfH, midiFn )) != kOkMfRC )
+    return cmErrMsg(&ctx->err,rc,"The MIDI file object could not be opened from '%s'.",cmStringNullGuard(midiFn));
+
+  _cmMidiFile_t* p = _cmMidiFileHandleToPtr(mfH);
+  
+  if( (m = cmMidiFileMsgArray(mfH)) == NULL || (mN = cmMidiFileMsgCount(mfH)) == 0 )
+  {
+    rc = cmErrMsg(&p->err,kFileFailMfRC,"The MIDI file object appears to be empty.");
+    goto errLabel;
+  }
+  
+  cmMidiFileCalcNoteDurations( mfH );
+  
+  if( cmFileOpen(&fH,outFn,kWriteFileFl,p->err.rpt) != kOkFileRC )
+    return cmErrMsg(&p->err,kFileFailMfRC,"Unable to create the file '%s'.",cmStringNullGuard(outFn));
+
+  for(i=0; i<mN; ++i)
+    if( (m[i]!=NULL) && cmMidiIsChStatus(m[i]->status) && cmMidiIsNoteOn(m[i]->status) && (m[i]->u.chMsgPtr->d1>0) )
+      cmFilePrintf(fH,"n %f %f %i %s\n",m[i]->amicro/1000000.0,m[i]->u.chMsgPtr->durMicros/1000000.0,m[i]->uid,cmMidiToSciPitch(m[i]->u.chMsgPtr->d0,NULL,0));
+
+ errLabel:
+  
+  cmMidiFileClose(&mfH);
+  cmFileClose(&fH);
+  return rc;
+}
 
 void cmMidiFilePrintControlNumbers( cmCtx_t* ctx, const char* fn )
 {

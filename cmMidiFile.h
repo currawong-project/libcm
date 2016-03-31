@@ -172,6 +172,10 @@ extern "C" {
   bool                  cmMidiFileIsNull( cmMidiFileH_t h );
   void                  cmMidiFileTest( const char* fn, cmCtx_t* ctx );
 
+  // Generate a piano-roll plot description file which can be displayed with cmXScore.m
+  cmMfRC_t             cmMidiFileGenPlotFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outFn );
+
+  
   //)
   
 #ifdef __cplusplus
