@@ -67,9 +67,15 @@ typedef struct cmXsNote_str
   unsigned                    staff;    // 1=treble 2=bass
   unsigned                    tick;     // 
   unsigned                    duration; // duration in ticks
-  unsigned                    locIdx;    // location index (chords share the same location index)
+  double                      secs;     // absolute time in seconds
+  double                      dsecs;    // delta time in seconds since previous event
+  unsigned                    locIdx;   // location index (chords share the same location index)
   double                      rvalue;   // 1/rvalue = rythmic value (1/0.5 double whole 1/1 whole 1/2 half 1/4=quarter note, 1/8=eighth note, ...)
   const cmChar_t*             tvalue;   // text value
+
+  unsigned                    evenGroupId;   // eveness group id
+  unsigned                    dynGroupId;    // dynamics group id
+  unsigned                    tempoGroupId;  // tempo group id
 
   struct cmXsVoice_str*       voice;    // voice this note belongs to 
   struct cmXsMeas_str*        meas;     // measure this note belongs to
@@ -275,8 +281,8 @@ cmXsRC_t  _cmXScoreParsePitch( cmXScore_t* p, const cmXmlNode_t* nnp, cmXsNote_t
   cmChar_t buf[3] = { *step, '0', '\0'};
   unsigned midi = cmSciPitchToMidi(buf);
 
-  midi         += (12 * octave);
-  midi         += alter;
+  midi      += (12 * octave);
+  midi      += alter;
 
   np->pitch  = midi;
   np->step   = *step;
@@ -522,15 +528,15 @@ cmXsRC_t _cmXScorePushOctaveShift(cmXScore_t* p, cmXsMeas_t* meas, unsigned staf
   }
   else
   {
-    s = cmLhAllocZ(p->lhH,cmXsSpan_t,1);
-    s->staff  = staff;
-    s->meas   = meas;
-    s->number = span_number;
-    s->tick0  = tick;
-    s->tick1  = -1;
+    s               = cmLhAllocZ(p->lhH,cmXsSpan_t,1);
+    s->staff        = staff;
+    s->meas         = meas;
+    s->number       = span_number;
+    s->tick0        = tick;
+    s->tick1        = -1;
     s->pitch_offset = cmTextCmp(type_str,"up")==0 ? -12 : 12;
-    s->link   = p->spanL;
-    p->spanL  = s;    
+    s->link         = p->spanL;
+    p->spanL        = s;    
   }
 
   return kOkXsRC;
@@ -731,9 +737,16 @@ cmXsRC_t _cmXScoreParsePart( cmXScore_t* p, cmXsPart_t* pp )
 // Return a pointer to the base of the list after the insertion.
 cmXsNote_t*  _cmXScoreInsertSortedNote( cmXsNote_t* s0, cmXsNote_t* np )
 {
+  assert( np != NULL );
+
+  // np->slink is not NULL if the list is being resorted
+  np->slink = NULL;
+
+  // this list is empty so np is the first element on the list
   if( s0 == NULL )
     return np;
 
+  // np is before the first element on the list
   if( np->tick < s0->tick )
   {
     np->slink = s0;
@@ -770,7 +783,10 @@ void _cmXScoreSort( cmXScore_t* p )
     // for each measure in this part
     cmXsMeas_t* mp = pp->measL;
     for(; mp!=NULL; mp=mp->link)
-    {   
+    {
+      // explicitely set noteL to NULL to in case we are re-sorting
+      mp->noteL = NULL;
+      
       // for each voice in this measure
       cmXsVoice_t* vp = mp->voiceL;
       for(; vp!=NULL; vp=vp->link)
@@ -783,6 +799,157 @@ void _cmXScoreSort( cmXScore_t* p )
     }
   }
 }
+
+void _cmXScoreSetAbsoluteTime( cmXScore_t* p )
+{
+  double          tpqn         = 0; // ticks per quarter note
+  double          tps          = 0; // ticks per second
+  unsigned        metro_tick   = 0;
+  double          metro_sec    = 0;
+  double          sec0         = 0;
+  
+  cmXsPart_t* pp = p->partL;
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp = pp->measL;
+    for(; mp!=NULL; mp=mp->link) 
+    {
+      if( mp->divisions != 0 )
+        tpqn = mp->divisions;
+      
+      cmXsNote_t* np = mp->noteL;
+      
+      for(; np!=NULL; np=np->slink)
+      {
+
+        // Seconds are calculated as:
+        // dticks = np->tick - metro_tick;     // where metro_tick is the absolute tick of the last metro event
+        // secs   = (dticks/tps) + metro_secs; // where metro_secs is the absoute time of the last metro event
+        
+        unsigned dticks = np->tick - metro_tick;
+        double   secs   = tps==0 ? 0 : (dticks/tps) + metro_sec;
+        double   dsecs  = secs - sec0;
+
+        //  
+        if( cmIsFlag(np->flags,kMetronomeXsFl) )
+        {
+          double bpm = np->duration;
+          double bps = bpm / 60.0;
+          tps        = bps * tpqn;
+          metro_tick = np->tick;
+          metro_sec  = secs;
+        }
+
+        if( cmIsFlag(np->flags,kBarXsFl|kPedalDnXsFl|kPedalUpXsFl|kPedalUpDnXsFl|kOnsetXsFl|kSectionXsFl) )
+        {
+          np->secs  = secs;
+          np->dsecs = dsecs;
+          sec0      = secs;
+        }
+      }
+    }
+  }  
+}
+
+// All notes in a[aN] are on the same tick
+unsigned  _cmXsSpreadGraceNotes( cmXsNote_t** a, unsigned aN )
+{
+  unsigned i;
+  bool barFl = false;
+
+  // set barFl to true if a bar marker is included in the notes
+  for(i=0; i<aN; ++i)
+    if( cmIsFlag(a[i]->flags,kBarXsFl) )
+      barFl = true;
+
+  // spread any grace notes by one tick
+  unsigned nextGraceTick = UINT_MAX;
+  for(i=0; i<aN; ++i)
+    if( cmIsFlag(a[i]->flags,kGraceXsFl) )
+    {
+      if( nextGraceTick == UINT_MAX )
+        nextGraceTick = a[i]->tick + 1;
+      else
+      {
+        a[i]->tick     = nextGraceTick;
+        nextGraceTick += 1;
+      }
+    }
+
+  // if this tick group includes the bar ... 
+  if( barFl && nextGraceTick != UINT_MAX )
+  {
+    // ... then move all non-grace note events (except the bar marker) after
+    // the grace notes
+    for(i=0; i<aN; ++i)
+      if( cmIsNotFlag(a[i]->flags,kGraceXsFl) && cmIsNotFlag(a[i]->flags,kBarXsFl) )
+        a[i]->tick = nextGraceTick;
+  }
+  
+  return nextGraceTick==UINT_MAX ? 0 : nextGraceTick;
+}
+
+void _cmXScoreSpreadGraceNotes( cmXScore_t* p )
+{
+  cmXsPart_t* pp = p->partL;
+  for(; pp!=NULL; pp=pp->link)
+  {
+    // tick1 is the location of the minimum current tick
+    // (or 0 if it should be ignored)
+    unsigned    tick1 = 0; 
+    
+    cmXsMeas_t* mp = pp->measL;
+    for(; mp!=NULL; mp=mp->link)
+    {
+      cmXsNote_t* np = mp->noteL;
+      unsigned    aN = 128;
+      cmXsNote_t* a[ aN ];
+      unsigned    ai = 0;
+
+      // The first event in a measure may have been forced ahead
+      // by spreading at the end of the previous measure
+      if( tick1 > np->tick )
+        np->tick = tick1;
+      else
+        tick1 = 0;
+
+      // tick0 is the tick of the current tick group we are examining
+      // A tick group is a group of events that share the same tick.
+      unsigned    tick0 = np->tick;
+      
+      for(; np!=NULL; np=np->slink)
+      {
+        // if this event is the first of a new tick group
+        if( np->tick != tick0 )
+        {
+          // if there is more than one event in the completed tick group ...
+          if( ai > 1 )
+            tick1 = _cmXsSpreadGraceNotes(a,ai); // ... then process the group
+
+          
+          ai    = 0;        // empty the tick group array
+          tick0 = np->tick; // update the current group's common tick
+        }
+
+        // if the min. current tick is ahead of this event then move the event ahead
+        if( tick1 > np->tick )
+          np->tick = tick1;
+        else
+          tick1 = 0; // otherwise disable tick1
+
+        // add this event to the tick group
+        assert(ai<aN);
+        a[ai++] = np;
+       
+      }
+
+      // if there are events in the group array then process them
+      if( ai > 1 )
+         tick1 = _cmXsSpreadGraceNotes(a,ai);
+    }
+  }
+}
+
 
 bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* n0p, bool rptFl )
 {
@@ -827,8 +994,7 @@ bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* n0p, boo
         // record the measure number of the last note with a tie-start
         measNumb = mp->number;
       }
-    }
-    
+    }    
   }
   
   cmErrWarnMsg(&p->err,kUnterminatedTieXsRC,"The tied %c%c%i in measure %i was not terminated.",n0p->step,acc,n0p->octave,measNumb);
@@ -886,7 +1052,6 @@ void  _cmXScoreResolveTiesAndLoc( cmXScore_t* p )
           np->locIdx = locIdx;
           n0         = np;
         }
-
       } 
     }
   }
@@ -917,8 +1082,6 @@ cmXsRC_t  _cmXScoreResolveOctaveShift( cmXScore_t* p )
       for(; note!=NULL; note=note->slink)
         if( note->staff==s->staff && s->tick0 <= note->tick && note->tick < s->tick1 )
           note->pitch += s->pitch_offset;
-      
-      
     }
   }
 
@@ -957,62 +1120,53 @@ void _cmXScoreRemoveDuplicateNotes( cmXScore_t* p )
   }
 }
 
-      
-
-cmXsMeas_t* _cmXScoreNextNonEmptyMeas( cmXsPart_t* pp, cmXsMeas_t* meas )
+void  _cmXScoreSetMeasGroups( cmXScore_t* p, unsigned flag )
 {
-  if( meas == NULL )
-  {
-    if( pp==NULL || pp->measL==NULL )
-      return NULL;
-    
-    meas = pp->measL;
-  }
-  else
-  {
-    meas = meas->link;
-  }
-
-  while( meas != NULL && meas->noteL == NULL )
-    meas=meas->link;
-
-  return meas;
-}
-
-cmXsNote_t* _cmXScoreNextNote( cmXsPart_t* pp, cmXsNote_t* note )
-{
-  // meas should always be valid (unless this is the first note in the score)
-  cmXsMeas_t* meas = note==NULL ? NULL : note->meas;
+  unsigned sectionId = 0;
+  cmXsNote_t* n0 = NULL;
   
-  do
-  { 
-    if( note == NULL || note->slink==NULL )
+  cmXsPart_t* pp = p->partL;
+ 
+  // for each part
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp = pp->measL;
+
+    // for each measure
+    for(; mp!=NULL; mp=mp->link)
     {
-      if((meas = _cmXScoreNextNonEmptyMeas(pp,meas)) == NULL)
-        return NULL;
-      
-      assert( meas->noteL != NULL );
-      
-      note = meas->noteL;
+      cmXsNote_t* np = mp->noteL;
+
+      // for each note in this measure
+      for(; np!=NULL; np=np->slink)
+      {
+        if( cmIsFlag(np->flags,flag) )
+          n0 = np;         
+          
+       
+        if( cmIsFlag(np->flags,kSectionXsFl)  )
+        {
+          if( n0 != NULL )
+          {
+            switch( flag )
+            {
+              case kEvenXsFl:  n0->evenGroupId = sectionId; break;
+              case kDynXsFl:   n0->dynGroupId  = sectionId; break;
+              case kTempoXsFl: n0->tempoGroupId= sectionId; break;
+            }
+          }
+
+          if( cmIsFlag(np->flags,kSectionXsFl) )
+            sectionId = np->tvalue==NULL ? 0 : strtol(np->tvalue,NULL,10);
+          
+          n0       = NULL;
+        }
+      }
     }
-    else
-    {
-      note = note->slink;        
-    }
+  }
 
-    assert( note != NULL );
-    
-    meas = note->meas;
-
-    // note is now set to a non-NULL candidate note - advance to a sounding note
-    while( note!=NULL && cmIsNotFlag(note->flags,kOnsetXsFl) )
-      note = note->slink;
-
-    // if no note was found in this measure
-  }while( note == NULL );
-     
-  return note;
 }
+
 
 cmXsRC_t _cmXScoreWriteScorePlotFile( cmXScore_t* p, const cmChar_t* fn )
 {
@@ -1066,115 +1220,6 @@ cmXsRC_t _cmXScoreWriteScorePlotFile( cmXScore_t* p, const cmChar_t* fn )
   return rc;
 }
 
-cmXsRC_t _cmXScoreWriteMidiPlotFile( cmXScore_t* p, cmChar_t* fn, const cmMidiTrackMsg_t** m, unsigned mN )
-{
-  cmXsRC_t  rc = kOkXsRC;
-  cmFileH_t fH = cmFileNullHandle;
-  unsigned  i  = 0;
-  
-  if( cmFileOpen(&fH,fn,kWriteFileFl,p->err.rpt) != kOkFileRC )
-    return cmErrMsg(&p->err,kFileFailXsRC,"Unable to create the file '%s'.",cmStringNullGuard(fn));
-
-  for(i=0; i<mN; ++i)
-    if( (m[i]!=NULL) && cmMidiIsChStatus(m[i]->status) && cmMidiIsNoteOn(m[i]->status) && (m[i]->u.chMsgPtr->d1>0) )
-      cmFilePrintf(fH,"n %f %f %i %s\n",m[i]->amicro/1000000.0,m[i]->u.chMsgPtr->durMicros/1000000.0,m[i]->uid,cmMidiToSciPitch(m[i]->u.chMsgPtr->d0,NULL,0));
-
-  
-  cmFileClose(&fH);
-  return rc;
-}
-
-
-cmXsRC_t    _cmXScoreProcessMidi(cmXScore_t* p, cmCtx_t* ctx, const cmChar_t* midiFn)
-{
-  cmXsRC_t                 rc   = kOkXsRC;
-  cmMidiFileH_t            mfH  = cmMidiFileNullHandle;
-  const cmMidiTrackMsg_t** m    = NULL;
-  unsigned                 mN   = 0;
-  unsigned                 i    = 0;
-  unsigned                 j    = 0;
-  cmXsNote_t*              note = NULL;
-  
-  if( cmMidiFileOpen(ctx, &mfH, midiFn ) != kOkMfRC )
-    return cmErrMsg(&p->err,kMidiFailXsRC,"The MIDI file object could not be opened from '%s'.",cmStringNullGuard(midiFn));
-
-  if( (m = cmMidiFileMsgArray(mfH)) == NULL || (mN = cmMidiFileMsgCount(mfH)) == 0 )
-  {
-    rc = cmErrMsg(&p->err,kMidiFailXsRC,"The MIDI file object appears to be empty.");
-    goto errLabel;
-  }
-
-  if((note = _cmXScoreNextNote(p->partL,NULL)) == NULL)
-  {
-    rc = cmErrWarnMsg(&p->err,kSyntaxErrorXsRC,"No MIDI processing to be done. The score appears to be empty.");
-    goto errLabel;
-  }
-
-  cmCtx*        c = cmCtxAlloc( NULL, p->err.rpt, cmLHeapNullHandle, cmSymTblNullHandle );
-  cmSeqAlign_t* s = cmSeqAlignAlloc(c,NULL);
-  unsigned      offs = 0;
-  
-  for(; note!=NULL; note=_cmXScoreNextNote(p->partL,note))
-  {
-    if( cmIsFlag(note->flags,kGraceXsFl) )
-      offs += 1;
-    
-    cmSeqAlignInsert(s,0,note->locIdx+offs,note->pitch);
-  }
-
-  unsigned locIdx = 1;
-  for(i=0,j=0; i<mN; ++i)
-    if( (m[i]!=NULL) && cmMidiIsChStatus(m[i]->status) && cmMidiIsNoteOn(m[i]->status) && (m[i]->u.chMsgPtr->d1>0) )
-    {
-      if( m[j]->atick != m[i]->atick )
-        locIdx += 1;
-      
-      cmSeqAlignInsert(s,1,locIdx,m[i]->u.chMsgPtr->d0);
-
-      //printf("%i : %s\n",locIdx,cmMidiToSciPitch(m[i]->u.chMsgPtr->d0,NULL,0));
-      
-      j = i;
-    }
-
-  cmMidiFileCalcNoteDurations( mfH );
-  
-  _cmXScoreWriteScorePlotFile(p, "/Users/kevin/temp/score.txt" );
-  _cmXScoreWriteMidiPlotFile(p,  "/Users/kevin/temp/midi.txt", m, mN );
-
-
-  cmSeqAlignReport(s,p->err.rpt);
-  cmSeqAlignFree(&s);
-  cmCtxFree(&c);
-  goto errLabel;
-
-  printf(" i     j    score    midi\n");
-  printf("---- ---- --- ---- --- ----\n");
-  
-  for(j=0; note!=NULL; note=_cmXScoreNextNote(p->partL,note),++j)
-  {
-    unsigned midiPitch = 0;
-    for(; i<mN; ++i)
-      if( m[i]!=NULL && cmMidiIsChStatus(m[i]->status) && cmMidiIsNoteOn(m[i]->status) && m[i]->u.chMsgPtr->d1>0 )
-      {
-        midiPitch = m[i]->u.chMsgPtr->d0;
-        ++i;
-        break;
-      }
-
-    char buf[6];
-    printf("%4i %4i %3i %4s %3i %4s\n",j,i,
-      note->pitch,
-      cmMidiToSciPitch(note->pitch,NULL,0),
-      midiPitch,
-      cmMidiToSciPitch(midiPitch,buf,5));
-    
-  }
-
- errLabel:
-  cmMidiFileClose(&mfH);
-  return rc;
-}
-
 cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* midiFn )
 {
   cmXsRC_t rc = kOkXsRC;
@@ -1212,14 +1257,21 @@ cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, c
   // fill in the note->slink chain to link the notes in each measure in time order
   _cmXScoreSort(p);
 
+  _cmXScoreSpreadGraceNotes(p);
+  
+  _cmXScoreSort(p);
+  
+  _cmXScoreSetAbsoluteTime(p);
+
   _cmXScoreResolveTiesAndLoc(p);
 
   _cmXScoreRemoveDuplicateNotes(p);
+
+  _cmXScoreSetMeasGroups(p,kEvenXsFl);
+  _cmXScoreSetMeasGroups(p,kDynXsFl);
+  _cmXScoreSetMeasGroups(p,kTempoXsFl);
   
   //_cmXScoreResolveOctaveShift(p);
-
-  //if( midiFn != NULL )
-  //  _cmXScoreProcessMidi(p,ctx,midiFn);
 
   // CSV output initialize failed.
   if( cmCsvInitialize(&p->csvH,ctx) != kOkCsvRC )
@@ -1386,7 +1438,7 @@ cmXsRC_t cmXScoreInsertDynamics( cmXsH_t h, const cmChar_t* dynFn )
         {
           if( ai >= aN || aV[ai].bar != mp->number || aV[ai].pitch != np->pitch || aV[ai].rval != np->rvalue )
           {
-            rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"Dynamics file mismatch error on dynamics line:%i.\n",aV[ai].line);
+            rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"Dynamics file mismatch error on dynamics line:%i. expected:%s %f actual:%s %f\n",aV[ai].line,aV[ai].rval,cmMidiToSciPitch(aV[ai].pitch,NULL,0),cmMidiToSciPitch(np->pitch,NULL,0),np->rvalue);
             goto errLabel;
           }
 
@@ -1676,12 +1728,7 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
   cmXsRC_t        rc           = kOkXsRC;
   cmXScore_t*     p            = _cmXScoreHandleToPtr(h);
   unsigned        rowIdx       = 1;
-  double          tpqn         = 0; // ticks per quarter note
-  double          tps          = 0; // ticks per second
   const cmChar_t* sectionIdStr = NULL;
-  unsigned        metro_tick   = 0;
-  double          metro_sec    = 0;
-  double          sec0         = 0;
   
   if( !cmCsvIsValid(p->csvH) )
     return cmErrMsg(&p->err,kCsvFailXsRC,"The CSV output object is not initialized.");
@@ -1695,72 +1742,56 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
     cmXsMeas_t* mp = pp->measL;
     for(; mp!=NULL; mp=mp->link)
     {
-      if( mp->divisions != 0 )
-        tpqn = mp->divisions;
-      
-      cmXsNote_t* np = mp->noteL;
-      
+      cmXsNote_t* np = mp->noteL;      
       for(; np!=NULL; np=np->slink)
       {
 
-        // Seconds are calculated as:
-        // dticks = np->tick - metro_tick;     // where metro_tick is the absolute tick of the last metro event
-        // secs   = (dticks/tps) + metro_secs; // where metro_secs is the absoute time of the last metro event
-        
-        unsigned dticks = np->tick - metro_tick;
-        double   secs   = tps==0 ? 0 : (dticks/tps) + metro_sec;
-        double   dsecs  = secs - sec0;
-        
-        //  
-        if( cmIsFlag(np->flags,kMetronomeXsFl) )
-        {
-          double bpm = np->duration;
-          double bps = bpm / 60.0;
-          tps = bps * tpqn;
-          metro_tick = np->tick;
-          metro_sec  = secs;
-        }
-                
         // if this is a section event
         if( cmIsFlag(np->flags,kSectionXsFl) )
           sectionIdStr = np->tvalue;
         
         // if this is a bar event
-        if( cmIsFlag(np->flags,kBarXsFl) )
+        if( cmIsFlag(np->flags,kBarXsFl)  )
         {
-          _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,NULL,"bar",dsecs,secs,0,0,-1,0,"",np->flags);
-          sec0 = secs;
+          _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,sectionIdStr,"bar",np->dsecs,np->secs,0,0,-1,0,"",np->flags);
+          sectionIdStr = NULL;
         }
         else
-          
-        // if this is a pedal event
-        if( cmIsFlag(np->flags,kPedalDnXsFl|kPedalUpXsFl|kPedalUpDnXsFl) )
         {
-          unsigned d0 = 64; // pedal MIDI ctl id
-          unsigned d1 = cmIsFlag(np->flags,kPedalDnXsFl) ? 64 : 0; // pedal-dn: d1>=64 pedal-up:<64
-          _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,NULL,"ctl",dsecs,secs,d0,d1,-1,0,"",np->flags);
-          sec0 = secs;
-        }
-        else 
-
-
-          // if this is a sounding note event
-          if( cmIsFlag(np->flags,kOnsetXsFl) )
+          // if this is a pedal event
+          if( cmIsFlag(np->flags,kPedalDnXsFl|kPedalUpXsFl|kPedalUpDnXsFl) )
           {
-            double          frac = np->rvalue + (cmIsFlag(np->flags,kDotXsFl) ? (np->rvalue/2) : 0);
-            const cmChar_t* dyn  = _cmXScoreTranslateDynamics( p,  np );
-            
-            // 
-            _cmXScoreWriteCsvRow(p,rowIdx,np->uid,mp->number,sectionIdStr,"non",dsecs,secs,np->pitch,60,np->pitch,frac,dyn,np->flags);
-            sec0 = secs;
+            unsigned d0 = 64; // pedal MIDI ctl id
+            unsigned d1 = cmIsFlag(np->flags,kPedalDnXsFl) ? 64 : 0; // pedal-dn: d1>=64 pedal-up:<64
+            _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,sectionIdStr,"ctl",np->dsecs,np->secs,d0,d1,-1,0,"",np->flags);
             sectionIdStr = NULL;
           }
+          else 
+          {
+
+            // if this is a sounding note event
+            if( cmIsFlag(np->flags,kOnsetXsFl) )
+            {
+              double          frac  = np->rvalue + (cmIsFlag(np->flags,kDotXsFl) ? (np->rvalue/2) : 0);
+              const cmChar_t* dyn   = _cmXScoreTranslateDynamics( p,  np );
+              
+              // 
+              _cmXScoreWriteCsvRow(p,rowIdx,np->uid,mp->number,sectionIdStr,"non",np->dsecs,np->secs,np->pitch,60,np->pitch,frac,dyn,np->flags);
+              sectionIdStr = NULL;
+            }
+          }
+        }
         
         rowIdx += 1;
       }
 
     }    
   }
+
+  // Section labels are output on the next bar/pedal/note
+  // but what if there is no bar pedal note-on after the section label
+  if( sectionIdStr != NULL )
+    cmErrMsg(&p->err,kSyntaxErrorXsRC,"The section label '%s' was ignored because it was not followed by a score event.",sectionIdStr);
 
   if( cmCsvWrite( p->csvH, csvFn ) != kOkCsvRC )
     rc = cmErrMsg(&p->err,kCsvFailXsRC,"The CSV output write failed on file '%s'.",csvFn);
@@ -1781,7 +1812,7 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
   const cmChar_t* B  = cmIsFlag(note->flags,kBarXsFl)       ? "|" : "-";
   const cmChar_t* R  = cmIsFlag(note->flags,kRestXsFl)      ? "R" : "-";
   const cmChar_t* G  = cmIsFlag(note->flags,kGraceXsFl)     ? "G" : "-";
-  const cmChar_t* D  = cmIsFlag(note->flags,kDotXsFl)       ? "D" : "-";
+  const cmChar_t* D  = cmIsFlag(note->flags,kDotXsFl)       ? "." : "-";
   const cmChar_t* C  = cmIsFlag(note->flags,kChordXsFl)     ? "C" : "-";
   const cmChar_t* e  = cmIsFlag(note->flags,kEvenXsFl)      ? "e" : "-";
   const cmChar_t* d  = cmIsFlag(note->flags,kDynXsFl)       ? "d" : "-";
@@ -1791,6 +1822,7 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
   const cmChar_t* H  = cmIsFlag(note->flags,kHeelXsFl)      ? "H" : "-";
   const cmChar_t* T0 = cmIsFlag(note->flags,kTieBegXsFl)    ? "T" : "-";
   const cmChar_t* T1 = cmIsFlag(note->flags,kTieEndXsFl)    ? "_" : "-";
+  const cmChar_t* O  = cmIsFlag(note->flags,kOnsetXsFl)     ? "*" : "-";
   P = cmIsFlag(note->flags,kPedalUpXsFl)   ? "^" : P;
   P = cmIsFlag(note->flags,kPedalUpDnXsFl) ? "X" : P;
   //const cmChar_t* N = note->pitch==0 ? " " : cmMidiToSciPitch( note->pitch, NULL, 0 );
@@ -1799,19 +1831,28 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
   cmChar_t acc = note->alter==-1?'b':(note->alter==1?'#':' ');
   snprintf(N,4,"%c%c%1i",note->step,acc,note->octave);
     
-  cmRptPrintf(rpt,"      %3i %5i %7i %5i %4.1f %3s %s%s%s%s%s%s%s%s%s%s%s%s%s",
+  cmRptPrintf(rpt,"      %3i %5i %7i %5i %4.1f %3s %s%s%s%s%s%s%s%s%s%s%s%s%s%s",
     note->voice->id,
     note->locIdx,
     note->tick,
     note->duration,
     note->rvalue,
-    N,B,R,G,D,C,e,d,t,P,S,H,T0,T1);
+    N,B,R,G,D,C,e,d,t,P,S,H,T0,T1,O);
 
   if( cmIsFlag(note->flags,kSectionXsFl) )
     cmRptPrintf(rpt," %s",cmStringNullGuard(note->tvalue));
 
   if( cmIsFlag(note->flags,kMetronomeXsFl) )
     cmRptPrintf(rpt," %i bpm",note->duration);
+
+  if( note->evenGroupId != 0 )
+    cmRptPrintf(rpt," e=%i",note->evenGroupId);
+  
+  if( note->dynGroupId != 0 )
+    cmRptPrintf(rpt," d=%i",note->dynGroupId);
+  
+  if( note->tempoGroupId != 0 )
+    cmRptPrintf(rpt," t=%i",note->tempoGroupId);
 
 }
 
@@ -1909,7 +1950,7 @@ cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midi
   if( outFn != NULL )
     cmXScoreWriteCsv(h,outFn);
   
-  //cmXScoreReport(h,&ctx->rpt,true);
+  cmXScoreReport(h,&ctx->rpt,true);
   
   return cmXScoreFinalize(&h);
 
