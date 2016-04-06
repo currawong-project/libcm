@@ -50,7 +50,10 @@ extern "C" {
   //13) Check that the measures are given in sorted order.
   //14) Current implementation assumes meter changes only occur at measure boundaries.
   //15) Score Fixes: Add meter to bar 1, fix time errors (shown in voice report)
- 
+  //16) The order of notes is now correct (4/6/16) after applying
+  //    the grace note ordering changed specified in 'score_print_mk_edit.txt',
+  //    via cmXScoreReorder() however the ticks are now incorrect - fix them.
+  
   cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* midiFn );
   cmXsRC_t cmXScoreFinalize( cmXsH_t* hp );
 
