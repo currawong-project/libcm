@@ -1303,17 +1303,186 @@ cmXsRC_t cmXScoreFinalize( cmXsH_t* hp )
   return rc;  
 }
 
-
 bool     cmXScoreIsValid( cmXsH_t h )
 { return h.h != NULL; }
 
-/*
+//-------------------------------------------------------------------------------------------
+typedef struct
+{
+  unsigned    voice;
+  unsigned    locIdx;
+  unsigned    tick;
+  unsigned    durtn;
+  float       rval;
+  unsigned    midi;
+  cmXsNote_t* note;
+} cmXsReorder_t;
+
+cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsReorder_t* r )
+{
+  cmXsPart_t* pp = p->partL;
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp = pp->measL;
+    for(; mp!=NULL; mp=mp->link)
+      if( mp->number == measNumb) 
+      { 
+        cmXsNote_t* np = mp->noteL;
+        for(; np!=NULL; np=np->slink)
+          if( np->voice->id == r->voice &&
+            np->locIdx == r->locIdx &&
+            np->tick == r->tick &&
+            np->duration == r->durtn &&
+            np->rvalue == r->rval &&
+            np->pitch == r->midi )
+          {
+            return np;
+          }
+      }
+  }
+
+  cmErrMsg(&p->err,kSyntaxErrorXsRC,"Reorder note not found.");
+  return NULL;
+}
+
+cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* rV, unsigned rN )
+{
+  unsigned i;
+  
+  if( rN == 0 )
+    return kOkXsRC;
+
+  // set the 'note' field on each cmXsReorder_t record
+  for(i=0; i<rN; ++i)
+    if((rV[i].note = _cmXsReorderFindNote(p,measNumb,rV+i)) == NULL )
+      return kSyntaxErrorXsRC;
+
+  
+  cmXsMeas_t* mp = rV[0].note->meas;
+  cmXsNote_t* n0p = NULL;
+
+  assert( mp->number == measNumb );
+  
+  // Reassign the slink of the cmXsNote_t records in this measure
+  // according to their order in rV[].
+  for(i=0; i<rN; ++i)
+  {
+    if( n0p == NULL )
+      mp->noteL = rV[i].note;
+    else
+      n0p->slink = rV[i].note;
+
+    n0p = rV[i].note;
+    n0p->slink = NULL;
+  }
+  
+  return kOkXsRC;    
+  
+}
+
+cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
+{
+  typedef enum { kFindMeasStId, kFindEventStId, kReadEventStId } stateId_t;
+
+  cmXsRC_t      rc      = kOkXsRC;
+  cmXScore_t*   p       = _cmXScoreHandleToPtr(h);
+  cmFileH_t     fH      = cmFileNullHandle;
+  cmChar_t*     b       = NULL;
+  unsigned      bN      = 0;
+  unsigned      ln      = 0;
+  stateId_t     stateId = kFindMeasStId;
+  unsigned      rN      = 1024;
+  unsigned      ri      = 0;
+  unsigned     measNumb = 0;
+  cmXsReorder_t rV[ rN ];
+  
+  if( cmFileOpen(&fH,fn,kReadFileFl,p->err.rpt) != kOkFileRC )
+  {
+    rc = cmErrMsg(&p->err,kFileFailXsRC,"The reordering file '%s' could not be opened.",cmStringNullGuard(fn));
+    return rc;
+  }
+  
+  for(; cmFileGetLineAuto(fH,&b,&bN)==kOkFileRC; ++ln)
+  {
+    switch( stateId )
+    {
+      case kFindEventStId:
+        {
+          unsigned voice,loc;
+          if( sscanf(b,"%i %i",&voice,&loc) != 2 )
+            continue;
+          
+          stateId = kReadEventStId;
+        }
+        // fall through
+        
+      case kReadEventStId:
+        {
+          cmXsReorder_t r;
+          char     pitchStr[4];
+          
+          if( sscanf(b,"%i %i %i %i %f %c%c%c",&r.voice,&r.locIdx,&r.tick,&r.durtn,&r.rval,pitchStr,pitchStr+1,pitchStr+2) == 8 )
+          {
+            pitchStr[3] = 0;
+            if( !isdigit(pitchStr[2]) )
+              r.midi = 0;
+            else
+            {
+              if( pitchStr[1] == ' ')
+              {
+                pitchStr[1] = pitchStr[2];
+                pitchStr[2] = 0;
+              }
+
+              r.midi = cmSciPitchToMidi(pitchStr);
+            }
+            
+            assert( ri < rN );
+            rV[ri++] = r;
+            
+            continue;
+          }
+
+          if((rc =  _cmXScoreReorderMeas(p, measNumb, rV, ri )) != kOkXsRC )
+            goto errLabel;
+
+          ri = 0;
+
+          stateId = kFindMeasStId;
+          // fall through
+        }
+        
+      case kFindMeasStId:
+        {
+          char colon;
+          if( sscanf(b,"%i %c",&measNumb,&colon) == 2 && colon == ':' )
+          {
+            //printf("meas: %i \n",measNumb);
+            stateId = kFindEventStId;
+            
+          }
+        }
+        break;
+    }
+        
+  }
+
+ errLabel:
+  cmFileClose(&fH);
+  cmMemFree(b);
+  return rc;
+}
+
+
+/*-------------------------------------------------------------------------------------------
 Dynamics File Format:
 <blk>*
 <blk>       -> <hdr-line> <note-line> <blank-line>
 <hdr-line>  -> <int> "|" 
 <note-line> -> <float> <sci-pitch> ":" <int>
 <sci-pitch> -> <A-G><#|b|<space> 
+
+See imag_themes/scores/dyn.txt for an example.
  */
 
 typedef struct cmXsDyn_str
@@ -1877,10 +2046,22 @@ void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
       {
         
         const cmXsNote_t* note = meas->noteL;
+        unsigned t0 = 0;
+        unsigned t1 = 0;
         for(; note!=NULL; note=note->slink)
         {
           _cmXScoreReportNote(rpt,note);
-        
+
+          t1 = note->slink==NULL ? note->tick : note->slink->tick;
+
+          if( !(t0 <= note->tick && note->tick <= t1) )
+          {
+            cmRptPrintf(rpt," +");            
+          }
+
+          t0 = note->tick;
+          
+          
           if( note->slink!=NULL  || note->voice->id==0)
             cmRptPrintf(rpt,"\n");
           else
@@ -1944,8 +2125,11 @@ cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midi
   if((rc = cmXScoreInitialize( ctx, &h, xmlFn, midiFn)) != kOkXsRC )
     return cmErrMsg(&ctx->err,rc,"XScore alloc failed.");
 
+  //if( dynFn != NULL )
+  //  cmXScoreInsertDynamics(h, dynFn );
+
   if( dynFn != NULL )
-    cmXScoreInsertDynamics(h, dynFn );
+    cmXScoreReorder(h,dynFn);
   
   if( outFn != NULL )
     cmXScoreWriteCsv(h,outFn);
