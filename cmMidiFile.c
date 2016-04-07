@@ -533,11 +533,9 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
   {
     unsigned        tick = 0;
     cmMidiTrackMsg_t* tmp  = mfp->trkV[ trkIdx ].base;
-
     
     microsPerTick = microsPerQN / mfp->ticksPerQN;
-  
-    
+      
     while( tmp != NULL )
     {
       assert( i < mfp->msgN);
@@ -559,13 +557,16 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
     }  
   }
 
+
+  
+
   // sort msgV[] in ascending order on atick
   qsort( mfp->msgV, mfp->msgN, sizeof(cmMidiTrackMsg_t*), _cmMidiFileSortFunc );
 
   // set the amicro field of each midi message to the
   // absolute time offset in microseconds
   unsigned mi;
-  unsigned amicro = 0;
+  double amicro = 0;
   microsPerTick = microsPerQN / mfp->ticksPerQN;
 
   for(mi=0; mi<mfp->msgN; ++mi)
@@ -583,8 +584,8 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
       dtick = mp->atick -  mfp->msgV[mi-1]->atick;
     }
     
-    amicro += round(microsPerTick*dtick);
-    mp->amicro = amicro;
+    amicro     += microsPerTick * dtick;
+    mp->amicro  = round(amicro);
   }
   
   //for(i=0; i<25; ++i)
@@ -1376,11 +1377,15 @@ void _cmMidiFilePrintHdr( const _cmMidiFile_t* mfp, cmRpt_t* rpt )
     cmRptPrintf(rpt,"%s ",mfp->fn);
 
   cmRptPrintf(rpt,"fmt:%i ticksPerQN:%i tracks:%i\n",mfp->fmtId,mfp->ticksPerQN,mfp->trkN);
+
+  cmRptPrintf(rpt," UID     dtick     dmicro     atick      amicro     type  ch  D0  D1\n");
+  cmRptPrintf(rpt,"----- ---------- ---------- ---------- ---------- : ---- --- --- ---\n");
+  
 }
 
 void _cmMidiFilePrintMsg( cmRpt_t* rpt, const cmMidiTrackMsg_t* tmp )
 {
-  cmRptPrintf(rpt,"%5i %8i %8i %8i %8i : ",
+  cmRptPrintf(rpt,"%5i %10u %10u %10u %10u : ",
     tmp->uid,
     tmp->dtick,
     tmp->dmicro,
@@ -1529,6 +1534,8 @@ void cmMidiFileTest( const char* fn, cmCtx_t* ctx )
     printf("Error:%i Unable to open the cmMidi file: %s\n",rc,fn);
     return;
   }
+
+  //cmMidiFileCalcNoteDurations(  h );
 
   if( 1 )
   {
