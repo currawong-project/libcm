@@ -65,7 +65,7 @@ extern "C" {
 
   void     cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl );
 
-  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midiFn, const cmChar_t* outFn, const cmChar_t* dynFn );
+  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midiFn, const cmChar_t* outFn, const cmChar_t* dynFn, const cmChar_t* reorderFn );
   
 #ifdef __cplusplus
 }
