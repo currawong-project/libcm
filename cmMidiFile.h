@@ -65,7 +65,6 @@ extern "C" {
   {
     unsigned                   uid;     // uid's are unique among all msg's in the file
     unsigned                   dtick;   // delta ticks between events on this track
-    unsigned                   dmicro;  // delta microseconds between events on this track adjusted for tempo changes
     unsigned                   atick;   // global (all tracks interleaved) accumulated ticks
     unsigned                   amicro;  // global (all tracks interleaved) accumulated microseconds adjusted for tempo changes
     cmMidiByte_t               status;  // ch msg's have the channel value removed (it is stored in u.chMsgPtr->ch)
@@ -101,7 +100,8 @@ extern "C" {
     kInvalidHandleMfRC,  //  7 
     kMissingNoteOffMfRC, //  8
     kInvalidStatusMfRC,  //  9
-    kSustainPedalMfRC    // 10
+    kSustainPedalMfRC,   // 10
+    kLargeDeltaTickMfRC  // 11 (a large delta tick value was filtered)
   };
 
   extern cmMidiFileH_t cmMidiFileNullHandle;

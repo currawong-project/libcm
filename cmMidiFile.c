@@ -422,6 +422,99 @@ int _cmMidiFileSortFunc( const void *p0, const void* p1 )
   return (*(cmMidiTrackMsg_t**)p0)->atick < (*(cmMidiTrackMsg_t**)p1)->atick ? -1 : 1;  
 }
 
+// Set the absolute accumulated ticks (atick) value of each track message.
+// The absolute accumulated ticks gives a global time ordering for all
+// messages in the file.
+void _cmMidiFileSetAccumulateTicks( _cmMidiFile_t* p )
+{
+  cmMidiTrackMsg_t* nextTrkMsg[ p->trkN ]; // next msg in each track
+  unsigned          atick = 0;
+  unsigned          i;
+  
+  // iniitalize nextTrkTick[] and nextTrkMsg[].
+  for(i=0; i<p->trkN; ++i)
+    if((nextTrkMsg[i]  =  p->trkV[i].base) != NULL )
+      nextTrkMsg[i]->atick = nextTrkMsg[i]->dtick;
+
+  while(1)
+  {
+    unsigned k = cmInvalidIdx;
+
+    // find the trk which has the next msg (min atick time)
+    for(i=0; i<p->trkN; ++i)
+      if( nextTrkMsg[i]!=NULL && (k==cmInvalidIdx || nextTrkMsg[i]->atick < nextTrkMsg[k]->atick) )
+        k = i;
+
+    // no next msg was found - we're done
+    if( k == cmInvalidIdx )
+      break;
+
+    // store the current atick
+    atick = nextTrkMsg[k]->atick;
+
+    // advance the selected track to it's next message
+    nextTrkMsg[k] = nextTrkMsg[k]->link;
+
+    // set the selected tracks next atick time 
+    if( nextTrkMsg[k] != NULL )
+      nextTrkMsg[k]->atick = atick + nextTrkMsg[k]->dtick;      
+  }  
+}
+
+void _cmMidiFileSetAbsoluteTime( _cmMidiFile_t* mfp )
+{
+  double   microsPerQN   = 60000000/120; // default tempo;
+  double   amicro        = 0;
+  double   microsPerTick = microsPerQN / mfp->ticksPerQN;
+  double   maxDMicro     = 60000000;
+  bool     fl            = true;
+  unsigned i;
+
+  for(i=0; i<mfp->msgN; ++i)
+  {
+    cmMidiTrackMsg_t* mp    = mfp->msgV[i];
+    unsigned          dtick = 0;
+    
+    if( i > 0 )
+    {
+      // atick must have already been set and sorted
+      assert( mp->atick >= mfp->msgV[i-1]->atick );
+      dtick = mp->atick -  mfp->msgV[i-1]->atick;
+    }
+
+    // if this is the first msg with a dtick greater than zero
+    if( fl && mfp->msgV[i]->dtick > 0  )
+    {
+      fl = false;
+
+      // if this mesg has a large offset
+      if( microsPerTick * dtick > maxDMicro )
+      {
+        cmErrWarnMsg(&mfp->err,kLargeDeltaTickMfRC,"A message delta time of %f seconds was decreased to %f seconds.",(double)microsPerTick * dtick/1000000.0,(double)maxDMicro/1000000.0);        
+
+        // change the dtick to 1 (so it will still be the first msg w/ a non-zero dtick)
+        mfp->msgV[i]->dtick = 1; 
+
+        // dtick changed so the aticks need to be recalculated
+        _cmMidiFileSetAccumulateTicks(mfp);
+    
+        // call this function recursively
+        return _cmMidiFileSetAbsoluteTime(mfp);
+
+      }
+    }
+    
+    amicro     += microsPerTick * dtick;
+    mp->amicro  = round(amicro);
+    
+    
+    // track tempo changes
+    if( mp->status == kMetaStId && mp->metaId == kTempoMdId )
+      microsPerTick = mp->u.iVal / mfp->ticksPerQN;
+  }
+  
+}
+
 cmMfRC_t _cmMidiFileClose( _cmMidiFile_t* mfp )
 {
   cmMfRC_t rc = kOkMfRC;
@@ -451,6 +544,7 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
   _cmMidiFile_t* mfp    = NULL;
   unsigned short trkIdx = 0;
   cmErr_t        err;
+  unsigned i,j;
 
   if( cmMidiFileIsValid(*hPtr) )
     if((rc = _cmMidiFileClose(_cmMidiFileHandleToPtr(*hPtr))) != kOkMfRC )
@@ -521,17 +615,32 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
   // allocate the trk msg index vector: msgV[]
   mfp->msgV = cmMemAllocZ(cmMidiTrackMsg_t*, mfp->msgN);
 
-  // store a pointer to every trk msg in msgV[] 
-  // and convert tick to absolute tick
   mfp->nextUid = 0;
 
+  // store a pointer to every trk msg in msgV[]  and set 'uid'  
+  for(i=0,j=0; i<mfp->trkN; ++i)
+  {
+    cmMidiTrackMsg_t* m = mfp->trkV[i].base;
+    
+    for(; m!=NULL; m=m->link)
+    {
+      assert( j < mfp->msgN );
+      
+      mfp->msgV[j++] = m;
+      m->uid         = mfp->nextUid++;
+    }
+  }
+
+  /*
   double microsPerQN  = 60000000/120; // default tempo;
   double microsPerTick;
+  
+  double maxDMicro = 60.0 * 1000000.0; // max time between events (60 seconds)
   
   unsigned i = 0;
   for(trkIdx=0; trkIdx<mfp->trkN; ++trkIdx)
   {
-    unsigned        tick = 0;
+    unsigned          tick = 0;
     cmMidiTrackMsg_t* tmp  = mfp->trkV[ trkIdx ].base;
     
     microsPerTick = microsPerQN / mfp->ticksPerQN;
@@ -540,29 +649,42 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
     {
       assert( i < mfp->msgN);
 
-      tick          += tmp->dtick;     // convert delta-ticks to absolute ticks
-      tmp->atick     = tick;
-      tmp->uid       = mfp->nextUid++; // assign the msg uid
-      mfp->msgV[i]   = tmp;
+      // convert dtick to microseconds
+      unsigned dmicro = round(tmp->dtick * microsPerTick);
 
+      if( dmicro > maxDMicro )
+      {
+        tmp->dtick = round(maxDMicro / microsPerTick);
+        cmErrWarnMsg(&mfp->err,kLargeDeltaTickMfRC,"A message delta time of %f seconds was decreased to %f seconds.",(double)dmicro/1000000.0,(double)maxDMicro/1000000.0);        
+      }
+      
+      tick        += tmp->dtick;              // convert delta-ticks to absolute ticks
+      tmp->atick   = tick;
+      tmp->uid     = mfp->nextUid++;          // assign the msg uid
+      tmp->dmicro  = dmicro;
+      mfp->msgV[i] = tmp;
+
+      
+      
       // track tempo changes
       if( tmp->status == kMetaStId && tmp->metaId == kTempoMdId )
         microsPerTick = tmp->u.iVal / mfp->ticksPerQN;
-
-      // convert dtick to microseconds
-      tmp->dmicro = round(tmp->dtick * microsPerTick);
-      
+ 
       tmp            = tmp->link;
       ++i;
     }  
   }
+  */
 
-
-  
-
+  // 
+  _cmMidiFileSetAccumulateTicks(mfp);
+    
   // sort msgV[] in ascending order on atick
   qsort( mfp->msgV, mfp->msgN, sizeof(cmMidiTrackMsg_t*), _cmMidiFileSortFunc );
 
+  _cmMidiFileSetAbsoluteTime(mfp);
+  
+  /*
   // set the amicro field of each midi message to the
   // absolute time offset in microseconds
   unsigned mi;
@@ -587,6 +709,7 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
     amicro     += microsPerTick * dtick;
     mp->amicro  = round(amicro);
   }
+  */
   
   //for(i=0; i<25; ++i)
   //  printf("%i 0x%x 0x%x\n",mfp->msgV[i]->tick,mfp->msgV[i]->status,mfp->msgV[i]->metaId);
@@ -1378,8 +1501,8 @@ void _cmMidiFilePrintHdr( const _cmMidiFile_t* mfp, cmRpt_t* rpt )
 
   cmRptPrintf(rpt,"fmt:%i ticksPerQN:%i tracks:%i\n",mfp->fmtId,mfp->ticksPerQN,mfp->trkN);
 
-  cmRptPrintf(rpt," UID     dtick     dmicro     atick      amicro     type  ch  D0  D1\n");
-  cmRptPrintf(rpt,"----- ---------- ---------- ---------- ---------- : ---- --- --- ---\n");
+  cmRptPrintf(rpt," UID     dtick     atick      amicro     type  ch  D0  D1\n");
+  cmRptPrintf(rpt,"----- ---------- ---------- ---------- : ---- --- --- ---\n");
   
 }
 
@@ -1388,7 +1511,6 @@ void _cmMidiFilePrintMsg( cmRpt_t* rpt, const cmMidiTrackMsg_t* tmp )
   cmRptPrintf(rpt,"%5i %10u %10u %10u %10u : ",
     tmp->uid,
     tmp->dtick,
-    tmp->dmicro,
     tmp->atick,
     tmp->amicro );
 
