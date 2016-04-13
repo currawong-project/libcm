@@ -218,7 +218,7 @@ cmMfpRC_t cmMfpClock(  cmMfpH_t h, unsigned dusecs )
     // send the current message
     p->cbFunc( p->userCbPtr, p->mtime, mp );
 
-    unsigned amicro = mp->amicro;
+    unsigned long long amicro = mp->amicro;
     
     ++(p->msgIdx);
 

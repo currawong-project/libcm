@@ -65,8 +65,8 @@ extern "C" {
   {
     unsigned                   uid;     // uid's are unique among all msg's in the file
     unsigned                   dtick;   // delta ticks between events on this track
-    unsigned                   atick;   // global (all tracks interleaved) accumulated ticks
-    unsigned                   amicro;  // global (all tracks interleaved) accumulated microseconds adjusted for tempo changes
+    unsigned long long         atick;   // global (all tracks interleaved) accumulated ticks
+    unsigned long long         amicro;  // global (all tracks interleaved) accumulated microseconds adjusted for tempo changes
     cmMidiByte_t               status;  // ch msg's have the channel value removed (it is stored in u.chMsgPtr->ch)
     cmMidiByte_t               metaId;  //
     unsigned short             trkIdx;  //  
@@ -151,7 +151,7 @@ extern "C" {
   // of the file.
   // On return *'msgUsecsPtr' is set to the actual time of the msg. 
   // (which will be equal to or greater than 'usecsOffs').
-  unsigned              cmMidiFileSeekUsecs( cmMidiFileH_t h, unsigned usecsOffs, unsigned* msgUsecsPtr, unsigned* newMicrosPerTickPtr );
+  unsigned              cmMidiFileSeekUsecs( cmMidiFileH_t h, unsigned long long usecsOffs, unsigned* msgUsecsPtr, unsigned* newMicrosPerTickPtr );
 
   double                cmMidiFileDurSecs( cmMidiFileH_t h );
 
