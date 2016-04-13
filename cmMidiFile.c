@@ -463,12 +463,10 @@ void _cmMidiFileSetAccumulateTicks( _cmMidiFile_t* p )
 
 void _cmMidiFileSetAbsoluteTime( _cmMidiFile_t* mfp )
 {
-  double   microsPerQN   = 60000000/120; // default tempo;
-  double   amicro        = 0;
-  double   microsPerTick = microsPerQN / mfp->ticksPerQN;
-  //double   maxDMicro     = 60000000;
-  //bool     fl            = false;
-  unsigned i;
+  double             microsPerQN   = 60000000/120; // default tempo;
+  double             microsPerTick = microsPerQN / mfp->ticksPerQN;
+  unsigned long long amicro        = 0;
+  unsigned           i;
 
   for(i=0; i<mfp->msgN; ++i)
   {
@@ -482,32 +480,8 @@ void _cmMidiFileSetAbsoluteTime( _cmMidiFile_t* mfp )
       dtick = mp->atick -  mfp->msgV[i-1]->atick;
     }
 
-    /*
-    // if this is the first msg with a dtick greater than zero
-    if( fl && mfp->msgV[i]->dtick > 0  )
-    {
-      fl = false;
-
-      // if this mesg has a large offset
-      if( microsPerTick * dtick > maxDMicro )
-      {
-        cmErrWarnMsg(&mfp->err,kLargeDeltaTickMfRC,"An initial message delta time of %f seconds was decreased to %f seconds in '%s'.",(double)microsPerTick * dtick/1000000.0,(double)maxDMicro/1000000.0,cmStringNullGuard(mfp->fn));        
-
-        // change the dtick to 1 (so it will still be the first msg w/ a non-zero dtick)
-        mfp->msgV[i]->dtick = 1; 
-
-        // dtick changed so the aticks need to be recalculated
-        _cmMidiFileSetAccumulateTicks(mfp);
-    
-        // call this function recursively
-        return _cmMidiFileSetAbsoluteTime(mfp);
-
-      }
-    }
-    */
-    
     amicro     += microsPerTick * dtick;
-    mp->amicro  = round(amicro);
+    mp->amicro  = amicro;
     
     
     // track tempo changes
@@ -1420,7 +1394,7 @@ void _cmMidiFilePrintHdr( const _cmMidiFile_t* mfp, cmRpt_t* rpt )
 
 void _cmMidiFilePrintMsg( cmRpt_t* rpt, const cmMidiTrackMsg_t* tmp )
 {
-  cmRptPrintf(rpt,"%5i %10u %10u %10u %10u : ",
+  cmRptPrintf(rpt,"%5i %10u %10llu %10llu : ",
     tmp->uid,
     tmp->dtick,
     tmp->atick,
