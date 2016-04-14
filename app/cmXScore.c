@@ -1740,7 +1740,7 @@ const cmChar_t* cmXsFormatMeasurementCsvField( unsigned flags, unsigned fl, char
   if( cmIsFlag(flags,fl) )
   {
     if( sectionId != 0 )
-      snprintf(buf,bufN-1,"%c %i %c",abbrev,sectionId, cmIsFlag(flags,kHeelXsFl)?'*':' ');
+      snprintf(buf,bufN-1,"%c %i%c",abbrev,sectionId, cmIsFlag(flags,kHeelXsFl)?'*':' ');
     else
       buf[0] = abbrev;
   }
