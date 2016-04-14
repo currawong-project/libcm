@@ -430,6 +430,7 @@ void _cmMidiFileSetAccumulateTicks( _cmMidiFile_t* p )
   cmMidiTrackMsg_t* nextTrkMsg[ p->trkN ]; // next msg in each track
   unsigned long long atick = 0;
   unsigned          i;
+  bool              fl = true;
   
   // iniitalize nextTrkTick[] and nextTrkMsg[].
   for(i=0; i<p->trkN; ++i)
@@ -448,6 +449,13 @@ void _cmMidiFileSetAccumulateTicks( _cmMidiFile_t* p )
     // no next msg was found - we're done
     if( k == cmInvalidIdx )
       break;
+
+    if( fl && nextTrkMsg[k]->dtick > 0 )
+    {
+      fl = false;
+      nextTrkMsg[k]->dtick = 1;
+      nextTrkMsg[k]->atick = 1;
+    }
 
     // store the current atick
     atick = nextTrkMsg[k]->atick;
@@ -1243,7 +1251,7 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
         if( sustainPedalDownMsg != NULL )
         {
           // TODO:  the correct way to handle this is to maintain multiple sustain pedals 
-          cmErrMsg(&p->err,kSustainPedalMfRC,"Sustain pedal down with no intervening sustain pedal up.");
+          //cmErrMsg(&p->err,kSustainPedalMfRC,"Sustain pedal down with no intervening sustain pedal up.");
         }
         else
         {
