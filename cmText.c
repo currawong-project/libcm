@@ -798,6 +798,34 @@ cmChar_t* cmTextLine( cmChar_t* s, unsigned line )
 const cmChar_t* cmTextLineC( const cmChar_t* s, unsigned line )
 { return cmTextLine((cmChar_t*)s,line); }
 
+unsigned cmTextLineCount( const cmChar_t* s )
+{
+  unsigned n = *s ? 1 : 0;
+  
+  while( *s )
+  {
+    s = cmTextEndOfLineC(s);
+
+    switch( *s )
+    {
+      case 0:
+        break;
+        
+      case '\n':
+        s += 1;
+        n += 1;
+        break;
+        
+      default:
+        { assert(0); }
+    }
+    
+  }
+
+  return n;
+  
+}
+
 
 cmChar_t* cmTextRemoveConsecutiveSpaces( cmChar_t* s )
 {

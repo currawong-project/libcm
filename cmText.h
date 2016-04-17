@@ -234,6 +234,9 @@ extern "C" {
   cmChar_t* cmTextLine( cmChar_t* s, unsigned line );
   const cmChar_t* cmTextLineC( const cmChar_t* s, unsigned line );
 
+  // Return the count of lines begining with s.
+  unsigned cmTextLineCount( const cmChar_t* s );
+  
   // Reduce all consecutive white spaces to a single space.
   cmChar_t* cmTextRemoveConsecutiveSpaces( cmChar_t* s );
 
