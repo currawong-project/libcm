@@ -23,7 +23,10 @@ extern "C" {
   bool      cmScoreMatchGraphicIsValid( cmSmgH_t h );
   cmSmgRC_t cmScoreMatchGraphicInsertMidi( cmSmgH_t h, unsigned midiUid, unsigned midiPitch, unsigned midiVel, unsigned csvScoreEventId );
   cmSmgRC_t cmScoreMatchGraphicWrite( cmSmgH_t h, const cmChar_t* fn );
-  
+
+  // Generate a set of markers for use in a cmTimeLine file which forms a marked area
+  // beginning at each bar line and ends at the end of the file.
+  cmSmgRC_t cmScoreMatchGraphicGenTimeLineBars( cmSmgH_t h, const cmChar_t* fn, unsigned srate );
   
 #ifdef __cplusplus
 }

@@ -29,6 +29,7 @@ enum
   kNoMatchSmgFl = 0x0010
 };
 
+// Graphic box representing a score label or MIDI event
 typedef struct cmSmgBox_str
 {
   unsigned             flags;
@@ -42,38 +43,45 @@ typedef struct cmSmgBox_str
   struct cmSmgBox_str* link;  
 } cmSmgBox_t;
 
+// Graphic line linking secondary MIDI matches to score events
 typedef struct cmSmgLine_str
 {
-  cmSmgBox_t* b0;
-  cmSmgBox_t* b1;
+  cmSmgBox_t*           b0;
+  cmSmgBox_t*           b1;
   struct cmSmgLine_str* link;
 } cmSmgLine_t;
 
+// Score Location
 typedef struct cmSmgLoc_str
 {
-  cmSmgBox_t* bV;
+  cmSmgBox_t* bV;       // List of graphic boxes assigned to this score location
 } cmSmgLoc_t;
 
+// Score label
 typedef struct
 {
-  unsigned    type;
+  unsigned    type;          // kBarEvtScId | kNonEvtScId
+  unsigned    barNumb;
   unsigned    csvEventId;
   unsigned    locIdx;
   cmSmgBox_t* box;
 } cmSmgSc_t;
 
+// Link a MIDI event to it's matched score label.
 typedef struct cmSmgMatch_str
 {
   cmSmgSc_t*             score;
   struct cmSmgMatch_str* link;
 } cmSmgMatch_t;
 
-typedef struct
+// MIDI file event
+typedef struct           
 {
+  double        secs;     
   unsigned      uid;
   unsigned      pitch;
   unsigned      vel;
-  cmSmgMatch_t* matchV;
+  cmSmgMatch_t* matchV;    // list of matches to score events
   cmSmgBox_t*   box;
 } cmSmgMidi_t;
 
@@ -82,17 +90,21 @@ typedef struct
 {
   cmErr_t      err;
   
-  cmSmgSc_t*   scV;   
+  cmSmgSc_t*   scV;    // scV[scN] score bars and notes
   unsigned     scN;
   
-  cmSmgMidi_t* mV;
-  unsigned     mN;
-  
-  cmSmgLoc_t*  locV;
+  cmSmgLoc_t*  locV;   // locV[locN] score locations (from the score file)
   unsigned     locN;
-  cmSmgLine_t* lines;
 
-  unsigned     boxW;
+  cmSmgLine_t* lines;  // Graphic lines used to indicate that a midi event matches to multiple score notes.
+                       // (Each match after the first gets a line from the box representing the midi event
+                       //  to the matching score event)
+  
+  cmSmgMidi_t* mV;     // mV[mN] midi note-on events
+  unsigned     mN;
+  double       mfDurSecs; // midi file duration in seconds
+  
+  unsigned     boxW;   // graphic box width and height
   unsigned     boxH;
 } cmSmg_t;
 
@@ -219,6 +231,7 @@ cmSmgRC_t _cmSmgInitFromScore( cmCtx_t* ctx, cmSmg_t* p, const cmChar_t* scoreFn
             p->scV[k].type       = e->type;
             p->scV[k].csvEventId = e->csvEventId;
             p->scV[k].locIdx     = i;
+            p->scV[k].barNumb    = e->barNumb;
 
             if( e->type == kBarEvtScId )
               text = cmTsPrintfP(NULL,"%i",e->barNumb);
@@ -253,16 +266,19 @@ cmSmgRC_t _cmSmgInitFromMidi( cmCtx_t* ctx, cmSmg_t* p, const cmChar_t* midiFn )
   const cmMidiTrackMsg_t** mV  = cmMidiFileMsgArray(mfH);
   unsigned                 mN  = cmMidiFileMsgCount(mfH);
 
-  p->mV = cmMemAllocZ(cmSmgMidi_t,mN);
-  p->mN = mN;
+  p->mV        = cmMemAllocZ(cmSmgMidi_t,mN);
+  p->mN        = mN;
+  p->mfDurSecs = cmMidiFileDurSecs(mfH);
   
   for(i=0,j=0; i<mN; ++i)
     if( (mV[i]!=NULL) && cmMidiIsChStatus(mV[i]->status) && cmMidiIsNoteOn(mV[i]->status) && (mV[i]->u.chMsgPtr->d1>0) )          
     {
       assert(j < mN);
+      p->mV[j].secs  = mV[i]->amicro / 1000000.0;
       p->mV[j].uid   = mV[i]->uid;
       p->mV[j].pitch = mV[i]->u.chMsgPtr->d0;
       p->mV[j].vel   = mV[i]->u.chMsgPtr->d1;
+      
       ++j;
     }
 
@@ -564,4 +580,29 @@ cmSmgRC_t cmScoreMatchGraphicWrite( cmSmgH_t h, const cmChar_t* fn )
 
   cmFileClose(&fH);
   return kOkSmgRC;
+}
+
+
+cmSmgRC_t cmScoreMatchGraphicGenTimeLineBars( cmSmgH_t h, const cmChar_t* fn, unsigned srate )
+{
+  cmSmgRC_t rc = kOkSmgRC;
+  cmFileH_t f  = cmFileNullHandle;
+  cmSmg_t*  p  = _cmSmgHandleToPtr(h);
+  unsigned  i  = 0;
+
+  if( cmFileOpen(&f,fn,kWriteFileFl,p->err.rpt)  != kOkFileRC )
+    return cmErrMsg(&p->err,kFileSmgRC,"The time-line bar file '%s' could not be created.",cmStringNullGuard(fn));
+
+  for(i=0; i<p->mN; ++i)
+    if( p->mV[i].matchV != NULL && p->mV[i].matchV->score != NULL && p->mV[i].matchV->score > p->scV && p->mV[i].matchV->score[-1].type==kBarEvtScId )      
+    {
+      unsigned bar = p->mV[i].matchV->score->barNumb;
+      unsigned offset = p->mV[i].secs * srate;
+      unsigned smpCnt = p->mfDurSecs * srate - offset;
+      cmFilePrintf(f,"{ label: \"%i\" type: \"mk\" ref: \"mf-0\" offset: %8i smpCnt:%8i trackId: 0 textStr: \"Bar %3i\" bar: %3i sec:\"%3i\" }\n",bar,offset,smpCnt,bar,bar,bar);
+    }
+
+  cmFileClose(&f);
+  return rc;
+  
 }
