@@ -429,7 +429,7 @@ const cmChar_t* cmFileSysVMakeFn( cmFileSysH_t h, const cmChar_t* dir, const cmC
   if( dir != NULL )
     strncat(rp,dir,n-strlen(rp));
 
-  // copy out ecmh of the var arg's directories
+  // copy out each of the var arg's directories
   while((dp = va_arg(vl,const cmChar_t*)) != NULL )
     if(!_cmFileSysConcat(rp,n,pathSep,dp) )
     {
