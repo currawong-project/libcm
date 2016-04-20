@@ -16,6 +16,8 @@
 #include "cmMidiFile.h"
 #include "cmLex.h"
 #include "cmCsv.h"
+#include "cmSymTbl.h"
+#include "cmScore.h"
 
 #include "cmFile.h"
 #include "cmSymTbl.h"
@@ -1376,7 +1378,7 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
       return kSyntaxErrorXsRC;
 
 
-  cmXsMeas_t* mp = rV[0].note->meas;
+  cmXsMeas_t* mp  = rV[0].note->meas;
   cmXsNote_t* n0p = NULL;
 
   assert( mp->number == measNumb );
@@ -1424,7 +1426,7 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
   {
     switch( stateId )
     {
-      case kFindEventStId:
+      case kFindEventStId:  // scanning past labels to an event line
         {
           unsigned voice,loc;
           if( sscanf(b,"%i %i",&voice,&loc) != 2 )
@@ -1439,6 +1441,7 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
           cmXsReorder_t r;
           char     pitchStr[4];
 
+          // parse an event line
           if( sscanf(b,"%i %i %i %i %f %c%c%c",&r.voice,&r.locIdx,&r.tick,&r.durtn,&r.rval,pitchStr,pitchStr+1,pitchStr+2) == 8 )
           {
             pitchStr[3] = 0;
@@ -1455,12 +1458,15 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
               r.midi = cmSciPitchToMidi(pitchStr);
             }
 
+            // store the record
             assert( ri < rN );
             rV[ri++] = r;
 
             continue;
           }
 
+          // the end of the measure was encountered -
+          // reorder the measure based on the cmXsReorder_t in rV[ri]
           if((rc =  _cmXScoreReorderMeas(p, measNumb, rV, ri )) != kOkXsRC )
             goto errLabel;
 
@@ -1470,7 +1476,7 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
           // fall through
         }
 
-      case kFindMeasStId:
+      case kFindMeasStId:  // scanning for a bar-line
         {
           char colon;
           if( sscanf(b,"%i %c",&measNumb,&colon) == 2 && colon == ':' )
@@ -1878,7 +1884,7 @@ cmXsRC_t _cmXScoreWriteCsvRow(
     goto errLabel;
 
   // col 15: even (all grace notes are 'even' notes
-  if( cmCsvInsertIdentColAfter(p->csvH,lcp,&lcp, evenStr, 0) != kOkCsvRC )
+  if( cmCsvInsertQTextColAfter(p->csvH,lcp,&lcp, evenStr, 0) != kOkCsvRC )
   {
     rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on eveness flag label.");
     goto errLabel;
@@ -2184,12 +2190,24 @@ cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midi
   if( dynFn != NULL )
     cmXScoreInsertDynamics(h, dynFn );
 
-  if( reorderFn != NULL )
-    cmXScoreReorder(h,reorderFn);
+  //if( reorderFn != NULL )
+  //  cmXScoreReorder(h,reorderFn);
 
   if( outFn != NULL )
+  {
+    cmScH_t scH = cmScNullHandle;
+    double srate = 96000.0;
+    
     cmXScoreWriteCsv(h,outFn);
-
+    
+    if( cmScoreInitialize( ctx, &scH, outFn, srate, NULL, 0, NULL, NULL, cmSymTblNullHandle) != kOkScRC )
+      cmErrMsg(&ctx->err,kFileFailXsRC,"The generated CSV file could not be parsed.");
+    else
+      cmScoreFinalize(&scH);
+    
+    
+  }
+  
   //cmXScoreReport(h,&ctx->rpt,true);
 
   return cmXScoreFinalize(&h);

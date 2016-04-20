@@ -35,7 +35,7 @@ extern "C" {
   //
   // Steps 1) and 2) can be automated by in emacs by:
   //
-  // M-x load-file ~/src/emacs/rpoc_music_xml.el
+  // M-x load-file ~/src/emacs/proc_music_xml.el
   //
   // 3) How to assigned dynamic markings (they are not attached to notes). (from MIDI file?)
   // 4) Tempo syntax is inconsistent (only a problem in full part2 score)     
