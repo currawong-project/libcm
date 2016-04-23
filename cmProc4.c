@@ -27,6 +27,7 @@
 #include "cmScore.h"
 #include "cmProc4.h"
 
+
 //=======================================================================================================================
 //----------------------------------------------------------------------------------------
 void ed_print_mtx( ed_r* r)
@@ -1385,7 +1386,7 @@ unsigned   cmScMatcherScan( cmScMatcher* p, unsigned bli, unsigned hopCnt )
 
   // calc the edit distance from pitchV[] to a sliding score window
   for(i=0; rc==cmOkRC && (hopCnt==cmInvalidCnt || i<hopCnt); ++i)
-  {      
+  {
     rc = cmScMatchExec(p->mp, bli + i, p->mp->msn, p->midiBuf, p->mp->mmn, s_opt );
 
     switch(rc)
@@ -1412,6 +1413,7 @@ unsigned   cmScMatcherScan( cmScMatcher* p, unsigned bli, unsigned hopCnt )
   if( i_opt == cmInvalidIdx )
     return cmInvalidIdx;
 
+
   // set the locIdx field in midiBuf[], trailing miss count and
   // return the latest positive-match locIdx
   p->eli = cmScMatchDoSync(p->mp,i_opt,p->midiBuf,p->mp->mmn,&p->missCnt);
@@ -1430,7 +1432,6 @@ unsigned   cmScMatcherScan( cmScMatcher* p, unsigned bli, unsigned hopCnt )
   }
 
   return i_opt;
-
 }
 
 cmRC_t     cmScMatcherStep(  cmScMatcher* p )
@@ -1880,7 +1881,7 @@ cmRC_t    cmScMeasInit(  cmScMeas* p, cmScH_t scH, double srate, const unsigned*
   for(i=0,si=0; i<n; ++i)
   {
     cmScoreLoc_t* lp = cmScoreLoc(scH,i);
-    cmScoreSet_t* sp = lp->setList;
+    cmScoreSet_t* sp = lp->setList; 
 
     // for each set that ends on this score location
     for(; sp!=NULL; sp=sp->llink,++si)
@@ -1913,21 +1914,27 @@ cmRC_t    cmScMeasInit(  cmScMeas* p, cmScH_t scH, double srate, const unsigned*
     return rc;
 
   // assign set[].bli and set[].eli
+
+  // for each measurment set
   for(j=0; j<p->sn; ++j)
   {
     cmScMeasSet_t* msp = p->set + j;
 
+    // for each score location
     for(i=0; i<p->mp->locN; ++i)
     {
+      // if this set starts on this score location 
       if( msp->bli==cmInvalidIdx && msp->bsli==p->mp->loc[i].scLocIdx )
-        msp->bli = i;
+        msp->bli = i; // store the index of the score location
 
+      // if this set end on this score location 
       if( msp->esli==p->mp->loc[i].scLocIdx )
-        msp->eli = i;
+        msp->eli = i;  // store the index of the score location
     }  
 
     assert( msp->eli > msp->bli );
 
+    // track the longest set.
     maxScWndN = cmMax( maxScWndN, msp->eli - msp->bli + 1 );
 
   }

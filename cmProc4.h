@@ -328,8 +328,8 @@ extern "C" {
     unsigned      bsli;  // beg score loc index
     unsigned      esli;  // end score loc index
 
-    unsigned      bli;   // 
-    unsigned      eli;   //
+    unsigned      bli;   // index into the cmScMatch.loc[] array of bsli
+    unsigned      eli;   // index into the cmScMatch.loc[] array of esli
 
     double        value; // DBL_MAX if the value has not yet been set
     double        tempo; //
