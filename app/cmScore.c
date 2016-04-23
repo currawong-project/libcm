@@ -761,8 +761,8 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
   if((attr = cmCsvCellText(p->cH,rowIdx,kGraceColScIdx)) != NULL && *attr == 'g' )
   {
     flags += kGraceScFl;
-    if( cmIsNotFlag(flags,kEvenScFl) )
-      return cmErrMsg(&p->err,kSyntaxErrScRC,"All 'grace' notes should also be 'even' notes.");
+    //if( cmIsNotFlag(flags,kEvenScFl) )
+    //  return cmErrMsg(&p->err,kSyntaxErrScRC,"All 'grace' notes should also be 'even' notes.");
   }
 
   // tempo attribute
@@ -1047,10 +1047,10 @@ cmScRC_t _cmScProcSets( cmSc_t* p )
 
             char cc = _cmScVarIdToChar(p->sets[i].varId);
             int nn = snprintf(NULL,0,"%c-%s",cc,ep->label);
-            char b[nn+2];
-            snprintf(b,nn,"%c-%s",cc,ep->label);
+            char b[nn+3];
+            snprintf(b,nn+1,"%c-%s",cc,ep->label);
             p->sets[i].symArray[j]     = cmSymTblRegisterSymbol(p->stH,b);
-            snprintf(b,nn+1,"c%c-%s",cc,ep->label);
+            snprintf(b,nn+2,"c%c-%s",cc,ep->label);
             p->sets[i].costSymArray[j] = cmSymTblRegisterSymbol(p->stH,b);
 
             
@@ -2386,49 +2386,95 @@ cmScRC_t      cmScoreDecode( const void* msg, unsigned msgByteCnt, cmScMsg_t* m)
   return kOkScRC;
 }
 
+void _cmScorePrintHdr( cmRpt_t* rpt )
+{
+  cmRptPrintf(rpt,"evnt  CSV             bar\n");
+  cmRptPrintf(rpt,"index line  loctn bar idx type  pitch ETD Dynamic\n");
+  cmRptPrintf(rpt,"----- ----- ----- --- --- ----- ----- --- -------\n");  
+}
+
+void _cmScorePrintEvent( const cmScoreEvt_t* r, unsigned i, cmRpt_t* rpt )
+{
+  switch(r->type)
+  {
+    case kBarEvtScId:
+      cmRptPrintf(rpt,"%5i %5i %3i bar\n",
+        i,
+        r->line,
+        r->barNumb );
+      break;
+
+    case kNonEvtScId:
+      cmRptPrintf(rpt,"%5i %5i %5i %3i %3i %s %5s %c%c%c %s\n",
+        i,
+        r->line,
+        r->locIdx,
+        r->barNumb,
+        r->barNoteIdx,
+        cmScEvtTypeIdToLabel(r->type),
+        cmMidiToSciPitch(r->pitch,NULL,0),
+        cmIsFlag(r->flags,kEvenScFl)  ? 'e' : ' ',
+        cmIsFlag(r->flags,kTempoScFl) ? 't' : ' ',
+        cmIsFlag(r->flags,kDynScFl)   ? 'd' : ' ',
+        cmIsFlag(r->flags,kDynScFl)   ? cmScDynIdToLabel(r->dynVal) : "");          
+      break;
+
+    default:
+      break;
+  }
+  
+}
+
 
 void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
 {
   cmSc_t* p = _cmScHandleToPtr(h);
   unsigned i;
-
-  cmRptPrintf(rpt,"evnt  CSV             bar\n");
-  cmRptPrintf(rpt,"index line  loctn bar idx type  pitch ETD Dynamic\n");
-  cmRptPrintf(rpt,"----- ----- ----- --- --- ----- ----- --- -------\n");
-     
+  
+  _cmScorePrintHdr(rpt);
+  
   for(i=0; i<p->cnt; ++i)
+    _cmScorePrintEvent(p->array+i,i,rpt);
+}
+
+
+void cmScorePrintSets( cmScH_t h, cmRpt_t* rpt )
+{
+  cmSc_t*  p = _cmScHandleToPtr(h);
+  unsigned i,j,k;
+
+
+  for(i=0,k=0; i<p->locCnt; ++i)
   {
-    cmScoreEvt_t* r = p->array + i;
-    switch(r->type)
+    const cmScoreSet_t* s = p->loc[i].setList;
+    for(; s!=NULL; s=s->llink)
     {
-      case kBarEvtScId:
-        cmRptPrintf(rpt,"%5i %5i %3i bar\n",
-          i,
-          r->line,
-          r->barNumb );
-        break;
+      char cc = _cmScVarIdToChar(s->varId);
 
-      case kNonEvtScId:
-        cmRptPrintf(rpt,"%5i %5i %5i %3i %3i %s %5s %c%c%c %s\n",
-          i,
-          r->line,
-          r->locIdx,
-          r->barNumb,
-          r->barNoteIdx,
-          cmScEvtTypeIdToLabel(r->type),
-          cmMidiToSciPitch(r->pitch,NULL,0),
-          cmIsFlag(r->flags,kEvenScFl)  ? 'e' : ' ',
-          cmIsFlag(r->flags,kTempoScFl) ? 't' : ' ',
-          cmIsFlag(r->flags,kDynScFl)   ? 'd' : ' ',
-          cmIsFlag(r->flags,kDynScFl)   ? cmScDynIdToLabel(r->dynVal) : "");          
-        break;
+      cmRptPrintf(rpt,"\n%i Set:%c\n",k,cc);
+      ++k;
+        
+      _cmScorePrintHdr(rpt);
+      for(j=0; j<s->eleCnt; ++j)
+        _cmScorePrintEvent(*s->eleArray+j,j,rpt);
 
-      default:
-        break;
+      cmRptPrintf(rpt,"Targets Section: ");
+      for(j=0; j<s->sectCnt; ++j)
+        cmRptPrintf(rpt,"%s ",s->sectArray[j]->label);
+      cmRptPrintf(rpt,"\n");
+
+      
+      cmRptPrintf(rpt,"Variables: ");
+      for(j=0; j<s->sectCnt; ++j)
+        cmRptPrintf(rpt,"%s ",cmSymTblLabel(p->stH,s->symArray[j]));
+      
+      for(j=0; j<s->sectCnt; ++j)
+        cmRptPrintf(rpt,cmSymTblLabel(p->stH,s->costSymArray[j]));
+      cmRptPrintf(rpt,"\n");
+      
     }
   }
 }
-
 
 cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* scoreFn )
 {
