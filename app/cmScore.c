@@ -2443,6 +2443,9 @@ void cmScorePrintSets( cmScH_t h, cmRpt_t* rpt )
   cmSc_t*  p = _cmScHandleToPtr(h);
   unsigned i,j,k;
 
+  // the score must have been opened with a valid symbol table
+  assert( cmSymTblIsValid(p->stH) );
+
 
   for(i=0,k=0; i<p->locCnt; ++i)
   {
