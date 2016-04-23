@@ -1898,7 +1898,7 @@ cmXsRC_t _cmXScoreWriteCsvRow(
   }
 
   // col 17: tempo
-  if( cmCsvInsertIdentColAfter(p->csvH,lcp,&lcp,tempoStr,0) != kOkCsvRC )
+  if( cmCsvInsertQTextColAfter(p->csvH,lcp,&lcp,tempoStr,0) != kOkCsvRC )
   {
     rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on eveness flag label.");
     goto errLabel;
@@ -1920,7 +1920,7 @@ cmXsRC_t _cmXScoreWriteCsvRow(
   }
 
   // col 19: dynamic marking
-  if(  cmCsvInsertIdentColAfter(p->csvH, lcp, &lcp, dynStr, 0 ) != kOkCsvRC )
+  if(  cmCsvInsertQTextColAfter(p->csvH, lcp, &lcp, dynStr, 0 ) != kOkCsvRC )
   {
     rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV insert failed on 'dynamics'.");
     goto errLabel;
@@ -2179,7 +2179,13 @@ cmXsRC_t cmXScoreWriteMidi( cmXsH_t h, const cmChar_t* fn )
   }
 }
 
-cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midiFn, const cmChar_t* outFn, const cmChar_t* dynFn, const cmChar_t* reorderFn )
+cmXsRC_t cmXScoreTest(
+  cmCtx_t* ctx,
+  const cmChar_t* xmlFn,
+  const cmChar_t* midiFn,
+  const cmChar_t* outFn,
+  const cmChar_t* dynFn,
+  const cmChar_t* reorderFn )
 {
   cmXsRC_t rc;
   cmXsH_t h = cmXsNullHandle;
@@ -2196,15 +2202,23 @@ cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midi
   if( outFn != NULL )
   {
     cmScH_t scH = cmScNullHandle;
-    double srate = 96000.0;
+    double srate = 44100.0;
     
     cmXScoreWriteCsv(h,outFn);
+
+
+    cmSymTblH_t stH = cmSymTblCreate(cmSymTblNullHandle, 0, ctx );
     
-    if( cmScoreInitialize( ctx, &scH, outFn, srate, NULL, 0, NULL, NULL, cmSymTblNullHandle) != kOkScRC )
+    if( cmScoreInitialize( ctx, &scH, outFn, srate, NULL, 0, NULL, NULL, stH) != kOkScRC )
       cmErrMsg(&ctx->err,kFileFailXsRC,"The generated CSV file could not be parsed.");
     else
+    {
+      cmScorePrintSets(scH,&ctx->rpt);
+      
       cmScoreFinalize(&scH);
-    
+    }
+
+    cmSymTblDestroy(&stH);
     
   }
   
