@@ -148,6 +148,7 @@ cmScEvtRef_t _cmScEvtRefArray[] =
   { kPgmEvtScId,     kPgmMdId,      "pgm" },
   { kCtlEvtScId,     kCtlMdId,      "ctl" },
   { kNonEvtScId,     kNoteOnMdId,   "non" },
+  { kPedalEvtScId,   0,             "ped" },
   { kInvalidEvtScId, 0, "***" }
 };
 
@@ -2404,6 +2405,7 @@ void _cmScorePrintEvent( const cmScoreEvt_t* r, unsigned i, cmRpt_t* rpt )
         r->barNumb );
       break;
 
+    case kPedalEvtScId:
     case kNonEvtScId:
       cmRptPrintf(rpt,"%5i %5i %5i %3i %3i %s %5s %c%c%c %s\n",
         i,
@@ -2412,7 +2414,7 @@ void _cmScorePrintEvent( const cmScoreEvt_t* r, unsigned i, cmRpt_t* rpt )
         r->barNumb,
         r->barNoteIdx,
         cmScEvtTypeIdToLabel(r->type),
-        cmMidiToSciPitch(r->pitch,NULL,0),
+        r->type==kNonEvtScId ? cmMidiToSciPitch(r->pitch,NULL,0) : (cmIsFlag(r->flags,kPedalUpScFl)? " up" : " dn"),
         cmIsFlag(r->flags,kEvenScFl)  ? 'e' : ' ',
         cmIsFlag(r->flags,kTempoScFl) ? 't' : ' ',
         cmIsFlag(r->flags,kDynScFl)   ? 'd' : ' ',
