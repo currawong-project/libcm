@@ -1335,7 +1335,9 @@ typedef struct
   unsigned    durtn;
   float       rval;
   unsigned    midi;
+  unsigned    flags;
   cmXsNote_t* note;
+
 } cmXsReorder_t;
 
 cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsReorder_t* r )
@@ -1354,7 +1356,8 @@ cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsR
             np->tick == r->tick &&
             np->duration == r->durtn &&
             np->rvalue == r->rval &&
-            np->pitch == r->midi )
+            np->pitch == r->midi &&
+            np->flags == r->flags )
           {
             return np;
           }
@@ -1363,6 +1366,67 @@ cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsR
 
   cmErrMsg(&p->err,kSyntaxErrorXsRC,"Reorder note not found.");
   return NULL;
+}
+
+//  moved forward
+//  x 0 0 0 1 0 0 0
+//  0 0 0 1 0 0 0 x
+//  1 2 3 4 2 5 6 7
+//  0 0 0 1 2 1 0 0  = mm_cnt
+//
+//  moved backward
+//  x 0 0 0 0 1 1 0 0
+//  0 0 0 0 1 1 0 0 x
+//  1 2 3 4 7 6 5 6 7
+//  0 0 0 1 1 2 1 0 0 = mm_cnt
+
+// 1. Iterate through rV[] and assign an index corresponding to the associated
+//    cmXsNote_t record in the un-reordered mp->noteL.
+//
+// 2. Iterate through rV[] and assign a mismatch count based equal to:
+//     mm_cnt = rV[i-1].index+1 == rV[i].index + rV[i].index == rV[i+1].index-1
+//
+// 3. Mis-match sequences should always begin and end with 1.
+//    
+// 4. Iterate through rV[] and update the 'dsecs' of all non-zero mis-match
+//    records (except for the leading and trailing) records.
+//
+// 5. Iterate through rV[] and update the 'secs'  of all non-zero mis-match
+//    records (except for the leading and trailing) records.
+//
+
+
+void _cmXScoreReorderFixTimes( cmXScore_t* p, cmXsMeas_t* mp )
+{
+  cmXsNote_t* n0p = mp->noteL;
+  cmXsNote_t* n1p = NULL;
+  for(; n0p != NULL; n0p=n0p->slink)
+  {
+    if( n1p != NULL && n1p->tick < n0p->tick )
+    {
+      // n1p->tick is before n0p->tick
+      cmXsNote_t* n2p = n1p->slink;
+      unsigned    n   = 1;
+
+      // advance n2p to the next note that is past n0p in time
+      for(; n2p!=NULL; n2p=n2p->slink,++n)
+        if( n2p->tick > n0p->tick )
+          break;
+
+      double t0 = n0p->secs;
+      double dt = 0;
+      if( n2p!=NULL )
+        dt = (n2p->secs - t0)/(n+1);
+
+      cmXsNOte_t* n3p = n0p->slink;
+      for(i=0; i<n && n2p!=NULL; ++i,n2p=n2p->slink)
+        n2p->secs = n0p->secs + (dt*i);
+        
+      
+    }
+
+    n1p = n0p;
+  }
 }
 
 cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* rV, unsigned rN )
@@ -1415,7 +1479,8 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
   unsigned      ri      = 0;
   unsigned     measNumb = 0;
   cmXsReorder_t rV[ rN ];
-
+  cmChar_t      B,R,G,D,C,e,d,t,P,S,H,T0,T1,O;
+  
   if( cmFileOpen(&fH,fn,kReadFileFl,p->err.rpt) != kOkFileRC )
   {
     rc = cmErrMsg(&p->err,kFileFailXsRC,"The reordering file '%s' could not be opened.",cmStringNullGuard(fn));
@@ -1440,9 +1505,9 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
         {
           cmXsReorder_t r;
           char     pitchStr[4];
-
+          
           // parse an event line
-          if( sscanf(b,"%i %i %i %i %f %c%c%c",&r.voice,&r.locIdx,&r.tick,&r.durtn,&r.rval,pitchStr,pitchStr+1,pitchStr+2) == 8 )
+          if( sscanf(b,"%i %i %i %i %f %c%c%c %c%c%c%c%c%c%c%c%c%c%c%c%c%c",&r.voice,&r.locIdx,&r.tick,&r.durtn,&r.rval,pitchStr,pitchStr+1,pitchStr+2,&B,&R,&G,&D,&C,&e,&d,&t,&P,&S,&H,&T0,&T1,&O) == 22 )
           {
             pitchStr[3] = 0;
             if( !isdigit(pitchStr[2]) )
@@ -1457,6 +1522,24 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
 
               r.midi = cmSciPitchToMidi(pitchStr);
             }
+
+            r.flags = 0;
+            if( B=='|')  r.flags += kBarXsFl;
+            if( R=='R')  r.flags += kRestXsFl;
+            if( G=='G')  r.flags += kGraceXsFl;
+            if( D=='D')  r.flags += kDotXsFl;
+            if( C=='C')  r.flags += kChordXsFl;
+            if( e=='e')  r.flags += kEvenXsFl;
+            if( d=='d')  r.flags += kDynXsFl;
+            if( t=='t')  r.flags += kTempoXsFl;
+            if( P=='V')  r.flags += kPedalDnXsFl;
+            if( P=='^')  r.flags += kPedalUpXsFl;
+            if( P=='X')  r.flags += kPedalUpDnXsFl;
+            if( S=='S')  r.flags += kSectionXsFl;
+            if( H=='H')  r.flags += kHeelXsFl;
+            if( T0=='T') r.flags += kTieBegXsFl;
+            if( T1=='_') r.flags += kTieEndXsFl;
+            if( O=='*')  r.flags += kOnsetXsFl;
 
             // store the record
             assert( ri < rN );
@@ -1987,6 +2070,14 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
             unsigned d1 = cmIsFlag(np->flags,kPedalDnXsFl) ? 64 : 0; // pedal-dn: d1>=64 pedal-up:<64
             _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,sectionIdStr,"ctl",np->dsecs,np->secs,d0,d1,-1,0,"",np->flags,"","");
             sectionIdStr = NULL;
+            
+            if( cmIsFlag(np->flags,kPedalUpDnXsFl) )
+            {
+              rowIdx += 1;
+              double millisecond = 0.0;
+              _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,sectionIdStr,"ctl",millisecond,np->secs+millisecond,d0,64,-1,0,"",np->flags,"","");
+            }
+
           }
           else
           {
@@ -2035,7 +2126,7 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
 void _cmXScoreReportTitle( cmRpt_t* rpt )
 {
   cmRptPrintf(rpt,"      voc  loc    tick  durtn rval        flags\n");
-  cmRptPrintf(rpt,"      --- ----- ------- ----- ---- --- -------------\n");
+  cmRptPrintf(rpt,"      --- ----- ------- ----- ---- --- --------------\n");
 }
 
 void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
@@ -2196,8 +2287,8 @@ cmXsRC_t cmXScoreTest(
   if( dynFn != NULL )
     cmXScoreInsertDynamics(h, dynFn );
 
-  //if( reorderFn != NULL )
-  //  cmXScoreReorder(h,reorderFn);
+  if( reorderFn != NULL )
+    cmXScoreReorder(h,reorderFn);
 
   if( outFn != NULL )
   {
@@ -2213,7 +2304,8 @@ cmXsRC_t cmXScoreTest(
       cmErrMsg(&ctx->err,kFileFailXsRC,"The generated CSV file could not be parsed.");
     else
     {
-      cmScorePrintSets(scH,&ctx->rpt);
+      //cmScorePrintSets(scH,&ctx->rpt);
+      //cmScorePrint(scH,&ctx->rpt);
       
       cmScoreFinalize(&scH);
     }
@@ -2222,7 +2314,7 @@ cmXsRC_t cmXScoreTest(
     
   }
   
-  //cmXScoreReport(h,&ctx->rpt,true);
+  cmXScoreReport(h,&ctx->rpt,true);
 
   return cmXScoreFinalize(&h);
 
