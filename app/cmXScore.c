@@ -1337,10 +1337,10 @@ typedef struct
   unsigned    midi;
   unsigned    flags;
   cmXsNote_t* note;
-
+  int         index;
 } cmXsReorder_t;
 
-cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsReorder_t* r )
+cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsReorder_t* r, int* indexRef )
 {
   cmXsPart_t* pp = p->partL;
   for(; pp!=NULL; pp=pp->link)
@@ -1350,17 +1350,25 @@ cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsR
       if( mp->number == measNumb)
       {
         cmXsNote_t* np = mp->noteL;
-        for(; np!=NULL; np=np->slink)
+        int index = 0;
+        for(; np!=NULL; np=np->slink,++index)
+        {
+          // Set 'mask' to the flags which should be ignored in the comparision
+          unsigned mask    = kTieProcXsFl | kMetronomeXsFl | kBegGroupXsFl | kEndGroupXsFl; 
+          unsigned npFlags = cmClrFlag(np->flags,mask);
+          
           if( np->voice->id == r->voice &&
             np->locIdx == r->locIdx &&
             np->tick == r->tick &&
             np->duration == r->durtn &&
             np->rvalue == r->rval &&
             np->pitch == r->midi &&
-            np->flags == r->flags )
+            npFlags == r->flags )
           {
+            *indexRef = index;
             return np;
           }
+        }
       }
   }
 
@@ -1396,37 +1404,31 @@ cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsR
 //
 
 
-void _cmXScoreReorderFixTimes( cmXScore_t* p, cmXsMeas_t* mp )
+void _cmXScoreReorderFixTimes( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* rV, unsigned rN )
 {
-  cmXsNote_t* n0p = mp->noteL;
-  cmXsNote_t* n1p = NULL;
-  for(; n0p != NULL; n0p=n0p->slink)
+  int i;
+  
+  printf("Meas:%i\n",measNumb);
+
+  for(i=0; i<rN; ++i)
   {
-    if( n1p != NULL && n1p->tick < n0p->tick )
+    bool fl = true;
+    int mm_cnt = 0;
+    if( i-1 > 0 )
     {
-      // n1p->tick is before n0p->tick
-      cmXsNote_t* n2p = n1p->slink;
-      unsigned    n   = 1;
-
-      // advance n2p to the next note that is past n0p in time
-      for(; n2p!=NULL; n2p=n2p->slink,++n)
-        if( n2p->tick > n0p->tick )
-          break;
-
-      double t0 = n0p->secs;
-      double dt = 0;
-      if( n2p!=NULL )
-        dt = (n2p->secs - t0)/(n+1);
-
-      cmXsNOte_t* n3p = n0p->slink;
-      for(i=0; i<n && n2p!=NULL; ++i,n2p=n2p->slink)
-        n2p->secs = n0p->secs + (dt*i);
-        
-      
+      mm_cnt += rV[i-1].index+1 == rV[i].index;
+      fl = rV[i].note->secs > rV[i-1].note->secs;
     }
+    
+    if( i+1 < rN )
+      mm_cnt += rV[i].index == rV[i+1].index-1;
 
-    n1p = n0p;
+    
+    printf("%i %i %10.3f %s\n",i,mm_cnt,rV[i].note->secs,fl?" ":"*");
+    
   }
+
+  
 }
 
 cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* rV, unsigned rN )
@@ -1438,10 +1440,13 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
 
   // set the 'note' field on each cmXsReorder_t record
   for(i=0; i<rN; ++i)
-    if((rV[i].note = _cmXsReorderFindNote(p,measNumb,rV+i)) == NULL )
+  {
+    if((rV[i].note = _cmXsReorderFindNote(p,measNumb,rV+i,&rV[i].index)) == NULL )
       return kSyntaxErrorXsRC;
+  }
 
-
+  _cmXScoreReorderFixTimes(p, measNumb, rV, rN );
+  
   cmXsMeas_t* mp  = rV[0].note->meas;
   cmXsNote_t* n0p = NULL;
 
@@ -1479,7 +1484,6 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
   unsigned      ri      = 0;
   unsigned     measNumb = 0;
   cmXsReorder_t rV[ rN ];
-  cmChar_t      B,R,G,D,C,e,d,t,P,S,H,T0,T1,O;
   
   if( cmFileOpen(&fH,fn,kReadFileFl,p->err.rpt) != kOkFileRC )
   {
@@ -1505,41 +1509,37 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
         {
           cmXsReorder_t r;
           char     pitchStr[4];
+
+          memset(&r,0,sizeof(r));
           
           // parse an event line
-          if( sscanf(b,"%i %i %i %i %f %c%c%c %c%c%c%c%c%c%c%c%c%c%c%c%c%c",&r.voice,&r.locIdx,&r.tick,&r.durtn,&r.rval,pitchStr,pitchStr+1,pitchStr+2,&B,&R,&G,&D,&C,&e,&d,&t,&P,&S,&H,&T0,&T1,&O) == 22 )
+          if( sscanf(b,"%i %i %i %i %f",&r.voice,&r.locIdx,&r.tick,&r.durtn,&r.rval) == 5 )
           {
-            pitchStr[3] = 0;
-            if( !isdigit(pitchStr[2]) )
-              r.midi = 0;
-            else
+            assert( strlen(b)>=52);
+            if( b[35] != ' ')
             {
-              if( pitchStr[1] == ' ')
+              pitchStr[0] = b[35];
+              pitchStr[1] = b[36];
+              pitchStr[2] = b[37];              
+              pitchStr[3] = 0;
+              
+              if( !isdigit(pitchStr[2]) )
+                r.midi = 0;
+              else
               {
-                pitchStr[1] = pitchStr[2];
-                pitchStr[2] = 0;
-              }
+                if( pitchStr[1] == ' ')
+                {
+                  pitchStr[1] = pitchStr[2];
+                  pitchStr[2] = 0;
+                }
 
-              r.midi = cmSciPitchToMidi(pitchStr);
+                r.midi = cmSciPitchToMidi(pitchStr);
+              }
+                           
             }
 
-            r.flags = 0;
-            if( B=='|')  r.flags += kBarXsFl;
-            if( R=='R')  r.flags += kRestXsFl;
-            if( G=='G')  r.flags += kGraceXsFl;
-            if( D=='D')  r.flags += kDotXsFl;
-            if( C=='C')  r.flags += kChordXsFl;
-            if( e=='e')  r.flags += kEvenXsFl;
-            if( d=='d')  r.flags += kDynXsFl;
-            if( t=='t')  r.flags += kTempoXsFl;
-            if( P=='V')  r.flags += kPedalDnXsFl;
-            if( P=='^')  r.flags += kPedalUpXsFl;
-            if( P=='X')  r.flags += kPedalUpDnXsFl;
-            if( S=='S')  r.flags += kSectionXsFl;
-            if( H=='H')  r.flags += kHeelXsFl;
-            if( T0=='T') r.flags += kTieBegXsFl;
-            if( T1=='_') r.flags += kTieEndXsFl;
-            if( O=='*')  r.flags += kOnsetXsFl;
+            
+            
 
             // store the record
             assert( ri < rN );
@@ -1550,8 +1550,8 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
 
           // the end of the measure was encountered -
           // reorder the measure based on the cmXsReorder_t in rV[ri]
-          if((rc =  _cmXScoreReorderMeas(p, measNumb, rV, ri )) != kOkXsRC )
-            goto errLabel;
+          //if((rc =  _cmXScoreReorderMeas(p, measNumb, rV, ri )) != kOkXsRC )
+          //  goto errLabel;
 
           ri = 0;
 
@@ -1574,7 +1574,7 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
 
   }
 
- errLabel:
+  //errLabel:
   cmFileClose(&fH);
   cmMemFree(b);
   return rc;
@@ -2125,11 +2125,11 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
 
 void _cmXScoreReportTitle( cmRpt_t* rpt )
 {
-  cmRptPrintf(rpt,"      voc  loc    tick  durtn rval        flags\n");
-  cmRptPrintf(rpt,"      --- ----- ------- ----- ---- --- --------------\n");
+  cmRptPrintf(rpt,"      idx voc  loc    tick  durtn rval        flags\n");
+  cmRptPrintf(rpt,"      --- --- ----- ------- ----- ---- --- --------------\n");
 }
 
-void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
+void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note,unsigned index )
 {
   const cmChar_t* B  = cmIsFlag(note->flags,kBarXsFl)       ? "|" : "-";
   const cmChar_t* R  = cmIsFlag(note->flags,kRestXsFl)      ? "R" : "-";
@@ -2153,7 +2153,8 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note )
   cmChar_t acc = note->alter==-1?'b':(note->alter==1?'#':' ');
   snprintf(N,4,"%c%c%1i",note->step,acc,note->octave);
 
-  cmRptPrintf(rpt,"      %3i %5i %7i %5i %4.1f %3s %s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+  cmRptPrintf(rpt,"      %3i %3i %5i %7i %5i %4.1f %3s %s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+    index,
     note->voice->id,
     note->locIdx,
     note->tick,
@@ -2191,6 +2192,8 @@ void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
     const cmXsMeas_t* meas = pp->measL;
     for(; meas!=NULL; meas=meas->link)
     {
+      unsigned idx = 0;
+
       cmRptPrintf(rpt,"  %i : div:%i beat:%i beat-type:%i (%i)\n",meas->number,meas->divisions,meas->beats,meas->beat_type,meas->divisions*meas->beats);
 
       _cmXScoreReportTitle(rpt);
@@ -2201,9 +2204,9 @@ void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
         const cmXsNote_t* note = meas->noteL;
         unsigned t0 = 0;
         unsigned t1 = 0;
-        for(; note!=NULL; note=note->slink)
+        for(; note!=NULL; note=note->slink,++idx)
         {
-          _cmXScoreReportNote(rpt,note);
+          _cmXScoreReportNote(rpt,note,idx);
 
           t1 = note->slink==NULL ? note->tick : note->slink->tick;
 
@@ -2234,7 +2237,7 @@ void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
 
           for(; note!=NULL; note=note->mlink)
           {
-            _cmXScoreReportNote(rpt,note);
+            _cmXScoreReportNote(rpt,note,idx);
 
             if( note->mlink!=NULL || note->voice->id==0)
               cmRptPrintf(rpt,"\n");
@@ -2287,8 +2290,8 @@ cmXsRC_t cmXScoreTest(
   if( dynFn != NULL )
     cmXScoreInsertDynamics(h, dynFn );
 
-  if( reorderFn != NULL )
-    cmXScoreReorder(h,reorderFn);
+  //if( reorderFn != NULL )
+  //  cmXScoreReorder(h,reorderFn);
 
   if( outFn != NULL )
   {
