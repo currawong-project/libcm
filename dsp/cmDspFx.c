@@ -5865,11 +5865,14 @@ cmDspClass_t* cmRouterClassCons( cmDspCtx_t* ctx )
 //                 'false' is transmitted to notify the channel that it should shutdown.
 //                 The channel is not considered actually shutdown until dis[i]
 //                 recieves a 'false'.
-//   ch            The next prospective next available channel is sent whenever it
+//   ch            The next prospective available channel is sent whenever it
 //                 becomes available.  A next channel becomes available when
 //                 a channel is marked as inactive via dis[i] or when
 //                 a new channel is made active, via trigger, and another
-//                 channel active channel exists.
+//                 channel active channel exists.  Note that this channel is
+//                 sent "prospectively" - possibly long before the associated
+//                 gate[ch] is raised - in order to switch parameter routers away
+//                 from the newly active channel and a currently in-active channel.
 // Notes:
 //   The gate[] output is designed to work with the gate[] input of Xfader.  When
 //   availCh.gate[] goes high Xfader fades in, when availCh.gate[] goes low
