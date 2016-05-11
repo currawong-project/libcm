@@ -2838,7 +2838,9 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* fwtp  =  cmDspSysAllocInst( h, "WaveTable", NULL,   5, ((int)cmDspSysSampleRate(h)), 1, fn, -1, 7000000 );
   cmDspInst_t* fad0  =  cmDspSysAllocInst( h, "Xfader",    NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl ); 
 
-  cmDspInst_t*  prp  = cmDspSysAllocInst(  h, "Printer",  NULL, 1, ">" );
+  cmDspInst_t*  prp   = cmDspSysAllocInst(  h, "Printer",  NULL, 1, "ch:" );
+  cmDspInst_t*  prg0  = cmDspSysAllocInst(  h, "Printer",  NULL, 1, "g0:" );
+  cmDspInst_t*  prg1  = cmDspSysAllocInst(  h, "Printer",  NULL, 1, "g1:" );
 
   cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, 0 );
   cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",  NULL,   1, 1 );
@@ -2861,7 +2863,7 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, achp, "ch",      prp,  "in",     NULL); // availCh.ch -> printer
 
   
-  cmDspSysInstallCb(h, achp, "gate-0",  fad0, "gate-0", NULL );   // availCh.gate->xfad.gate   
+  cmDspSysInstallCb(h, achp, "gate-0",  fad0, "gate-0", NULL );  // availCh.gate->xfad.gate   
   cmDspSysInstallCb(h, fad0, "state-0", achp, "dis-0",  NULL );  // xfad->state ->availCh.dis
 
   cmDspSysInstallCb(h, achp, "gate-1",  fad0, "gate-1", NULL );
@@ -2869,6 +2871,8 @@ cmDspRC_t _cmDspSysPgm_AvailCh( cmDspSysH_t h, void** userPtrPtr )
   
   cmDspSysInstallCb(h, hz,   "val",     sphp, "mult",   NULL );
 
+  cmDspSysInstallCb(h, achp, "gate-0",  prg0, "in", NULL ); 
+  cmDspSysInstallCb(h, achp, "gate-1",  prg1, "in", NULL ); 
 
   return kOkDspRC;
 
@@ -3103,6 +3107,7 @@ _cmDspSysPgm_t _cmDspSysPgmArray[] =
   { "tksblite",     _cmDspSysPgm_TksbLite,     NULL, NULL }, 
   { "tksb",          _cmDspSysPgm_Tksb,         NULL, NULL },
   { "time_line",     _cmDspSysPgm_TimeLine,     NULL, NULL },
+  { "time_line_lite",_cmDspSysPgm_TimeLineLite, NULL, NULL },  
   { "seq-bldr",      _cmDspSysPgm_TakeSeqBldr,  NULL, NULL },
   { "multi-out",     _cmDspSysPgm_MultiOut,     NULL, NULL },
   { "multi-in",      _cmDspSysPgm_MultiIn,     NULL, NULL },
