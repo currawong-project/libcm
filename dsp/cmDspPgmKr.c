@@ -472,7 +472,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
     //cmDspSysConnectAudio(h, ci0p,   "out",   au0Sw, "a-in-1" );
     cmDspSysConnectAudio(h, au0Sw,  "a-out", rpp,   "in-0");    // sw  -> rcdply
     cmDspSysConnectAudio(h, au0Sw,  "a-out", c0.kr0,"in"  );    // sw  -> kr
-    //cmDspSysConnectAudio(h, au0Sw,  "a-out", c0.kr1,"in"  );    // sw  -> kr
+    cmDspSysConnectAudio(h, au0Sw,  "a-out", c0.kr1,"in"  );    // sw  -> kr
     //cmDspSysConnectAudio(h, au0Sw,  "a-out",  mi0p,  "in" );    // sw  -> meter  
   }
   else
@@ -497,10 +497,10 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   {
     cmDspSysConnectAudio(h, c0.cmp, "out",   mix0,  "in-0" );   // cmp -> mix 0
     cmDspSysConnectAudio(h, rpp,    "out-0", c2.kr0,"in" );
-    //cmDspSysConnectAudio(h, rpp,    "out-0", c2.kr1,"in" );
+    cmDspSysConnectAudio(h, rpp,    "out-0", c2.kr1,"in" );
     cmDspSysConnectAudio(h, c2.cmp, "out",   mix0,  "in-1");    // rpp -> mix 1
     cmDspSysConnectAudio(h, mix0,   "out",   apf0,  "in" );     // mix -> aout
-    cmDspSysConnectAudio(h, apf0,  "out",   ao0p,  "in" );
+    cmDspSysConnectAudio(h, apf0,   "out",   ao0p,  "in" );
 
   }
   else
@@ -523,7 +523,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
       //cmDspSysConnectAudio(h, ci1p,   "out",   au1Sw, "a-in-1" ); 
       cmDspSysConnectAudio(h, au1Sw,  "a-out", rpp,   "in-1");    // sw  -> rcdply
       cmDspSysConnectAudio(h, au1Sw,  "a-out", c1.kr0,"in"  );    // sw  -> kr
-      //cmDspSysConnectAudio(h, au1Sw,  "a-out", c1.kr1,"in"  );    // sw  -> kr
+      cmDspSysConnectAudio(h, au1Sw,  "a-out", c1.kr1,"in"  );    // sw  -> kr
       //cmDspSysConnectAudio(h, au1Sw,  "a-out",  mi1p,  "in" );    // sw  -> meter 
     }
     else
@@ -547,7 +547,7 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
     {
       cmDspSysConnectAudio(h, c1.cmp, "out",   mix1,  "in-0" );   // cmp -> mix 0
       cmDspSysConnectAudio(h, rpp,    "out-1", c3.kr0, "in" );
-      //cmDspSysConnectAudio(h, rpp,    "out-1", c3.kr1, "in" );
+      cmDspSysConnectAudio(h, rpp,    "out-1", c3.kr1, "in" );
       cmDspSysConnectAudio(h, c3.cmp, "out",   mix1,   "in-1");    // rpp -> mix 1
       cmDspSysConnectAudio(h, mix1,   "out",   apf1,   "in" );     // mix -> aout
       cmDspSysConnectAudio(h, apf1,  "out",   ao1p,   "in" );
