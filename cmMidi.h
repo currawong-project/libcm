@@ -91,9 +91,14 @@ extern "C" {
 #define cmMidiIsNoteOn( s )      ( kNoteOnMdId <= (s) && (s) <= (kNoteOnMdId + kMidiChCnt) )
 #define cmMidiIsNoteOff( s, d1 ) ( cmMidiIsNoteOn(s) && (d1)==0 || kNoteOffMdId <= (s) && (s) <= (kNoteOffMdId + kMidiChCnt) )
 #define cmMidiIsCtl( s )         ( kCtlMdId <= (s) && (s) <= (kCtlMdId + kMidiChCnt) )
+
 #define cmMidiIsSustainPedal(     s, d0 )    ( kCtlMdId <= (s) && (s) <= (kCtlMdId + kMidiChCnt) && (d0)== kSustainCtlMdId )
 #define cmMidiIsSustainPedalDown( s, d0, d1) ( cmMidiIsSustainPedal(s,d0) && (d1)>=64 )
 #define cmMidiIsSustainPedalUp(   s, d0, d1) ( cmMidiIsSustainPedal(s,d0) && (d1)<64 )
+  
+#define cmMidiIsSostenutoPedal(     s, d0 )    ( kCtlMdId <= (s) && (s) <= (kCtlMdId + kMidiChCnt) && (d0)== kSostenutoCtlMdId )
+#define cmMidiIsSostenutoPedalDown( s, d0, d1) ( cmMidiIsSostenutoPedal(s,d0) && (d1)>=64 )
+#define cmMidiIsSostenutoPedalUp(   s, d0, d1) ( cmMidiIsSostenutoPedal(s,d0) && (d1)<64 )
 
 #define cmMidiIsPedal(     s, d0 )      ( kCtlMdId <= (s) && (s) <= (kCtlMdId + kMidiChCnt) && (d0)>=kSustainCtlMdId && (d0)<=kLegatoCtlMdId )
 #define cmMidiIsPedalDown( s, d0, d1 )  ( cmMidiIsPedal(s,d0) && (d1)>=64 )
