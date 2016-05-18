@@ -11,9 +11,6 @@
 #include "cmMidi.h"
 #include "cmMidiFile.h"
 
-#include "cmFloatTypes.h"
-#include "cmVectOps.h"
-
 #ifdef cmBIG_ENDIAN
 #define mfSwap16(v)  (v)
 #define mfSwap32(v)  (v)
@@ -1338,11 +1335,11 @@ void cmMidiFileCalcNoteDurations2( cmMidiFileH_t h )
   }
 }
 
-bool _cmMidiFileCalcNoteDur( cmMidiTrackMsg_t* m0, cmMidiTrackMsg_t* m1, bool noteGateFl, bool sustainGateFl, bool sostGateFl )
+bool _cmMidiFileCalcNoteDur( cmMidiTrackMsg_t* m0, cmMidiTrackMsg_t* m1, int noteGateFl, bool sustainGateFl, bool sostGateFl )
 {
   // if the note is being kept sounding because the key is still depressed,
   //    the sustain pedal is down or it is being held by the sostenuto pedal ....
-  if( noteGateFl || sustainGateFl || sostGateFl )
+  if( noteGateFl>0 || sustainGateFl || sostGateFl )
     return false;  // ... do nothing
 
   // calculate the duration of the sounding note
@@ -1363,7 +1360,7 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
 
   unsigned          mi = cmInvalidId;
   cmMidiTrackMsg_t* noteM[     kMidiNoteCnt * kMidiChCnt ];  // ptr to note-on or NULL if the note is not sounding
-  bool              noteGateM[ kMidiNoteCnt * kMidiChCnt ];  // true if the associated note key is depressed
+  int               noteGateM[ kMidiNoteCnt * kMidiChCnt ];  // true if the associated note key is depressed
   bool              sostGateM[ kMidiNoteCnt * kMidiChCnt ];  // true if the associated note was active when the sost. pedal went down
   bool              sustV[kMidiChCnt];                       // true if the associated sustain pedal is down
   bool              sostV[kMidiChCnt];                       // true if the associated sostenuto pedal is down
@@ -1377,7 +1374,7 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
     for(j=0; j<kMidiNoteCnt; ++j)
     {
       noteM[     i*kMidiNoteCnt + j ] = NULL;
-      noteGateM[ i*kMidiNoteCnt + j ] = false;
+      noteGateM[ i*kMidiNoteCnt + j ] = 0;
       sostGateM[ i*kMidiNoteCnt + j ] = false;
     }
   }
@@ -1401,17 +1398,20 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
     if( cmMidiFileIsNoteOn(m) )
     {
       unsigned  k = ch*kMidiNoteCnt + d0;
-      
-      // a key was pressed - so it should not be currently down
-      if( noteGateM[k] )
-        cmErrWarnMsg(&p->err,kMissingNoteOffMfRC,"Missing note-off for note-on:%s",cmMidiToSciPitch(d0,NULL,0));
 
       // there should be no existing sounding note instance for this pitch
-      if( noteM[k] != NULL )
-        cmErrWarnMsg(&p->err,kMissingNoteOffMfRC,"Missing note-off instance for note on:%s",cmMidiToSciPitch(d0,NULL,0));
+      //if( noteGateM[k] == 0 && noteM[k] != NULL )
+      //  cmErrWarnMsg(&p->err,kMissingNoteOffMfRC,"%i : Missing note-off instance for note on:%s",m->uid,cmMidiToSciPitch(d0,NULL,0));
 
-      noteM[k]     = m;
-      noteGateM[k] = true;
+      if( noteM[k] != NULL )
+        noteGateM[k] += 1;
+      else
+      {
+        noteM[k]     = m;
+        noteGateM[k] = 1;
+      }
+        
+      
     }
     else
       
@@ -1422,18 +1422,20 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
         cmMidiTrackMsg_t*  m0 = noteM[k];
 
         if( m0 == NULL )
-          cmErrWarnMsg(&p->err,kMissingNoteOffMfRC,"Missing note-on instance for note-off:%s",cmMidiToSciPitch(d0,NULL,0));
+          cmErrWarnMsg(&p->err,kMissingNoteOffMfRC,"%i : Missing note-on instance for note-off:%s",m->uid,cmMidiToSciPitch(d0,NULL,0));
         else
         {
           // a key was released - so it should not already be up
-          if( noteGateM[k]==false )
-            cmErrWarnMsg(&p->err,kMissingNoteOffMfRC,"Missing note-on for note-off:%s",cmMidiToSciPitch(d0,NULL,0));
+          if( noteGateM[k]==0 )
+            cmErrWarnMsg(&p->err,kMissingNoteOffMfRC,"%i : Missing note-on for note-off:%s",m->uid,cmMidiToSciPitch(d0,NULL,0));
+          else
+          {
+            noteGateM[k] -= 1; // update the note gate state
 
-          noteGateM[k] = false; // update the note gate state
-
-          // update the sounding note status
-          if( _cmMidiFileCalcNoteDur(m0, m, noteGateM[k], sustV[ch], sostGateM[k]) )
-            noteM[k] = NULL;
+            // update the sounding note status
+            if( _cmMidiFileCalcNoteDur(m0, m, noteGateM[k], sustV[ch], sostGateM[k]) )
+              noteM[k] = NULL;
+          }
         }
       }
       else
@@ -1443,7 +1445,7 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
         {
           // if the sustain channel is already down
           if( sustV[ch] )
-            cmErrWarnMsg(&p->err,kSustainPedalMfRC,"The sustain pedal went down twice with no intervening release.");
+            cmErrWarnMsg(&p->err,kSustainPedalMfRC,"%i : The sustain pedal went down twice with no intervening release.",m->uid);
 
           sustV[ch] = true;          
         }
@@ -1454,7 +1456,7 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
           {
             // if the sustain channel is already up
             if( sustV[ch]==false )
-              cmErrWarnMsg(&p->err,kSustainPedalMfRC,"The sustain pedal release message was received with no previous pedal down.");
+              cmErrWarnMsg(&p->err,kSustainPedalMfRC,"%i : The sustain pedal release message was received with no previous pedal down.",m->uid);
 
             sustV[ch] = false;
 
@@ -1473,11 +1475,12 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
             {
               // if the sustain channel is already down
               if( sostV[ch] )
-                cmErrWarnMsg(&p->err,kSostenutoPedalMfRC,"The sostenuto pedal went down twice with no intervening release.");
+                cmErrWarnMsg(&p->err,kSostenutoPedalMfRC,"%i : The sostenuto pedal went down twice with no intervening release.",m->uid);
 
               // record the notes that are active when the sostenuto pedal went down
               unsigned k = ch * kMidiNoteCnt;
-              cmVOB_Copy( sostGateM + k, kMidiNoteCnt, noteGateM + k);
+              for(i=0; i<kMidiNoteCnt; ++i)
+                sostGateM[k+i] = noteGateM[k+i] > 0;
               
               sostV[ch] = true;          
             }
@@ -1488,7 +1491,7 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
               {
                 // if the sustain channel is already up
                 if( sostV[ch]==false )
-                  cmErrWarnMsg(&p->err,kSostenutoPedalMfRC,"The sostenuto pedal release message was received with no previous pedal down.");
+                  cmErrWarnMsg(&p->err,kSostenutoPedalMfRC,"%i : The sostenuto pedal release message was received with no previous pedal down.",m->uid);
 
                 sostV[ch] = false;
 
@@ -1721,7 +1724,7 @@ void cmMidiFileTest( const char* fn, cmCtx_t* ctx )
     return;
   }
 
-  //cmMidiFileCalcNoteDurations(  h );
+  cmMidiFileCalcNoteDurations(  h );
 
   if( 1 )
   {
