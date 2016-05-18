@@ -90,10 +90,12 @@ extern "C" {
 
 #define cmMidiFileIsNoteOn(m)         (cmMidiIsNoteOn((m)->status) && (m)->u.chMsgPtr->d1>0)
 #define cmMidiFileIsNoteOff(m)        (cmMidiIsNoteOff((m)->status,(m)->u.chMsgPtr->d1))
-#define cmMidiFileIsSustainPedal(m)   (cmMidiIsSustainPedal((m)->status,(m)->u.chMsgPtr->d0))
-#define cmMidiFileIsSostenutoPedal(m) (cmMidiIsSostenutoPedal((m)->status,(m)->u.chMsgPtr->d0))
-#define cmMidiFileIsPedalDown(m)      (cmMidiIsPedalDown((m)->status, (m)->u.chMsgPtr->d0, (m)->u.chMsgPtr->d1))
-#define cmMidiFileIsPedalUp(m)        (cmMidiIsPedalUp(  (m)->status, (m)->u.chMsgPtr->d0, (m)->u.chMsgPtr->d1))  
+  
+#define cmMidiFileIsSustainPedalUp(m)     (cmMidiIsSustainPedalUp(    (m)->status,(m)->u.chMsgPtr->d0,(m)->u.chMsgPtr->d1))
+#define cmMidiFileIsSustainPedalDown(m)   (cmMidiIsSustainPedalDown(  (m)->status,(m)->u.chMsgPtr->d0,(m)->u.chMsgPtr->d1))
+  
+#define cmMidiFileIsSostenutoPedalUp(m)   (cmMidiIsSostenutoPedalUp(  (m)->status,(m)->u.chMsgPtr->d0,(m)->u.chMsgPtr->d1))
+#define cmMidiFileIsSostenutoPedalDown(m) (cmMidiIsSostenutoPedalDown((m)->status,(m)->u.chMsgPtr->d0,(m)->u.chMsgPtr->d1))
   
   enum
   {
