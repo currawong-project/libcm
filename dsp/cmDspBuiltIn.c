@@ -2613,9 +2613,12 @@ cmDspInst_t*  _cmDspMsgListAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsign
       for(i=0; i<p->colCnt; ++i)
         if( p->typeIdArray[i] == kStringTId )
           ++p->symColCnt;
-   
+
       _cmDspMsgListLoadSymbolMtx(ctx,p);
 
+      if( cmDspUInt( (cmDspInst_t*)p, kSelMlId ) > p->symRowCnt )
+        cmErrMsg(&classPtr->err,kVarNotValidDspRC,"The default msgList selection index %i greater than the count of elements %i.",cmDspUInt( (cmDspInst_t*)p, kSelMlId ),p->symRowCnt);     
+      
       cmDspSetDefaultStrcz( ctx,&p->inst, kRsrcMlId,NULL, rsrcLabel); // rsrc label 
       cmDspSetDefaultStrcz( ctx,&p->inst, kFnMlId,  NULL, fn);        // file name var
       cmDspSetDefaultJson( ctx,&p->inst,  kListMlId,NULL, np);        // default tree
