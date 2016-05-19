@@ -627,6 +627,31 @@ cmDspRC_t _cmDspSysPgm_Record(cmDspSysH_t h, void** userPtrPtr)
 
 //------------------------------------------------------------------------------
 //)
+//( { label:cmDspPgm_FtRecord file_desc:"Record streaming audio input to an audio file." kw:[spgm] }
+cmDspRC_t _cmDspSysPgm_RtRecord(cmDspSysH_t h, void** userPtrPtr)
+{
+  cmDspInst_t* ai0   = cmDspSysAllocInst( h, "AudioIn", NULL,  1, 0 );
+  cmDspInst_t* ai1   = cmDspSysAllocInst( h, "AudioIn", NULL,  1, 1 );  
+  cmDspInst_t* afp   = cmDspSysAllocInst( h, "AudioFileOut", NULL,  2,"/Users/kevin/temp/test.aif",2);
+  
+  // AudioFileOut needs an open message to create the output file
+  cmDspInst_t* btn   = cmDspSysAllocInst( h, "Button",      "open",  2, kButtonDuiId, 1.0 );
+  cmDspSysAssignInstAttrSymbolStr(h, btn, "_reset" );
+  cmDspInst_t* pts = cmDspSysAllocInst(h,"PortToSym", NULL, 1, "open" );
+
+  
+  cmDspSysConnectAudio(h,ai0, "out", afp, "in0");
+  cmDspSysConnectAudio(h,ai1, "out", afp, "in1");
+
+  cmDspSysInstallCb( h, btn, "sym",  pts, "open", NULL );
+  cmDspSysInstallCb( h, pts, "open", afp, "sel",  NULL );
+
+  return kOkDspRC;
+}
+
+
+//------------------------------------------------------------------------------
+//)
 //( { label:cmDspPgm_PitchShift file_desc:"Pitch-shifter example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_PitchShiftFile( cmDspSysH_t h, void** userPtrPtr )
 {
@@ -3144,6 +3169,7 @@ _cmDspSysPgm_t _cmDspSysPgmArray[] =
   { "sine",        _cmDspSysPgm_PlaySine,       NULL, NULL },
   { "file",        _cmDspSysPgm_PlayFile,       NULL, NULL },
   { "gate_detect", _cmDspSysPgm_GateDetect,     NULL, NULL },
+  { "rt_record",   _cmDspSysPgm_RtRecord,       NULL, NULL },
   { "record",      _cmDspSysPgm_Record,         NULL, NULL },
   { "pitch_shift", _cmDspSysPgm_PitchShiftFile, NULL, NULL },
   { "loop_recd",   _cmDspSysPgm_LoopRecd,       NULL, NULL },
