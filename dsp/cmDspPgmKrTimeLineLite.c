@@ -49,7 +49,7 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   unsigned  sfBufCnt                 = 7;     // length of the MIDI event buffer
   unsigned  sfMaxWndCnt              = 10;    // length of the score event buffer
   unsigned  sfMinVel                 = 5;     // ignore MIDI events below this velocity
-  bool      sfEnaMeasFl              = false;
+  bool      sfEnaMeasFl              = true;
 
  
   memset(&r,0,sizeof(r));
@@ -89,10 +89,6 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 );
 
   cmDspSysNewPage(h,"Main");
-  cmDspInst_t* liveb= cmDspSysAllocInst(h,"Button", "live",    2, kCheckDuiId,  0.0 );
-  cmDspInst_t* simb = cmDspSysAllocInst(h,"Button", "simulate",2, kCheckDuiId,  0.0 );
-  cmDspInst_t* ainb = cmDspSysAllocInst(h,"Button", "audio in",2, kCheckDuiId,  0.0 );
-  cmDspInst_t* measb= cmDspSysAllocInst(h,"Button", "meas",    2, kCheckDuiId,  0.0 );
   cmDspInst_t* onb  = cmDspSysAllocInst(h,"Button", "start",   2, kButtonDuiId, 1.0 );
   cmDspInst_t* offb = cmDspSysAllocInst(h,"Button", "stop",    2, kButtonDuiId, 1.0 );
   cmDspInst_t* prp  = cmDspSysAllocInst(h,"Printer", NULL,   1, ">" );
@@ -105,20 +101,12 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* tlRt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);  // time line swich
   cmDspInst_t* mfpRt = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);
   cmDspInst_t* amRt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);
-  cmDspInst_t* au0Sw = cmDspSysAllocInst(h,"1ofN",   NULL, 2, 2, 0);
-  cmDspInst_t* au1Sw = cmDspSysAllocInst(h,"1ofN",   NULL, 2, 2, 0);
 
-  cmDspInst_t* siRt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);  
-  cmDspInst_t* muRt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);  
-  cmDspInst_t* d0Rt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);
-  cmDspInst_t* d1Rt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);
-  cmDspInst_t* stRt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);
-
-  cmDspSysNewColumn(h,0);
+  //cmDspSysNewColumn(h,0);
   cmDspInst_t* igain0 = cmDspSysAllocInst(h,"Scalar", "In Gain-0",    5, kNumberDuiId, 0.0,   100.0,0.01,   1.0 );  
   cmDspInst_t* igain1 = cmDspSysAllocInst(h,"Scalar", "In Gain-1",    5, kNumberDuiId, 0.0,   100.0,0.01,   1.0 );  
 
-  cmDspSysNewColumn(h,0);
+  //cmDspSysNewColumn(h,0);
   cmDspInst_t* ogain0 = cmDspSysAllocInst(h,"Scalar", "Out Gain-0",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
   cmDspInst_t* ogain1 = cmDspSysAllocInst(h,"Scalar", "Out Gain-1",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
 
@@ -144,12 +132,11 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* prePath    = cmDspSysAllocInst(   h, "Fname",  "prePath",   3, true,NULL,r.tlPrefixPath);
   
 
-  cmDspSysNewColumn(h,0);
+  //cmDspSysNewColumn(h,0);
 
   //--------------- Recorded performance evaluation and Active Measurement related controls
   cmDspInst_t* clrBtn  = cmDspSysAllocButton( h, "clear",  0);
   cmDspInst_t* prtBtn  = cmDspSysAllocButton( h, "dump",  0);
-  cmDspInst_t* mlst    = cmDspSysAllocInst(   h, "MsgList",   NULL, 3, "meas", r.measFn, 2);
   cmDspInst_t* amCmd   = cmDspSysAllocInst(   h, "PortToSym", NULL, 2, "add", "rewind" );  
 
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
@@ -185,14 +172,9 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysInstallCb( h, clrBtn, "sym",    amp, "cmd",   NULL ); // clear active meas.
   cmDspSysInstallCb( h, prtBtn, "sym",    amp, "cmd",   NULL ); // print active meas
-  cmDspSysInstallCb( h, prtBtn, "sym",    scp, "cmd",   NULL ); 
-  cmDspSysInstallCb( h, amCmd, "add",     amp, "cmd",   NULL ); // add active meas
-  cmDspSysInstallCb( h, amCmd, "rewind",  amp, "cmd",   NULL ); // rewind active meas
-  cmDspSysInstallCb( h, mlst,   "loc",    amp, "loc",   NULL ); // recorded meas's list to active meas unit
-  cmDspSysInstallCb( h, mlst,   "typeId", amp, "type",  NULL ); //
-  cmDspSysInstallCb( h, mlst,   "val",    amp, "val",   NULL ); //
-  cmDspSysInstallCb( h, mlst,   "cost",   amp, "cst",   NULL ); // 
-  cmDspSysInstallCb( h, mlst,   "typeId", amCmd, "add", NULL ); //
+  //cmDspSysInstallCb( h, prtBtn, "sym",    scp, "cmd",   NULL ); // print the score
+  cmDspSysInstallCb( h, amCmd,  "add",    amp, "cmd",   NULL ); // add active meas
+  cmDspSysInstallCb( h, amCmd,  "rewind", amp, "cmd",   NULL ); // rewind active meas
   cmDspSysInstallCb( h, sfp,    "out",    amRt, "f-in", NULL ); // sfp-active meas router (rtr is switched by live btn)
   cmDspSysInstallCb( h, amRt,   "f-out-0",amp, "sfloc", NULL ); 
 
@@ -222,26 +204,6 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysInstallCb(h, prePath, "out", tlp, "path", NULL );
 
-  // 'live' button -> live router selector switch 
-  //cmDspSysInstallCb(h, liveb, "out",  wtRt, "sel", NULL );
-  cmDspSysInstallCb(h, liveb, "out",  tlRt, "sel", NULL );
-  cmDspSysInstallCb(h, liveb, "out",  mfpRt,"sel", NULL );
-  cmDspSysInstallCb(h, liveb, "out",  amRt, "sel", NULL );
-  cmDspSysInstallCb(h, liveb, "out",  au0Sw, "chidx", NULL );
-  cmDspSysInstallCb(h, liveb, "out",  au1Sw, "chidx", NULL );
-  cmDspSysInstallCb(h, liveb, "out",  measb, "in",     NULL );
-  cmDspSysInstallCb(h, measb, "out",  sfp,   "measfl", NULL );
-
-  // 'simulate' button -> simulate router selector switch
-  cmDspSysInstallCb(h, simb,  "out",  ainb,  "in", NULL );
-  cmDspSysInstallCb(h, ainb,  "out",  au0Sw, "chidx", NULL );
-  cmDspSysInstallCb(h, ainb,  "out",  au1Sw, "chidx", NULL );
-  cmDspSysInstallCb(h, simb,  "out",  siRt,  "sel", NULL );
-  cmDspSysInstallCb(h, simb,  "out",  muRt,  "sel", NULL );
-  cmDspSysInstallCb(h, simb,  "out",  d1Rt,  "sel", NULL );
-  cmDspSysInstallCb(h, simb,  "out",  d0Rt,  "sel", NULL );
-  cmDspSysInstallCb(h, simb,  "out",  stRt,  "sel", NULL );
-  
   
   // start connections
   cmDspSysInstallCb(h, onb,  "sym",    tlRt, "s-in",  NULL );
@@ -275,39 +237,25 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, scp, "sel",    modp,"reset", NULL );
   cmDspSysInstallCb(h, scp, "sel",    prp, "in", NULL );
 
-  // MIDI file player to score follower
-  cmDspSysInstallCb(h, mfp,  "smpidx",  siRt, "f-in",NULL );
-  cmDspSysInstallCb(h, siRt, "f-out-1", sfp,  "smpidx",NULL ); 
-  // leave siRt.f-out-1 unconnected because it should be ignored in 'simulate mode'
+  // MIDI file player to score follower and sampler
+  cmDspSysInstallCb(h, mfp,  "smpidx",  sfp, "smpidx",NULL );
+  cmDspSysInstallCb(h, mfp,  "id",      sfp, "muid",  NULL );
 
-  cmDspSysInstallCb(h, mfp,  "id",      muRt, "f-in",  NULL );
-  cmDspSysInstallCb(h, muRt, "f-out-1", sfp,  "muid",    NULL );
-  // leave muRt.f-out-1 unconnected because it should be ignored in 'simulate mode'
-
-  cmDspSysInstallCb(h, mfp,  "d1",      d1Rt, "f-in",  NULL );
-  cmDspSysInstallCb(h, d1Rt, "f-out-1", sfp,  "d1",    NULL );
-  cmDspSysInstallCb(h, d1Rt, "f-out-1", nmp,  "d1",    NULL );
+  cmDspSysInstallCb(h, mfp,   "d1",     sfp,  "d1",    NULL );
+  cmDspSysInstallCb(h, mfp,   "d1",     nmp,  "d1",    NULL );
   cmDspSysInstallCb(h, nmp,   "d1",     mop,  "d1",    NULL );
-  cmDspSysInstallCb(h, nmp,   "d1",     mo2p,  "d1",    NULL );
+  cmDspSysInstallCb(h, nmp,   "d1",     mo2p, "d1",    NULL );
 
-  cmDspSysInstallCb(h, mfp,  "d0",      d0Rt,  "f-in", NULL );
-  cmDspSysInstallCb(h, d0Rt, "f-out-1", sfp,   "d0",   NULL );
-  cmDspSysInstallCb(h, d0Rt, "f-out-1", nmp,  "d0",   NULL );
+  cmDspSysInstallCb(h, mfp,  "d0",      sfp,  "d0",   NULL );
+  cmDspSysInstallCb(h, mfp,  "d0",      nmp,  "d0",   NULL );
   cmDspSysInstallCb(h, nmp,  "d0",      mop,  "d0",   NULL );
-  cmDspSysInstallCb(h, nmp,  "d0",      mo2p,  "d0",   NULL );
+  cmDspSysInstallCb(h, nmp,  "d0",      mo2p, "d0",   NULL );
 
-  cmDspSysInstallCb(h, mfp, "status",   stRt, "f-in",  NULL );
-  cmDspSysInstallCb(h, stRt, "f-out-1", sfp,  "status",NULL );
-  cmDspSysInstallCb(h, stRt, "f-out-1", nmp,  "status",NULL );
+  cmDspSysInstallCb(h, mfp,  "status",  sfp,  "status",NULL );
+  cmDspSysInstallCb(h, mfp,  "status",  nmp,  "status",NULL );
   cmDspSysInstallCb(h, nmp,  "status",  mop,  "status",NULL );
-  cmDspSysInstallCb(h, nmp,  "status",  mo2p,  "status",NULL );
+  cmDspSysInstallCb(h, nmp,  "status",  mo2p, "status",NULL );
 
-
-  // MIDI input port
-  //cmDspSysInstallCb(h, mip, "smpidx", sfp, "smpidx", NULL );
-  //cmDspSysInstallCb(h, mip, "d1",     sfp, "d1",     NULL );
-  //cmDspSysInstallCb(h, mip, "d0",     sfp, "d0",     NULL );
-  //cmDspSysInstallCb(h, mip, "status", sfp, "status", NULL );
 
   // score follower to recd_play,modulator and printers
   cmDspSysInstallCb(h, sfp, "out",     modp,    "index", NULL );
