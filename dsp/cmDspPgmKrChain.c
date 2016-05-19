@@ -75,7 +75,8 @@ const cmChar_t* _mlbl(const cmChar_t* prefix, unsigned ch )
 void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpSymId, unsigned cmpPreGrpSymId, cmDspInst_t* modp, unsigned ach, unsigned mch )
 {
   unsigned        measRtrChCnt = 6; // note: router channel 6 is not connected
-
+  unsigned        scaleRangeDfltSelId = 4;
+    
   int             krWndSmpCnt = 2048;
   int             krHopFact   = 4;
 
@@ -103,7 +104,7 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspInst_t* cost_sr  = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0,   1.0, 0.001, 1.0 );
 
   // Measurement -> parameter mappers
-  cmDspInst_t* even_rt  = cmDspSysAllocInst(h, "Router",      lbl("even_rt"),  2,  measRtrChCnt, measRtrChCnt-1 );
+  cmDspInst_t* even_rt  = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtrChCnt, measRtrChCnt-1 );
   cmDspInst_t* dynm_rt  = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtrChCnt, measRtrChCnt-1 );
   cmDspInst_t* tmpo_rt  = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtrChCnt, measRtrChCnt-1 );
   cmDspInst_t* cost_rt  = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtrChCnt, measRtrChCnt-1 );
@@ -153,20 +154,20 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   //  Measurement Number Controls
   cmDspInst_t* min_dynm_ctl    = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Min In Dyn"),      0.0, 10.0, 1.0, 0.0);
   cmDspInst_t* max_dynm_ctl    = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Max In Dyn"),      0.0, 10.0, 1.0, 4.0);
-  cmDspInst_t* dynm_map_menu   = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, lbl("DynSel 0"), NULL, "measMenu", measRtrChCnt-1);
+  cmDspInst_t* dynm_map_menu   = cmDspSysAllocMsgListP(h,preGrpSymId, NULL, lbl("DynSel 0"), NULL, "measMenu", scaleRangeDfltSelId);
 
   cmDspInst_t* min_even_ctl   = cmDspSysAllocScalarP(  h,preGrpSymId, NULL, lbl("Min In Even"),    0.0, 1.0, 0.001, 0.75);
   cmDspInst_t* max_even_ctl   = cmDspSysAllocScalarP(  h,preGrpSymId, NULL, lbl("Max In Even"),    0.0, 3.0, 0.001, 1.0);
-  cmDspInst_t* even_map_menu  = cmDspSysAllocMsgListP( h,preGrpSymId, NULL, lbl("EvenSel"), NULL, "measMenu", measRtrChCnt-1);
+  cmDspInst_t* even_map_menu  = cmDspSysAllocMsgListP( h,preGrpSymId, NULL, lbl("EvenSel"), NULL, "measMenu", scaleRangeDfltSelId);
 
   cmDspSysNewColumn(h,0);
   cmDspInst_t* min_tmpo_ctl  = cmDspSysAllocScalarP(   h,preGrpSymId, NULL, lbl("Min In Tempo"),   0.0, 200.0, 1.0, 80.0);
   cmDspInst_t* max_tmpo_ctl  = cmDspSysAllocScalarP(   h,preGrpSymId, NULL, lbl("Max In Tempo"),   0.0, 200.0, 1.0, 120.0);
-  cmDspInst_t* tmpo_map_menu = cmDspSysAllocMsgListP(  h,preGrpSymId, NULL, lbl("TempoSel"), NULL, "measMenu", measRtrChCnt-1);
+  cmDspInst_t* tmpo_map_menu = cmDspSysAllocMsgListP(  h,preGrpSymId, NULL, lbl("TempoSel"), NULL, "measMenu", scaleRangeDfltSelId);
 
   cmDspInst_t* min_cost_ctl   = cmDspSysAllocScalarP(  h,preGrpSymId, NULL, lbl("Min In Cost"),      0.0, 1.0, 0.01, 0.0);
   cmDspInst_t* max_cost_ctl   = cmDspSysAllocScalarP(  h,preGrpSymId, NULL, lbl("Max In Cost"),      0.0, 1.0, 0.01, 1.0);
-  cmDspInst_t* cost_map_menu  = cmDspSysAllocMsgListP( h,preGrpSymId, NULL, lbl("CostSel"), NULL, "measMenu", measRtrChCnt-1);
+  cmDspInst_t* cost_map_menu  = cmDspSysAllocMsgListP( h,preGrpSymId, NULL, lbl("CostSel"), NULL, "measMenu", scaleRangeDfltSelId);
 
   cmDspSysInstallCb(h, min_dynm_ctl, "val",     dynm_sr, "min_in", NULL );
   cmDspSysInstallCb(h, max_dynm_ctl, "val",     dynm_sr, "min_in", NULL );
