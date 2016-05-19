@@ -207,9 +207,10 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   // *****
 
   // active measure loc to xfad channel trigger
-  cmDspSysInstallCb( h, amp,    "scloc",  c0.achan,   "trig", NULL );  // See Also: modp.sw ->achan.trig
-
-  cmDspSysInstallCb( h, amp,    "scloc",  c1.achan,   "trig", NULL );
+  cmDspSysInstallCb( h, amp,       "scloc",c0.achan, "trig", NULL );  // See Also: modp.sw ->achan.trig
+  cmDspSysInstallCb( h, amp,       "scloc",c1.achan, "trig", NULL );
+  cmDspSysInstallCb( h, recallBtn, "sym",  c0.achan, "trig", NULL ); 
+  cmDspSysInstallCb( h, recallBtn, "sym",  c1.achan, "trig", NULL );
 
   cmDspSysInstallCb( h, amp,    "even",   pre,        "in",   NULL );  // active meas output to printers
   cmDspSysInstallCb( h, amp,    "dyn",    prd,        "in",   NULL );
