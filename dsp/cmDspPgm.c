@@ -633,6 +633,8 @@ cmDspRC_t _cmDspSysPgm_RtRecord(cmDspSysH_t h, void** userPtrPtr)
   cmDspInst_t* ai0   = cmDspSysAllocInst( h, "AudioIn", NULL,  1, 0 );
   cmDspInst_t* ai1   = cmDspSysAllocInst( h, "AudioIn", NULL,  1, 1 );  
   cmDspInst_t* afp   = cmDspSysAllocInst( h, "AudioFileOut", NULL,  2,"/Users/kevin/temp/test.aif",2);
+  cmDspInst_t* ao0   = cmDspSysAllocInst( h, "AudioOut", NULL,  1, 2 );
+  cmDspInst_t* ao1   = cmDspSysAllocInst( h, "AudioOut", NULL,  1, 3 );  
   
   // AudioFileOut needs an open message to create the output file
   cmDspInst_t* btn   = cmDspSysAllocInst( h, "Button",      "open",  2, kButtonDuiId, 1.0 );
@@ -642,6 +644,9 @@ cmDspRC_t _cmDspSysPgm_RtRecord(cmDspSysH_t h, void** userPtrPtr)
   
   cmDspSysConnectAudio(h,ai0, "out", afp, "in0");
   cmDspSysConnectAudio(h,ai1, "out", afp, "in1");
+
+  cmDspSysConnectAudio(h,ai0, "out", ao0, "in");
+  cmDspSysConnectAudio(h,ai1, "out", ao1, "in");
 
   cmDspSysInstallCb( h, btn, "sym",  pts, "open", NULL );
   cmDspSysInstallCb( h, pts, "open", afp, "sel",  NULL );
