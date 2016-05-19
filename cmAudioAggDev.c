@@ -6,6 +6,8 @@
 #include "cmMallocDebug.h"
 #include "cmTime.h"
 #include "cmAudioPort.h"
+#include "cmAudioPortFile.h"
+#include "cmAudioNrtDev.h"
 #include "cmAudioAggDev.h"
 #include "cmThread.h" // cmThUIntIncr()
 
@@ -710,6 +712,18 @@ unsigned _cmAggGlobalOutDevIdx = 0;
 void _cmApAggPortCb2( cmApAudioPacket_t* inPktArray, unsigned inPktCnt, cmApAudioPacket_t* outPktArray, unsigned outPktCnt )
 {
 
+  if( inPktCnt )
+  {
+    cmApAggPortTestRecd* r = (cmApAggPortTestRecd*)inPktArray[0].userCbPtr;
+    r->cbCnt += 1;
+  }
+
+  if( outPktCnt )
+  {
+    cmApAggPortTestRecd* r = (cmApAggPortTestRecd*)outPktArray[0].userCbPtr; 
+    r->cbCnt += 1;
+  }
+  
   cmApBufInputToOutput( _cmAggGlobalInDevIdx, _cmAggGlobalOutDevIdx );
 
   cmApBufUpdate( inPktArray, inPktCnt, outPktArray, outPktCnt );
@@ -748,7 +762,7 @@ int cmApAggTest( bool runFl, cmCtx_t* ctx, int argc, const char* argv[] )
   r.outDevIdx  =  _cmAggGlobalOutDevIdx = _cmApAggGetOpt(argc,argv,"-o",2,false); 
   r.phase      = 0;
   r.frqHz      = 2000;
-  r.srate      = 44100;
+  r.srate      = 96000;
   r.bufInIdx   = 0;
   r.bufOutIdx  = 0;
   r.bufFullCnt = 0;
@@ -779,8 +793,22 @@ int cmApAggTest( bool runFl, cmCtx_t* ctx, int argc, const char* argv[] )
     return 1;
   }
 
+  // allocate the audio file device system
+  if( cmApFileAllocate( rpt ) != kOkApRC )
+  {
+    cmRptPrintf(rpt,"The audio file device system allocation failed.\n");
+    goto doneLabel;
+  }
 
-  unsigned physDevIdxArray[] = { 0, 1 };
+  // allocate the NRT device system
+  if( cmApNrtAllocate(rpt) != kOkApRC )
+  {
+    cmRptPrintf(rpt,"The NRT audio device system allocation failed.\n");
+    goto doneLabel;
+  }
+
+
+  unsigned physDevIdxArray[] = { 2, 4 };
   unsigned physDevCnt = sizeof(physDevIdxArray)/sizeof(physDevIdxArray[0]);
   if( cmApAggCreateDevice("aggdev",physDevCnt,physDevIdxArray,kInAggFl | kOutAggFl) != kOkAgRC )
   {
@@ -851,9 +879,9 @@ int cmApAggTest( bool runFl, cmCtx_t* ctx, int argc, const char* argv[] )
       }
     }
 
-    cmApBufEnableChannel(r.inDevIdx, -1, kInApFl | kEnableApFl );
+    cmApBufEnableChannel(r.inDevIdx,  -1, kInApFl  | kEnableApFl );
     cmApBufEnableChannel(r.outDevIdx, -1, kOutApFl | kEnableApFl );
-    cmApBufEnableMeter(r.inDevIdx, -1, kInApFl | kEnableApFl );
+    cmApBufEnableMeter(  r.inDevIdx,  -1, kInApFl  | kEnableApFl );
 
     cmRptPrintf(rpt,"q=quit O/o output tone, I/i input tone P/p pass\n");
     char c;
@@ -870,7 +898,7 @@ int cmApAggTest( bool runFl, cmCtx_t* ctx, int argc, const char* argv[] )
 
         case 'o':
         case 'O':
-          cmApBufEnableTone(r.outDevIdx,-1,kOutApFl | (c=='O'?kEnableApFl:0));
+          cmApBufEnableTone(r.outDevIdx,2,kOutApFl | (c=='O'?kEnableApFl:0));
           break;
 
         case 'p':
@@ -926,6 +954,12 @@ int cmApAggTest( bool runFl, cmCtx_t* ctx, int argc, const char* argv[] )
   if( cmApFinalize() != kOkApRC )
     cmRptPrintf(rpt,"Finalize failed.\n");
 
+  if( cmApNrtFree() != kOkApRC )
+    cmRptPrintf(rpt,"Audio NRT device system free failed.");
+  
+  if( cmApFileFree() != kOkApRC )
+    cmRptPrintf(rpt,"Audio file device system free failed.");
+  
   if( cmApAggFree() != kOkAgRC )
     cmRptPrintf(rpt,"Agg device system free failed.");
 
