@@ -35,11 +35,13 @@ extern "C" {
     kHBorderDuiId,     // ui<--eng insert a vertical border 
     kPageDuiId,        // ui<--eng insert a new control page
     
-    kAudioSysCfgDuiId,  // ui<--audio system cfg label      
-    kSubSysCntDuiId,    // ui<--eng audio sub-system count
-    kDeviceDuiId,       // ui<--eng device label
-    kProgramDuiId,      // ui<--eng program label
-
+    kAudioSysCfgDuiId,     // ui<--audio system cfg label      
+    kAudioSysCfgDfltDuiId, // ui<--dflt audio system cfg label      
+    kSubSysCntDuiId,       // ui<--eng audio sub-system count
+    kDeviceDuiId,          // ui<--eng device label
+    kProgramDuiId,         // ui<--eng program label
+    kProgramDfltDuiId,     // ui<--eng dflt program label
+    
     // The following selId's are used by cmAudDsp to indicate various commands.
     kSetAudioCfgDuiId,     // 1) select an audio system setup
     kSetAudioDevDuiId,     // 2) (optional) set an audio device on an audio sub-system
