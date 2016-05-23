@@ -403,8 +403,8 @@ extern "C" {
   cmDspRC_t  cmDspUiMeterCreate(       cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned minVarId,  unsigned maxVarId,  unsigned valVarId,  unsigned lblVarId );
   cmDspRC_t  cmDspUiButtonCreate(      cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned typeDuiId, unsigned outVarId, unsigned lblVarId );
   cmDspRC_t  cmDspUiLabelCreate(       cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned lblVarId,  unsigned alignVarId );
-  cmDspRC_t  cmDspUiTimeLineCreate(    cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned tlFileVarId,  unsigned audPathVarId, unsigned selVarId, unsigned cursVarId );
-  cmDspRC_t  cmDspUiScoreCreate(       cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned scFileVarId,  unsigned selVarId, unsigned smpIdxVarId, unsigned pitchVarId, unsigned velVarId, unsigned locIdxVarIdx, unsigned evtIdxVarIdx, unsigned dynLvlVarIdx, unsigned valTypeVarIdx, unsigned valueVarIdx );
+  cmDspRC_t  cmDspUiTimeLineCreate(    cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned tlFileVarId,  unsigned audPathVarId, unsigned selVarId, unsigned measVarId, unsigned cursVarId );
+  cmDspRC_t  cmDspUiScoreCreate(       cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned scFileVarId,  unsigned selVarId, unsigned smpIdxVarId, unsigned pitchVarId, unsigned velVarId, unsigned locIdxVarIdx, unsigned evtIdxVarIdx, unsigned dynLvlVarIdx, unsigned valTypeVarIdx, unsigned valueVarIdx, unsigned kMeasScId );
   cmDspRC_t  cmDspUiTakeSeqBldrCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned fileNameVarId, unsigned ptrVarId, unsigned selVarId, unsigned refreshVarId );
   cmDspRC_t  cmDspUiTakeSeqRendCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned ptrVarId,      unsigned refreshVarId, unsigned selVarId  );
   cmDspRC_t  cmDspUi2dCreate(          cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned xVarId,        unsigned yVarId,       unsigned radiusVarId, unsigned angleVarId);

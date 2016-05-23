@@ -362,10 +362,10 @@ cmDspRC_t  cmDspUiLabelCreate(  cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned lbl
   return rc;
 }
 
-cmDspRC_t  cmDspUiTimeLineCreate(   cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned tlFileVarId, unsigned audPathVarId, unsigned selVarId, unsigned cursVarId )
+cmDspRC_t  cmDspUiTimeLineCreate(   cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned tlFileVarId, unsigned audPathVarId, unsigned selVarId, unsigned measVarId, unsigned cursVarId )
 {
   cmDspRC_t    rc;
-  unsigned     arr[] = { tlFileVarId, audPathVarId, selVarId, cursVarId  };
+  unsigned     arr[] = { tlFileVarId, audPathVarId, selVarId, measVarId, cursVarId  };
   cmDspValue_t v;
   unsigned     vn    = sizeof(arr)/sizeof(arr[0]);
   cmDsvSetUIntMtx(&v,arr,vn,1);
@@ -383,14 +383,15 @@ cmDspRC_t  cmDspUiTimeLineCreate(   cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned
   cmDspInstVarSetFlags( ctx, inst, tlFileVarId,  kUiDsvFl );
   cmDspInstVarSetFlags( ctx, inst, audPathVarId, kUiDsvFl );
   cmDspInstVarSetFlags( ctx, inst, selVarId,     kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, measVarId,     kUiDsvFl );
   cmDspInstVarSetFlags( ctx, inst, cursVarId,     kUiDsvFl );
   return rc;
 }
 
-cmDspRC_t  cmDspUiScoreCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned scFileVarId, unsigned selVarId, unsigned smpIdxVarId, unsigned pitchVarId, unsigned velVarId, unsigned locIdxVarId, unsigned evtIdxVarId, unsigned dynVarId, unsigned valTypeVarId, unsigned valueVarId )
+cmDspRC_t  cmDspUiScoreCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned scFileVarId, unsigned selVarId, unsigned smpIdxVarId, unsigned pitchVarId, unsigned velVarId, unsigned locIdxVarId, unsigned evtIdxVarId, unsigned dynVarId, unsigned valTypeVarId, unsigned valueVarId, unsigned measVarId )
 {
   cmDspRC_t    rc;
-  unsigned     arr[] = { scFileVarId, selVarId, smpIdxVarId, pitchVarId, velVarId, locIdxVarId, evtIdxVarId, dynVarId, valTypeVarId, valueVarId };
+  unsigned     arr[] = { scFileVarId, selVarId, smpIdxVarId, pitchVarId, velVarId, locIdxVarId, evtIdxVarId, dynVarId, valTypeVarId, valueVarId, measVarId };
   cmDspValue_t v;
   unsigned     vn    = sizeof(arr)/sizeof(arr[0]);
   cmDsvSetUIntMtx(&v,arr,vn,1);
@@ -411,6 +412,7 @@ cmDspRC_t  cmDspUiScoreCreate( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned scFi
   cmDspInstVarSetFlags( ctx, inst, dynVarId,     kUiDsvFl );
   cmDspInstVarSetFlags( ctx, inst, valTypeVarId, kUiDsvFl );
   cmDspInstVarSetFlags( ctx, inst, valueVarId,   kUiDsvFl );
+  cmDspInstVarSetFlags( ctx, inst, measVarId,    kUiDsvFl );
 
   return rc;
 }

@@ -290,6 +290,7 @@ enum
   kTlFileTlId,
   kPrefixPathTlId,
   kSelTlId,
+  kMeasTlId,
   kCursTlId,
   kResetTlId,
   kAudFnTlId,
@@ -299,7 +300,7 @@ enum
   kBegAudSmpIdxTlId,
   kEndAudSmpIdxTlId,
   kBegMidiSmpIdxTlId,
-  kEndMidiSmpIdxTlId
+  kEndMidiSmpIdxTlId,
 };
 
 cmDspClass_t _cmTimeLineDC;
@@ -318,6 +319,7 @@ cmDspInst_t*  _cmDspTimeLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
     { "tlfile",  kTlFileTlId,         0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl, "Time line file." },
     { "path",    kPrefixPathTlId,     0, 0, kInDsvFl   | kStrzDsvFl | kReqArgDsvFl, "Time line data file prefix path"    },
     { "sel",     kSelTlId,            0, 0, kInDsvFl   | kOutDsvFl  | kUIntDsvFl,   "Selected marker id."},
+    { "meas",    kMeasTlId,           0, 0, kInDsvFl   | kUIntDsvFl,  "Select a bar marker and generate a 'sel' output."},
     { "curs",    kCursTlId,           0, 0, kInDsvFl   | kUIntDsvFl,  "Current audio file index."},
     { "reset",   kResetTlId,          0, 0, kInDsvFl   | kSymDsvFl,   "Resend all outputs." },
     { "afn",     kAudFnTlId,          0, 0, kOutDsvFl  | kStrzDsvFl,  "Selected Audio file." },
@@ -345,7 +347,7 @@ cmDspInst_t*  _cmDspTimeLineAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   cmDspSetDefaultInt(  ctx, &p->inst,  kEndMidiSmpIdxTlId, 0, cmInvalidIdx);
 
   // create the UI control
-  cmDspUiTimeLineCreate(ctx,&p->inst,kTlFileTlId,kPrefixPathTlId,kSelTlId,kCursTlId);
+  cmDspUiTimeLineCreate(ctx,&p->inst,kTlFileTlId,kPrefixPathTlId,kSelTlId,kMeasTlId,kCursTlId);
 
   p->tlH = cmTimeLineNullHandle;
 
@@ -442,7 +444,11 @@ cmDspRC_t _cmDspTimeLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
       }
       
       break;
-
+      
+    case kMeasTlId:
+      cmDspSetEvent(ctx,inst,evt);
+      break;
+      
     default:
       {assert(0);}
   }
@@ -483,7 +489,8 @@ enum
   kEvtIdxScId,
   kDynScId,
   kValTypeScId,
-  kValueScId
+  kValueScId,
+  kMeasScId,
 };
 
 cmDspClass_t _cmScoreDC;
@@ -513,6 +520,7 @@ cmDspInst_t*  _cmDspScoreAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     { "dyn",     kDynScId,    0, 0, kOutDsvFl | kUIntDsvFl,                "Dynamic level of previous event index."},
     { "type",    kValTypeScId,0, 0, kOutDsvFl | kUIntDsvFl,                "Output variable type."},
     { "value",   kValueScId,  0, 0, kOutDsvFl | kDoubleDsvFl,              "Output variable value."},
+    { "meas",    kMeasScId,   0, 0, kInDsvFl  | kUIntDsvFl,                "Trigger this measures location to emit from 'sel'."},
     { NULL, 0, 0, 0, 0 }
   };
 
@@ -523,7 +531,7 @@ cmDspInst_t*  _cmDspScoreAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
   p->printSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"dump");
 
   // create the UI control
-  cmDspUiScoreCreate(ctx,&p->inst,kFnScId,kSelScId,kSmpIdxScId,kD0ScId,kD1ScId,kLocIdxScId,kEvtIdxScId,kDynScId,kValTypeScId,kValueScId);
+  cmDspUiScoreCreate(ctx,&p->inst,kFnScId,kSelScId,kSmpIdxScId,kD0ScId,kD1ScId,kLocIdxScId,kEvtIdxScId,kDynScId,kValTypeScId,kValueScId,kMeasScId);
 
   p->scH = cmScNullHandle;
 
@@ -635,6 +643,9 @@ cmDspRC_t _cmDspScoreRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
     case kCmdScId:
       if( cmDspSymbol(inst,kCmdScId) == p->printSymId )
         cmScorePrintLoc(p->scH);
+      break;
+
+    case kMeasScId:
       break;
 
   }
