@@ -45,6 +45,7 @@ typedef struct
 typedef struct
 {
   const cmChar_t* label;
+  bool            dfltFl;
   cmAudioSysCfg_t cfg;
 } cmAdAsCfg_t;
 
@@ -88,6 +89,7 @@ typedef struct
   unsigned           midiPortBufByteCnt;
   unsigned           meterMs;
   unsigned           msgsPerClientPoll;
+  const cmChar_t*    dfltProgramLabel;
 
   cmAdAggDev_t*      aggDevArray;
   unsigned           aggDevCnt;
@@ -180,13 +182,14 @@ cmAdRC_t _cmAdParseSysJsonTree( cmAd_t* p )
 
   // locate the read the aud_dsp sub-elements
   if(( jsRC = cmJsonMemberValues( audDspNodePtr, &errLabelPtr, 
-        "midiPortBufByteCnt", kIntTId,   &p->midiPortBufByteCnt,
-        "meterMs",            kIntTId,   &p->meterMs,
-        "msgsPerClientPoll",  kIntTId,   &p->msgsPerClientPoll,
-        "audioSysCfgArray",   kArrayTId, &asCfgArrNodePtr,
-        "aggDevArray",        kArrayTId | kOptArgJsFl, &aggDevArrNodePtr,
-        "nrtDevArray",        kArrayTId | kOptArgJsFl, &nrtDevArrNodePtr,
-        "afpDevArray",        kArrayTId | kOptArgJsFl, &afpDevArrNodePtr,
+        "midiPortBufByteCnt", kIntTId,                  &p->midiPortBufByteCnt,
+        "meterMs",            kIntTId,                  &p->meterMs,
+        "msgsPerClientPoll",  kIntTId,                  &p->msgsPerClientPoll,
+        "dfltProgramLabel",   kStringTId | kOptArgJsFl, &p->dfltProgramLabel,
+        "audioSysCfgArray",   kArrayTId,                &asCfgArrNodePtr,
+        "aggDevArray",        kArrayTId  | kOptArgJsFl, &aggDevArrNodePtr,
+        "nrtDevArray",        kArrayTId  | kOptArgJsFl, &nrtDevArrNodePtr,
+        "afpDevArray",        kArrayTId  | kOptArgJsFl, &afpDevArrNodePtr,
         NULL )) != kOkJsRC )
   {
     rc = _cmAdParseMemberErr(p, jsRC, errLabelPtr, "aud_dsp" );
@@ -301,11 +304,13 @@ cmAdRC_t _cmAdParseSysJsonTree( cmAd_t* p )
     const cmJsonNode_t* asCfgNodePtr   = cmJsonArrayElementC(asCfgArrNodePtr,i);
     const cmJsonNode_t* ssArrayNodePtr = NULL;
     const char*         cfgLabel       = NULL;
-
+    bool                dfltFl         = false;
+    
     // read cmAsAudioSysCfg record values
     if(( jsRC = cmJsonMemberValues( asCfgNodePtr, &errLabelPtr, 
-        "label",   kStringTId, &cfgLabel,
-        "ssArray", kArrayTId, &ssArrayNodePtr,
+        "label",   kStringTId,             &cfgLabel,
+        "default", kTrueTId | kOptArgJsFl, &dfltFl,
+        "ssArray", kArrayTId,              &ssArrayNodePtr,
           NULL )) != kOkJsRC )
     {
       rc = _cmAdParseMemberErr(p, jsRC, errLabelPtr, cmStringNullGuard(p->asCfgArray[i].label) );
@@ -313,6 +318,7 @@ cmAdRC_t _cmAdParseSysJsonTree( cmAd_t* p )
     }
 
     p->asCfgArray[i].label            = cfgLabel;
+    p->asCfgArray[i].dfltFl           = dfltFl;
     p->asCfgArray[i].cfg.ssCnt        = cmJsonChildCount( ssArrayNodePtr );
     p->asCfgArray[i].cfg.ssArray      = cmMemResizeZ( cmAudioSysSubSys_t, p->asCfgArray[i].cfg.ssArray, p->asCfgArray[i].cfg.ssCnt );
     p->asCfgArray[i].cfg.clientCbFunc = _cmAudioSysToClientCallback;
@@ -452,6 +458,28 @@ cmAdRC_t _cmAdSendAudioSysCfgLabels( cmAd_t* p)
   return rc;  
 }
 
+cmAdRC_t _cmAdSendAudioSysCfgDefault( cmAd_t* p)
+{
+  cmAdRC_t     rc = kOkAdRC;
+  unsigned     i;
+
+  for(i=0; i<p->asCfgCnt; ++i)
+    if( p->asCfgArray[i].dfltFl )
+    {
+      cmDspValue_t v;
+      cmDsvSetStrcz(&v, p->asCfgArray[i].label);
+
+      if( cmMsgSend( &p->err,cmInvalidIdx,kUiSelAsId,kAudioSysCfgDfltDuiId,0,i,p->asCfgCnt,&v,p->cbFunc,p->cbDataPtr) != kOkMsgRC )
+        rc = cmErrMsg(&p->err,kSendMsgFailAdRC,"Error sending audio system default cfg. label message to host.");
+      
+      break;
+     
+    }
+   
+  return rc;  
+}
+
+
 cmAdRC_t _cmAdSendDeviceLabels( cmAd_t* p )
 {
   cmAdRC_t     rc = kOkAdRC;
@@ -502,6 +530,23 @@ cmAdRC_t _cmAdSendProgramLabels( cmAd_t* p )
 
   return rc;
 }
+
+cmAdRC_t _cmAdSendProgramDefault( cmAd_t* p)
+{
+  cmAdRC_t rc = kOkAdRC;
+  
+  if( p->dfltProgramLabel != NULL )
+  {
+    cmDspValue_t v;
+    cmDsvSetStrcz(&v, p->dfltProgramLabel);
+    
+    if( cmMsgSend( &p->err,cmInvalidIdx,kUiSelAsId,kProgramDfltDuiId,0,0,0,&v,p->cbFunc,p->cbDataPtr) != kOkMsgRC )
+      rc = cmErrMsg(&p->err,kSendMsgFailAdRC,"Error sending default program label message to host.");
+  }
+
+  return rc;
+}
+
 
 cmAdRC_t _cmAudDspFree( cmAd_t* p )
 {
@@ -731,6 +776,15 @@ cmAdRC_t cmAudDspSendSetup( cmAdH_t h )
   // notify the client of the available programs
   if((rc = _cmAdSendProgramLabels(p)) != kOkAdRC )
     goto errLabel;
+
+  // notify the client of the default audio sys cfg
+  if((rc= _cmAdSendAudioSysCfgDefault(p)) != kOkAdRC )
+    goto errLabel;
+
+  // notify the client of the default program
+  if((rc= _cmAdSendProgramDefault(p)) != kOkAdRC )
+    goto errLabel;
+  
    
  errLabel:
   return rc;
