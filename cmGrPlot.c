@@ -1069,7 +1069,7 @@ void       cmGrPlotObjSetStateFlags( cmGrPlObjH_t oh, unsigned flags )
     _cmGrPlotObjSetSelect(op, !fl );
 
   if( cmIsFlag(flags,kFocusGrPlFl) != (fl=_cmGrPlotObjIsFocused(op)) )
-    if( fl )
+    if( !fl )
       _cmGrPlotObjSetFocus(op);
   
 }
