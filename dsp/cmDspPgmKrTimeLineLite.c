@@ -118,6 +118,9 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* mi0p    = cmDspSysAllocInst(h,"AMeter","In 0",  0);
   cmDspInst_t* mi1p    = cmDspSysAllocInst(h,"AMeter","In 1",  0);
 
+  cmDspInst_t* meas    = cmDspSysAllocInst(h,"Scalar", "Meas",    5, kNumberDuiId, 1.0,   59.0,1.0,   1.0 );  
+  cmDspSysInstallCb( h, meas, "val", scp, "meas", NULL);
+  cmDspSysInstallCb( h, meas, "val", tlp, "meas", NULL);
 
   //--------------- Preset controls
   cmDspSysNewColumn(h,0);
