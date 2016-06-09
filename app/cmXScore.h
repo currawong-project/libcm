@@ -28,6 +28,8 @@ extern "C" {
   //
   // 1) Convert XML to UTF-8:
   //       a. Change: encoding           = 'UTF-16' to encoding='UTF-8'
+
+
   //       b. Emacs C-x <RET> f utf-8 <RET>
   //       c. Change: <?xml ... encoding = 'UTF-16' to encoding='UTF-8' ...?>
   //
