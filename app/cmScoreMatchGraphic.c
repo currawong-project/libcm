@@ -25,8 +25,9 @@ enum
   kLocSmgFl     = 0x0001,
   kBarSmgFl     = 0x0002,
   kNoteSmgFl    = 0x0004,
-  kMidiSmgFl    = 0x0008,
-  kNoMatchSmgFl = 0x0010
+  kPedalSmgFl   = 0x0008,
+  kMidiSmgFl    = 0x0010,
+  kNoMatchSmgFl = 0x0020
 };
 
 // Graphic box representing a score label or MIDI event
@@ -60,7 +61,7 @@ typedef struct cmSmgLoc_str
 // Score label
 typedef struct
 {
-  unsigned    type;          // kBarEvtScId | kNonEvtScId
+  unsigned    type;          // kBarEvtScId | kNonEvtScId | kPedalEvtScId
   unsigned    barNumb;
   unsigned    csvEventId;
   unsigned    locIdx;
@@ -222,37 +223,44 @@ cmSmgRC_t _cmSmgInitFromScore( cmCtx_t* ctx, cmSmg_t* p, const cmChar_t* scoreFn
     for(j=0; j<l->evtCnt; ++j)
     {
       const cmScoreEvt_t* e = l->evtArray[j];
+      unsigned flags = kNoMatchSmgFl;
+      cmChar_t* text = NULL;
       
       switch( e->type)
       {
-        case kBarEvtScId:
         case kNonEvtScId:
-          {
-            // Note: Mark all score boxes as 'no-match' - this will be cleared in cmScoreMatchGraphicInsertMidi(). 
-            unsigned  flags = kNoMatchSmgFl | (e->type==kNonEvtScId ? kNoteSmgFl : kBarSmgFl);
-            cmChar_t* text  = NULL;
-          
-            assert( k < p->scN );
-
-            p->scV[k].type       = e->type;
-            p->scV[k].csvEventId = e->csvEventId;
-            p->scV[k].locIdx     = i;
-            p->scV[k].barNumb    = e->barNumb;
-
-            if( e->type == kBarEvtScId )
-              text = cmTsPrintfP(NULL,"%i",e->barNumb);
-            else
-              text = cmMemAllocStr( cmMidiToSciPitch( e->pitch, NULL, 0));
-    
-            p->scV[k].box = _cmSmgInsertBox(p, i, flags, e->csvEventId, text, NULL );
-          
-            k += 1;
-          }
+          flags |= kNoteSmgFl;
+          text   = cmMemAllocStr( cmMidiToSciPitch( e->pitch, NULL, 0));
           break;
+          
+        case kBarEvtScId:
+          flags |= kBarSmgFl;
+          text   = cmTsPrintfP(NULL,"%i",e->barNumb);
+          break;
+          
+        case kPedalEvtScId:
+          flags |= kPedalSmgFl;
+          text = cmTsPrintfP(NULL,"%s", cmIsFlag(e->flags,kPedalDnScFl)?"v":"^");
+          break;
+      }
+
+      // if e is a score event of interest then store a reference to it
+      if( flags != kNoMatchSmgFl )
+      {            
+        assert( k < p->scN );
+
+        p->scV[k].type       = e->type;
+        p->scV[k].csvEventId = e->csvEventId;
+        p->scV[k].locIdx     = i;
+        p->scV[k].barNumb    = e->barNumb;
+        
+        p->scV[k].box = _cmSmgInsertBox(p, i, flags, e->csvEventId, text, NULL );
+          
+        k += 1;
       }
     }
   }
-
+  
   p->scN = k;
   
   cmScoreFinalize(&scH);
