@@ -89,7 +89,8 @@ typedef struct
 typedef struct
 {
   cmErr_t      err;
-  
+
+  cmChar_t*    scFn;
   cmSmgSc_t*   scV;    // scV[scN] score bars and notes
   unsigned     scN;
   
@@ -99,7 +100,8 @@ typedef struct
   cmSmgLine_t* lines;  // Graphic lines used to indicate that a midi event matches to multiple score notes.
                        // (Each match after the first gets a line from the box representing the midi event
                        //  to the matching score event)
-  
+
+  cmChar_t*    mfFn;   // MIDI file name
   cmSmgMidi_t* mV;     // mV[mN] midi note-on events
   unsigned     mN;
   double       mfDurSecs; // midi file duration in seconds
@@ -120,6 +122,7 @@ cmSmg_t* _cmSmgHandleToPtr( cmSmgH_t h )
 cmSmgRC_t _cmSmgFree( cmSmg_t* p )
 {
   unsigned i;
+
   
   for(i=0; i<p->mN; ++i)
   {
@@ -155,7 +158,9 @@ cmSmgRC_t _cmSmgFree( cmSmg_t* p )
     cmMemFree(l0);
     l0 = l1;
   }
-  
+
+  cmMemFree(p->scFn);
+  cmMemFree(p->mfFn);
   cmMemFree(p->scV);
   cmMemFree(p->mV);
   cmMemFree(p->locV);
@@ -198,6 +203,7 @@ cmSmgRC_t _cmSmgInitFromScore( cmCtx_t* ctx, cmSmg_t* p, const cmChar_t* scoreFn
   if( cmScoreInitialize(ctx,&scH,scoreFn,44100.0, NULL, 0, NULL, NULL, cmSymTblNullHandle ) != kOkScRC )
     return cmErrMsg(&p->err,kScoreFailSmgRC,"Score initializatio failed on '%s'.",cmStringNullGuard(scoreFn));
 
+  p->scFn = cmMemAllocStr(scoreFn);
   p->scN  = cmScoreEvtCount(scH);
   p->scV  = cmMemAllocZ(cmSmgSc_t,p->scN);
   
@@ -269,6 +275,7 @@ cmSmgRC_t _cmSmgInitFromMidi( cmCtx_t* ctx, cmSmg_t* p, const cmChar_t* midiFn )
   p->mV        = cmMemAllocZ(cmSmgMidi_t,mN);
   p->mN        = mN;
   p->mfDurSecs = cmMidiFileDurSecs(mfH);
+  p->mfFn      = cmMemAllocStr(midiFn);
   
   for(i=0,j=0; i<mN; ++i)
     if( (mV[i]!=NULL) && cmMidiIsChStatus(mV[i]->status) && cmMidiIsNoteOn(mV[i]->status) && (mV[i]->u.chMsgPtr->d1>0) )          
@@ -605,4 +612,58 @@ cmSmgRC_t cmScoreMatchGraphicGenTimeLineBars( cmSmgH_t h, const cmChar_t* fn, un
   cmFileClose(&f);
   return rc;
   
+}
+
+cmSmgRC_t cmScoreMatchGraphicUpdateMidiFromScore( cmCtx_t* ctx, cmSmgH_t h, const cmChar_t* newMidiFn )
+{
+  cmSmgRC_t     rc  = kOkSmgRC;
+  cmSmg_t*      p   = _cmSmgHandleToPtr(h);
+  unsigned      i   = 0;
+  cmMidiFileH_t mfH = cmMidiFileNullHandle;
+  cmScH_t       scH = cmScNullHandle;
+  
+  if( cmMidiFileOpen(ctx, &mfH, p->mfFn ) != kOkMfRC )
+    return cmErrMsg(&p->err,kMidiFileFailSmgRC,"MIDI file open failed on '%s'.",cmStringNullGuard(p->mfFn));
+  
+  if( cmScoreInitialize(ctx,&scH,p->scFn,44100.0, NULL, 0, NULL, NULL, cmSymTblNullHandle ) != kOkScRC )
+  {
+    rc = cmErrMsg(&p->err,kScoreFailSmgRC,"Score initializatio failed on '%s'.",cmStringNullGuard(p->scFn));
+    goto errLabel;
+  } 
+  
+  for(i=0; i<p->mN; ++i)
+  {
+    cmSmgMidi_t* mr = p->mV + i;
+
+    // only update midi events which were matched exactly once
+    if( mr->matchV==NULL || mr->matchV->link!=NULL  )
+      continue;
+
+    // locate the matched score event
+    const cmScoreEvt_t* s= cmScoreIdToEvt( scH, mr->matchV->score->csvEventId );
+    assert( s!=NULL );
+
+    // assign the score velocity to the MIDI file
+    if(cmMidiFileSetVelocity( mfH, mr->uid, s->vel ) != kOkMfRC )
+    {
+      rc = cmErrMsg(&p->err,kOpFailSmgRC,"Set velocify operation failed.");
+      goto errLabel;
+    }
+
+  }
+
+  // write the updated MIDI file
+  if( cmMidiFileWrite( mfH, newMidiFn ) != kOkMfRC )
+  {
+    rc = cmErrMsg(&p->err,kMidiFileFailSmgRC,"MIDI file write failed on '%s'.",cmStringNullGuard(newMidiFn));
+    goto errLabel;
+  }
+
+
+ errLabel:
+  cmMidiFileClose(&mfH);
+  cmScoreFinalize(&scH);
+  
+  return rc;
+ 
 }

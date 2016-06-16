@@ -10,7 +10,8 @@ extern "C" {
     kOkSmgRC = cmOkRC,
     kFileSmgRC,
     kScoreFailSmgRC,
-    kMidiFileFailSmgRC
+    kMidiFileFailSmgRC,
+    kOpFailSmgRC
   };
   
   typedef cmRC_t     cmSmgRC_t;
@@ -27,6 +28,11 @@ extern "C" {
   // Generate a set of markers for use in a cmTimeLine file which forms a marked area
   // beginning at each bar line and ends at the end of the file.
   cmSmgRC_t cmScoreMatchGraphicGenTimeLineBars( cmSmgH_t h, const cmChar_t* fn, unsigned srate );
+
+  // Update the MIDI file velocity values and insert pedal events
+  // from from score into MIDI file and then write the updated MIDI
+  // file to 'newMidiFn'.
+  cmSmgRC_t cmScoreMatchGraphicUpdateMidiFromScore( cmCtx_t* ctx, cmSmgH_t h, const cmChar_t* newMidiFn );
   
 #ifdef __cplusplus
 }
