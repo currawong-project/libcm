@@ -111,7 +111,9 @@ extern "C" {
     kInvalidStatusMfRC,  //  9
     kSustainPedalMfRC,   // 10
     kSostenutoPedalMfRC, // 11
-    kLargeDeltaTickMfRC  // 12 (a large delta tick value was filtered)
+    kLargeDeltaTickMfRC, // 12 (a large delta tick value was filtered)
+    kUidNotFoundMfRC,    // 13
+    kUidNotANoteMsgMfRC  // 14
   };
 
   extern cmMidiFileH_t cmMidiFileNullHandle;
@@ -155,6 +157,9 @@ extern "C" {
   // Returns a pointer to the base of an array of pointers to each record in the file sorted in ascending time order.
   // Returns NULL if 'h' is invalid.
   const cmMidiTrackMsg_t** cmMidiFileMsgArray( cmMidiFileH_t h );
+
+  // Set the velocity of a note-on/off msg identified by 'uid'.
+  cmMfRC_t             cmMidiFileSetVelocity( cmMidiFileH_t h, unsigned uid, cmMidiByte_t vel );
 
   // Return a pointer to the first msg at or after 'usecsOffs' or kInvalidIdx if no
   // msg exists after 'usecsOffs'.  Note that 'usecOffs' is an offset from the beginning

@@ -1109,6 +1109,38 @@ const cmMidiTrackMsg_t** cmMidiFileMsgArray(    cmMidiFileH_t h )
   return (const cmMidiTrackMsg_t**)mfp->msgV;
 }
 
+
+cmMidiTrackMsg_t*  _cmMidiFileUidToMsg( _cmMidiFile_t* mfp, unsigned uid )
+{
+  unsigned i;
+
+  for(i=0; i<mfp->msgN; ++i)
+    if( mfp->msgV[i]->uid == uid )
+      return mfp->msgV[i];
+
+  return NULL;
+}
+
+cmMfRC_t cmMidiFileSetVelocity( cmMidiFileH_t h, unsigned uid, cmMidiByte_t vel )
+{
+  cmMidiTrackMsg_t* r;
+  _cmMidiFile_t* mfp = _cmMidiFileHandleToPtr(h);
+
+  assert( mfp != NULL );
+
+  if((r = _cmMidiFileUidToMsg(mfp,uid)) == NULL )
+    return cmErrMsg(&mfp->err,kUidNotFoundMfRC,"The MIDI file uid %i could not be found.",uid);
+
+  if( cmMidiIsNoteOn(r->status)==false && cmMidiIsNoteOff(r->status,0)==false )
+    return cmErrMsg(&mfp->err,kUidNotANoteMsgMfRC,"Cannot set velocity on a non-Note-On/Off msg.");
+  
+  cmMidiChMsg_t* chm = (cmMidiChMsg_t*)r->u.chMsgPtr;
+
+  chm->d1 = vel;
+
+  return kOkMfRC;
+}
+
 unsigned  cmMidiFileSeekUsecs( cmMidiFileH_t h, unsigned long long offsUSecs, unsigned* msgUsecsPtr, unsigned* microsPerTickPtr )
 {
   _cmMidiFile_t* p;
