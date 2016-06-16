@@ -35,7 +35,8 @@ extern "C" {
     kLinuxFailFsRC,
     kInvalidDirFsRC,
     kGenFileFailFsRC,
-    kAccessFailFsRC
+    kAccessFailFsRC,
+    kFormFnFailFsRC
   };
 
 
@@ -86,10 +87,24 @@ extern "C" {
   // The memory used by the string will exist until it is released with cmFileSysFreeFn()
   // or the cmFileSys object is finalized.
   const cmChar_t* cmFileSysMakeFn( cmFileSysH_t h, const cmChar_t* dirPrefix, const cmChar_t* fn, const cmChar_t* ext, ... );
+
+  // Same as cmFileSysMakeFn but prefixes the entire file path with the current users
+  // home directory. (i.e. /home/me/<dirPrefix>/<var-args-dir-0>/<var-args-dir1>/<fn>.<ext>)
+  const cmChar_t* cmFileSysMakeUserFn( cmFileSysH_t h, const cmChar_t* dirPrefix, const cmChar_t* fn, const cmChar_t* ext, ... );
   
-  // Same as cmFileSysMakeFn with but with a va_list argument to accept the var. args. parameters.
+  // Same as cmFileSysMakeFn but with a va_list argument to accept the var. args. parameters.
   const cmChar_t* cmFileSysVMakeFn( cmFileSysH_t h, const cmChar_t* dirPrefix, const cmChar_t* fn, const cmChar_t* ext, va_list vl );
 
+  // Same as cmFileSysMakeUserFn but with a va_list argument to accept the var. args parameters.
+  const cmChar_t* cmFileSysVMakeUserFn( cmFileSysH_t h, const cmChar_t* dirPrefix, const cmChar_t* fn, const cmChar_t* ext, va_list vl );
+
+  // Equivalent to same named cmFileSysMakeFn() functions but form a directory
+  // path rather than a file name path.
+  const cmChar_t* cmFileSysVMakeDir(     cmFileSysH_t h, const cmChar_t* dir,  va_list vl );
+  const cmChar_t* cmFileSysMakeDir(      cmFileSysH_t h, const cmChar_t* dir,  ... );
+  const cmChar_t* cmFileSysVMakeUserDir( cmFileSysH_t h, const cmChar_t* dir,  va_list vl );
+  const cmChar_t* cmFileSysMakeUserDir(  cmFileSysH_t h, const cmChar_t* dir,  ... );
+  
   // Release the file name created through an earlier call to cmFileSysMakeFn().
   void            cmFileSysFreeFn( cmFileSysH_t h, const cmChar_t* fn );
 
@@ -103,9 +118,15 @@ extern "C" {
   // final directory.
   cmFsRC_t    cmFileSysMkDir( cmFileSysH_t h, const cmChar_t* dir );
   
+  // Same as cmFileSysMkDir() but 'dir' is automatically prefixed with the users home directory.
+  cmFsRC_t    cmFileSysMkUserDir( cmFileSysH_t h, const cmChar_t* dir );
+  
   // Create a complete directory path - where any of the path segments may
   // not already exist.
   cmFsRC_t    cmFileSysMkDirAll( cmFileSysH_t h, const cmChar_t* dir );
+
+  // Same as cmFileSysMkDir() but 'dir' is automatically prefixed with the users home directory.
+  cmFsRC_t    cmFileSysMkUserDirAll( cmFileSysH_t h, const cmChar_t* dir );
 
   // Parse a path into its parts:
   //  
@@ -212,14 +233,24 @@ extern "C" {
   bool            cmFsIsFile( const cmChar_t* fnStr ); 
   bool            cmFsIsLink( const cmChar_t* fnStr ); 
 
-  const cmChar_t* cmFsVMakeFn( const cmChar_t* dirPrefix, const cmChar_t* fn, const cmChar_t* ext, va_list vl );
-  const cmChar_t* cmFsMakeFn(  const cmChar_t* dirPrefix, const cmChar_t* fn, const cmChar_t* ext, ... );
-  void            cmFsFreeFn(  const cmChar_t* fn );
-  cmFsRC_t        cmFsGenFn(  const cmChar_t* dir, const cmChar_t* prefixStr, const cmChar_t* extStr, const cmChar_t** fnPtr );
+  const cmChar_t* cmFsVMakeFn(     const cmChar_t* dirPrefix, const cmChar_t* fn, const cmChar_t* ext, va_list vl );
+  const cmChar_t* cmFsMakeFn(      const cmChar_t* dirPrefix, const cmChar_t* fn, const cmChar_t* ext, ... );
+  const cmChar_t* cmFsVMakeUserFn( const cmChar_t* dirPrefix, const cmChar_t* fn, const cmChar_t* ext, va_list vl );
+  const cmChar_t* cmFsMakeUserFn(  const cmChar_t* dirPrefix, const cmChar_t* fn, const cmChar_t* ext, ... );
+  
+  const cmChar_t* cmFsVMakeDir(     const cmChar_t* dirPrefix,  va_list vl );
+  const cmChar_t* cmFsMakeDir(      const cmChar_t* dirPrefix,  ... );
+  const cmChar_t* cmFsVMakeUserDir( const cmChar_t* dirPrefix,  va_list vl );
+  const cmChar_t* cmFsMakeUserDir(  const cmChar_t* dirPrefix,  ... );
+  
+  void            cmFsFreeFn(      const cmChar_t* fn );
+  cmFsRC_t        cmFsGenFn(       const cmChar_t* dir, const cmChar_t* prefixStr, const cmChar_t* extStr, const cmChar_t** fnPtr );
 
 
   cmFsRC_t        cmFsMkDir( const cmChar_t* dir );
+  cmFsRC_t        cmFsMkUserDir( const cmChar_t* dir );
   cmFsRC_t        cmFsMkDirAll( const cmChar_t* dir );
+  cmFsRC_t        cmFsMkUserDirAll( const cmChar_t* dir );
 
   cmFileSysPathPart_t* cmFsPathParts(     const cmChar_t* pathNameStr );
   void   cmFsFreePathParts( cmFileSysPathPart_t* p );

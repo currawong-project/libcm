@@ -467,6 +467,11 @@ const cmChar_t* cmFileSysVMakeFn( cmFileSysH_t h, const cmChar_t* dir, const cmC
   return rp;
 }
 
+const cmChar_t* cmFileSysVMakeUserFn( cmFileSysH_t h, const cmChar_t* dirPrefix, const cmChar_t* fn, const cmChar_t* ext, va_list vl )
+{
+  return cmFileSysMakeFn(h,cmFileSysUserDir(h),fn,ext,dirPrefix,NULL);
+}
+
 const cmChar_t* cmFileSysMakeFn( cmFileSysH_t h, const cmChar_t* dir, const cmChar_t* fn, const cmChar_t* ext, ... )
 {
   va_list vl;
@@ -475,6 +480,41 @@ const cmChar_t* cmFileSysMakeFn( cmFileSysH_t h, const cmChar_t* dir, const cmCh
   va_end(vl);
   return retPtr;
 }
+
+const cmChar_t* cmFileSysMakeUserFn( cmFileSysH_t h, const cmChar_t* dir, const cmChar_t* fn, const cmChar_t* ext, ... )
+{
+  va_list vl;
+  va_start(vl,ext);
+  const cmChar_t* retPtr = cmFileSysVMakeUserFn(h,dir,fn,ext,vl);
+  va_end(vl);
+  return retPtr;
+}
+
+
+const cmChar_t* cmFileSysVMakeDir(     cmFileSysH_t h, const cmChar_t* dir,  va_list vl )
+{ return cmFileSysVMakeFn(h,dir,NULL,NULL,vl); }
+
+const cmChar_t* cmFileSysMakeDir(      cmFileSysH_t h, const cmChar_t* dir,  ... )
+{
+  va_list vl;
+  va_start(vl,dir);
+  const cmChar_t* retPtr = cmFileSysVMakeFn(h,dir,NULL,NULL,vl);
+  va_end(vl);
+  return retPtr;
+}
+
+const cmChar_t* cmFileSysVMakeUserDir( cmFileSysH_t h, const cmChar_t* dir,  va_list vl )
+{ return cmFileSysVMakeUserFn(h,dir,NULL,NULL,vl);  }
+
+const cmChar_t* cmFileSysMakeUserDir(  cmFileSysH_t h, const cmChar_t* dir,  ... )
+{
+  va_list vl;
+  va_start(vl,dir);
+  const cmChar_t* retPtr = cmFileSysVMakeUserFn(h,dir,NULL,NULL,vl);
+  va_end(vl);
+  return retPtr;
+}
+
 
 void cmFileSysFreeFn( cmFileSysH_t h, const cmChar_t* fn )
 {
@@ -535,6 +575,19 @@ cmFsRC_t    cmFileSysMkDir( cmFileSysH_t h, const cmChar_t* dir )
   return kOkFsRC;
 }
 
+cmFsRC_t    cmFileSysMkUserDir( cmFileSysH_t h, const cmChar_t* dir0 )
+{
+  const cmChar_t* dir = cmFileSysMakeUserFn(h,dir0,NULL,NULL,NULL);
+  
+  if( dir == NULL )
+    return _cmFileSysError(_cmFileSysHandleToPtr(h),kFormFnFailFsRC,0, "The specified directory string /<user>/%s could not be formed.",cmStringNullGuard(dir0));
+  
+  cmFsRC_t rc = cmFileSysMkDir(h,dir);
+  cmFileSysFreeFn(h,dir);
+  return rc;
+}
+
+
 cmFsRC_t    cmFileSysMkDirAll( cmFileSysH_t h, const cmChar_t* dir )
 {
   cmFsRC_t   rc = kOkFsRC;
@@ -558,6 +611,18 @@ cmFsRC_t    cmFileSysMkDirAll( cmFileSysH_t h, const cmChar_t* dir )
 
   cmFileSysFreeDirParts(h,a);
 
+  return rc;
+}
+
+cmFsRC_t    cmFileSysMkUserDirAll( cmFileSysH_t h, const cmChar_t* dir0 )
+{
+  const cmChar_t* dir = cmFileSysMakeUserFn(h,dir0,NULL,NULL,NULL);
+  
+  if( dir == NULL )
+    return _cmFileSysError(_cmFileSysHandleToPtr(h),kFormFnFailFsRC,0,"The specified directory string /<user>/%s could not be formed.",cmStringNullGuard(dir0));
+  
+  cmFsRC_t rc = cmFileSysMkDirAll(h,dir);
+  cmFileSysFreeFn(h,dir);
   return rc;
 }
 
@@ -1171,6 +1236,42 @@ const cmChar_t*      cmFsMakeFn(  const cmChar_t* dirPrefix, const cmChar_t* fn,
   return retPtr;
 }
 
+const cmChar_t* cmFsVMakeUserFn( const cmChar_t* dirPrefix, const cmChar_t* fn, const cmChar_t* ext, va_list vl )
+{ return cmFileSysVMakeUserFn(_cmFsH,dirPrefix,fn,ext,vl); }
+
+const cmChar_t* cmFsMakeUserFn(  const cmChar_t* dirPrefix, const cmChar_t* fn, const cmChar_t* ext, ... )
+{
+  va_list vl;
+  va_start(vl,ext);
+  const cmChar_t* retPtr = cmFsVMakeUserFn(dirPrefix,fn,ext,vl);
+  va_end(vl);
+  return retPtr;
+}
+
+const cmChar_t* cmFsVMakeDir(     const cmChar_t* dir,  va_list vl )
+{ return cmFileSysVMakeDir(_cmFsH,dir,vl); }
+
+const cmChar_t* cmFsMakeDir(     const cmChar_t* dir,  ... )
+{
+  va_list vl;
+  va_start(vl,dir);
+  const cmChar_t* retPtr = cmFsVMakeDir(dir,vl);
+  va_end(vl);
+  return retPtr;
+}
+
+const cmChar_t* cmFsVMakeUserDir( const cmChar_t* dir,  va_list vl )
+{ return cmFileSysVMakeUserDir(_cmFsH,dir,vl);  }
+
+const cmChar_t* cmFsMakeUserDir( const cmChar_t* dir,  ... )
+{
+  va_list vl;
+  va_start(vl,dir);
+  const cmChar_t* retPtr = cmFsVMakeUserDir(dir,vl);
+  va_end(vl);
+  return retPtr;
+}
+
 void                 cmFsFreeFn(  const cmChar_t* fn )
 { cmFileSysFreeFn(_cmFsH, fn); }
 
@@ -1182,6 +1283,12 @@ cmFsRC_t             cmFsMkDir( const cmChar_t* dir )
 
 cmFsRC_t             cmFsMkDirAll( const cmChar_t* dir )
 { return cmFileSysMkDirAll(_cmFsH,dir); }
+
+cmFsRC_t             cmFsMkUserDir( const cmChar_t* dir )
+{ return cmFileSysMkUserDir(_cmFsH,dir); }
+
+cmFsRC_t             cmFsMkUserDirAll( const cmChar_t* dir )
+{ return cmFileSysMkUserDirAll(_cmFsH,dir); }
 
 cmFileSysPathPart_t* cmFsPathParts(     const cmChar_t* pathNameStr )
 { return cmFileSysPathParts(_cmFsH,pathNameStr); }
@@ -1222,21 +1329,14 @@ cmFsRC_t             cmFsErrorCode()
 //(
 //
 // cmFileSysTest() function gives usage and testing examples 
-// for some of the cmFileSys functions.
-// Note that the HOME_DIR macro should be set to your true
-// $HOME directroy and SRC_DIR should be set to any existing
-// and accessible directory.
+// for some of the cmFileSys functions. Note that the
+// 'dir0' directory should exist and contain files and
+// a shallow sub-tree in order to exercise the directory
+// tree walking routine.
 //
 //)
 //(
 
-#if defined(OS_OSX)
-#define HOME_DIR "/Users/kevin"
-#else
-#define HOME_DIR "/home/kevin"
-#endif
-
-#define SRC_DIR  HOME_DIR"/src"
 
 void _cmFileSysTestFnParser( 
   cmFileSysH_t    h, 
@@ -1250,10 +1350,10 @@ cmFsRC_t cmFileSysTest( cmCtx_t* ctx )
 
   cmFsRC_t        rc      = kOkFsRC;
   cmFileSysH_t    h       = cmFileSysNullHandle;
-  const char      dir0[]  = SRC_DIR; 
-  const char      dir1[]  = HOME_DIR"/blah";
-  const char      file0[] = HOME_DIR"/.emacs";
-  const char      file1[] = HOME_DIR"/blah.txt";
+  const char*     dir0    = cmFsMakeUserDir("src/kc",NULL); 
+  const char*     dir1    = cmFsMakeUserDir("blah",NULL,NULL,NULL);
+  const char*     file0   = cmFsMakeUserFn(NULL,".emacs",NULL,NULL);
+  const char*     file1   = cmFsMakeUserFn(NULL,"blah","txt",NULL);
   const char      not[]   = " not ";
   const char      e[]     = " ";
   bool            fl      = false;
@@ -1288,15 +1388,15 @@ cmFsRC_t cmFileSysTest( cmCtx_t* ctx )
   //----------------------------------------------------------
   // Test the file name creation functions
   //
-  if((fn = cmFileSysMakeFn(h,HOME_DIR,"cmFileSys",
-        "c","src","cm","src",NULL)) != NULL)
+  if((fn = cmFileSysMakeUserFn(h,"src","cmFileSys",
+        "c","cm","src",NULL)) != NULL)
   {
     printf("File:'%s'\n",fn);
   }
   cmFileSysFreeFn(h,fn);
 
-  if((fn = cmFileSysMakeFn(h,HOME_DIR,"cmFileSys",
-        ".c","/src/","/cm/","/src/",NULL)) != NULL )
+  if((fn = cmFileSysMakeUserFn(h,"src","cmFileSys",
+        ".c","/cm/","/src/",NULL)) != NULL )
   {
     printf("File:'%s'\n",fn);
   }
@@ -1305,23 +1405,26 @@ cmFsRC_t cmFileSysTest( cmCtx_t* ctx )
   //----------------------------------------------------------
   // Test the file name parsing functions
   //
-  _cmFileSysTestFnParser(h,&ctx->rpt,
-                         HOME_DIR"/src/cm/src/cmFileSys.c");
 
-  _cmFileSysTestFnParser(h,&ctx->rpt,
-                         HOME_DIR"/src/cm/src/cmFileSys");
-
-  _cmFileSysTestFnParser(h,&ctx->rpt,
-                         HOME_DIR"/src/cm/src/cmFileSys/");
+  const char* fn0 = cmFileSysMakeUserFn(h,"src/cm/src","cmFileSys","c",NULL);
+  const char* fn1 = cmFileSysMakeUserFn(h,"src/cm/src","cmFileSys",NULL,NULL);
+  const char* fn2 = cmFileSysMakeUserDir(h,"src/cm/src/cmFileSys/",NULL);
+  
+  _cmFileSysTestFnParser(h,&ctx->rpt,fn0);
+  _cmFileSysTestFnParser(h,&ctx->rpt,fn1);
+  _cmFileSysTestFnParser(h,&ctx->rpt,fn2);
 
   _cmFileSysTestFnParser(h,&ctx->rpt,"cmFileSys.c");
   _cmFileSysTestFnParser(h,&ctx->rpt,"/");
   _cmFileSysTestFnParser(h,&ctx->rpt," ");
 
+  cmFileSysFreeFn(h,fn0);
+  cmFileSysFreeFn(h,fn1);
+  cmFileSysFreeFn(h,fn1);
+
   //----------------------------------------------------------
   // Test the directory tree walking routines.
   //
-  cmRptPrintf(&ctx->rpt,"Dir Entry Test:\n");
   cmFileSysDirEntry_t* dep;
   unsigned             dirEntCnt;
   unsigned             filterFlags = kDirFsFl 
@@ -1329,8 +1432,11 @@ cmFsRC_t cmFileSysTest( cmCtx_t* ctx )
                                    | kRecurseFsFl 
                                    | kFullPathFsFl;
 
-  if((dep = cmFileSysDirEntries(h,SRC_DIR"/doc",filterFlags,
-                                &dirEntCnt)) != NULL)
+  const char* src_dir = cmFileSysMakeFn(h,dir0,"doc",NULL,NULL);
+
+  cmRptPrintf(&ctx->rpt,"Dir Entry Test: %s\n",src_dir);
+
+  if((dep = cmFileSysDirEntries(h,src_dir,filterFlags,&dirEntCnt)) != NULL)
   {
     unsigned i;
     for(i=0; i<dirEntCnt; ++i)
@@ -1338,6 +1444,8 @@ cmFsRC_t cmFileSysTest( cmCtx_t* ctx )
 
     cmFileSysDirFreeEntries(h,dep);
   }
+
+  cmFileSysFreeFn(h,src_dir);
 
   //----------------------------------------------------------
   // Test the directory parsing/building routines.
@@ -1372,7 +1480,7 @@ cmFsRC_t cmFileSysTest( cmCtx_t* ctx )
   //----------------------------------------------------------
   // Test the extended mkdir routine.
   //
-  if( cmFileSysMkDirAll(h, HOME_DIR"/temp/doc/doc" )!=kOkFsRC )
+  if( cmFileSysMkUserDirAll(h, "/temp/doc/doc" )!=kOkFsRC )
   {
     cmRptPrint(&ctx->rpt,"cmFileSysMkDirAll() failed.\n");
   }
@@ -1382,6 +1490,11 @@ cmFsRC_t cmFileSysTest( cmCtx_t* ctx )
     return rc;
 
   cmRptPrintf(&ctx->rpt,"File Test done\n");
+
+  cmFsFreeFn(dir0);
+  cmFsFreeFn(dir1);
+  cmFsFreeFn(file0);
+  cmFsFreeFn(file1);
 
   return rc;    
 }
