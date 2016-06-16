@@ -723,6 +723,7 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
   unsigned        dynVal = kInvalidDynScId;
   const cmChar_t* sciPitch;
   cmMidiByte_t    midiPitch;
+  cmMidiByte_t    midiVel;
   const cmChar_t* attr;
   double          secs;
   double          durSecs;
@@ -742,6 +743,9 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
           
   if((midiPitch = cmSciPitchToMidi(sciPitch)) == kInvalidMidiPitch)
     return cmErrMsg(&p->err,kSyntaxErrScRC,"Unable to convert the scientific pitch '%s' to a MIDI value. ");
+
+  if((midiVel = cmCsvCellUInt( p->cH,rowIdx,kD1ColScIdx)) >= kInvalidMidiVelocity )
+    return cmErrMsg(&p->err,kSyntaxErrScRC,"An invalid MIDI velocity (%i) was encountered.",midiVel);
   
   // get the sec's field - or DBL_MAX if it is not set
   if((secs =  cmCsvCellDouble(p->cH, rowIdx, kSecsColScIdx )) == DBL_MAX) // Returns DBL_MAX on error.
@@ -812,6 +816,7 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
   s->type       = kNonEvtScId;
   s->secs       = secs;
   s->pitch      = midiPitch;
+  s->vel        = midiVel;
   s->flags      = flags;
   s->dynVal     = dynVal; 
   s->barNumb    = barNumb;
@@ -1513,7 +1518,7 @@ cmScRC_t _cmScInitLocArray( cmSc_t* p )
   for(i=1; i<p->cnt; ++i )
   {
     if( p->array[i].secs < p->array[i-1].secs )
-      rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The time associated with the score entry on line %i is less than the previous line.",p->array[i].csvRowNumb);
+      rc = cmErrMsg(&p->err,kSyntaxErrScRC,"The time (%f) associated with the score entry on line %i is less than the previous line (%f).",p->array[i].csvRowNumb,p->array[i].secs,p->array[i-1].secs);
 
     if( (p->array[i].secs - p->array[i-1].secs) > maxDSecs )
       ++p->locCnt;
@@ -1673,7 +1678,7 @@ cmScoreEvt_t* cmScoreEvt( cmScH_t h, unsigned idx )
   return p->array + idx;
 }
 
-cmScoreEvt_t* cmScoreBarEvt( cmScH_t h, unsigned barNumb )
+const cmScoreEvt_t* cmScoreBarEvt( cmScH_t h, unsigned barNumb )
 {
   cmSc_t* p = _cmScHandleToPtr(h);
   unsigned i = 0;
@@ -1683,6 +1688,18 @@ cmScoreEvt_t* cmScoreBarEvt( cmScH_t h, unsigned barNumb )
 
   return NULL;
 }
+
+const cmScoreEvt_t* cmScoreIdToEvt( cmScH_t h, unsigned csvEventId )
+{
+  cmSc_t* p = _cmScHandleToPtr(h);
+  unsigned i = 0;
+  for(; i<p->cnt; ++i)
+    if( p->array[i].csvEventId==csvEventId )
+      return p->array + i;
+
+  return NULL;
+}
+
 
 unsigned      cmScoreSectionCount( cmScH_t h )
 { 

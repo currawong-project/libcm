@@ -87,6 +87,7 @@ extern "C" {
     unsigned     index;        // Index of this event in the event array.
     unsigned     locIdx;       // Index of the location containing this event
     cmMidiByte_t pitch;        // MIDI pitch of this note or the MIDI pedal id of pedal down/up msg (64=sustain 65=sostenuto 66=soft)
+    cmMidiByte_t vel;          // MIDI velocity of this note
     unsigned     flags;        // Attribute flags for this event
     unsigned     dynVal;       // Dynamcis value pppp to ffff (1 to 11) for this note.
     double       frac;         // Note's time value for tempo and non-grace evenness notes.
@@ -185,7 +186,10 @@ extern "C" {
   cmScoreEvt_t* cmScoreEvt( cmScH_t h, unsigned idx );
 
   // Given a bar number return the associated 'bar' event record.
-  cmScoreEvt_t* cmScoreBarEvt( cmScH_t h, unsigned barNumb );
+  const cmScoreEvt_t* cmScoreBarEvt( cmScH_t h, unsigned barNumb );
+
+  // Given a csvEventId return the associated event
+  const cmScoreEvt_t* cmScoreIdToEvt( cmScH_t h, unsigned csvEventId );
 
   // Access section records
   unsigned      cmScoreSectionCount( cmScH_t h );
