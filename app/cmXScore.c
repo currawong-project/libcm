@@ -33,26 +33,28 @@ cmXsH_t cmXsNullHandle = cmSTATIC_NULL_HANDLE;
 
 enum
 {
-  kSectionXsFl   = 0x00001,  // rvalue holds section number
-  kBarXsFl       = 0x00002,
-  kRestXsFl      = 0x00004,
-  kGraceXsFl     = 0x00008,
-  kDotXsFl       = 0x00010,
-  kChordXsFl     = 0x00020,
-  kDynXsFl       = 0x00040,
-  kEvenXsFl      = 0x00080,
-  kTempoXsFl     = 0x00100,
-  kHeelXsFl      = 0x00200,
-  kTieBegXsFl    = 0x00400,
-  kTieEndXsFl    = 0x00800,
-  kTieProcXsFl   = 0x01000,
-  kPedalDnXsFl   = 0x02000,
-  kPedalUpXsFl   = 0x04000,
-  kPedalUpDnXsFl = 0x08000,
-  kMetronomeXsFl = 0x10000,  // duration holds BPM
-  kOnsetXsFl     = 0x20000,  // this is a sounding note
-  kBegGroupXsFl  = 0x40000,
-  kEndGroupXsFl  = 0x80000
+  kSectionXsFl   = 0x000001,  // rvalue holds section number
+  kBarXsFl       = 0x000002,
+  kRestXsFl      = 0x000004,
+  kGraceXsFl     = 0x000008,
+  kDotXsFl       = 0x000010,
+  kChordXsFl     = 0x000020,
+  kDynXsFl       = 0x000040,
+  kEvenXsFl      = 0x000080,
+  kTempoXsFl     = 0x000100,
+  kHeelXsFl      = 0x000200,
+  kTieBegXsFl    = 0x000400,
+  kTieEndXsFl    = 0x000800,
+  kTieProcXsFl   = 0x001000,
+  kPedalDnXsFl   = 0x002000,
+  kPedalUpXsFl   = 0x004000,
+  kPedalUpDnXsFl = 0x008000,
+  kSostDnXsFl    = 0x010000,
+  kSostUpXsFl    = 0x020000,
+  kMetronomeXsFl = 0x040000,  // duration holds BPM
+  kOnsetXsFl     = 0x080000,  // this is a sounding note
+  kBegGroupXsFl  = 0x100000,
+  kEndGroupXsFl  = 0x200000
 };
 
 struct cmXsMeas_str;
@@ -65,6 +67,7 @@ typedef struct cmXsNote_str
   unsigned                    pitch;    // midi pitch
   unsigned                    velocity; // midi velocity
   unsigned                    dynamics; // dynamic level 1=pppp 9=fff
+  unsigned                    vel;      // score specified MIDI velocity 
   cmChar_t                    step;     // A-G
   unsigned                    octave;   // sci pitch octave
   int                         alter;    // +n=sharps,-n=flats
@@ -952,6 +955,7 @@ void _cmXScoreSpreadGraceNotes( cmXScore_t* p )
          tick1 = _cmXsSpreadGraceNotes(a,ai);
     }
   }
+
 }
 
 
@@ -1240,6 +1244,35 @@ cmXsRC_t _cmXScoreWriteScorePlotFile( cmXScore_t* p, const cmChar_t* fn )
   return rc;
 }
 
+// Force the bar event to be the first event in the measure.
+void _cmXScoreFixBarLines( cmXScore_t* p )
+{
+  cmXsPart_t* pp = p->partL;
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp   = pp->measL;
+    for(; mp!=NULL; mp=mp->link)
+    {
+      cmXsNote_t* np  = mp->noteL;
+      cmXsNote_t* ep  = NULL;
+        
+      for(; np!=NULL; np=np->slink )
+      {
+        if( cmIsFlag(np->flags,kBarXsFl) )
+        {
+          if( ep != NULL )
+            np->tick = ep->tick;
+          break;
+        }
+          
+        if( ep == NULL )
+          ep = np;
+      }
+      
+    }
+  }
+}
+
 cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* midiFn )
 {
   cmXsRC_t rc = kOkXsRC;
@@ -1331,22 +1364,62 @@ bool     cmXScoreIsValid( cmXsH_t h )
 
 typedef struct
 {
-  unsigned    idx;
-  unsigned    voice;
-  unsigned    locIdx;
-  unsigned    tick;
-  unsigned    durtn;
-  float       rval;
-  unsigned    midi;
-  unsigned    flags;
-  cmXsNote_t* note;
-  int         index;
-  unsigned    dynId;  // 0=ignore >0 dynamic level marking
-  unsigned    sostId; // 0=ignore 1=down 2=up
+  unsigned    idx;      // Fields from the reordering input file which are
+  unsigned    voice;    // used to match the reorder record to 
+  unsigned    locIdx;   // the associated a cmXsNode_t record.
+  unsigned    tick;     //
+  unsigned    durtn;    //
+  float       rval;     //
+  unsigned    midi;     //
+  
+  cmXsNote_t* note;     // The cmXsNode_t* associated with this cmXsReorder_t record
+  
+  unsigned    dynIdx;    // cmInvalidIdx=ignore otherwise index into _cmXScoreDynMarkArray[]
+  unsigned    sostFl;    // 0=ignore | kSostDnXsFl | kSostUpXsFl
   unsigned    newTick;   // 0=ignore >0 new tick value
 } cmXsReorder_t;
 
-cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsReorder_t* r, unsigned iii, int* indexRef )
+typedef struct _cmXScoreDynMark_str
+{
+  const cmChar_t* mark;   //
+  unsigned        id;     // (1-17) maps to velocity
+  unsigned        dyn;    // pppp - fff (1-9) as used by cmScore
+  int             adjust; // {-1,0,+1}
+  unsigned        vel;    // associated MIDI velocity
+} _cmXScoreDynMark_t;
+
+_cmXScoreDynMark_t _cmXScoreDynMarkArray[] =
+{
+  {"pppp-", 1,  1, -1,   3},
+  {"pppp",  2,  1,  0,  10},
+  {"pppp+", 3,  1,  1,  22},
+  {"ppp-",  3,  2, -1,  22},
+  {"ppp",   4,  2,  0,  29},
+  {"ppp+",  5,  2,  1,  36},
+  {"pp-",   5,  3, -1,  36},
+  {"pp",    6,  3,  0,  43},
+  {"pp+",   7,  3,  1,  50},
+  {"p-",    7,  4, -1,  50},
+  {"p",     8,  4,  0,  57},
+  {"p+",    9,  4,  1,  64},
+  {"mp-",   9,  5, -1,  64},
+  {"mp",   10,  5,  0,  71},
+  {"mp+",  11,  5,  1,  78},
+  {"mf-",  11,  6, -1,  78},
+  {"mf",   12,  6,  0,  85},
+  {"mf+",  13,  6,  1,  92},
+  {"f-",   13,  7, -1,  92},
+  {"f",    14,  7,  0,  99},
+  {"f+",   15,  7,  1, 106}, 
+  {"ff",   16,  8,  0, 113},
+  {"ff+",  17,  8,  1, 120},
+  {"fff",  18,  9,  0, 127},
+  {NULL,0,0,0,0}
+  
+};
+
+
+cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsReorder_t* r, unsigned iii )
 {
   cmXsPart_t* pp = p->partL;
   for(; pp!=NULL; pp=pp->link)
@@ -1360,89 +1433,22 @@ cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsR
         int         index = 0;
         for(; np!=NULL; np=np->slink,++index)
         {
-          // Set 'mask' to the flags which should be ignored in the comparision
-          // unsigned mask    = kTieProcXsFl | kMetronomeXsFl | kBegGroupXsFl | kEndGroupXsFl; 
-          // unsigned npFlags = cmClrFlag(np->flags,mask);
-
-          //if( measNumb==56 && iii == 13 )
-          //  printf("voc:%i loc:%i tick:%i dur:%i rval:%f pitch:%i index:%i\n",np->voice->id,np->locIdx,np->tick,np->duration,np->rvalue,np->pitch,index);
-
-          
           if( np->voice->id == r->voice &&
             np->locIdx == r->locIdx &&
             np->tick == r->tick &&
             np->duration == r->durtn &&
             np->rvalue == r->rval &&
             np->pitch == r->midi &&
-            index == r->idx // &&
-            //npFlags == r->flags
-              )
+            index == r->idx )
           {
-            *indexRef = index;
             return np;
           }
         }
-
-        printf("blah");
-        
       }
   }
 
   cmErrMsg(&p->err,kSyntaxErrorXsRC,"Reorder note not found meas:%i index:%i.",measNumb,iii);
   return NULL;
-}
-
-//  moved forward
-//  x 0 0 0 1 0 0 0
-//  0 0 0 1 0 0 0 x
-//  1 2 3 4 2 5 6 7
-//  0 0 0 1 2 1 0 0  = mm_cnt
-//
-//  moved backward
-//  x 0 0 0 0 1 1 0 0
-//  0 0 0 0 1 1 0 0 x
-//  1 2 3 4 7 6 5 6 7
-//  0 0 0 1 1 2 1 0 0 = mm_cnt
-
-// 1. Iterate through rV[] and assign an index corresponding to the associated
-//    cmXsNote_t record in the un-reordered mp->noteL.
-//
-// 2. Iterate through rV[] and assign a mismatch count based equal to:
-//     mm_cnt = rV[i-1].index+1 == rV[i].index + rV[i].index == rV[i+1].index-1
-//
-// 3. Mis-match sequences should always begin and end with 1.
-//    
-// 4. Iterate through rV[] and update the 'dsecs' of all non-zero mis-match
-//    records (except for the leading and trailing) records.
-//
-// 5. Iterate through rV[] and update the 'secs'  of all non-zero mis-match
-//    records (except for the leading and trailing) records.
-//
-
-
-void _cmXScoreReorderFixTimes( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* rV, unsigned rN )
-{
-  int i;
-  
-  printf("Meas:%i\n",measNumb);
-
-  for(i=0; i<rN; ++i)
-  {
-    bool fl = true;
-    int mm_cnt = 0;
-    if( i-1 > 0 )
-    {
-      mm_cnt += rV[i-1].index+1 == rV[i].index;
-      fl = rV[i].note->secs >= rV[i-1].note->secs || rV[i].note->secs == 0;
-    }
-    
-    if( i+1 < rN )
-      mm_cnt += rV[i].index == rV[i+1].index-1;
-
-    
-    //printf("%i %i %10.3f %s\n",i,mm_cnt,rV[i].note->secs,fl?" ":"*");
-    
-  }
 }
 
 cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* rV, unsigned rN )
@@ -1455,12 +1461,10 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
   // set the 'note' field on each cmXsReorder_t record
   for(i=0; i<rN; ++i)
   {
-    if((rV[i].note = _cmXsReorderFindNote(p,measNumb,rV+i,i,&rV[i].index)) == NULL )
+    if((rV[i].note = _cmXsReorderFindNote(p,measNumb,rV+i,i)) == NULL )
       return kSyntaxErrorXsRC;
   }
 
-  //_cmXScoreReorderFixTimes(p, measNumb, rV, rN );
-  
   cmXsMeas_t* mp  = rV[0].note->meas;
   cmXsNote_t* n0p = NULL;
 
@@ -1475,9 +1479,19 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
     else
       n0p->slink = rV[i].note;
 
+    // if a new tick was specified 
     if( rV[i].newTick != 0 )
       rV[i].note->tick = rV[i].newTick;
 
+    // if a sostenuto was specified
+    rV[i].note->flags |= rV[i].sostFl;
+
+    if( rV[i].dynIdx != cmInvalidIdx )
+    {
+      rV[i].note->dynamics = _cmXScoreDynMarkArray[ rV[i].dynIdx ].dyn;
+      rV[i].note->vel      = _cmXScoreDynMarkArray[ rV[i].dynIdx ].vel;
+    }
+    
     n0p = rV[i].note;
     n0p->slink = NULL;
   }
@@ -1486,54 +1500,25 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
 
 }
 
-typedef struct _cmXScoreDynMark_str
-{
-  const cmChar_t* mark;
-  unsigned        id;
-} _cmXScoreDynMark_t;
-
-_cmXScoreDynMark_t _cmXScoreDynMarkArray[] =
-{
-  {"pppp",  1},
-  {"pppp+", 2},
-  {"ppp-",  2},
-  {"ppp",   4},
-  {"ppp+",  5},
-  {"pp-",   5},
-  {"pp",    7},
-  {"pp+",   8},
-  {"p-",    8},
-  {"p",     9},
-  {"mp",   10},
-  {"mp+",  11},
-  {"mf-",  11},
-  {"mf",   12},
-  {"f",    13},
-  {"f+",   14},
-  {"ff",   15},
-  {"ff+",  16},
-  {"fff",  17},
-  {NULL,0}
-  
-};
-
-cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lineNumb, unsigned* dynIdRef )
+cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lineNumb, unsigned* dynIdxRef )
 {
   cmXsRC_t rc = kOkXsRC;
   const cmChar_t* s;
 
-  *dynIdRef = 0;
-  
+  *dynIdxRef = cmInvalidIdx;
+
+  // locate the '!' which indicates the start of a dynamic marking
   if( (s = strchr(b,'!')) == NULL )
     return rc;
   
-  ++s;
+  ++s; // increment past the '!'
   
   if( *s == 0 )
     return cmErrMsg(&p->err,kSyntaxErrorXsRC,"Unexpected end-of-line on dynamics parsing on line:%i.",lineNumb);
 
+  // some dynamic markings are surrounded by parenthesis (to indicate a dynamic level with greater uncertainty)
   if( *s == '(' )
-    ++s;
+    ++s;  // skip the paren.
 
   if( *s == 0 )
     return cmErrMsg(&p->err,kSyntaxErrorXsRC,"Unexpected end-of-line on dynamics parsing on line:%i.",lineNumb);
@@ -1545,7 +1530,7 @@ cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lin
   cmChar_t mark[n+1];
   memset(mark,0,n+1);
   
-  for(i=0; i<n && doneFl==false; ++i)
+  for(i=0; j<n && doneFl==false; ++i)
   {
     switch(s[i])
     {
@@ -1557,11 +1542,11 @@ cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lin
         mark[j++] = s[i];
         break;
         
-      case ')':
-      case 0:
-      case ' ':        
-      case '\n':
-      default:
+      case ')':   // ending paren.
+      case 0:     // end of string
+      case ' ':   // end of mark       
+      case '\n':  // end of line
+      default:    // anything else
         doneFl = true;
         break;
         
@@ -1571,25 +1556,26 @@ cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lin
   if( !doneFl )
     return cmErrMsg(&p->err,kSyntaxErrorXsRC,"Illegal dynamic mark (%s) syntax on line:%i.",mark,lineNumb);
 
+  // look up the dynamic mark in the reference table
   for(j=0; _cmXScoreDynMarkArray[j].mark!=NULL; ++j)
-    if( strcmp(mark,_cmXScoreDynMarkArray[i].mark) == 0 )
+    if( strcmp(mark,_cmXScoreDynMarkArray[j].mark) == 0 )
       break;
 
-  if( _cmXScoreDynMarkArray[i].mark == NULL )
+  if( _cmXScoreDynMarkArray[j].mark == NULL )
     return cmErrMsg(&p->err,kSyntaxErrorXsRC,"The dynamic mark '%s' is not legal on line:%i.",mark,lineNumb);
 
 
-  *dynIdRef = _cmXScoreDynMarkArray[i].id;
+  *dynIdxRef = j;
       
   return rc;
 }
 
 
-cmXsRC_t  _cmXScoreReorderParseSost(cmXScore_t* p, const cmChar_t* b, unsigned line, unsigned* sostIdRef )
+cmXsRC_t  _cmXScoreReorderParseSost(cmXScore_t* p, const cmChar_t* b, unsigned line, unsigned* sostFlRef )
 {
   cmXsRC_t rc = kOkXsRC;
   const cmChar_t* s;
-  *sostIdRef = 0;
+  *sostFlRef = 0;
 
   if((s = strchr(b,'~')) == NULL )
     return rc;
@@ -1599,11 +1585,11 @@ cmXsRC_t  _cmXScoreReorderParseSost(cmXScore_t* p, const cmChar_t* b, unsigned l
   switch( *s )
   {
     case 'd':
-      *sostIdRef = 1;  // pedal down just after this note onset
+      *sostFlRef = kSostDnXsFl;  // pedal down just after this note onset
       break;
 
     case 'u':
-      *sostIdRef = 2; // pedal up
+      *sostFlRef = kSostUpXsFl; // pedal up
       break;
             
     default:
@@ -1707,14 +1693,15 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
             }
 
             
-            // parse the dynamic marking
-            if((rc = _cmXScoreReorderParseDyn(p,b,ln+1,&r.dynId)) != kOkXsRC )
+            // parse the dynamic marking following a '!'
+            if((rc = _cmXScoreReorderParseDyn(p,b,ln+1,&r.dynIdx)) != kOkXsRC )
               goto errLabel;
             
-            // parse the sostenuto pedal marking
-            if((rc = _cmXScoreReorderParseSost(p,b,ln+1, &r.sostId)) != kOkXsRC )
+            // parse the sostenuto pedal marking 
+            if((rc = _cmXScoreReorderParseSost(p,b,ln+1, &r.sostFl)) != kOkXsRC )
               goto errLabel;
 
+            // parse the @newtick marker
             if((rc = _cmXScoreReorderParseTick(p, b, ln+1, &r.newTick)) != kOkXsRC )
               goto errLabel;            
 
@@ -1751,107 +1738,21 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
 
   }
 
+  // the ticks may have changed so the 'secs' and 'dsecs' must be updated
+  _cmXScoreSetAbsoluteTime( p );
+
+  // the bar lines should be the first event in the measure
+  _cmXScoreFixBarLines(p);
+
+  // resort to force the links to be correct
+  _cmXScoreSort(p);
+  
  errLabel:
   cmFileClose(&fH);
   cmMemFree(b);
   return rc;
 }
 
-
-cmXsRC_t cmXScoreReorder1( cmXsH_t h, const cmChar_t* fn )
-{
-  typedef enum { kFindMeasStId, kFindEventStId, kReadEventStId } stateId_t;
-
-  cmXsRC_t      rc      = kOkXsRC;
-  cmXScore_t*   p       = _cmXScoreHandleToPtr(h);
-  cmFileH_t     fH      = cmFileNullHandle;
-  cmFileH_t     ofH     = cmFileNullHandle;
-  cmChar_t*     b       = NULL;
-  unsigned      bN      = 0;
-  unsigned      ln      = 0;
-  unsigned      measNumb = 0;
-  stateId_t     stateId = kFindMeasStId;
-  const cmChar_t* ofn   = "/Users/kevin/temp/orig_reorder.txt";
-  unsigned t0 = 0;
-  
-  if( cmFileOpen(&fH,fn,kReadFileFl,p->err.rpt) != kOkFileRC )
-  {
-    rc = cmErrMsg(&p->err,kFileFailXsRC,"The reordering file '%s' could not be opened.",cmStringNullGuard(fn));
-    return rc;
-  }
-
-  if( cmFileOpen(&ofH,ofn,kWriteFileFl,p->err.rpt) != kOkFileRC )
-  {
-    rc = cmErrMsg(&p->err,kFileFailXsRC,"The reordering file '%s' could not be opened.",cmStringNullGuard(ofn));
-    goto errLabel;
-  }
-  
-
-  for(; cmFileGetLineAuto(fH,&b,&bN)==kOkFileRC; ++ln)
-  {
-    bool fl = false;
-    
-    switch( stateId )
-    {
-      case kFindEventStId:  // scanning past labels to an event line
-        {
-          unsigned voice,loc;
-          if( sscanf(b,"%i %i",&voice,&loc) != 2 )
-            continue;
-
-          stateId = kReadEventStId;
-          t0 = 0;
-        }
-        // fall through
-
-      case kReadEventStId:
-        {
-          cmXsReorder_t r;
-          memset(&r,0,sizeof(r));
-          
-          // parse an event line
-          if( sscanf(b,"%i %i %i %i %f",&r.voice,&r.locIdx,&r.tick,&r.durtn,&r.rval) == 5 )
-          {
-            if( r.tick < t0 )
-              fl = true;
-            t0 = r.tick; 
-            break;
-          }
-          else
-          {
-          // the end of the measure was encountered -
-          // reorder the measure based on the cmXsReorder_t in rV[ri]
-            stateId = kFindMeasStId;
-          }
-          
-          // fall through
-        }
-
-      case kFindMeasStId:  // scanning for a bar-line
-        {
-          char colon;
-          if( sscanf(b,"%i %c",&measNumb,&colon) == 2 && colon == ':' )
-          {
-            //printf("meas: %i \n",measNumb);
-            stateId = kFindEventStId;
-
-          }
-        }
-        break;
-    }
-
-    if( fl )
-      b = cmTextInsertS(b,b+strlen(b)-1," <-----");
-    
-    cmFileWriteChar(ofH,b,strlen(b));
-  }
-
- errLabel:
-  cmFileClose(&fH);
-  cmFileClose(&ofH);
-  cmMemFree(b);
-  return rc;
-}
 
 
 
@@ -2367,9 +2268,10 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
               
               double          frac  = np->rvalue + (cmIsFlag(np->flags,kDotXsFl) ? (np->rvalue/2) : 0);
               const cmChar_t* dyn   = _cmXScoreTranslateDynamics( p,  np, dbuf, bufN );
+              unsigned        vel   = np->vel==0 ? 60 : np->vel;
 
               //
-              _cmXScoreWriteCsvRow(p,rowIdx,np->uid,mp->number,sectionIdStr,"non",np->dsecs,np->secs,np->pitch,60,np->pitch,frac,dyn,np->flags,
+              _cmXScoreWriteCsvRow(p,rowIdx,np->uid,mp->number,sectionIdStr,"non",np->dsecs,np->secs,np->pitch,vel,np->pitch,frac,dyn,np->flags,
                 cmXsFormatMeasurementCsvField(np->flags, kEvenXsFl, 'e', np->evenGroupId,  ebuf, bufN ),
                 cmXsFormatMeasurementCsvField(np->flags, kTempoXsFl,'t', np->tempoGroupId, tbuf, bufN ));
               
@@ -2565,8 +2467,13 @@ cmXsRC_t cmXScoreTest(
   //  cmXScoreInsertDynamics(h, dynFn );
 
   if( reorderFn != NULL )
+  {
     cmXScoreReorder(h,reorderFn);
 
+      
+
+  }
+  
   if( outFn != NULL )
   {
     cmScH_t scH = cmScNullHandle;
