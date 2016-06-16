@@ -77,6 +77,9 @@ cmSRC += src/libcm/cmProcObj.c src/libcm/cmProc.c src/libcm/cmProc2.c src/libcm/
 cmHDR += src/libcm/app/cmOnset.h src/libcm/app/cmTimeLine.h src/libcm/app/cmScore.h src/libcm/app/cmScoreProc.h src/libcm/app/cmXScore.h src/libcm/app/cmScoreMatchGraphic.h
 cmSRC += src/libcm/app/cmOnset.c src/libcm/app/cmTimeLine.c src/libcm/app/cmScore.c src/libcm/app/cmScoreProc.c src/libcm/app/cmXScore.c src/libcm/app/cmScoreMatchGraphic.c
 
+cmHDR += src/libcm/app/cmMidiScoreFollow.h
+cmSRC += src/libcm/app/cmMidiScoreFollow.c
+
 cmHDR += src/libcm/app/cmSdb.h  src/libcm/app/cmTakeSeqBldr.h  src/libcm/app/cmDspPgmJsonToDot.h
 cmSRC += src/libcm/app/cmSdb.c  src/libcm/app/cmTakeSeqBldr.c  src/libcm/app/cmDspPgmJsonToDot.c
 
