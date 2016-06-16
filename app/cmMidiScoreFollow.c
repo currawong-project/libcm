@@ -151,10 +151,11 @@ cmMsfRC_t cmMidiScoreFollowMain( cmCtx_t* ctx )
 {
   cmMsfRC_t             rc          = kOkMsfRC;
   //const cmChar_t* scoreFn         = cmFsMakeUserFn("src/kc/src/kc/data","mod2e","csv",NULL);
-  const cmChar_t*          scoreFn  = cmFsMakeUserFn("temp","a5","csv",NULL);
+  const cmChar_t*          scoreFn  = cmFsMakeUserFn("temp","a6","csv",NULL);
   const cmChar_t*          midiFn   = cmFsMakeUserFn("media/projects/imag_themes/scores/gen","round1-utf8_11","mid",NULL);
   const cmChar_t*          outFn    = cmFsMakeUserFn("temp","match","txt",NULL);
   const cmChar_t*          svgFn    = cmFsMakeUserFn("temp","score0","html",NULL);
+  const cmChar_t*          newMidiFn= cmFsMakeUserFn("temp","a6","mid",NULL);
   const cmChar_t*          tlBarFn  = cmFsMakeUserFn("temp",NULL,"time_line_temp","txt",NULL);
   
   double                   srate    = 96000.0;
@@ -262,14 +263,16 @@ cmMsfRC_t cmMidiScoreFollowMain( cmCtx_t* ctx )
 
   //_cmMsf_ReportMidiErrors(&sfr, scH, m, mN);
 
-  //cmScorePrint(scH,&atc->ctx->rpt);
-  //cmMidiFilePrintMsgs( mfH, &atc->ctx->rpt );
+  //cmScorePrint(scH,&ctx->rpt);
+  //cmMidiFilePrintMsgs( mfH, &ctx->rpt );
 
   // write the tracking match file as an SVG file.
   cmScoreMatchGraphicWrite( smgH, svgFn );
 
   // write a cmTimeLine file which contains markers at each bar position
   //cmScoreMatchGraphicGenTimeLineBars(smgH, tlBarFn, srate );
+
+  cmScoreMatchGraphicUpdateMidiFromScore( ctx, smgH, newMidiFn );
 
 
  errLabel:
@@ -287,6 +290,7 @@ cmMsfRC_t cmMidiScoreFollowMain( cmCtx_t* ctx )
   cmFsFreeFn(midiFn);
   cmFsFreeFn(outFn);
   cmFsFreeFn(svgFn);
+  cmFsFreeFn(newMidiFn);
   cmFsFreeFn(tlBarFn);
   
   return rc;
