@@ -161,6 +161,10 @@ extern "C" {
   // Set the velocity of a note-on/off msg identified by 'uid'.
   cmMfRC_t             cmMidiFileSetVelocity( cmMidiFileH_t h, unsigned uid, cmMidiByte_t vel );
 
+  // Insert a MIDI message relative to the reference msg identified by 'uid'.
+  // If dtick is positive/negative then the new msg is inserted after/before the reference msg.  
+  cmMfRC_t             cmMidiFileInsertMsg( cmMidiFileH_t h, unsigned uid, int dtick, cmMidiByte_t ch, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 );
+  
   // Return a pointer to the first msg at or after 'usecsOffs' or kInvalidIdx if no
   // msg exists after 'usecsOffs'.  Note that 'usecOffs' is an offset from the beginning
   // of the file.

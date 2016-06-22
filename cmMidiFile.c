@@ -19,8 +19,6 @@
 #define mfSwap32(v)  cmSwap32(v)
 #endif
 
-
-
 typedef struct
 {
   unsigned          cnt;   // count of track records
@@ -160,10 +158,25 @@ cmMfRC_t _cmMidiFileReadVarLen( _cmMidiFile_t* mfp, unsigned* p )
   return kOkMfRC; 
 }
 
-cmMfRC_t _cmMidiFileAppendTrackMsg( _cmMidiFile_t* mfp, unsigned short trkIdx, unsigned dtick, cmMidiByte_t status, cmMidiTrackMsg_t** trkMsgPtrPtr )
+cmMidiTrackMsg_t* _cmMidiFileAllocMsg( _cmMidiFile_t* mfp, unsigned short trkIdx, unsigned dtick, cmMidiByte_t status )
 {
   cmMidiTrackMsg_t* tmp = (cmMidiTrackMsg_t*)_cmMidiFileMalloc(mfp, sizeof(cmMidiTrackMsg_t) );
-  
+
+  // set the generic track record fields
+  tmp->dtick     = dtick;
+  tmp->status   = status;
+  tmp->metaId   = kInvalidMetaMdId;
+  tmp->trkIdx   = trkIdx;
+  tmp->byteCnt  = 0;
+  tmp->uid      = mfp->nextUid++;
+
+  return tmp;
+}
+
+cmMfRC_t _cmMidiFileAppendTrackMsg( _cmMidiFile_t* mfp, unsigned short trkIdx, unsigned dtick, cmMidiByte_t status, cmMidiTrackMsg_t** trkMsgPtrPtr )
+{
+  cmMidiTrackMsg_t* tmp = _cmMidiFileAllocMsg( mfp, trkIdx, dtick, status );
+    
   // link new record onto track record chain
   if( mfp->trkV[trkIdx].base == NULL )
     mfp->trkV[trkIdx].base = tmp;
@@ -174,12 +187,6 @@ cmMfRC_t _cmMidiFileAppendTrackMsg( _cmMidiFile_t* mfp, unsigned short trkIdx, u
   mfp->trkV[trkIdx].cnt++;
 
 
-  // set the generic track record fields
-  tmp->dtick     = dtick;
-  tmp->status   = status;
-  tmp->metaId   = kInvalidMetaMdId;
-  tmp->trkIdx   = trkIdx;
-  tmp->byteCnt  = 0;
   *trkMsgPtrPtr = tmp;
 
   return kOkMfRC;
@@ -521,6 +528,43 @@ cmMfRC_t _cmMidiFileClose( _cmMidiFile_t* mfp )
   
 }
 
+void _cmMidiFileLinearize( _cmMidiFile_t* mfp )
+{
+  unsigned trkIdx,i,j;
+  
+  // get the total trk msg count
+  mfp->msgN = 0;
+  for(trkIdx=0; trkIdx<mfp->trkN; ++trkIdx)
+    mfp->msgN += mfp->trkV[ trkIdx ].cnt;
+
+  // allocate the trk msg index vector: msgV[]
+  mfp->msgV = cmMemResizeZ(cmMidiTrackMsg_t*, mfp->msgV, mfp->msgN);
+
+  // store a pointer to every trk msg in msgV[]
+  for(i=0,j=0; i<mfp->trkN; ++i)
+  {
+    cmMidiTrackMsg_t* m = mfp->trkV[i].base;
+    
+    for(; m!=NULL; m=m->link)
+    {
+      assert( j < mfp->msgN );
+      
+      mfp->msgV[j++] = m;
+    }
+  }
+
+
+  // set the atick value in each msg
+  _cmMidiFileSetAccumulateTicks(mfp);
+    
+  // sort msgV[] in ascending order on atick
+  qsort( mfp->msgV, mfp->msgN, sizeof(cmMidiTrackMsg_t*), _cmMidiFileSortFunc );
+
+  // set the amicro value in each msg
+  _cmMidiFileSetAbsoluteTime(mfp);
+  
+}
+
 
 cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
 {
@@ -528,7 +572,6 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
   _cmMidiFile_t* mfp    = NULL;
   unsigned short trkIdx = 0;
   cmErr_t        err;
-  unsigned i,j;
 
   if( cmMidiFileIsValid(*hPtr) )
     if((rc = _cmMidiFileClose(_cmMidiFileHandleToPtr(*hPtr))) != kOkMfRC )
@@ -538,7 +581,7 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
 
   // allocate the midi file object 
   if(( mfp = cmMemAllocZ( _cmMidiFile_t, 1)) == NULL )
-    return rc = cmErrMsg(&err,kMemAllocFailMfRC,"MIDI file memory allocation failed.");
+    return rc                                 = cmErrMsg(&err,kMemAllocFailMfRC,"MIDI file memory allocation failed.");
 
   cmErrClone(&mfp->err,&err);
 
@@ -562,7 +605,7 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
   
   while( !cmFileEof(mfp->fh) && trkIdx < mfp->trkN )
   {
-    unsigned chkId=0,chkN=0;
+    unsigned chkId = 0,chkN=0;
 
     // read the chunk id
     if((rc = _cmMidiFileRead32(mfp,&chkId)) != kOkMfRC )
@@ -591,43 +634,12 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
     }
   }
 
-  // get the total trk msg count
-  mfp->msgN = 0;
-  for(trkIdx=0; trkIdx<mfp->trkN; ++trkIdx)
-    mfp->msgN += mfp->trkV[ trkIdx ].cnt;
-
-  // allocate the trk msg index vector: msgV[]
-  mfp->msgV = cmMemAllocZ(cmMidiTrackMsg_t*, mfp->msgN);
-
-  mfp->nextUid = 0;
-
-  // store a pointer to every trk msg in msgV[]  and set 'uid'  
-  for(i=0,j=0; i<mfp->trkN; ++i)
-  {
-    cmMidiTrackMsg_t* m = mfp->trkV[i].base;
-    
-    for(; m!=NULL; m=m->link)
-    {
-      assert( j < mfp->msgN );
-      
-      mfp->msgV[j++] = m;
-      m->uid         = mfp->nextUid++;
-    }
-  }
-
-  mfp->fn = _cmMidiFileMalloc(mfp,strlen(fn)+1);
+  // store the file name
+  mfp->fn          = _cmMidiFileMalloc(mfp,strlen(fn)+1);
   assert( mfp->fn != NULL );
   strcpy(mfp->fn,fn);
-
-
-  // set the atick value in each msg
-  _cmMidiFileSetAccumulateTicks(mfp);
-    
-  // sort msgV[] in ascending order on atick
-  qsort( mfp->msgV, mfp->msgN, sizeof(cmMidiTrackMsg_t*), _cmMidiFileSortFunc );
-
-  // set the amicro value in each msg
-  _cmMidiFileSetAbsoluteTime(mfp);
+  
+  _cmMidiFileLinearize(mfp);
   
   hPtr->h = mfp;
 
@@ -682,11 +694,11 @@ cmMfRC_t _cmMidiFileWrite16( _cmMidiFile_t* mfp, unsigned short v )
 
 cmMfRC_t _cmMidiFileWrite24( _cmMidiFile_t* mfp, unsigned v )
 {
-  cmMfRC_t rc   = kOkMfRC;
+  cmMfRC_t rc = kOkMfRC;
   unsigned mask = 0xff0000;
   int      i;
 
-  for(i=2; i>=0; --i)
+  for(i = 2; i>=0; --i)
   {
     unsigned char c = (v & mask) >> (i*8);
     mask >>= 8;
@@ -727,7 +739,7 @@ cmMfRC_t _cmMidiFileWriteRecd( _cmMidiFile_t* mfp, const void* v, unsigned byteC
 
 cmMfRC_t _cmMidiFileWriteVarLen( _cmMidiFile_t* mfp, unsigned v )
 {
-  cmMfRC_t rc = kOkMfRC;
+  cmMfRC_t rc  = kOkMfRC;
   unsigned buf = v & 0x7f;
  
   while((v >>= 7) > 0 )
@@ -786,7 +798,7 @@ cmMfRC_t _cmMidiFileWriteHdr( _cmMidiFile_t* mfp )
   else
   {
     // ... otherwise the division field was given in smpte
-    v  = mfp->smpteFmtId << 8;
+    v = mfp->smpteFmtId << 8;
     v += mfp->smpteTicksPerFrame;    
   }
 
@@ -800,7 +812,7 @@ cmMfRC_t _cmMidiFileWriteHdr( _cmMidiFile_t* mfp )
 
 cmMfRC_t _cmMidiFileWriteSysEx( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp )
 {
-  cmMfRC_t     rc = kOkMfRC;
+  cmMfRC_t rc = kOkMfRC;
 
   if((rc = _cmMidiFileWrite8(mfp,kSysExMdId)) != kOkMfRC )
     goto errLabel;
@@ -814,8 +826,8 @@ cmMfRC_t _cmMidiFileWriteSysEx( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp )
 
 cmMfRC_t _cmMidiFileWriteChannelMsg( _cmMidiFile_t* mfp, const cmMidiTrackMsg_t* tmp, cmMidiByte_t* runStatus )
 {
-  cmMfRC_t     rc     = kOkMfRC;
-  unsigned     byteN  = cmMidiStatusToByteCount(tmp->status);
+  cmMfRC_t     rc    = kOkMfRC;
+  unsigned     byteN = cmMidiStatusToByteCount(tmp->status);
   cmMidiByte_t status = tmp->status + tmp->u.chMsgPtr->ch;
 
   if( status != *runStatus )
@@ -839,7 +851,7 @@ cmMfRC_t _cmMidiFileWriteChannelMsg( _cmMidiFile_t* mfp, const cmMidiTrackMsg_t*
 
 cmMfRC_t _cmMidiFileWriteMetaMsg( _cmMidiFile_t* mfp, const cmMidiTrackMsg_t* tmp )
 {
-  cmMfRC_t     rc;
+  cmMfRC_t rc;
 
   if((rc = _cmMidiFileWrite8(mfp,kMetaStId)) != kOkMfRC )
     return rc;
@@ -852,7 +864,7 @@ cmMfRC_t _cmMidiFileWriteMetaMsg( _cmMidiFile_t* mfp, const cmMidiTrackMsg_t* tm
   {
     case kSeqNumbMdId:
       if((rc = _cmMidiFileWrite8(mfp,sizeof(tmp->u.sVal))) == kOkMfRC )
-        rc = _cmMidiFileWrite16(mfp,tmp->u.sVal);
+        rc                                                  = _cmMidiFileWrite16(mfp,tmp->u.sVal);
       break;
 
     case kTempoMdId:
@@ -862,27 +874,27 @@ cmMfRC_t _cmMidiFileWriteMetaMsg( _cmMidiFile_t* mfp, const cmMidiTrackMsg_t* tm
 
     case kSmpteMdId:
         if((rc = _cmMidiFileWrite8(mfp,sizeof(cmMidiSmpte_t))) == kOkMfRC )
-          rc = _cmMidiFileWriteRecd(mfp,tmp->u.smptePtr,sizeof(cmMidiSmpte_t));
+          rc   = _cmMidiFileWriteRecd(mfp,tmp->u.smptePtr,sizeof(cmMidiSmpte_t));
         break;
           
     case kTimeSigMdId:
         if((rc = _cmMidiFileWrite8(mfp,sizeof(cmMidiTimeSig_t))) == kOkMfRC )
-          rc = _cmMidiFileWriteRecd(mfp,tmp->u.timeSigPtr,sizeof(cmMidiTimeSig_t));
+          rc   = _cmMidiFileWriteRecd(mfp,tmp->u.timeSigPtr,sizeof(cmMidiTimeSig_t));
         break;
 
     case kKeySigMdId:
         if((rc = _cmMidiFileWrite8(mfp,sizeof(cmMidiKeySig_t))) == kOkMfRC )
-          rc = _cmMidiFileWriteRecd(mfp,tmp->u.keySigPtr,sizeof(cmMidiKeySig_t));
+          rc   = _cmMidiFileWriteRecd(mfp,tmp->u.keySigPtr,sizeof(cmMidiKeySig_t));
         break;
 
     case kSeqSpecMdId:
         if((rc = _cmMidiFileWriteVarLen(mfp,sizeof(tmp->byteCnt))) == kOkMfRC )
-          rc = _cmMidiFileWriteRecd(mfp,tmp->u.sysExPtr,tmp->byteCnt);
+          rc   = _cmMidiFileWriteRecd(mfp,tmp->u.sysExPtr,tmp->byteCnt);
         break;
 
     case kMidiChMdId: 
         if((rc = _cmMidiFileWrite8(mfp,sizeof(tmp->u.bVal))) == kOkMfRC )
-          rc = _cmMidiFileWrite8(mfp,tmp->u.bVal);
+          rc                                                  = _cmMidiFileWrite8(mfp,tmp->u.bVal);
         break;
 
     case kEndOfTrkMdId:  
@@ -898,8 +910,8 @@ cmMfRC_t _cmMidiFileWriteMetaMsg( _cmMidiFile_t* mfp, const cmMidiTrackMsg_t* tm
     case kCuePointMdId:  
       {
         unsigned n = tmp->u.text==NULL ? 0 : strlen(tmp->u.text);
-        if((rc = _cmMidiFileWriteVarLen(mfp,n)) == kOkMfRC && n>0 )
-          rc = _cmMidiFileWriteRecd(mfp,tmp->u.text,n);
+        if((rc     = _cmMidiFileWriteVarLen(mfp,n)) == kOkMfRC && n>0 )
+          rc       = _cmMidiFileWriteRecd(mfp,tmp->u.text,n);
       }
       break;
 
@@ -915,11 +927,11 @@ cmMfRC_t _cmMidiFileWriteMetaMsg( _cmMidiFile_t* mfp, const cmMidiTrackMsg_t* tm
 
 cmMfRC_t _cmMidiFileWriteTrack( _cmMidiFile_t* mfp, unsigned trkIdx )
 {
-  cmMfRC_t           rc        = kOkMfRC;
-  cmMidiTrackMsg_t*  tmp       = mfp->trkV[trkIdx].base;
-  cmMidiByte_t       runStatus = 0;
+  cmMfRC_t          rc        = kOkMfRC;
+  cmMidiTrackMsg_t* tmp       = mfp->trkV[trkIdx].base;
+  cmMidiByte_t      runStatus = 0;
 
-  for(; tmp!=NULL; tmp=tmp->link)
+  for(; tmp != NULL; tmp=tmp->link)
   {
     // write the msg tick count
     if((rc = _cmMidiFileWriteVarLen(mfp,tmp->dtick)) != kOkMfRC )
@@ -968,8 +980,8 @@ cmMfRC_t   cmMidiFileWrite( cmMidiFileH_t h, const char* fn )
 
   for(i=0; i < mfp->trkN; ++i )
   {
-    unsigned chkId='MTrk';
-    long offs0,offs1;
+    unsigned chkId = 'MTrk';
+    long     offs0,offs1;
 
     // write the track chunk id ('MTrk')
     if((rc = _cmMidiFileWrite32(mfp,chkId)) != kOkMfRC )
@@ -1124,14 +1136,14 @@ cmMidiTrackMsg_t*  _cmMidiFileUidToMsg( _cmMidiFile_t* mfp, unsigned uid )
 cmMfRC_t cmMidiFileSetVelocity( cmMidiFileH_t h, unsigned uid, cmMidiByte_t vel )
 {
   cmMidiTrackMsg_t* r;
-  _cmMidiFile_t* mfp = _cmMidiFileHandleToPtr(h);
+  _cmMidiFile_t*    mfp = _cmMidiFileHandleToPtr(h);
 
   assert( mfp != NULL );
 
   if((r = _cmMidiFileUidToMsg(mfp,uid)) == NULL )
     return cmErrMsg(&mfp->err,kUidNotFoundMfRC,"The MIDI file uid %i could not be found.",uid);
 
-  if( cmMidiIsNoteOn(r->status)==false && cmMidiIsNoteOff(r->status,0)==false )
+  if( cmMidiIsNoteOn(r->status) == false && cmMidiIsNoteOff(r->status,0)==false )
     return cmErrMsg(&mfp->err,kUidNotANoteMsgMfRC,"Cannot set velocity on a non-Note-On/Off msg.");
   
   cmMidiChMsg_t* chm = (cmMidiChMsg_t*)r->u.chMsgPtr;
@@ -1139,6 +1151,103 @@ cmMfRC_t cmMidiFileSetVelocity( cmMidiFileH_t h, unsigned uid, cmMidiByte_t vel 
   chm->d1 = vel;
 
   return kOkMfRC;
+}
+
+// Returns NULL if uid is not found or if it the first msg on the track.
+cmMidiTrackMsg_t*  _cmMidiFileMsgBeforeUid( _cmMidiFile_t* p, unsigned uid )
+{
+  cmMidiTrackMsg_t* m;
+  
+  if((m = _cmMidiFileUidToMsg(p,uid)) == NULL )
+    return NULL;
+
+  assert( m->trkIdx < p->trkN );
+
+  cmMidiTrackMsg_t* m0 = NULL;
+  cmMidiTrackMsg_t* m1 = p->trkV[ m->trkIdx ].base;
+  for(; m1!=NULL; m1 = m1->link)
+  {
+    if( m1->uid == uid )
+      break;
+    m0 = m1;
+  }
+
+  return m0;
+}
+
+unsigned _cmMidiFileIsMsgFirstOnTrack( _cmMidiFile_t* p, unsigned uid )
+{
+  unsigned i;
+  for(i=0; i<p->trkN; ++i)
+    if( p->trkV[i].base!=NULL && p->trkV[i].base->uid == uid )
+      return i;
+  
+  return cmInvalidIdx;   
+}
+
+
+cmMfRC_t cmMidiFileInsertMsg( cmMidiFileH_t h, unsigned uid, int dtick, cmMidiByte_t ch, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 )
+{
+  _cmMidiFile_t*    mfp    = _cmMidiFileHandleToPtr(h);
+  assert( mfp != NULL );
+  cmMidiTrackMsg_t* ref    = NULL;
+  unsigned          trkIdx = cmInvalidIdx;
+
+  // if dtick is positive ...
+  if( dtick >= 0 )
+  {
+    ref    = _cmMidiFileUidToMsg(mfp,uid); // ... then get the ref. msg.
+    trkIdx = ref->trkIdx;
+  }
+  else // if dtick is negative ...
+  {
+    // ... get get the msg before the ref. msg.
+    if((ref = _cmMidiFileMsgBeforeUid(mfp,uid)) == NULL )
+    {
+      // ... the ref. msg was first in the track so there is no msg before it
+      trkIdx = _cmMidiFileIsMsgFirstOnTrack(mfp,uid);
+    }
+  }
+
+  // verify that the reference msg was found
+  if( trkIdx == cmInvalidIdx )
+    return cmErrMsg(&mfp->err,kUidNotFoundMfRC,"The UID (%i) reference note could not be located.",uid);
+
+  assert( trkIdx < mfp->trkN );
+
+  // complete the msg setup
+  _cmMidiTrack_t* trk   = mfp->trkV + trkIdx;
+  cmMidiTrackMsg_t* m   = _cmMidiFileAllocMsg(mfp, trkIdx, abs(dtick), status );
+  cmMidiChMsg_t*    c   = (cmMidiChMsg_t*)m->u.chMsgPtr; // cast away const
+  c->ch   = ch;
+  c->d0   = d0;
+  c->d1   = d1;
+
+  // if 'm' is prior to the first msg in the track
+  if( ref == NULL )
+  {
+    // ... then make 'm' the first msg in the first msg
+    m->link = trk->base;
+    trk->base = m;
+    // 'm' is before ref and the track cannot be empty (because ref is in it) 'm'
+    // can never be the last msg in the list
+  } 
+  else // ref is the msg before 'm'
+  {
+    m->link   = ref->link;
+    ref->link = m;
+    
+    // if ref was the last msg in the trk ...
+    if( trk->last == ref )
+      trk->last = m;  //... then 'm' is now the last msg in the trk
+  }
+
+  trk->cnt += 1;
+
+  _cmMidiFileLinearize(mfp);
+
+  return kOkMfRC;
+
 }
 
 unsigned  cmMidiFileSeekUsecs( cmMidiFileH_t h, unsigned long long offsUSecs, unsigned* msgUsecsPtr, unsigned* microsPerTickPtr )
