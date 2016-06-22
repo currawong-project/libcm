@@ -1,0 +1,58 @@
+rect.bar {
+    stroke-width: 1px;
+    stroke: #000000;
+    fill: #cfcfcf;
+}
+
+rect.damper {
+    stroke-width: 1px;
+    stroke: #000000;
+    fill: #cffccf;
+}
+
+rect.sost {
+    stroke-width: 1px;
+    stroke: #00ffff;
+    fill: #cffccf;
+}
+
+rect.loc {
+    stroke-width: 1px;
+    stroke: #000000;
+    fill: #cfcfff;
+}
+
+rect.score {
+    stroke-width: 0px;
+    stroke: #000000;
+    fill: #00cfff;
+}
+
+rect.score_miss {
+    stroke-width: 1px;
+    stroke: #ff0000;
+    fill: #00cfff;
+}
+
+rect.midi {
+    stroke-width: 0px;
+    stroke: #000000;
+    fill: #00ffcf;
+}
+
+rect.midi_miss {
+    stroke-width: 1px;
+    stroke: #ff0000;
+    fill: #00ffcf;
+}
+
+
+line.sline {
+    stroke-width: 3px;
+    stroke: #000000;
+}
+
+text.stext {
+    font-family:"Times New Roman",Times,serif;
+    font-size: 1em;
+}
