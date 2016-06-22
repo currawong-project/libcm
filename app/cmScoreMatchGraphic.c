@@ -26,8 +26,9 @@ enum
   kBarSmgFl     = 0x0002,
   kNoteSmgFl    = 0x0004,
   kPedalSmgFl   = 0x0008,
-  kMidiSmgFl    = 0x0010,
-  kNoMatchSmgFl = 0x0020
+  kSostSmgFl    = 0x0010,
+  kMidiSmgFl    = 0x0020,
+  kNoMatchSmgFl = 0x0040
 };
 
 // Graphic box representing a score label or MIDI event
@@ -92,7 +93,7 @@ typedef struct
   cmErr_t      err;
 
   cmChar_t*    scFn;
-  cmSmgSc_t*   scV;    // scV[scN] score bars and notes
+  cmSmgSc_t*   scV;    // scV[scN] score bars,notes, pedals
   unsigned     scN;
   
   cmSmgLoc_t*  locV;   // locV[locN] score locations (from the score file)
@@ -240,7 +241,12 @@ cmSmgRC_t _cmSmgInitFromScore( cmCtx_t* ctx, cmSmg_t* p, const cmChar_t* scoreFn
           
         case kPedalEvtScId:
           flags |= kPedalSmgFl;
+          
           text = cmTsPrintfP(NULL,"%s", cmIsFlag(e->flags,kPedalDnScFl)?"v":"^");
+
+          if( e->pitch == kSostenutoCtlMdId )
+            flags |= kSostSmgFl;
+          
           break;
       }
 
@@ -554,6 +560,14 @@ cmSmgRC_t cmScoreMatchGraphicWrite( cmSmgH_t h, const cmChar_t* fn )
 
       if( cmIsFlag(b->flags,kBarSmgFl) )
         classStr = "bar";
+
+      if( cmIsFlag(b->flags,kPedalSmgFl) )
+      {
+        if( cmIsFlag(b->flags,kSostSmgFl) )
+          classStr = "sost";
+        else
+          classStr = "damper";
+      }
       
       if( cmFilePrintf(fH,"<rect x=\"%i\" y=\"%i\" width=\"%i\" height=\"%i\" class=\"%s\"/>\n",b->left,b->top,b->width,b->height,classStr) != kOkFileRC )
         return cmErrMsg(&p->err,kFileFailScRC,"File write failed on graphic file rect output.");
@@ -622,6 +636,25 @@ cmSmgRC_t cmScoreMatchGraphicGenTimeLineBars( cmSmgH_t h, const cmChar_t* fn, un
   
 }
 
+cmSmRC_t _cmScoreMatchGraphicUpdateSostenuto( cmSmg_t* p, cmMidiFileH_t mfH, cmScH_t scH )
+{
+  unsigned evtN = cmScoreEvtCount(scH);
+  unsigned i;
+  const cmScoreEvt_t* e;
+  const cmScoreEvt_t* e0 = NULL;
+  for(i=0; i<evtN; ++i)
+
+    if( e->type == kNonEvtScId )
+      
+      
+    
+      
+    if( e->type == kPedalEvtScId && e->pitch == kSostenutoCtlMdId )
+    {
+      
+    }
+}
+
 cmSmgRC_t cmScoreMatchGraphicUpdateMidiFromScore( cmCtx_t* ctx, cmSmgH_t h, const cmChar_t* newMidiFn )
 {
   cmSmgRC_t     rc  = kOkSmgRC;
@@ -629,16 +662,19 @@ cmSmgRC_t cmScoreMatchGraphicUpdateMidiFromScore( cmCtx_t* ctx, cmSmgH_t h, cons
   unsigned      i   = 0;
   cmMidiFileH_t mfH = cmMidiFileNullHandle;
   cmScH_t       scH = cmScNullHandle;
-  
+
+  // open the MIDI file
   if( cmMidiFileOpen(ctx, &mfH, p->mfFn ) != kOkMfRC )
     return cmErrMsg(&p->err,kMidiFileFailSmgRC,"MIDI file open failed on '%s'.",cmStringNullGuard(p->mfFn));
-  
+
+  // instantiate the score from the score CSV file
   if( cmScoreInitialize(ctx,&scH,p->scFn,44100.0, NULL, 0, NULL, NULL, cmSymTblNullHandle ) != kOkScRC )
   {
     rc = cmErrMsg(&p->err,kScoreFailSmgRC,"Score initializatio failed on '%s'.",cmStringNullGuard(p->scFn));
     goto errLabel;
   } 
-  
+
+  // for each MIDI note-on event
   for(i=0; i<p->mN; ++i)
   {
     cmSmgMidi_t* mr = p->mV + i;
@@ -651,7 +687,7 @@ cmSmgRC_t cmScoreMatchGraphicUpdateMidiFromScore( cmCtx_t* ctx, cmSmgH_t h, cons
     const cmScoreEvt_t* s= cmScoreIdToEvt( scH, mr->matchV->score->csvEventId );
     assert( s!=NULL );
 
-    // assign the score velocity to the MIDI file
+    // assign the score velocity to the MIDI note
     if(cmMidiFileSetVelocity( mfH, mr->uid, s->vel ) != kOkMfRC )
     {
       rc = cmErrMsg(&p->err,kOpFailSmgRC,"Set velocify operation failed.");
