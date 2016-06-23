@@ -894,7 +894,7 @@ cmMfRC_t _cmMidiFileWriteMetaMsg( _cmMidiFile_t* mfp, const cmMidiTrackMsg_t* tm
 
     case kMidiChMdId: 
         if((rc = _cmMidiFileWrite8(mfp,sizeof(tmp->u.bVal))) == kOkMfRC )
-          rc                                                  = _cmMidiFileWrite8(mfp,tmp->u.bVal);
+          rc  = _cmMidiFileWrite8(mfp,tmp->u.bVal);
         break;
 
     case kEndOfTrkMdId:  
@@ -1304,182 +1304,13 @@ typedef struct _cmMidiVoice_str
 } _cmMidiVoice_t;
 
 
-void _cmMidFileCalcNoteDurationReleaseNote( _cmMidiVoice_t** listPtrPtr, _cmMidiVoice_t* pp, _cmMidiVoice_t* vp )
-{
-  assert( (pp==NULL && vp==*listPtrPtr) || pp->link==vp);
-
-  // store the duration of the note into the track msg 
-  // assoc'd with the note-on msg
-  cmMidiChMsg_t* cmp = (cmMidiChMsg_t*)vp->mp->u.chMsgPtr; // cast away const
-  cmp->durMicros = vp->durMicros;
-
-  _cmMidiVoice_t* np = vp->link;
-
-  // release the voice msg
-  cmMemFree(vp);
-
-  // unlink the active voice msg
-  if( pp == NULL )
-    *listPtrPtr = np;
-  else
-    pp->link = np;
-  
-}
-
-void  _cmMidiFileCalcNoteDurationsAllocVoice( _cmMidiVoice_t** listPtrPtr, cmMidiTrackMsg_t* mp, bool sustainFl )
-{
-  _cmMidiVoice_t* vp = cmMemAllocZ(_cmMidiVoice_t,1);
-  vp->mp        = mp;
-  vp->sustainFl = sustainFl;
-  vp->link      = *listPtrPtr;
-  *listPtrPtr   = vp;
-}
-
-void cmMidiFileCalcNoteDurations2( cmMidiFileH_t h )
-{
-  _cmMidiFile_t* p;
-
-  if((p = _cmMidiFileHandleToPtr(h)) == NULL )
-    return;
-
-  if( p->msgN == 0 )
-    return;
-
-  unsigned          mi                  = cmInvalidId;
-  _cmMidiVoice_t*   list                = NULL; // list of active voices
-  _cmMidiVoice_t*   vp                  = NULL;
-  cmMidiTrackMsg_t* sustainPedalDownMsg = NULL;
-  bool              sustainFlagV[ kMidiChCnt ];
-
-  // clear the sustain pedal flag
-  for(mi=0; mi<kMidiChCnt; ++mi)
-    sustainFlagV[mi]=false;
-
-  for(mi=0; mi<p->msgN; ++mi)
-  {
-    cmMidiTrackMsg_t* mp    = p->msgV[mi];
-
-    unsigned d_amicro = 0;
-    if( mi > 0 )
-    {
-      assert(    mp->amicro >= p->msgV[mi-1]->amicro );
-      d_amicro = mp->amicro -  p->msgV[mi-1]->amicro;
-    }
-    
-    // update the duration of the sounding notes
-    for(vp = list; vp!=NULL; vp=vp->link)
-      vp->durMicros += d_amicro;    
-
-    // update the sustain pedal duration
-    if( sustainPedalDownMsg != NULL )
-      ((cmMidiChMsg_t*)(sustainPedalDownMsg->u.chMsgPtr))->durMicros += d_amicro;  // cast away const
-
-    //
-    // If this is sustain pedal msg
-    //
-    if( mp->status==kCtlMdId && mp->u.chMsgPtr->d0 == kSustainCtlMdId )
-    {
-      unsigned  chIdx = mp->u.chMsgPtr->ch;
-      assert(  chIdx < kMidiChCnt );
-
-      // set the state of the sustain pedal flags
-      sustainFlagV[chIdx] = mp->u.chMsgPtr->d1 >= 64;
-
-      // if the pedal went down ...
-      if( sustainFlagV[chIdx]  )
-      {
-
-        if( sustainPedalDownMsg != NULL )
-        {
-          // TODO:  the correct way to handle this is to maintain multiple sustain pedals 
-          //cmErrMsg(&p->err,kSustainPedalMfRC,"Sustain pedal down with no intervening sustain pedal up.");
-        }
-        else
-        {
-          sustainPedalDownMsg = mp;
-          ((cmMidiChMsg_t*)(sustainPedalDownMsg->u.chMsgPtr))->durMicros = 0;  // cast away const
-        }
-
-        _cmMidiFileCalcNoteDurationsAllocVoice( &list, mp, true );
-      }
-      else // ... if the pedal went up
-      {
-
-        sustainPedalDownMsg = NULL;
-
-        // ... then release sustaining notes
-        _cmMidiVoice_t* pp = NULL;
-        for(vp=list; vp != NULL; )
-        {
-          _cmMidiVoice_t* np = vp->link;
-          if( vp->sustainFl && (vp->mp->u.chMsgPtr->ch == chIdx) )
-            _cmMidFileCalcNoteDurationReleaseNote(&list,pp,vp);
-          else
-            pp = vp;
-
-          vp = np;
-        }
-      }
-    }
-    
-    //
-    // if this is a note-on msg
-    //
-    if( mp->status==kNoteOnMdId && mp->u.chMsgPtr->d1>0 )
-    {
-      _cmMidiFileCalcNoteDurationsAllocVoice( &list, mp, false );
-    }
-    else
-      //
-      // if this is a note-off msg
-      //
-      if( (mp->status==kNoteOnMdId && mp->u.chMsgPtr->d1==0) || (mp->status==kNoteOffMdId) )
-      {
-        _cmMidiVoice_t* pp = NULL;
-        unsigned        chIdx = mp->u.chMsgPtr->ch;
-        assert(  chIdx < kMidiChCnt );
-
-
-        // for each active voice
-        for(vp=list; vp!=NULL; vp=vp->link )
-        {
-          // if this active voice ch/pitch matches the note-off msg ch pitch 
-          if( (vp->mp->u.chMsgPtr->d0==mp->u.chMsgPtr->d0) && (vp->mp->u.chMsgPtr->ch==chIdx) )
-          {
-            // if the sustain pedal is down for this channel - then defer turning the note off
-            if( sustainFlagV[chIdx] )
-              vp->sustainFl = true;
-            else
-              _cmMidFileCalcNoteDurationReleaseNote(&list,pp,vp);
-            break;
-          }
-
-          pp = vp;
-        } // end for
-      } // end if
-
-  } // end-for
- 
-
-  // check for hung notes
-  _cmMidiVoice_t* np = NULL;
-  vp = list;
-  while( vp != NULL )
-  {
-    np = vp->link;    
-
-    if( cmMidiIsNoteOn(vp->mp->status) == false )
-      cmErrMsg(&p->err,kMissingNoteOffMfRC,"Missing note-off for note-on:%s",cmMidiToSciPitch(vp->mp->u.chMsgPtr->d0,NULL,0));
-
-    cmMemFree(vp);
-    vp = np;
-  }
-}
-
 void _cmMidiFileSetDur( cmMidiTrackMsg_t* m0, cmMidiTrackMsg_t* m1 )
 {
   // calculate the duration of the sounding note
   ((cmMidiChMsg_t*)m0->u.chMsgPtr)->durMicros = m1->amicro - m0->amicro;
+
+  // set the note-off msg pointer
+  ((cmMidiChMsg_t*)m0->u.chMsgPtr)->end       = m1;
 }
 
 bool _cmMidiFileCalcNoteDur( cmMidiTrackMsg_t* m0, cmMidiTrackMsg_t* m1, int noteGateFl, int sustainGateFl, bool sostGateFl )
@@ -1628,6 +1459,7 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
                 if( sustV[ch] != NULL )
                 {
                   _cmMidiFileSetDur(sustV[ch],m);
+                  ((cmMidiChMsg_t*)sustV[ch]->u.chMsgPtr)->end = m; // set the pedal-up msg ptr. in the pedal-down msg.
                   sustV[ch] = NULL;
                 }
               }
@@ -1635,7 +1467,7 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
           }
           else
 
-            // This is a sostenuto-pedal down msg
+            // This is a sostenuto pedal-down msg
             if( cmMidiFileIsSostenutoPedalDown(m) )
             {
               // if the sustain channel is already down
@@ -1651,7 +1483,7 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
             }
             else
 
-              // This is a sostenuto-pedal up msg
+              // This is a sostenuto pedal-up msg
               if( cmMidiFileIsSostenutoPedalUp(m) )
               {
                 // if the sustain channel is already up
@@ -1677,7 +1509,8 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
                     
                     if( sostV[ch] != NULL )
                     {
-                      _cmMidiFileSetDur(sostV[ch],m);
+                      _cmMidiFileSetDur(sostV[ch],m);                      
+                      ((cmMidiChMsg_t*)sostV[ch]->u.chMsgPtr)->end = m; // set the pedal-up msg ptr. in the pedal-down msg.
                       sostV[ch] = NULL;
                     }
 

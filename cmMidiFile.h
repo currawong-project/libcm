@@ -52,12 +52,15 @@ extern "C" {
     cmMidiByte_t scale;
   } cmMidiKeySig_t;
 
+  struct cmMidiTrackMsg_str;
+  
   typedef struct
   {
     cmMidiByte_t ch;
     cmMidiByte_t d0;
     cmMidiByte_t d1;
     unsigned     durMicros;  // note duration in microseconds (corrected for tempo changes)
+    struct cmMidiTrackMsg_str* end; // note-off or pedal-up message
   } cmMidiChMsg_t;
 
 
