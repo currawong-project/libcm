@@ -1541,6 +1541,37 @@ cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsR
   return NULL;
 }
 
+void _cmXScoreInsertPedalEvent( cmXScore_t* p, const cmXsReorder_t* r, unsigned flags )
+{
+  // Create a new score event record
+  cmXsNote_t* nn = cmLhAllocZ(p->lhH,cmXsNote_t,1);
+  
+  nn->uid   = p->nextUid++;
+  nn->voice = r->note->voice;
+  nn->meas  = r->note->meas;
+  nn->flags = flags;
+  
+  // Pedal down events occur after the event they are attached to
+  if( cmIsFlag(flags,kSostDnXsFl | kPedalDnXsFl ) )
+  {
+    nn->tick  = r->note->tick + 1;
+    _cmXScoreInsertNoteAfter(r->note,nn);
+  }
+  else
+  {
+    // Pedal up events occur before the event they are attached to
+    if( cmIsFlag(flags,kSostUpXsFl | kPedalUpXsFl ) )
+    {
+      nn->tick  = r->note->tick==0 ? 0 : r->note->tick - 1;
+      _cmXScoreInsertNoteBefore(r->note,nn);
+    }
+    else
+    { assert(0); }
+  }
+
+  
+}
+
 cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* rV, unsigned rN )
 {
   unsigned i;
@@ -1600,30 +1631,21 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
   // Insert new note records for pedal up/dn events.
   for(i=0; i<rN; ++i)
   {
-
     if( rV[i].newFlags != 0 )
     {
-      // Create a new score event record
-      cmXsNote_t* nn = cmLhAllocZ(p->lhH,cmXsNote_t,1);
 
-      nn->uid   = p->nextUid++;
-      nn->voice = rV[i].note->voice;
-      nn->meas  = rV[i].note->meas;
-      nn->flags = rV[i].newFlags;
-  
-      // Pedal down events occur after the event they are attached to
-      if( cmIsFlag(rV[i].newFlags,kSostDnXsFl | kPedalDnXsFl ) )
-      {
-        nn->tick  = rV[i].note->tick + 1;
-        _cmXScoreInsertNoteAfter(rV[i].note,nn);
-      }
+      if( cmIsFlag(rV[i].newFlags,kPedalDnXsFl ) )
+        _cmXScoreInsertPedalEvent(p,rV + i,kPedalDnXsFl);
 
-      // Pedal up events occur before the event they are attached to
-      if( cmIsFlag(rV[i].newFlags,kSostUpXsFl | kPedalUpXsFl ) )
-      {
-        nn->tick  = rV[i].note->tick==0 ? 0 : rV[i].note->tick - 1;
-        _cmXScoreInsertNoteBefore(rV[i].note,nn);
-      }
+      if( cmIsFlag(rV[i].newFlags,kSostDnXsFl ) )
+        _cmXScoreInsertPedalEvent(p,rV + i,kSostDnXsFl);
+      
+      if( cmIsFlag(rV[i].newFlags,kPedalUpXsFl ) )
+        _cmXScoreInsertPedalEvent(p,rV + i,kPedalUpXsFl);
+
+      if( cmIsFlag(rV[i].newFlags,kSostUpXsFl ) )
+        _cmXScoreInsertPedalEvent(p,rV + i,kSostUpXsFl);
+      
     }
   }
 
@@ -1726,8 +1748,12 @@ cmXsRC_t  _cmXScoreReorderParseFlags(cmXScore_t* p, const cmChar_t* b, unsigned 
         break;
 
       case 'u':
-        *newFlagsRef |= kSostUpXsFl;  // sostenuto pedal up
+        *newFlagsRef |= kSostUpXsFl;  // sostenuto pedal up just before this event
         break;
+
+      case 'x':
+        *newFlagsRef |= (kSostUpXsFl | kSostDnXsFl);  // sostenuto pedal up just before this event and sost down just after it.
+        break;                
         
       case 'D':
         *newFlagsRef |= kPedalDnXsFl;  // damper pedal down
