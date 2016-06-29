@@ -635,7 +635,7 @@ cmSmgRC_t cmScoreMatchGraphicGenTimeLineBars( cmSmgH_t h, const cmChar_t* fn, un
   return rc;
   
 }
-
+/*
 cmSmRC_t _cmScoreMatchGraphicUpdateSostenuto( cmSmg_t* p, cmMidiFileH_t mfH, cmScH_t scH )
 {
   unsigned evtN = cmScoreEvtCount(scH);
@@ -654,7 +654,7 @@ cmSmRC_t _cmScoreMatchGraphicUpdateSostenuto( cmSmg_t* p, cmMidiFileH_t mfH, cmS
       
     }
 }
-
+*/
 cmSmgRC_t cmScoreMatchGraphicUpdateMidiFromScore( cmCtx_t* ctx, cmSmgH_t h, const cmChar_t* newMidiFn )
 {
   cmSmgRC_t     rc  = kOkSmgRC;
