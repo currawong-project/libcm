@@ -1202,7 +1202,9 @@ cmMfRC_t cmMidiFileInsertMsg( cmMidiFileH_t h, unsigned uid, int dtick, cmMidiBy
   else // if dtick is negative ...
   {
     // ... get get the msg before the ref. msg.
-    if((ref = _cmMidiFileMsgBeforeUid(mfp,uid)) == NULL )
+    if((ref = _cmMidiFileMsgBeforeUid(mfp,uid)) != NULL )
+      trkIdx = ref->trkIdx;
+    else
     {
       // ... the ref. msg was first in the track so there is no msg before it
       trkIdx = _cmMidiFileIsMsgFirstOnTrack(mfp,uid);
@@ -1218,7 +1220,10 @@ cmMfRC_t cmMidiFileInsertMsg( cmMidiFileH_t h, unsigned uid, int dtick, cmMidiBy
   // complete the msg setup
   _cmMidiTrack_t* trk   = mfp->trkV + trkIdx;
   cmMidiTrackMsg_t* m   = _cmMidiFileAllocMsg(mfp, trkIdx, abs(dtick), status );
-  cmMidiChMsg_t*    c   = (cmMidiChMsg_t*)m->u.chMsgPtr; // cast away const
+  cmMidiChMsg_t*    c   = (cmMidiChMsg_t*)_cmMidiFileMalloc(mfp,sizeof(cmMidiChMsg_t));
+
+  m->u.chMsgPtr = c;
+  
   c->ch   = ch;
   c->d0   = d0;
   c->d1   = d1;
