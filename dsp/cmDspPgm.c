@@ -209,7 +209,7 @@ cmDspRC_t _cmDspSysPgm_MidiFilePlay( cmDspSysH_t h, void** userPtrPtr )
 
 //------------------------------------------------------------------------------
 //)
-//( { label:cmDspPgm_Midi_Test file_desc:"MIDI input/output example program." kw:[spgm] }
+//( { label:cmDspPgm_Test_Midi file_desc:"MIDI input/output example program." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_Test_Midi( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc = kOkDspRC;
@@ -228,7 +228,7 @@ cmDspRC_t _cmDspSysPgm_Test_Midi( cmDspSysH_t h, void** userPtrPtr )
 #endif
 
   cmDspInst_t* sendBtn = cmDspSysAllocInst( h,"Button", "Send",    2, kButtonDuiId, 0.0 );
-  cmDspInst_t* status  = cmDspSysAllocInst( h,"Scalar", "Status",  5, kNumberDuiId, 0.0,  127.0, 1.0,  144.0);
+  cmDspInst_t* status  = cmDspSysAllocInst( h,"Scalar", "Status",  5, kNumberDuiId, 0.0,  127.0, 1.0, 144.0);
   cmDspInst_t* d0      = cmDspSysAllocInst( h,"Scalar", "D0",      5, kNumberDuiId, 0.0,  127.0, 1.0,  64.0);
   cmDspInst_t* d1      = cmDspSysAllocInst( h,"Scalar", "D1",      5, kNumberDuiId, 0.0,  127.0, 1.0,  64.0);
   cmDspInst_t* midiOut = cmDspSysAllocInst( h,"MidiOut", NULL,     2, deviceName, portName);
@@ -255,6 +255,80 @@ cmDspRC_t _cmDspSysPgm_Test_Midi( cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(   h, midiIn,  "d0",     prd0, "in", NULL);
   cmDspSysInstallCb(   h, midiIn,  "d1",     prd1, "in", NULL);
   //cmDspSysInstallCb(   h, midiIn,  "smpidx", printer, "in", NULL);
+
+ errLabel:
+  return rc;
+  
+}
+
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_Test_Pedals file_desc:"MIDI input/output example program." kw:[spgm] }
+cmDspRC_t _cmDspSysPgm_Test_Pedals( cmDspSysH_t h, void** userPtrPtr )
+{
+  cmDspRC_t rc = kOkDspRC;
+
+  //const cmChar_t* deviceName = "Fastlane";
+  //const cmChar_t* portName   = "Fastlane MIDI A";
+
+  const cmChar_t* deviceName = "Apple Inc. - IAC Driver";
+  const cmChar_t* portName   = "Bus 1";
+  
+  //deviceName = "MOTU - FastLane USB";
+  //portName   = "Port A";
+
+  //deviceName = "RME - Fireface UFX (23148636)";
+  //portName   = "Port 2";
+
+  cmDspInst_t* ai0 = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 0 );
+  cmDspInst_t* ai1 = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 1 );
+ 
+  cmDspInst_t* on0 = cmDspSysAllocButton( h, "Note On 1", 1.0 );
+  cmDspInst_t* of0 = cmDspSysAllocButton( h, "Off 1    ", 2.0 );
+  cmDspInst_t* on1 = cmDspSysAllocButton( h, "Note On 2", 3.0 );
+  cmDspInst_t* of1 = cmDspSysAllocButton( h, "Off 2    ", 4.0 );
+  cmDspInst_t* dm1 = cmDspSysAllocButton( h, "Damp On  ", 5.0 );
+  cmDspInst_t* dm0 = cmDspSysAllocButton( h, "Damp Off ", 6.0 );
+  cmDspInst_t* sf1 = cmDspSysAllocButton( h, "Soft On  ", 5.0 );
+  cmDspInst_t* sf0 = cmDspSysAllocButton( h, "Soft Off ", 6.0 );
+  cmDspInst_t* so1 = cmDspSysAllocButton( h, "Sost On  ", 5.0 );
+  cmDspInst_t* so0 = cmDspSysAllocButton( h, "Sost Off ", 6.0 );
+  
+  cmDspInst_t* lst = cmDspSysAllocInst(   h, "MsgList","Seq", 1, "note_list");  
+  cmDspInst_t* mop = cmDspSysAllocInst(   h, "MidiOut",  NULL, 2, deviceName, portName);
+
+  cmDspInst_t* ao0 = cmDspSysAllocInst(h,"AudioOut", NULL,   1, 2 );
+  cmDspInst_t* ao1 = cmDspSysAllocInst(h,"AudioOut", NULL,   1, 3 );
+  
+  //cmDspInst_t* prt = cmDspSysAllocInst( h,"Printer", NULL, 1, "" );
+  
+  // check for allocation errors
+  if((rc = cmDspSysLastRC(h)) != kOkDspRC )
+    goto errLabel;
+
+  cmDspSysConnectAudio( h, ai0, "out", ao0, "in" );
+  cmDspSysConnectAudio( h, ai1, "out", ao1, "in" );
+  
+  cmDspSysInstallCb(  h, on0, "out", lst, "sel", NULL );
+  cmDspSysInstallCb(  h, of0, "out", lst, "sel", NULL );
+  cmDspSysInstallCb(  h, on1, "out", lst, "sel", NULL );
+  cmDspSysInstallCb(  h, of1, "out", lst, "sel", NULL );
+  cmDspSysInstallCb(  h, dm1, "out", lst, "sel", NULL );
+  cmDspSysInstallCb(  h, dm0, "out", lst, "sel", NULL );
+  cmDspSysInstallCb(  h, sf1, "out", lst, "sel", NULL );
+  cmDspSysInstallCb(  h, sf0, "out", lst, "sel", NULL );
+  cmDspSysInstallCb(  h, so1, "out", lst, "sel", NULL );
+  cmDspSysInstallCb(  h, so0, "out", lst, "sel", NULL );
+
+  //cmDspSysInstallCb(   h, lst,     "d1",     prt,     "in", NULL );
+  //cmDspSysInstallCb(   h, lst,     "d0",     prt,     "in", NULL );
+  //cmDspSysInstallCb(   h, lst,     "status", prt,     "in", NULL );
+
+
+  cmDspSysInstallCb(   h, lst,  "d1",     mop, "d1",     NULL);
+  cmDspSysInstallCb(   h, lst,  "d0",     mop, "d0",     NULL);
+  cmDspSysInstallCb(   h, lst,  "status", mop, "status", NULL);
+  
 
  errLabel:
   return rc;
@@ -3167,6 +3241,7 @@ _cmDspSysPgm_t _cmDspSysPgmArray[] =
   { "pickups",     _cmDspSysPgm_Pickups0,       NULL, NULL },
   { "sync_recd",   _cmDspSysPgm_SyncRecd,       NULL, NULL },
   { "midi_test",   _cmDspSysPgm_Test_Midi,      NULL, NULL },
+  { "pedal_test",  _cmDspSysPgm_Test_Pedals,    NULL, NULL },
   { "midi_file",   _cmDspSysPgm_MidiFilePlay,   NULL, NULL },
   { "2_thru",      _cmDspSysPgm_Stereo_Through, NULL, NULL },
   { "guitar",      _cmDspSysPgmGuitar,          NULL, NULL },
