@@ -11,7 +11,8 @@ extern "C" {
     kFileSmgRC,
     kScoreFailSmgRC,
     kMidiFileFailSmgRC,
-    kOpFailSmgRC
+    kOpFailSmgRC,
+    kMatchFailSmgRC
   };
   
   typedef cmRC_t     cmSmgRC_t;

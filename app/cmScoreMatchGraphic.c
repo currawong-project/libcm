@@ -28,7 +28,8 @@ enum
   kPedalSmgFl   = 0x0008,
   kSostSmgFl    = 0x0010,
   kMidiSmgFl    = 0x0020,
-  kNoMatchSmgFl = 0x0040
+  kNoMatchSmgFl = 0x0040,
+  kPedalDnSmgFl = 0x0080
 };
 
 // Graphic box representing a score label or MIDI event
@@ -246,6 +247,8 @@ cmSmgRC_t _cmSmgInitFromScore( cmCtx_t* ctx, cmSmg_t* p, const cmChar_t* scoreFn
 
           if( e->pitch == kSostenutoCtlMdId )
             flags |= kSostSmgFl;
+
+          flags |= cmIsFlag(e->flags,kPedalDnScFl) ? kPedalDnSmgFl : 0;
           
           break;
       }
@@ -635,26 +638,91 @@ cmSmgRC_t cmScoreMatchGraphicGenTimeLineBars( cmSmgH_t h, const cmChar_t* fn, un
   return rc;
   
 }
-/*
-cmSmRC_t _cmScoreMatchGraphicUpdateSostenuto( cmSmg_t* p, cmMidiFileH_t mfH, cmScH_t scH )
-{
-  unsigned evtN = cmScoreEvtCount(scH);
-  unsigned i;
-  const cmScoreEvt_t* e;
-  const cmScoreEvt_t* e0 = NULL;
-  for(i=0; i<evtN; ++i)
 
-    if( e->type == kNonEvtScId )
-      
-      
+// Find the first MIDI event that matches this score event
+const cmSmgMidi_t*  _cmScoreMatchGraphicScoreToMatchedMidiEvent( cmSmg_t* p, const cmSmgSc_t* sc )
+{
+  unsigned i;
+  for(i=0; i<p->mN; ++i)
+  {
+    const cmSmgMatch_t* m = p->mV[i].matchV;
     
-      
-    if( e->type == kPedalEvtScId && e->pitch == kSostenutoCtlMdId )
-    {
-      
-    }
+    for(; m != NULL; m=m->link )
+      if( sc->csvEventId == m->score->csvEventId )
+        return p->mV + i;
+          
+  }
+  
+  return NULL;
 }
-*/
+
+cmSmgRC_t _cmScoreMatchGraphicInsertMidiMsg( cmSmg_t* p, cmMidiFileH_t mfH, bool pedalDnFl, const cmSmgSc_t* s )
+{
+  const cmSmgMidi_t* m;
+
+  // locate the MIDI event associated with the reference event
+  if((m =_cmScoreMatchGraphicScoreToMatchedMidiEvent( p, s )) == NULL )
+    return cmErrWarnMsg(&p->err,kMatchFailSmgRC,"A sostenuto pedal msg could not be aligned to a note event.");
+  
+  
+  int          dtick_offset = pedalDnFl ?  1 :  -1;
+  cmMidiByte_t midi_vel     = pedalDnFl ? 64 :   0;
+  cmMidiByte_t midi_ch      = 0;
+
+  printf("pedal:%s\n",pedalDnFl?"down":"up");
+  
+  // insert a pedal msg relative to the reference event
+  if( cmMidiFileInsertMsg(mfH, m->uid, dtick_offset, midi_ch, kCtlMdId, kSostenutoCtlMdId, midi_vel ) != kOkMfRC )
+    return cmErrWarnMsg(&p->err,kMidiFileFailSmgRC,"MIDI msg insert failed.");
+  
+  return kOkSmgRC;
+  
+}
+
+cmSmgRC_t _cmScoreMatchGraphicUpdateSostenuto( cmSmg_t* p, cmMidiFileH_t mfH )
+{
+  cmSmgRC_t rc = kOkSmgRC;
+  unsigned i, j = cmInvalidIdx;
+  bool pedalUpFl = false;
+  
+  for(i=0; i<p->scN; ++i)
+  {
+    switch( p->scV[i].type )
+    {
+      case kNonEvtScId:
+        {
+          if( pedalUpFl )
+          {
+            _cmScoreMatchGraphicInsertMidiMsg(p, mfH, false, p->scV + i );
+            pedalUpFl = false;
+          }
+    
+          j = i; // store the index of this note event (it may be needed if the next event is a sost. pedal evt.)
+        }
+        break;
+        
+      case kPedalEvtScId:        
+        // if this is a sost pedal event
+        if( cmIsFlag(p->scV[i].box->flags,kSostSmgFl) )
+        {
+          if( cmIsFlag(p->scV[i].box->flags,kPedalDnSmgFl) )
+          {
+            assert( j != cmInvalidIdx );
+            _cmScoreMatchGraphicInsertMidiMsg(p, mfH, true, p->scV + j );
+          }
+          else
+          {
+            pedalUpFl = true; // insert a pedal up message before the next note-on
+          }
+        }
+
+      default:
+        break;
+    }
+  }
+  return rc;
+}
+
 cmSmgRC_t cmScoreMatchGraphicUpdateMidiFromScore( cmCtx_t* ctx, cmSmgH_t h, const cmChar_t* newMidiFn )
 {
   cmSmgRC_t     rc  = kOkSmgRC;
@@ -696,12 +764,17 @@ cmSmgRC_t cmScoreMatchGraphicUpdateMidiFromScore( cmCtx_t* ctx, cmSmgH_t h, cons
 
   }
 
+  // update the sostenuto pedal msg's in the MIDI file.
+  _cmScoreMatchGraphicUpdateSostenuto(p, mfH );  
+
   // write the updated MIDI file
   if( cmMidiFileWrite( mfH, newMidiFn ) != kOkMfRC )
   {
     rc = cmErrMsg(&p->err,kMidiFileFailSmgRC,"MIDI file write failed on '%s'.",cmStringNullGuard(newMidiFn));
     goto errLabel;
   }
+
+  cmMidiFilePrintMsgs(mfH, p->err.rpt );
 
 
  errLabel:
