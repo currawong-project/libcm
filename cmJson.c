@@ -1423,6 +1423,39 @@ cmJsRC_t   cmJsonObjectNode( const cmJsonNode_t* vp, cmJsonNode_t **retPtrPtr )
   return rc;
 }
 
+cmJsonNode_t* cmJsonFindPair( const cmJsonNode_t* np, const char* label )
+{
+  cmJsRC_t rc = kOkJsRC;
+  cmJsonNode_t* vnp = NULL;
+
+  if((rc = _cmJsonFindMemberValue( np, label, kInvalidTId, &vnp )) != kOkJsRC )
+    return NULL;
+
+  assert( vnp != NULL );
+  
+
+  return vnp->ownerPtr;
+}
+
+cmJsRC_t      cmJsonMemberType( const cmJsonNode_t* np, const char* label, unsigned* typeIdRef )
+{
+  cmJsRC_t rc = kOkJsRC;
+  cmJsonNode_t* vnp = NULL;
+
+  if( typeIdRef != NULL )
+    *typeIdRef = kInvalidTId;
+  
+  if((rc = _cmJsonFindMemberValue( np, label, kInvalidTId, &vnp )) != kOkJsRC )
+    return rc;
+
+  assert( vnp != NULL );
+  
+  if( typeIdRef != NULL )
+    *typeIdRef = vnp->typeId & kMaskTId;
+
+  return rc;
+}
+
 cmJsRC_t      cmJsonUIntMember(    const cmJsonNode_t* np, const char* label, unsigned* retPtr )
 { 
   cmJsonNode_t* vp;

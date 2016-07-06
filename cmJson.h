@@ -172,6 +172,7 @@ extern "C" {
   const cmJsonNode_t* cmJsonFindPathValueC( cmJsonH_t h, const char* path, const cmJsonNode_t* root, unsigned typeIdMask );
   cmJsonNode_t*       cmJsonFindPathValue(  cmJsonH_t h, const char* path, const cmJsonNode_t* root, unsigned typeIdMask );
 
+  
   // Return the node value. If 'np' does not point to the same type as
   // specified in '*retPtr' then the value is converted if possible.
   // If the value cannot be converted function returns a 'kNodeCannotCvtJsRC'
@@ -187,10 +188,16 @@ extern "C" {
 
 
   // Return the label from a pair object.
-  const char* cmJsonPairLabel(  const cmJsonNode_t* pairPtr );
-  unsigned    cmJsonPairTypeId( const cmJsonNode_t* pairPtr );
+  const char*   cmJsonPairLabel(  const cmJsonNode_t* pairPtr );
+  unsigned      cmJsonPairTypeId( const cmJsonNode_t* pairPtr );
   cmJsonNode_t* cmJsonPairValue( cmJsonNode_t* pairPtr );
 
+  // Return a labelled pair node from an object.
+  cmJsonNode_t* cmJsonFindPair( const cmJsonNode_t* objectNodePtr, const char* label );
+  
+  // Return the type of a member value.
+  cmJsRC_t     cmJsonMemberType( const cmJsonNode_t* objectNodePtr, const char* label, unsigned* typeIdRef );
+  
   // Return values associated with the member values in the object
   // pointed to by object objectNodePtr.
   cmJsRC_t      cmJsonUIntMember(   const cmJsonNode_t* objectNodePtr, const char* label, unsigned* retPtr );
