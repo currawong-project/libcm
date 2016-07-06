@@ -23,13 +23,13 @@
 enum
 {
   kLocSmgFl     = 0x0001,
-  kBarSmgFl     = 0x0002,
-  kNoteSmgFl    = 0x0004,
-  kPedalSmgFl   = 0x0008,
-  kSostSmgFl    = 0x0010,
-  kMidiSmgFl    = 0x0020,
-  kNoMatchSmgFl = 0x0040,
-  kPedalDnSmgFl = 0x0080
+  kBarSmgFl     = 0x0002, // score bar
+  kNoteSmgFl    = 0x0004, // score note
+  kPedalSmgFl   = 0x0008, // sore damper|sot pedal
+  kSostSmgFl    = 0x0010, // score sost pedal
+  kMidiSmgFl    = 0x0020, // midi msg
+  kNoMatchSmgFl = 0x0040, // midi or score events that were not matched 
+  kPedalDnSmgFl = 0x0080  // score pedal is down
 };
 
 // Graphic box representing a score label or MIDI event
@@ -684,13 +684,16 @@ cmSmgRC_t _cmScoreMatchGraphicUpdateSostenuto( cmSmg_t* p, cmMidiFileH_t mfH )
   cmSmgRC_t rc = kOkSmgRC;
   unsigned i, j = cmInvalidIdx;
   bool pedalUpFl = false;
-  
+
+  // for each score event
   for(i=0; i<p->scN; ++i)
   {
+    
     switch( p->scV[i].type )
     {
       case kNonEvtScId:
         {
+          // if the pedalUpFl is set then insert a sost-pedal-up msg before this note.
           if( pedalUpFl )
           {
             _cmScoreMatchGraphicInsertMidiMsg(p, mfH, false, p->scV + i );
