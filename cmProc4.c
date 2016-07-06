@@ -2687,6 +2687,7 @@ cmRC_t cmScModulatorFree(  cmScModulator** pp )
     return rc;
 
   cmMemFree(p->earray);
+  cmMemFree(p->xlist);
   cmObjFree(pp);
   return rc;
 }
@@ -2700,11 +2701,12 @@ typedef struct
 
 _cmScModTypeMap_t _cmScModTypeArray[] =
 {
-  { kDeclModTId,    0, "decl" },
-  { kSetModTId,     1, "set" },
-  { kLineModTId,    2, "line" },
+  { kDeclModTId,    0, "decl"  },
+  { kSetModTId,     1, "set"   },
+  { kLineModTId,    2, "line"  },
   { kSetLineModTId, 3, "sline" },
-  { kPostModTId,    4, "post" },
+  { kPostModTId,    4, "post"  },
+  { kExecModTId,    5, "exec"  },
   { kInvalidModTId, 0, "<invalid>"}
 };
 
@@ -2716,6 +2718,16 @@ const _cmScModTypeMap_t*  _cmScModTypeLabelToMap( const cmChar_t* label )
       return _cmScModTypeArray + i;
 
   return NULL;
+}
+
+const _cmScModTypeMap_t* _cmScModTypeIdToMap( unsigned typeId )
+{
+  unsigned i;
+  for(i=0; _cmScModTypeArray[i].typeId!=kInvalidModTId; ++i)
+    if( _cmScModTypeArray[i].typeId == typeId )
+      return _cmScModTypeArray + i;
+
+  return NULL;  
 }
 
 cmScModVar_t* _cmScModSymToVar( cmScModulator* p, unsigned varSymId )
@@ -2752,14 +2764,14 @@ cmScModVar_t* _cmScModulatorInsertVar( cmScModulator* p, unsigned varSymId, unsi
   return vp;
 }
 
-cmScModEntry_t* _cmScModulatorInsertEntry(cmScModulator* p, unsigned idx, unsigned scLocIdx, unsigned modSymId, unsigned varSymId, unsigned typeId, unsigned paramCnt )
+cmScModEntry_t* _cmScModulatorInsertEntry(cmScModulator* p, unsigned idx, unsigned scLocIdx, unsigned modSymId, unsigned varSymId, unsigned typeId, unsigned entryFlags, unsigned paramCnt )
 {
   assert( idx < p->en );
 
   p->earray[idx].scLocIdx = scLocIdx;
   p->earray[idx].typeId   = typeId;
   p->earray[idx].varPtr   = _cmScModulatorInsertVar(p,varSymId,0);
-
+  p->earray[idx].flags    = entryFlags;
 
   if( p->earray[idx].varPtr->outVarId == cmInvalidIdx )
     p->earray[idx].varPtr->outVarId = p->outVarCnt++;
@@ -2821,6 +2833,86 @@ cmScModEntry_t* _cmScModulatorInsertEntry(cmScModulator* p, unsigned idx, unsign
 }
 
 
+void _cmScProcessEntryGroups( cmScModulator* p )
+{
+  unsigned i=0;
+
+  cmScModEntryGroup_t* g0 = NULL;
+  cmScModEntryGroup_t* g1 = p->glist;
+  
+  while( i<p->en )
+  {
+    // if this is the first entry in a group
+    if( cmIsFlag(p->earray[i].flags , kLocLabelEntryFl ) )
+    {
+      // if no group record is avaiable ...
+      if( g1 == NULL )
+      {
+        // ... then allocate one and ...
+        g1 = cmMemAllocZ(cmScModEntryGroup_t,1);
+
+        // ... link it to the end of the group list
+        if( g0 == NULL )
+          p->glist = g1;
+        else
+          g0->link = g1;
+                
+      }
+
+      unsigned j;
+
+      g1->n = 0;
+      
+      // get a count of the entries in this group
+      while( i<p->en && p->earray[i+g1->n].scLocIdx == p->earray[i].scLocIdx )
+        g1->n += 1;
+      
+      // allocate an array to hold the group
+      g1->base = cmMemResizeZ(cmScModEntry_t*,g1->base,g1->n);
+
+      for(j=0; j<g1->n; ++j)
+        g1->base[j] = p->earray + i + j;
+
+      i += g1->n;
+
+      // make the next group record available
+      g0 = g1;
+      g1 = g1->link;
+
+
+
+    }
+    else
+    {
+      i += 1;
+    }
+  }
+
+  // set successive records as invalid
+  for(; g1 != NULL; g1=g1->link)
+    g1->base = NULL;
+
+}
+
+void _cmScProcessExecList( cmScModulator* p )
+{
+  unsigned i,j;
+  unsigned n = 0;
+  for(i=0; i<p->en; ++i)
+    if( cmIsNotFlag(p->earray[i].flags,kLocLabelEntryFl) )
+      n += 1;
+
+  p->xlist = cmMemResizeZ(cmScModEntry_t*,p->xlist,n);
+  p->xn    = n;
+
+  
+  for(i=0,j=0; i<p->en; ++i)
+    if( cmIsNotFlag(p->earray[i].flags,kLocLabelEntryFl) )
+      p->xlist[j++] = p->earray + i;
+  
+  assert( j == p->xn );
+}
+
 cmRC_t _cmScModulatorParse( cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, const cmChar_t* fn )
 {
   cmRC_t        rc  = cmOkRC;
@@ -2847,13 +2939,15 @@ cmRC_t _cmScModulatorParse( cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, con
   p->earray         = cmMemResizeZ(cmScModEntry_t,p->earray,entryCnt);
   p->en             = entryCnt;
 
-  unsigned        prvScLocIdx = cmInvalidIdx;
+  unsigned        prvScLocIdx   = cmInvalidIdx;
   const cmChar_t* prvModLabel   = NULL;
   const cmChar_t* prvVarLabel   = NULL;
   const cmChar_t* prvTypeLabel  = NULL;
+  unsigned        prvEntryFlags = 0;
+  
   for(i=0; i<entryCnt; ++i)
   {
-    cmJsRC_t                 jsRC;
+    cmJsRC_t                 jsRC        = kOkJsRC;
     const char*              errLabelPtr = NULL;
     unsigned                 scLocIdx    = cmInvalidIdx;
     const cmChar_t*          modLabel    = NULL;
@@ -2862,9 +2956,43 @@ cmRC_t _cmScModulatorParse( cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, con
     cmJsonNode_t*            onp         = cmJsonArrayElement(jnp,i);
     cmJsonNode_t*            dnp         = NULL;
     const _cmScModTypeMap_t* map         = NULL;
+    unsigned                 locTypeId   = kIntTId;
+    unsigned                 entryFlags  = cmInvalidId;
 
-    if((jsRC = cmJsonMemberValues( onp, &errLabelPtr, 
-          "loc", kIntTId    | kOptArgJsFl, &scLocIdx,
+    // if a 'loc' field was specified for this label
+    if( cmJsonFindPair( onp, "loc" ) != NULL )
+    {
+      const cmChar_t*  locLabel = NULL;
+
+      // get the type of the 'loc' value field
+      if( cmJsonMemberType(onp, "loc", &locTypeId) == kOkJsRC )
+      {
+        // read the 'loc' value field
+        if( locTypeId == kStringTId )
+          rc         = cmJsonStringMember( onp, "loc", &locLabel );
+        else
+          rc       = cmJsonUIntMember( onp, "loc", &scLocIdx);
+        
+      }
+
+      // check for parsing errors
+      if( rc != kOkJsRC )
+      {
+        rc = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Error:Reading 'loc' field on record at index %i in file:%s",i,cmStringNullGuard(fn) );
+        goto errLabel;
+      }
+
+      // if a label was given then convert it to a symbol id
+      if( locLabel != NULL )
+      {
+        scLocIdx   = cmSymTblRegisterSymbol(stH,locLabel);
+        entryFlags = kLocLabelEntryFl; 
+      }
+      
+    }
+
+          
+    if((jsRC = cmJsonMemberValues( onp, &errLabelPtr,
           "mod", kStringTId | kOptArgJsFl, &modLabel,
           "var", kStringTId | kOptArgJsFl, &varLabel,
           "type",kStringTId | kOptArgJsFl, &typeLabel,
@@ -2882,6 +3010,12 @@ cmRC_t _cmScModulatorParse( cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, con
       scLocIdx = prvScLocIdx;
     else
       prvScLocIdx = scLocIdx;
+
+    // if the flags field was not specified
+    if( entryFlags == cmInvalidId )
+      entryFlags = prvEntryFlags;
+    else
+      prvEntryFlags = entryFlags;
 
     // if the mod label was not given use the previous one
     if( modLabel == NULL )
@@ -2940,7 +3074,7 @@ cmRC_t _cmScModulatorParse( cmScModulator* p, cmCtx_t* ctx, cmSymTblH_t stH, con
     unsigned paramCnt = cmJsonChildCount(onp);
 
     // fill the entry record and find or create the target var
-    cmScModEntry_t* ep = _cmScModulatorInsertEntry(p,i,scLocIdx,modSymId,varSymId,map->typeId,paramCnt);
+    cmScModEntry_t* ep = _cmScModulatorInsertEntry(p,i,scLocIdx,modSymId,varSymId,map->typeId,entryFlags,paramCnt);
 
     typedef struct
     {
@@ -2994,6 +3128,10 @@ cmRC_t  _cmScModulatorReset( cmScModulator* p, cmCtx_t* ctx, unsigned scLocIdx )
   if((rc = _cmScModulatorParse(p,ctx,p->stH,p->fn)) != cmOkRC )
     goto errLabel;
 
+  _cmScProcessEntryGroups(p);  // fill p->glist
+
+  _cmScProcessExecList(p);     // fill p->xlist
+
 
   // clear the active flag on all variables
   cmScModVar_t* vp = p->vlist;
@@ -3043,6 +3181,17 @@ cmRC_t cmScModulatorFinal( cmScModulator* p )
     cmMemFree(vp);
     vp=np;
   }
+
+  // release each group record
+  cmScModEntryGroup_t* g = p->glist;
+  while( g != NULL )
+  {
+    cmScModEntryGroup_t* g0 = g->link;
+    cmMemFree(g->base);
+    cmMemFree(g);
+    g = g0;
+  }
+  p->glist = NULL;
 
   return cmOkRC;
 }
@@ -3149,6 +3298,22 @@ cmRC_t  _cmScModGetParam( cmScModulator* p, const cmScModParam_t* pp, double* va
   return rc;
 }
 
+cmRC_t  _cmScModExecEntries( cmScModulator* p, cmScModEntry_t** xparray, unsigned* idxRef, unsigned cnt, unsigned scLocIdx );
+
+cmRC_t  _cmScModExecGroup( cmScModulator* p, cmScModEntry_t* ep )
+{
+  cmScModEntryGroup_t* g = p->glist;
+  for(; g!=NULL; g=g->link)
+    if( g->base != NULL && g->base[0]->scLocIdx == ep->beg.symId )
+    {
+      unsigned idx = 0;
+
+      return  _cmScModExecEntries( p, g->base, &idx, g->n, ep->beg.symId );
+    }
+
+  return cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Entry group '%s' not found.",cmSymTblLabel(p->stH,ep->beg.symId));    
+}
+
 // Type specific variable activation - 
 cmRC_t _cmScModActivate(cmScModulator* p, cmScModEntry_t* ep )
 {
@@ -3189,6 +3354,10 @@ cmRC_t _cmScModActivate(cmScModulator* p, cmScModEntry_t* ep )
 
     case kPostModTId:
       p->postFl = vp->value;
+      break;
+
+    case kExecModTId:
+      rc = _cmScModExecGroup(p,ep);
       break;
 
     default:
@@ -3270,6 +3439,10 @@ bool  _cmScModExec( cmScModulator* p, cmScModVar_t* vp )
       sendFl = false;
       break;
 
+    case kExecModTId:
+      sendFl = false;
+      break;
+
     default:
       { assert(0); }
   }
@@ -3290,16 +3463,21 @@ bool  _cmScModExec( cmScModulator* p, cmScModVar_t* vp )
   return fl;
 }
 
-
-cmRC_t cmScModulatorExec( cmScModulator* p, unsigned scLocIdx )
+// Execute the entries in xparray[] begining with entry xparray[idx] and continuing until:
+// 1) cnt - idx entries have been executed
+// 2) an entry is located whose scLocIdx != scLocIdx and also not -1
+cmRC_t  _cmScModExecEntries( cmScModulator* p, cmScModEntry_t** xparray, unsigned* idxRef, unsigned cnt, unsigned scLocIdx )
 {
+  assert( idxRef != NULL );
+  
   cmRC_t trc;
   cmRC_t rc = cmOkRC;
-
+  unsigned idx = *idxRef;
+  
   // trigger entries that have expired since the last call to this function
-  for(; p->nei<p->en && (p->earray[p->nei].scLocIdx==-1 || p->earray[p->nei].scLocIdx<=scLocIdx); ++p->nei)
+  for(; idx<cnt && (xparray[idx]->scLocIdx==-1 || xparray[idx]->scLocIdx<=scLocIdx); ++idx)
   {
-    cmScModEntry_t* ep = p->earray + p->nei;
+    cmScModEntry_t* ep = xparray[idx];
 
     // if the variable assoc'd with this entry is not on the active list ...
     if( cmIsFlag(ep->varPtr->flags,kActiveModFl) == false )
@@ -3328,7 +3506,54 @@ cmRC_t cmScModulatorExec( cmScModulator* p, unsigned scLocIdx )
     ep->varPtr->entry = ep;
 
   }
-    
+
+  *idxRef = idx;
+  
+  return rc;
+}
+
+
+cmRC_t cmScModulatorExec( cmScModulator* p, unsigned scLocIdx )
+{
+  cmRC_t rc = cmOkRC;
+  /*
+  cmRC_t trc;
+
+  // trigger entries that have expired since the last call to this function
+  for(; p->nei<p->xn && (p->xlist[p->nei]->scLocIdx==-1 || p->xlist[p->nei]->scLocIdx<=scLocIdx); ++p->nei)
+  {
+    cmScModEntry_t* ep = p->xlist[p->nei];
+
+    // if the variable assoc'd with this entry is not on the active list ...
+    if( cmIsFlag(ep->varPtr->flags,kActiveModFl) == false )
+    {
+      // ... then append it to the end of the active list ...
+      ep->varPtr->flags |= kActiveModFl; 
+
+      if( p->elist == NULL )
+        p->elist = ep->varPtr;
+      else
+      {
+        p->elist->alink = ep->varPtr;
+        p->elist        = ep->varPtr;
+      }
+
+      p->elist->alink = NULL;
+
+      if( p->alist == NULL )
+        p->alist = ep->varPtr;
+    }
+
+    // do type specific activation
+    if((trc = _cmScModActivate(p,ep)) != cmOkRC )
+      rc = trc;
+
+    ep->varPtr->entry = ep;
+
+  }
+  */
+  
+  rc =  _cmScModExecEntries(p, p->xlist, &p->nei, p->xn, scLocIdx );
   
   // Update the active variables
   cmScModVar_t* pp = NULL;
@@ -3403,7 +3628,16 @@ cmRC_t  cmScModulatorDump(  cmScModulator* p )
   for(i=0; i<p->en; ++i)
   {
     cmScModEntry_t* ep = p->earray + i;
-    printf("%3i %4i %2i %7s ", i, ep->scLocIdx, ep->typeId, cmSymTblLabel(p->stH,ep->varPtr->varSymId));
+    const _cmScModTypeMap_t* tm = _cmScModTypeIdToMap( ep->typeId );
+
+    printf("%3i ",i);
+
+    if( cmIsFlag(ep->flags,kLocLabelEntryFl) )
+      printf("%10s ",cmSymTblLabel(p->stH,ep->scLocIdx));
+    else
+      printf("%10i ",ep->scLocIdx);
+    
+    printf("%5s %7s", tm==NULL ? "invld" : tm->label, cmSymTblLabel(p->stH,ep->varPtr->varSymId));
     _cmScModDumpParam(p," beg", &ep->beg);
     _cmScModDumpParam(p," end", &ep->end);
     _cmScModDumpParam(p," min", &ep->min);

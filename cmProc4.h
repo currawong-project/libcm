@@ -425,6 +425,7 @@ extern "C" {
     line   = ramp from its current value to <val> over <dur> seconds
     sline  = set <var> to <val> and ramp to <end> over <dur> seconds
     post   = send a 'post' msg after each transmission (can be used to change the cross-fader after each msg)
+    exec   = execute the entry group <val>
 
   */
   enum
@@ -434,7 +435,8 @@ extern "C" {
     kSetModTId,      // set variable to parray[0] at scLocIdx
     kLineModTId,     // linear ramp variable to parray[0] over parray[1] seconds
     kSetLineModTId,  // set variable to parray[0] and ramp to parray[1] over parray[2] seconds
-    kPostModTId,     // 
+    kPostModTId,     //
+    kExecModTId      // execute an entry group 
   };
 
   enum
@@ -475,12 +477,13 @@ extern "C" {
     struct cmScModVar_str*   alink;    // p->alist link
   } cmScModVar_t;
 
-
+  enum { kLocLabelEntryFl = 0x01 };
 
   // Each entry gives a time tagged location and some parameters 
   // for an algorthm which is used to set/modulate a value.
   typedef struct cmScModEntry_str
   {
+    unsigned       flags;         // { kLocLabelEntryFl }
     unsigned       scLocIdx;      // entry start time
     unsigned       typeId;        // variable type
     cmScModParam_t beg;           // parameter values
@@ -491,6 +494,13 @@ extern "C" {
     cmScModParam_t rate;          // update rate in milliseconds (DBL_MAX to disable)
     cmScModVar_t*  varPtr;        // target variable 
   } cmScModEntry_t;
+
+  typedef struct cmScModEntryGroup_str
+  {
+    cmScModEntry_t**              base;
+    unsigned                      n;
+    struct cmScModEntryGroup_str* link;
+  } cmScModEntryGroup_t;
 
   typedef void (*cmScModCb_t)( void* cbArg, unsigned varSymId, double value, bool postFl );
 
@@ -512,6 +522,9 @@ extern "C" {
     unsigned        nei;          // next entry index
     unsigned        outVarCnt;    // count of unique vars that are targets of entry recds
     bool            postFl;       // send a 'post' msg after each transmission
+    cmScModEntry_t**     xlist;
+    unsigned             xn;
+    cmScModEntryGroup_t* glist;
   } cmScModulator;
 
 
