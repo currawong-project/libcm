@@ -58,8 +58,8 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   if( krLoadRsrc(h,&err,&r) != kOkDspRC )
     return rc;
 
-  cmDspInst_t* ai0p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 0);
-  cmDspInst_t* ai1p = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 1);
+  cmDspInst_t* ai0 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 0);
+  cmDspInst_t* ai1 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 1);
   
   cmDspInst_t* tlp  = cmDspSysAllocInst(h,"TimeLine",    "tl",  2, r.tlFn, r.tlPrefixPath );
   cmDspInst_t* scp  = cmDspSysAllocInst(h,"Score",       "sc",  1, r.scFn );
@@ -85,8 +85,10 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   _cmDspSys_TlXformChain(h, &c1, preGrpSymId, cmpPreGrpSymId, modp, 1, 1 );
 
 
-  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 2 );
-  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 );
+  cmDspInst_t* ao0 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 4 ); // Piano     1 Output
+  cmDspInst_t* ao1 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 5 ); //           2
+  cmDspInst_t* ao2 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 2 ); // Transform 1 OUtput
+  cmDspInst_t* ao3 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 ); //           2
 
   cmDspSysNewPage(h,"Main");
   cmDspInst_t* onb  = cmDspSysAllocInst(h,"Button", "start",   2, kButtonDuiId, 1.0 );
@@ -107,8 +109,10 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* igain1 = cmDspSysAllocInst(h,"Scalar", "In Gain-1",    5, kNumberDuiId, 0.0,   100.0,0.01,   1.0 );  
 
   //cmDspSysNewColumn(h,0);
-  cmDspInst_t* ogain0 = cmDspSysAllocInst(h,"Scalar", "Out Gain-0",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
-  cmDspInst_t* ogain1 = cmDspSysAllocInst(h,"Scalar", "Out Gain-1",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
+  cmDspInst_t* ogain0 = cmDspSysAllocInst(h,"Scalar", "Dry Out Gain-0",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
+  cmDspInst_t* ogain1 = cmDspSysAllocInst(h,"Scalar", "Dry Out Gain-1",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
+  cmDspInst_t* ogain2 = cmDspSysAllocInst(h,"Scalar", "Wet Out Gain-2",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
+  cmDspInst_t* ogain3 = cmDspSysAllocInst(h,"Scalar", "Wet Out Gain-3",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
 
   // Audio file recording
   cmDspInst_t* recdGain= cmDspSysAllocInst(h,"Scalar", "Recd Gain",  5, kNumberDuiId, 0.0,   100.0,0.01, 1.5 );  
@@ -152,25 +156,22 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, recdChk, "out", recdPtS, "off",   NULL );
   cmDspSysInstallCb(h, recdPtS, "out", afop,    "sel",   NULL );
 
-
   // Audio connections
-  cmDspSysConnectAudio( h, ai0p,   "out", mi0p,   "in" );  //
-  cmDspSysConnectAudio( h, ai0p,   "out", c0.kr0, "in" );  // ain -> ch0.kr0
-  cmDspSysConnectAudio( h, ai0p,   "out", c0.kr1, "in" );  // ain -> ch0.kr1
-  cmDspSysConnectAudio( h, c0.cmp, "out", ao0p,   "in" );  // ch0.cmp -> aout
-  cmDspSysConnectAudio( h, c0.cmp, "out", afop,   "in0");  // ch0.cmp -> audio_file_out
-
-  cmDspSysConnectAudio( h, ai1p,   "out",   mi1p,   "in" );  //
-  cmDspSysConnectAudio( h, ai1p,   "out",   c1.kr0, "in" );  // ain -> ch1.kr0
-  cmDspSysConnectAudio( h, ai1p,   "out",   c1.kr1, "in" );  // ain -> ch1.kr1
-  cmDspSysConnectAudio( h, c1.cmp, "out",   ao1p,   "in" );  // ch1.cmp -> aout
-  cmDspSysConnectAudio( h, c1.cmp, "out",   afop,   "in1");  // ch1.cmp ->audio_file_out
+  cmDspSysConnectAudio( h, ai0,   "out", ao0,   "in" );  //  dry signal through 
+  cmDspSysConnectAudio( h, ai1,   "out", ao1,   "in" );  //
   
-  //cmDspSysConnectAudio(h, ai0p, "out", afop, "in0" );    // comp -> audio_file_out
-  //cmDspSysConnectAudio(h, ai1p, "out", afop, "in1" );
+  cmDspSysConnectAudio( h, ai0,   "out", mi0p,   "in" );  //
+  cmDspSysConnectAudio( h, ai0,   "out", c0.kr0, "in" );  // ain -> ch0.kr0
+  cmDspSysConnectAudio( h, ai0,   "out", c0.kr1, "in" );  // ain -> ch0.kr1
+  cmDspSysConnectAudio( h, c0.cmp,"out", ao2,    "in" );  // ch0.cmp -> aout
+  cmDspSysConnectAudio( h, c0.cmp,"out", afop,   "in0");  // ch0.cmp -> audio_file_out
 
-  //cmDspSysConnectAudio(h, ai0p, "out", ao0p, "in" );     // direct through from ain to aout
-  //cmDspSysConnectAudio(h, ai1p, "out", ao1p, "in" );     //    
+  cmDspSysConnectAudio( h, ai1,   "out", mi1p,   "in" );  //
+  cmDspSysConnectAudio( h, ai1,   "out", c1.kr0, "in" );  // ain -> ch1.kr0
+  cmDspSysConnectAudio( h, ai1,   "out", c1.kr1, "in" );  // ain -> ch1.kr1
+  cmDspSysConnectAudio( h, c1.cmp,"out", ao3,    "in" );  // ch1.cmp -> aout
+  cmDspSysConnectAudio( h, c1.cmp,"out", afop,   "in1");  // ch1.cmp ->audio_file_out
+  
 
 
   cmDspSysInstallCb( h, clrBtn, "sym",    amp, "cmd",   NULL ); // clear active meas.
@@ -215,19 +216,19 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, onb,  "sym",    mfpRt,"s-in",  NULL );
   cmDspSysInstallCb(h, mfpRt,"s-out-0",mfp,  "sel",   NULL );
 
-  cmDspSysInstallCb(h, onb, "sym",     pts,   "on",    NULL );
-  cmDspSysInstallCb(h, pts, "on",      modp,  "cmd",   NULL );
-  cmDspSysInstallCb(h, onb, "sym",     amCmd, "rewind",NULL );
+  cmDspSysInstallCb(h, onb, "sym",     pts,     "on",     NULL );
+  cmDspSysInstallCb(h, pts, "on",      modp,    "cmd",    NULL );
+  cmDspSysInstallCb(h, onb, "sym",     amCmd,   "rewind", NULL );
   cmDspSysInstallCb(h, onb, "out",     c0.achan,"reset",  NULL );
   cmDspSysInstallCb(h, onb, "out",     c1.achan,"reset",  NULL );
 
   // stop connections
-  cmDspSysInstallCb(h, tlp,  "mfn", pts, "off", NULL ); // Prevents WT start on new audio file from TL.
-  cmDspSysInstallCb(h, offb, "sym", mfp, "sel", NULL ); 
-  cmDspSysInstallCb(h, offb, "sym", pts, "off", NULL );
-  cmDspSysInstallCb(h, pts,  "off", modp,"cmd", NULL );
+  cmDspSysInstallCb(h, tlp,  "mfn", pts, "off",   NULL ); // Prevents WT start on new audio file from TL.
+  cmDspSysInstallCb(h, offb, "sym", mfp, "sel",   NULL ); 
+  cmDspSysInstallCb(h, offb, "sym", pts, "off",   NULL );
+  cmDspSysInstallCb(h, pts,  "off", modp,"cmd",   NULL );
   cmDspSysInstallCb(h, offb, "sym", mop, "reset", NULL );
-  cmDspSysInstallCb(h, offb, "sym", mo2p, "reset", NULL );
+  cmDspSysInstallCb(h, offb, "sym", mo2p,"reset", NULL );
 
 
   // time-line to MIDI file player selection
@@ -236,9 +237,9 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, tlp, "mfn",  mfp, "fn",    NULL );
   
   // score to score follower - to set initial search location
-  cmDspSysInstallCb(h, scp, "sel",    sfp, "index",  NULL );
+  cmDspSysInstallCb(h, scp, "sel",    sfp, "index", NULL );
   cmDspSysInstallCb(h, scp, "sel",    modp,"reset", NULL );
-  cmDspSysInstallCb(h, scp, "sel",    prp, "in", NULL );
+  cmDspSysInstallCb(h, scp, "sel",    prp, "in",    NULL );
 
   // MIDI file player to score follower and sampler
   cmDspSysInstallCb(h, mfp,  "smpidx",  sfp, "smpidx",NULL );
@@ -264,11 +265,19 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, sfp, "out",     modp,    "index", NULL );
   cmDspSysInstallCb(h, sfp, "recent",  prp,     "in",  NULL );  // report 'recent' but only act on 'max' loc index
 
-  cmDspSysInstallCb(h, igain0, "val", ai0p, "gain", NULL );   // input gain control
-  cmDspSysInstallCb(h, igain1, "val", ai1p, "gain", NULL );
+  cmDspSysInstallCb(h, igain0, "val", ai0, "gain", NULL );   // input gain control
+  cmDspSysInstallCb(h, igain1, "val", ai1, "gain", NULL );
 
-  cmDspSysInstallCb(h, ogain0, "val", ao0p, "gain", NULL );   // output gain control
-  cmDspSysInstallCb(h, ogain1, "val", ao1p, "gain", NULL );
+
+  cmDspSysInstallCb(h, modp, "dgain0",  ogain0, "val",  NULL );
+  cmDspSysInstallCb(h, modp, "dgain1",  ogain1, "val",  NULL );
+  cmDspSysInstallCb(h, modp, "wgain0",  ogain2, "val",  NULL );
+  cmDspSysInstallCb(h, modp, "wgain1",  ogain3, "val",  NULL );
+
+  cmDspSysInstallCb(h, ogain0, "val", ao0, "gain", NULL );   // output gain control - dry 0
+  cmDspSysInstallCb(h, ogain1, "val", ao1, "gain", NULL );   //                       dry 1
+  cmDspSysInstallCb(h, ogain2, "val", ao2, "gain", NULL );   //                       wet 0
+  cmDspSysInstallCb(h, ogain3, "val", ao3, "gain", NULL );   //                       wet 1
 
 
   return rc;

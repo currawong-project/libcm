@@ -339,6 +339,7 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspSysInstallCb(h, modp, mlbl("upr"),  upr_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("lwr"),  lwr_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("off"),  off_ctl, "val", NULL );
+  cmDspSysInstallCb(h, modp, mlbl("wet"),  wet_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("mint"), min_thr_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("maxt"), max_thr_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("minu"), min_upr_ctl, "val", NULL );
