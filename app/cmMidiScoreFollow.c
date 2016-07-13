@@ -150,13 +150,13 @@ void _cmMsf_ScoreFollowCb( struct cmScMatcher_str* p, void* arg, cmScMatcherResu
 cmMsfRC_t cmMidiScoreFollowMain( cmCtx_t* ctx )
 {
   cmMsfRC_t             rc          = kOkMsfRC;
-  //const cmChar_t* scoreFn         = cmFsMakeUserFn("src/kc/src/kc/data","mod2e","csv",NULL);
-  const cmChar_t*          scoreFn  = cmFsMakeUserFn("temp","a7","csv",NULL);
-  const cmChar_t*          midiFn   = cmFsMakeUserFn("media/projects/imag_themes/scores/gen","round1-utf8_11","mid",NULL);
-  const cmChar_t*          outFn    = cmFsMakeUserFn("temp","match","txt",NULL);
-  const cmChar_t*          svgFn    = cmFsMakeUserFn("temp","score0","html",NULL);
-  const cmChar_t*          newMidiFn= cmFsMakeUserFn("temp","a7","mid",NULL);
-  const cmChar_t*          tlBarFn  = cmFsMakeUserFn("temp","time_line_temp","txt",NULL);
+  //const cmChar_t* scoreFn         = cmFsMakeUserDirFn("src/kc/src/kc/data","mod2e.csv");
+  const cmChar_t*          scoreFn  = cmFsMakeUserDirFn("temp","a7.csv");
+  const cmChar_t*          midiFn   = cmFsMakeUserDirFn("media/projects/imag_themes/scores/gen","round1-utf8_11.mid");
+  const cmChar_t*          outFn    = cmFsMakeUserDirFn("temp","match.txt");
+  const cmChar_t*          svgFn    = cmFsMakeUserDirFn("temp","score0.html");
+  const cmChar_t*          newMidiFn= cmFsMakeUserDirFn("temp","a7.mid");
+  const cmChar_t*          tlBarFn  = cmFsMakeUserDirFn("temp","time_line_temp.txt");
   
   double                   srate    = 96000.0;
   cmScMatcher*             smp      = NULL;  
