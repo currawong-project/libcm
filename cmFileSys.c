@@ -515,7 +515,12 @@ const cmChar_t* cmFileSysMakeUserDir(  cmFileSysH_t h, const cmChar_t* dir,  ...
   return retPtr;
 }
 
+const cmChar_t* cmFileSysMakeDirFn(    cmFileSysH_t h, const cmChar_t* dir, const cmChar_t* fn )
+{ return cmFileSysMakeFn( h, dir, fn, NULL, NULL); }
 
+const cmChar_t* cmFileSysMakeUserDirFn(cmFileSysH_t h, const cmChar_t* dir, const cmChar_t* fn )
+{ return cmFileSysMakeUserFn(h, dir, fn, NULL, NULL ); }
+    
 void cmFileSysFreeFn( cmFileSysH_t h, const cmChar_t* fn )
 {
   cmFs_t* p = _cmFileSysHandleToPtr(h);
@@ -1247,6 +1252,12 @@ const cmChar_t* cmFsMakeUserFn(  const cmChar_t* dirPrefix, const cmChar_t* fn, 
   va_end(vl);
   return retPtr;
 }
+
+const cmChar_t* cmFsMakeDirFn(const cmChar_t* dir, const cmChar_t* fn )
+{ return cmFileSysMakeDirFn(_cmFsH,dir,fn); }
+
+const cmChar_t* cmFsMakeUserDirFn(const cmChar_t* dir, const cmChar_t* fn )
+{ return cmFileSysMakeUserDirFn(_cmFsH,dir,fn); }
 
 const cmChar_t* cmFsVMakeDir(     const cmChar_t* dir,  va_list vl )
 { return cmFileSysVMakeDir(_cmFsH,dir,vl); }

@@ -104,6 +104,13 @@ extern "C" {
   const cmChar_t* cmFileSysMakeDir(      cmFileSysH_t h, const cmChar_t* dir,  ... );
   const cmChar_t* cmFileSysVMakeUserDir( cmFileSysH_t h, const cmChar_t* dir,  va_list vl );
   const cmChar_t* cmFileSysMakeUserDir(  cmFileSysH_t h, const cmChar_t* dir,  ... );
+
+  // Equivalent to same named cmFileSysMake() functions but assumes a single directory prefix and the file name
+  // extension is attached to 'fn'.  
+  const cmChar_t* cmFileSysMakeDirFn(    cmFileSysH_t h, const cmChar_t* dir, const cmChar_t* fn );
+  
+  // Same as cmFileSysMakeDirFn() but prefixes 'dir' with the users home directory.
+  const cmChar_t* cmFileSysMakeUserDirFn(cmFileSysH_t h, const cmChar_t* dir, const cmChar_t* fn );
   
   // Release the file name created through an earlier call to cmFileSysMakeFn().
   void            cmFileSysFreeFn( cmFileSysH_t h, const cmChar_t* fn );
@@ -242,6 +249,9 @@ extern "C" {
   const cmChar_t* cmFsMakeDir(      const cmChar_t* dirPrefix,  ... );
   const cmChar_t* cmFsVMakeUserDir( const cmChar_t* dirPrefix,  va_list vl );
   const cmChar_t* cmFsMakeUserDir(  const cmChar_t* dirPrefix,  ... );
+
+  const cmChar_t* cmFsMakeDirFn(    const cmChar_t* dir, const cmChar_t* fn );
+  const cmChar_t* cmFsMakeUserDirFn(const cmChar_t* dir, const cmChar_t* fn );
   
   void            cmFsFreeFn(      const cmChar_t* fn );
   cmFsRC_t        cmFsGenFn(       const cmChar_t* dir, const cmChar_t* prefixStr, const cmChar_t* extStr, const cmChar_t** fnPtr );
