@@ -91,13 +91,14 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ao3 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 ); //           2
 
   cmDspSysNewPage(h,"Main");
-  cmDspInst_t* onb  = cmDspSysAllocInst(h,"Button", "start",   2, kButtonDuiId, 1.0 );
-  cmDspInst_t* offb = cmDspSysAllocInst(h,"Button", "stop",    2, kButtonDuiId, 1.0 );
-  cmDspInst_t* prp  = cmDspSysAllocInst(h,"Printer", NULL,   1, ">" );
-  cmDspInst_t* prd  = cmDspSysAllocInst(h,"Printer", NULL,   1, "DYN:" );
-  cmDspInst_t* pre  = cmDspSysAllocInst(h,"Printer", NULL,   1, "EVEN:" );
-  cmDspInst_t* prt  = cmDspSysAllocInst(h,"Printer", NULL,   1, "TEMPO:");
-  cmDspInst_t* prc  = cmDspSysAllocInst(h,"Printer", NULL,   1, "COST:");
+  cmDspInst_t* onb     = cmDspSysAllocInst(h,"Button", "start",   2, kButtonDuiId, 1.0 );
+  cmDspInst_t* offb    = cmDspSysAllocInst(h,"Button", "stop",    2, kButtonDuiId, 1.0 );
+  cmDspInst_t* mod_sel = cmDspSysAllocMsgList(h, NULL, "mod_sel", 1 );
+  cmDspInst_t* prp     = cmDspSysAllocInst(h,"Printer", NULL,   1, ">" );
+  cmDspInst_t* prd     = cmDspSysAllocInst(h,"Printer", NULL,   1, "DYN:" );
+  cmDspInst_t* pre     = cmDspSysAllocInst(h,"Printer", NULL,   1, "EVEN:" );
+  cmDspInst_t* prt     = cmDspSysAllocInst(h,"Printer", NULL,   1, "TEMPO:");
+  cmDspInst_t* prc     = cmDspSysAllocInst(h,"Printer", NULL,   1, "COST:");
 
   // Record <-> Live switches
   cmDspInst_t* tlRt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);  // time line swich
@@ -125,6 +126,9 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* meas    = cmDspSysAllocInst(h,"Scalar", "Meas",    5, kNumberDuiId, 1.0,   59.0,1.0,   1.0 );  
   cmDspSysInstallCb( h, meas, "val", scp, "meas", NULL);
   cmDspSysInstallCb( h, meas, "val", tlp, "meas", NULL);
+
+
+
 
   //--------------- Preset controls
   cmDspSysNewColumn(h,0);
@@ -175,7 +179,7 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
 
 
   cmDspSysInstallCb( h, clrBtn, "sym",    amp, "cmd",   NULL ); // clear active meas.
-  cmDspSysInstallCb( h, prtBtn, "sym",    amp, "cmd",   NULL ); // print active meas
+  cmDspSysInstallCb( h, prtBtn, "sym",    modp, "cmd",   NULL ); // print active meas
   //cmDspSysInstallCb( h, prtBtn, "sym",    scp, "cmd",   NULL ); // print the score
   cmDspSysInstallCb( h, amCmd,  "add",    amp, "cmd",   NULL ); // add active meas
   cmDspSysInstallCb( h, amCmd,  "rewind", amp, "cmd",   NULL ); // rewind active meas
@@ -221,6 +225,8 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, onb, "sym",     amCmd,   "rewind", NULL );
   cmDspSysInstallCb(h, onb, "out",     c0.achan,"reset",  NULL );
   cmDspSysInstallCb(h, onb, "out",     c1.achan,"reset",  NULL );
+
+  cmDspSysInstallCb(h, mod_sel,"out",  modp,  "sel", NULL );
 
   // stop connections
   cmDspSysInstallCb(h, tlp,  "mfn", pts, "off",   NULL ); // Prevents WT start on new audio file from TL.
