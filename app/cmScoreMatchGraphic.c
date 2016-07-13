@@ -625,15 +625,36 @@ cmSmgRC_t cmScoreMatchGraphicGenTimeLineBars( cmSmgH_t h, const cmChar_t* fn, un
   if( cmFileOpen(&f,fn,kWriteFileFl,p->err.rpt)  != kOkFileRC )
     return cmErrMsg(&p->err,kFileSmgRC,"The time-line bar file '%s' could not be created.",cmStringNullGuard(fn));
 
+  // for each MIDI event
   for(i=0; i<p->mN; ++i)
-    if( p->mV[i].matchV != NULL && p->mV[i].matchV->score != NULL && p->mV[i].matchV->score > p->scV && p->mV[i].matchV->score[-1].type==kBarEvtScId )      
+  {
+    // if this MIDI event matched a score event
+    if( p->mV[i].matchV == NULL || p->mV[i].matchV->score == NULL )
+      continue;
+
+    // backup the score position by one location - because we are looking for bar events
+    // which are just prior to note events - because for our purposes they will have the same onset.
+    cmSmgSc_t* s = p->mV[i].matchV->score - 1;
+    for(; s >= p->scV; s-- )
     {
-      unsigned bar = p->mV[i].matchV->score->barNumb;
+      // if this is a bar event just preceding the matched MIDI event - then the bar happens at the same time as the note event
+      if( s->type == kBarEvtScId )
+        break;
+
+      // if this is a note event - then there is no preceding bar event 
+      if( s->type == kNonEvtScId )
+        break;
+    }
+    
+    // if a bar was found
+    if(s >= p->scV && s->type == kBarEvtScId)
+    {
+      unsigned bar    = s->barNumb;
       unsigned offset = p->mV[i].secs * srate;
-      unsigned smpCnt = p->mfDurSecs * srate - offset;
+      unsigned smpCnt = p->mfDurSecs  * srate - offset;
       cmFilePrintf(f,"{ label: \"%i\" type: \"mk\" ref: \"mf-0\" offset: %8i smpCnt:%8i trackId: 0 textStr: \"Bar %3i\" bar: %3i sec:\"%3i\" }\n",bar,offset,smpCnt,bar,bar,bar);
     }
-
+  }
   cmFileClose(&f);
   return rc;
   
