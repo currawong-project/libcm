@@ -477,13 +477,10 @@ extern "C" {
     struct cmScModVar_str*   alink;    // p->alist link
   } cmScModVar_t;
 
-  enum { kLocLabelEntryFl = 0x01 };
-
   // Each entry gives a time tagged location and some parameters 
   // for an algorthm which is used to set/modulate a value.
   typedef struct cmScModEntry_str
   {
-    unsigned       flags;         // { kLocLabelEntryFl }
     unsigned       scLocIdx;      // entry start time
     unsigned       typeId;        // variable type
     cmScModParam_t beg;           // parameter values
@@ -497,8 +494,9 @@ extern "C" {
 
   typedef struct cmScModEntryGroup_str
   {
-    cmScModEntry_t**              base;
-    unsigned                      n;
+    unsigned                      symId;   // this groups label
+    cmScModEntry_t*               earray;  // entries associated with this group
+    unsigned                      en;      // earray[en]
     struct cmScModEntryGroup_str* link;
   } cmScModEntryGroup_t;
 
@@ -514,16 +512,13 @@ extern "C" {
     void*           cbArg;        // first arg to cbFunc()
     unsigned        samplesPerCycle; // interval in samples between calls to cmScModulatorExec()
     double          srate;        // system sample rate
-    cmScModEntry_t* earray;       // earray[en] - entry array sorted on ascending cmScModEntry_t.scLocIdx
-    unsigned        en;           // count 
     cmScModVar_t*   vlist;        // variable list
     cmScModVar_t*   alist;        // active variable list
     cmScModVar_t*   elist;        // last element on the active list
     unsigned        nei;          // next entry index
     unsigned        outVarCnt;    // count of unique vars that are targets of entry recds
     bool            postFl;       // send a 'post' msg after each transmission
-    cmScModEntry_t**     xlist;
-    unsigned             xn;
+    cmScModEntryGroup_t* xlist;
     cmScModEntryGroup_t* glist;
   } cmScModulator;
 
@@ -541,7 +536,7 @@ extern "C" {
 
   cmRC_t         cmScModulatorSetValue( cmScModulator* p, unsigned varSymId, double value, double min, double max );
 
-  cmRC_t         cmScModulatorReset( cmScModulator* p, cmCtx_t* ctx, unsigned scLocIdx );
+  cmRC_t         cmScModulatorReset( cmScModulator* p, cmCtx_t* ctx, unsigned scLocIdx, unsigned entryGroupSymId );
   cmRC_t         cmScModulatorExec(  cmScModulator* p, unsigned scLocIdx );
   cmRC_t         cmScModulatorDump(  cmScModulator* p );
 

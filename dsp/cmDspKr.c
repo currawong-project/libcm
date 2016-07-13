@@ -1236,6 +1236,7 @@ enum
   kScLocIdxMdId,
   kResetIdxMdId,
   kCmdMdId,
+  kSelMdId,
   kPostMdId
 };
 
@@ -1279,6 +1280,7 @@ cmDspInst_t*  _cmDspScModAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     { "index",   kScLocIdxMdId, 0,0, kInDsvFl  | kUIntDsvFl,  "Score follower index input."},
     { "reset",   kResetIdxMdId, 0,0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "Reset the modulator and go to the score index."},
     { "cmd",     kCmdMdId,      0,0, kInDsvFl  | kSymDsvFl  | kOptArgDsvFl, "on | off."},
+    { "sel",     kSelMdId,      0,0, kInDsvFl  | kSymDsvFl  | kOptArgDsvFl, "Set the next active entry group name."},
     { "post",    kPostMdId,     0,0, kOutDsvFl | kSymDsvFl, "Sends 'post' symbol after a message transmission if the 'post' flag is set in scMod."},
     { NULL, 0, 0, 0, 0 }
   };
@@ -1346,6 +1348,7 @@ cmDspInst_t*  _cmDspScModAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
 
   cmDspSetDefaultUInt(ctx,&p->inst,kScLocIdxMdId,0,0);
   cmDspSetDefaultSymbol(ctx,&p->inst,kCmdMdId,p->offSymId);
+  cmDspSetDefaultSymbol(ctx,&p->inst,kSelMdId,cmInvalidId);
   return &p->inst;
 }
 
@@ -1389,7 +1392,7 @@ cmDspRC_t _cmDspScModRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
       {
         unsigned symId = cmDspSymbol(inst,kCmdMdId);
         if( symId == p->onSymId )
-          cmScModulatorReset(p->mp, ctx->cmCtx, cmDspUInt(inst,kScLocIdxMdId));
+          cmScModulatorReset(p->mp, ctx->cmCtx, cmDspUInt(inst,kScLocIdxMdId), cmDspSymbol(inst,kSelMdId));
         
         if( symId == p->dumpSymId )
           cmScModulatorDump(p->mp);
