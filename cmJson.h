@@ -197,7 +197,10 @@ extern "C" {
   
   // Return the type of a member value.
   cmJsRC_t     cmJsonMemberType( const cmJsonNode_t* objectNodePtr, const char* label, unsigned* typeIdRef );
-  
+
+  // Return the pair at the specified index.  Use cmJsonChildCount() to get the count of pairs in the object.
+  cmJsonNode_t* cmJsonMemberAtIndex( cmJsonNode_t* objNodePtr, unsigned idx );
+
   // Return values associated with the member values in the object
   // pointed to by object objectNodePtr.
   cmJsRC_t      cmJsonUIntMember(   const cmJsonNode_t* objectNodePtr, const char* label, unsigned* retPtr );

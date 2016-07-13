@@ -1456,6 +1456,14 @@ cmJsRC_t      cmJsonMemberType( const cmJsonNode_t* np, const char* label, unsig
   return rc;
 }
 
+cmJsonNode_t* cmJsonMemberAtIndex( cmJsonNode_t* objNodePtr, unsigned idx )
+{
+  cmJsonNode_t* cnp = cmJsonArrayElement( objNodePtr, idx );
+  assert( cmJsonIsPair(cnp) );
+  return cnp;
+}  
+
+
 cmJsRC_t      cmJsonUIntMember(    const cmJsonNode_t* np, const char* label, unsigned* retPtr )
 { 
   cmJsonNode_t* vp;
