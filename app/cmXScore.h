@@ -16,7 +16,8 @@ extern "C" {
     kUnterminatedSlurXsRC,
     kUnterminatedOctaveShiftXsrRC,
     kMidiFailXsRC,
-    kFileFailXsRC
+    kFileFailXsRC,
+    kSvgFailXsRC
   };
 
   typedef cmRC_t     cmXsRC_t;
@@ -56,18 +57,17 @@ extern "C" {
   //    the grace note ordering changed specified in 'score_print_mk_edit.txt',
   //    via cmXScoreReorder() however the ticks are now incorrect - fix them.
   
-  cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* midiFn );
+  cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn );
   cmXsRC_t cmXScoreFinalize( cmXsH_t* hp );
 
   bool     cmXScoreIsValid( cmXsH_t h );
 
   cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn );
 
-  cmXsRC_t cmXScoreWriteMidi( cmXsH_t h, const cmChar_t* fn );
-
   void     cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl );
 
-  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* midiFn, const cmChar_t* outFn, const cmChar_t* reorderFn );
+  // Generate the CSV file suitable for use by cmScore.
+  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* reorderFn, const cmChar_t* csvOutFn, const cmChar_t* midiOutFn );
   
 #ifdef __cplusplus
 }

@@ -10,6 +10,7 @@
 #include "cmLinkedHeap.h"
 #include "cmXml.h"
 #include "cmText.h"
+#include "cmFileSys.h"
 #include "cmXScore.h"
 #include "cmTime.h"
 #include "cmMidi.h"
@@ -18,6 +19,7 @@
 #include "cmCsv.h"
 #include "cmSymTbl.h"
 #include "cmScore.h"
+
 
 #include "cmFile.h"
 #include "cmSymTbl.h"
@@ -28,6 +30,8 @@
 #include "cmProc.h"
 #include "cmProc2.h"
 #include "cmProc5.h"
+
+#include "cmSvgWriter.h"
 
 cmXsH_t cmXsNullHandle = cmSTATIC_NULL_HANDLE;
 
@@ -89,6 +93,8 @@ typedef struct cmXsNote_str
 
   const cmXmlNode_t*          xmlNode;  // note xml ptr
 
+  struct cmXsNote_str*        tied;     // subsequent note tied to this note
+
   struct cmXsNote_str*        mlink;    // measure note list
   struct cmXsNote_str*        slink;    // time sorted event list
 
@@ -103,7 +109,7 @@ typedef struct cmXsVoice_str
 
 typedef struct cmXsSpan_str
 {
-  unsigned             staff;
+  unsigned             staff;     
   unsigned             number;
   struct cmXsMeas_str* meas;
   unsigned             tick0;
@@ -374,11 +380,8 @@ cmXsRC_t  _cmXScoreParsePitch( cmXScore_t* p, const cmXmlNode_t* nnp, cmXsNote_t
 
   cmXmlNodeDouble( nnp,&alter,"pitch","alter",NULL);
 
-  cmChar_t buf[3] = { *step, '0', '\0'};
-  unsigned midi = cmSciPitchToMidi(buf);
-
-  midi      += (12 * octave);
-  midi      += alter;
+  int acc = alter;
+  unsigned midi = cmSciPitchToMidiPitch(*step,acc,octave);
 
   np->pitch  = midi;
   np->step   = *step;
@@ -1044,9 +1047,7 @@ void _cmXScoreSpreadGraceNotes( cmXScore_t* p )
          tick1 = _cmXsSpreadGraceNotes(a,ai);
     }
   }
-
 }
-
 
 bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* n0p, bool rptFl )
 {
@@ -1066,8 +1067,8 @@ bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* n0p, boo
       mp  = mp->link;
       nnp = mp->noteL;
 
-    // if a measure was completed and no end note was found ... then the tie is unterminated
-    // (a tie must be continued in every measure which it passes through)
+      // if a measure was completed and no end note was found ... then the tie is unterminated
+      // (a tie must be continued in every measure which it passes through)
       if( mp->number > measNumb + 1 )
         break;
     }
@@ -1080,6 +1081,7 @@ bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* n0p, boo
       {
         nnp->flags |= kTieProcXsFl;
         nnp->flags  = cmClrFlag(nnp->flags,kOnsetXsFl);
+        n0p->tied   = nnp;
 
         if( rptFl )
           printf("---> %i %i %s ",nnp->meas->number,nnp->tick,cmMidiToSciPitch(nnp->pitch,NULL,0));
@@ -1088,6 +1090,8 @@ bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* n0p, boo
         if( cmIsNotFlag(nnp->flags,kTieBegXsFl) )
           return true;
 
+        n0p = nnp;
+        
         // record the measure number of the last note with a tie-start
         measNumb = mp->number;
       }
@@ -1134,15 +1138,19 @@ void  _cmXScoreResolveTiesAndLoc( cmXScore_t* p )
           n += 1;
         }
 
+        // Validate the tie state of the current note.
         if( cmIsFlag(np->flags,kTieEndXsFl) && cmIsFlag(np->flags,kOnsetXsFl) )
         {
           cmChar_t    acc  = np->alter==-1?'b' : (np->alter==1?'#':' ');
           cmErrWarnMsg(&p->err,kUnterminatedTieXsRC,"The tied %c%c%i in measure %i marked as a tied note but is also marked to sound.",np->step,acc,np->octave,mp->number);
         }
 
-        // set the location
+        //
+        // Set the score location of notes marked for onset and bar lines.
+        //
         if( cmIsFlag(np->flags,kOnsetXsFl|kBarXsFl) )
         {
+          // if this note does not share the same location as the previous 'located' note then increment the 'loc' index
           if( cmIsFlag(np->flags,kBarXsFl) || (n0!=NULL && n0->tick!=np->tick))
             locIdx += 1;
 
@@ -1153,7 +1161,7 @@ void  _cmXScoreResolveTiesAndLoc( cmXScore_t* p )
     }
   }
 
-  printf("Found:%i Not Found:%i\n",m,n-m);
+  printf("Tied notes found:%i Not found:%i\n",m,n-m);
 }
 
 cmXsRC_t  _cmXScoreResolveOctaveShift( cmXScore_t* p )
@@ -1362,7 +1370,7 @@ void _cmXScoreFixBarLines( cmXScore_t* p )
   }
 }
 
-cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* midiFn )
+cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn )
 {
   cmXsRC_t rc = kOkXsRC;
 
@@ -2511,12 +2519,124 @@ void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
   }
 }
 
-
-cmXsRC_t cmXScoreWriteMidi( cmXsH_t h, const cmChar_t* fn )
+typedef struct cmXsMidiEvt_str
 {
-  assert(0); // function not implemented
+  unsigned         flags;     // k???XsFl
+  unsigned         tick;      // start tick
+  unsigned         durTicks;  // dur-ticks
+  unsigned         voice;     // score voice number
+  unsigned         d0;        // MIDI d0   (barNumb)
+  unsigned         d1;        // MIDI d1
+  struct cmXsMidiEvt_str* link;
+} cmXsMidiEvt_t;
+
+typedef struct cmXsMidiFile_str
+{
+  cmXsMidiEvt_t* elist;
+  cmXsMidiEvt_t* eol;
+
+  unsigned pitch_min;
+  unsigned pitch_max;
+  
+} cmXsMidiFile_t;
+
+cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, const cmChar_t* dir, const cmChar_t* fn )
+{
+  cmXsRC_t        rc         = kOkXsRC;
+  cmSvgH_t        svgH       = cmSvgNullHandle;
+  cmXsMidiEvt_t*  e          = mf->elist;
+  unsigned        noteHeight = 10;
+  const cmChar_t* svgFn      = cmFsMakeFn(dir,fn,"html",NULL);
+  const cmChar_t* cssFn      = cmFsMakeFn(NULL,fn,"css",NULL);
+  cmChar_t*       t0          = NULL;  // temporary dynamic string
+  // create the SVG writer
+  if( cmSvgWriterAlloc(ctx,&svgH) != kOkSvgRC )
+  {
+    rc = cmErrMsg(&p->err,kSvgFailXsRC,"Unable to create the MIDI SVG output file '%s'.",cmStringNullGuard(svgFn));
+    goto errLabel;
+  }
+
+  // for each MIDI file element
+  for(; e!=NULL && rc==kOkXsRC; e=e->link)
+  {
+    // if this is a note
+    if( cmIsFlag(e->flags,kOnsetXsFl) )
+    {
+      const cmChar_t* classLabel = "note";
+      
+
+      t0 = cmTsPrintfP(t0,"note_%i%s",e->voice, cmIsFlag(e->flags,kGraceXsFl) ? "_g":"");
+      
+      if( cmIsFlag(e->flags,kGraceXsFl) )
+        classLabel = "grace";
+      
+      if( cmSvgWriterRect(svgH, e->tick, e->d0 * noteHeight,  e->durTicks,  noteHeight-1, t0 ) != kOkSvgRC )
+        rc = kSvgFailXsRC;
+      else
+        if( cmSvgWriterText(svgH, e->tick + e->durTicks/2, e->d0 * noteHeight + noteHeight/2, cmMidiToSciPitch( e->d0, NULL, 0), "pitch") != kOkSvgRC )
+          rc = kSvgFailXsRC;
+    }
+
+    // if this is a bar
+    if( cmIsFlag(e->flags,kBarXsFl) )
+    {
+      if( cmSvgWriterLine(svgH, e->tick, 0, e->tick, 127*noteHeight, "bar") != kOkSvgRC )
+        rc = kSvgFailXsRC;
+      else
+      {
+        if( cmSvgWriterText(svgH, e->tick, 10, t0 = cmTsPrintfP(t0,"%i",e->d0), "text" ) != kOkSvgRC )
+          rc = kSvgFailXsRC;
+      }
+    }
+  }
+
+  if( rc != kOkXsRC )
+    cmErrMsg(&p->err,kSvgFailXsRC,"SVG element insert failed.");
+
+  if( rc == kOkXsRC )
+    if( cmSvgWriterWrite(svgH,cssFn,svgFn) != kOkSvgRC )
+      rc = cmErrMsg(&p->err,kSvgFailXsRC,"SVG file write to '%s' failed.",cmStringNullGuard(svgFn));
+  
+ errLabel:
+  cmSvgWriterFree(&svgH);
+  cmFsFreeFn(svgFn);
+  cmFsFreeFn(cssFn);
+  cmMemFree(t0);
+  
+  return rc;
+}
+
+void _cmXsPushMidiEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsigned tick, unsigned durTick, unsigned voice, unsigned d0, unsigned d1 )
+{
+  cmXsMidiEvt_t* e = cmLhAllocZ(p->lhH,cmXsMidiEvt_t,1);
+  e->flags    = flags;
+  e->tick     = tick;
+  e->durTicks = durTick;
+  e->voice    = voice;
+  e->d0       = d0;
+  e->d1       = d1;
+  if( mf->eol != NULL )
+    mf->eol->link = e;
+  else
+    mf->elist = e;
+
+  // track the min/max pitch
+  if( cmIsFlag(flags,kOnsetXsFl) )
+  {
+    mf->pitch_min = mf->eol==NULL ? d0 : cmMin(mf->pitch_min,d0);
+    mf->pitch_max = mf->eol==NULL ? d0 : cmMin(mf->pitch_max,d0);
+  }
+  
+  mf->eol = e;
+}
+
+cmXsRC_t _cmXScoreWriteMidi( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cmChar_t* fn )
+{
   cmXScore_t* p  = _cmXScoreHandleToPtr(h);
   cmXsPart_t* pp = p->partL;
+
+  cmXsMidiFile_t mf;
+  memset(&mf,0,sizeof(mf));
 
   for(; pp!=NULL; pp=pp->link)
   {
@@ -2527,39 +2647,62 @@ cmXsRC_t cmXScoreWriteMidi( cmXsH_t h, const cmChar_t* fn )
       const cmXsNote_t* note = meas->noteL;
       for(; note!=NULL; note=note->slink)
       {
+        // if this is a sounding note
+        if( cmIsFlag(note->flags,kOnsetXsFl) )
+        {
+          unsigned d0      =  cmSciPitchToMidiPitch( note->step, note->alter, note->octave );
+          unsigned durTick = note->duration;
+          if( note->tied != NULL )
+          {
+            cmXsNote_t* tn = note->tied;
+            for(; tn!=NULL; tn=tn->tied)
+              durTick += tn->duration;
+          }
+          _cmXsPushMidiEvent(p,&mf,note->flags,note->tick,durTick,note->voice->id,d0,note->vel);
+          continue;
+        }
 
+        // if this is a bar event
+        if( cmIsFlag(note->flags,kBarXsFl) )
+        {
+          _cmXsPushMidiEvent(p,&mf,note->flags,note->tick,0,0,note->meas->number,0);
+          continue;
+        }
+        
       }
     }
   }
+
+  return _cmXsWriteMidiSvg( ctx, p, &mf, dir, fn );
+
 }
 
 cmXsRC_t cmXScoreTest(
   cmCtx_t* ctx,
   const cmChar_t* xmlFn,
-  const cmChar_t* midiFn,
-  const cmChar_t* outFn,
-  const cmChar_t* reorderFn )
+  const cmChar_t* reorderFn,
+  const cmChar_t* csvOutFn,
+  const cmChar_t* midiOutFn)
 {
   cmXsRC_t rc;
   cmXsH_t h = cmXsNullHandle;
 
-  if((rc = cmXScoreInitialize( ctx, &h, xmlFn, midiFn)) != kOkXsRC )
+  if((rc = cmXScoreInitialize( ctx, &h, xmlFn)) != kOkXsRC )
     return cmErrMsg(&ctx->err,rc,"XScore alloc failed.");
 
   if( reorderFn != NULL )
     cmXScoreReorder(h,reorderFn);
   
-  if( outFn != NULL )
+  if( csvOutFn != NULL )
   {
     cmScH_t scH = cmScNullHandle;
     double srate = 44100.0;
     
-    cmXScoreWriteCsv(h,outFn);
-
+    cmXScoreWriteCsv(h,csvOutFn);
 
     cmSymTblH_t stH = cmSymTblCreate(cmSymTblNullHandle, 0, ctx );
     
-    if( cmScoreInitialize( ctx, &scH, outFn, srate, NULL, 0, NULL, NULL, stH) != kOkScRC )
+    if( cmScoreInitialize( ctx, &scH, csvOutFn, srate, NULL, 0, NULL, NULL, stH) != kOkScRC )
       cmErrMsg(&ctx->err,kFileFailXsRC,"The generated CSV file could not be parsed.");
     else
     {
@@ -2569,11 +2712,20 @@ cmXsRC_t cmXScoreTest(
       cmScoreFinalize(&scH);
     }
 
-    cmSymTblDestroy(&stH);
+    cmSymTblDestroy(&stH); 
+  }
+
+  if( midiOutFn != NULL )
+  {
+    cmFileSysPathPart_t* pp = cmFsPathParts(midiOutFn);
+    
+    _cmXScoreWriteMidi( ctx, h, pp->dirStr, pp->fnStr );
+
+    cmFsFreePathParts(pp);
     
   }
   
-  cmXScoreReport(h,&ctx->rpt,true);
+  //cmXScoreReport(h,&ctx->rpt,true);
 
   return cmXScoreFinalize(&h);
 
