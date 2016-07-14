@@ -18,8 +18,11 @@ cmSRC += src/libcm/cmData.c src/libcm/cmLib.c src/libcm/cmText.c src/libcm/cmTex
 cmHDR += src/libcm/cmMath.h src/libcm/cmGnuPlot.h src/libcm/cmKeyboard.h  src/libcm/cmStrStream.h
 cmSRC += src/libcm/cmMath.c src/libcm/cmGnuPlot.c src/libcm/cmKeyboard.c  src/libcm/cmStrStream.c
 
-cmHDR += src/libcm/cmLinkedHeap.h src/libcm/cmMallocDebug.h src/libcm/cmLex.h src/libcm/cmJson.h src/libcm/cmXml.h src/libcm/cmPrefs.h src/libcm/cmStack.h src/libcm/cmArray.h
-cmSRC += src/libcm/cmLinkedHeap.c src/libcm/cmMallocDebug.c src/libcm/cmLex.c src/libcm/cmJson.c src/libcm/cmXml.c src/libcm/cmPrefs.c src/libcm/cmStack.c src/libcm/cmArray.c
+cmHDR += src/libcm/cmLinkedHeap.h src/libcm/cmMallocDebug.h src/libcm/cmLex.h src/libcm/cmJson.h src/libcm/cmXml.h 
+cmSRC += src/libcm/cmLinkedHeap.c src/libcm/cmMallocDebug.c src/libcm/cmLex.c src/libcm/cmJson.c src/libcm/cmXml.c 
+
+cmHDR += src/libcm/cmPrefs.h src/libcm/cmStack.h src/libcm/cmArray.h src/libcm/cmSvgWriter.h
+cmSRC += src/libcm/cmPrefs.c src/libcm/cmStack.c src/libcm/cmArray.c src/libcm/cmSvgWriter.c
 
 cmHDR += src/libcm/cmUdpPort.h src/libcm/cmUdpNet.h src/libcm/cmVirtNet.h
 cmSRC += src/libcm/cmUdpPort.c src/libcm/cmUdpNet.c src/libcm/cmVirtNet.c
