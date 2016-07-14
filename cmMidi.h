@@ -153,6 +153,11 @@ extern "C" {
   // If 'pitch' is outside of the range 0-127 then a blank string is returned.
   const char*     cmMidiToSciPitch( cmMidiByte_t pitch, char* label, unsigned labelCharCnt );
 
+  // Convert a scientific pitch to MIDI pitch.  acc == 1 == sharp, acc == -1 == flat.
+  // The pitch character must be in the range 'A' to 'G'. Upper or lower case is valid.
+  // Return kInvalidMidiPitch if the arguments are not valid. 
+  cmMidiByte_t    cmSciPitchToMidiPitch( cmChar_t pitch, int acc, int octave );
+
 
   // Scientific pitch string: [A-Ga-g][#b][#] where  # may be -1 to 9.
   // Return kInvalidMidiPitch if sciPtichStr does not contain a valid 

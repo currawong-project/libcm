@@ -210,18 +210,11 @@ const char*     cmMidiToSciPitch( cmMidiByte_t pitch, char* label, unsigned labe
 }
 
 
-cmMidiByte_t    cmSciPitchToMidi( const char* sciPitchStr )
+cmMidiByte_t    cmSciPitchToMidiPitch( cmChar_t pitch, int acc, int octave )
 {
-  const char* cp      = sciPitchStr;
-  bool        sharpFl = false;
-  bool        flatFl  = false;
-  int         octave;
-  int         idx     = -1;
-
-  if( sciPitchStr==NULL || strlen(sciPitchStr) > 5 )
-    return kInvalidMidiPitch;
-
-  switch(tolower(*cp))
+  int idx = -1;
+  
+  switch(tolower(pitch))
   {
     case 'a': idx = 9;  break;
     case 'b': idx = 11; break;
@@ -234,6 +227,27 @@ cmMidiByte_t    cmSciPitchToMidi( const char* sciPitchStr )
       return kInvalidMidiPitch;
   }
 
+  unsigned rv =  (octave*12) + idx + acc + 12;
+
+  if( rv <= 127 )
+    return rv;
+
+  return kInvalidMidiPitch;
+
+}
+
+cmMidiByte_t    cmSciPitchToMidi( const char* sciPitchStr )
+{
+  const char* cp      = sciPitchStr;
+  bool        sharpFl = false;
+  bool        flatFl  = false;
+  int         octave;
+  int         acc     = 0;
+
+  if( sciPitchStr==NULL || strlen(sciPitchStr) > 5 )
+    return kInvalidMidiPitch;
+
+  // skip over leading letter
   ++cp;
 
   if( !(*cp) )
@@ -241,10 +255,10 @@ cmMidiByte_t    cmSciPitchToMidi( const char* sciPitchStr )
 
   
   if((sharpFl = *cp=='#') == true )
-    ++idx;
+    acc = 1;
   else
     if((flatFl  = *cp=='b') == true )
-      --idx;
+      acc = -1;
 
   if( sharpFl || flatFl )
   {
@@ -259,11 +273,7 @@ cmMidiByte_t    cmSciPitchToMidi( const char* sciPitchStr )
 
   octave = atoi(cp);
 
-  unsigned rv =  (octave*12) + idx + 12;
-  
-  if( rv <= 127 )
-    return rv;
 
-  return kInvalidMidiPitch;
+  return cmSciPitchToMidiPitch( *sciPitchStr, acc, octave );
   
 }
