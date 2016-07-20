@@ -15,6 +15,7 @@ extern "C" {
     kUnterminatedTieXsRC,
     kUnterminatedSlurXsRC,
     kUnterminatedOctaveShiftXsrRC,
+    kPedalStateErrorXsRc,
     kMidiFailXsRC,
     kFileFailXsRC,
     kSvgFailXsRC
