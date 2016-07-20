@@ -8,6 +8,7 @@
 #include "cmLinkedHeap.h"
 #include "cmText.h"
 #include "cmFile.h"
+#include "cmFileSys.h"
 #include "cmJson.h"
 #include "cmTextTemplate.h"
 
@@ -547,9 +548,9 @@ cmTtRC_t cmTextTemplateWrite( cmTtH_t h, const cmChar_t* fn )
 {
   cmTtRC_t rc = kOkTtRC;
   cmTt_t* p = _cmTtHandleToPtr(h);
-  cmFileH_t fh;
+  cmFileH_t fh = cmFileNullHandle;
 
-  if( cmFileOpen(&fh,fn,kReadFileFl,p->err.rpt) != kOkFileRC )
+  if( cmFileOpen(&fh,fn,kWriteFileFl,p->err.rpt) != kOkFileRC )
     return cmErrMsg(&p->err,kFileFailTtRC,"The file '%s' could not be opened.",cmStringNullGuard(fn));
 
   rc = _cmTtWriteNode(p,p->tree,fh);
@@ -810,10 +811,16 @@ cmTtRC_t cmTextTemplateTest( cmCtx_t* ctx, const cmChar_t* fn )
   }
   else
   {
-    cmTextTemplateApply(h,"/home/kevin/src/cmtest/src/cmtest/data/tmpl_src.js");
+    const cmChar_t* fn = cmFsMakeUserDirFn("src/cmtest/src/cmtest/data/","tmpl_src.js");
+    cmTextTemplateApply(h,fn);
+    cmFsFreeFn(fn);
   }
 
   cmTtPrintTree(h,&ctx->rpt);
+
+  const cmChar_t* fn1 = cmFsMakeUserDirFn("temp","tmpl_out.txt");
+  cmTextTemplateWrite(h, fn1 );
+  cmFsFreeFn(fn1);
 
   cmTextTemplateFinalize(&h);
 
