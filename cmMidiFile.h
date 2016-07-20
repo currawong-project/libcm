@@ -116,12 +116,14 @@ extern "C" {
     kSostenutoPedalMfRC, // 11
     kLargeDeltaTickMfRC, // 12 (a large delta tick value was filtered)
     kUidNotFoundMfRC,    // 13
-    kUidNotANoteMsgMfRC  // 14
+    kUidNotANoteMsgMfRC, // 14
+    kInvalidTrkIndexMfRC // 15
   };
 
   extern cmMidiFileH_t cmMidiFileNullHandle;
 
-  cmMfRC_t              cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn );
+  cmMfRC_t              cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* h, const char* fn );
+  cmMfRC_t              cmMidiFileCreate( cmCtx_t* ctx, cmMidiFileH_t* hp, unsigned trkN, unsigned ticksPerQN );
   cmMfRC_t              cmMidiFileClose( cmMidiFileH_t* hp );
 
   cmMfRC_t              cmMidiFileWrite( cmMidiFileH_t h, const char* fn );
@@ -167,6 +169,10 @@ extern "C" {
   // Insert a MIDI message relative to the reference msg identified by 'uid'.
   // If dtick is positive/negative then the new msg is inserted after/before the reference msg.  
   cmMfRC_t             cmMidiFileInsertMsg( cmMidiFileH_t h, unsigned uid, int dtick, cmMidiByte_t ch, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 );
+
+  cmMfRC_t             cmMidiFileInsertTrackMsg(     cmMidiFileH_t h, unsigned trkIdx, const cmMidiTrackMsg_t* msg );
+  cmMfRC_t             cmMidiFileInsertTrackChMsg(   cmMidiFileH_t h, unsigned trkIdx, unsigned atick, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 );
+  cmMfRC_t             cmMidFileInsertTrackTempoMsg( cmMidiFileH_t h, unsigned trkIdx, unsigned atick, unsigned bpm );
   
   // Return a pointer to the first msg at or after 'usecsOffs' or kInvalidIdx if no
   // msg exists after 'usecsOffs'.  Note that 'usecOffs' is an offset from the beginning
@@ -191,7 +197,6 @@ extern "C" {
 
   void                  cmMidiFilePrintMsgs( cmMidiFileH_t h, cmRpt_t* rpt );
   void                  cmMidiFilePrintTrack( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt );
-  bool                  cmMidiFileIsNull( cmMidiFileH_t h );
   void                  cmMidiFileTest( const char* fn, cmCtx_t* ctx );
 
   // Generate a piano-roll plot description file which can be displayed with cmXScore.m

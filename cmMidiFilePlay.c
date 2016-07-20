@@ -88,7 +88,7 @@ cmMfpRC_t cmMfpDestroy( cmMfpH_t* hp )
   {
     cmMfp_t* p = _cmMfpHandleToPtr(*hp);
     
-    if( cmMidiFileIsNull(p->mfH)==false && p->closeFileFl==true )
+    if( cmMidiFileIsValid(p->mfH)==false && p->closeFileFl==true )
       cmMidiFileClose(&p->mfH);
 
     cmMemFree(p);
@@ -121,7 +121,7 @@ cmMfpRC_t cmMfpLoadHandle( cmMfpH_t h, cmMidiFileH_t mfH )
   cmMfp_t* p = _cmMfpHandleToPtr(h);
 
   // if a file has already been assigned to this player
-  if( (cmMidiFileIsNull(p->mfH) == false) && p->closeFileFl)
+  if( (cmMidiFileIsValid(p->mfH) == false) && p->closeFileFl)
   {
     // close the existing file
     cmMidiFileClose(&p->mfH);    

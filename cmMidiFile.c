@@ -54,10 +54,6 @@ _cmMidiFile_t* _cmMidiFileHandleToPtr( cmMidiFileH_t h )
   return p;
 }
 
-void* _cmMidiFileMalloc( _cmMidiFile_t* mfp, unsigned byteN )
-{ return cmLHeapAllocZ(mfp->lhH,byteN); }
-
-
 cmMfRC_t _cmMidiFileRead8( _cmMidiFile_t* mfp, cmMidiByte_t* p )
 {
   if( cmFileReadUChar(mfp->fh,p,1) != kOkFileRC )  
@@ -107,7 +103,7 @@ cmMfRC_t _cmMidiFileReadText( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp, unsigne
   if( byteN == 0 )
     return kOkMfRC;
 
-  char*  t = (char*)_cmMidiFileMalloc(mfp,byteN+1);
+  char*  t = cmLhAllocZ(mfp->lhH,char,byteN+1);
   t[byteN] = 0;
   
   if( cmFileReadChar(mfp->fh,t,byteN) != kOkFileRC )  
@@ -120,7 +116,7 @@ cmMfRC_t _cmMidiFileReadText( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp, unsigne
 
 cmMfRC_t _cmMidiFileReadRecd( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp, unsigned byteN )
 {
-  char*  t = (char*)_cmMidiFileMalloc(mfp,byteN);
+  char*  t = cmLhAllocZ(mfp->lhH,char,byteN);
   
   if( cmFileReadChar(mfp->fh,t,byteN) != kOkFileRC )  
     return cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI read record failed.");
@@ -160,7 +156,7 @@ cmMfRC_t _cmMidiFileReadVarLen( _cmMidiFile_t* mfp, unsigned* p )
 
 cmMidiTrackMsg_t* _cmMidiFileAllocMsg( _cmMidiFile_t* mfp, unsigned short trkIdx, unsigned dtick, cmMidiByte_t status )
 {
-  cmMidiTrackMsg_t* tmp = (cmMidiTrackMsg_t*)_cmMidiFileMalloc(mfp, sizeof(cmMidiTrackMsg_t) );
+  cmMidiTrackMsg_t* tmp = cmLhAllocZ(mfp->lhH,cmMidiTrackMsg_t, 1 );
 
   // set the generic track record fields
   tmp->dtick     = dtick;
@@ -226,7 +222,7 @@ cmMfRC_t _cmMidiFileReadSysEx( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp, unsign
   }
 
   // allocate memory to hold the sys-ex msg
-  cmMidiByte_t* mp = (cmMidiByte_t *)_cmMidiFileMalloc(mfp,  byteN );
+  cmMidiByte_t* mp = cmLhAllocZ(mfp->lhH,cmMidiByte_t,  byteN );
 
   // read the sys-ex msg from the file into msg memory
   if( cmFileReadUChar(mfp->fh,mp,byteN) != kOkFileRC )  
@@ -241,7 +237,7 @@ cmMfRC_t _cmMidiFileReadSysEx( _cmMidiFile_t* mfp, cmMidiTrackMsg_t* tmp, unsign
 cmMfRC_t _cmMidiFileReadChannelMsg( _cmMidiFile_t* mfp, cmMidiByte_t* rsPtr, cmMidiByte_t status, cmMidiTrackMsg_t* tmp )
 {
   cmMfRC_t       rc       = kOkMfRC;
-  cmMidiChMsg_t* p        = (cmMidiChMsg_t*)_cmMidiFileMalloc(mfp,sizeof(cmMidiChMsg_t));
+  cmMidiChMsg_t* p        = cmLhAllocZ(mfp->lhH,cmMidiChMsg_t,1);
   unsigned       useRsFl  = status <= 0x7f;
   cmMidiByte_t   statusCh = useRsFl ? *rsPtr : status;
   
@@ -409,14 +405,14 @@ cmMfRC_t _cmMidiFileReadHdr( _cmMidiFile_t* mfp )
   // if the division field was given in smpte
   if( mfp->ticksPerQN & 0x8000 )
   {
-    mfp->smpteFmtId = (mfp->ticksPerQN & 0x7f00) >> 8;
+    mfp->smpteFmtId         = (mfp->ticksPerQN & 0x7f00) >> 8;
     mfp->smpteTicksPerFrame = (mfp->ticksPerQN & 0xFF);
-    mfp->ticksPerQN = 0;
+    mfp->ticksPerQN         = 0;
   }
 
   // allocate and zero the track array
   if( mfp->trkN )
-    mfp->trkV = _cmMidiFileMalloc( mfp, sizeof(_cmMidiTrack_t)*mfp->trkN);
+    mfp->trkV = cmLhAllocZ(mfp->lhH, _cmMidiTrack_t, mfp->trkN);
   
   return rc;
 }
@@ -565,69 +561,79 @@ void _cmMidiFileLinearize( _cmMidiFile_t* mfp )
   
 }
 
-
-cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
+cmMfRC_t _cmMidiFileCreate( cmCtx_t* ctx, cmMidiFileH_t* hp )
 {
-  cmMfRC_t       rc     = kOkMfRC;
-  _cmMidiFile_t* mfp    = NULL;
-  unsigned short trkIdx = 0;
-  cmErr_t        err;
-
-  if( cmMidiFileIsValid(*hPtr) )
-    if((rc = _cmMidiFileClose(_cmMidiFileHandleToPtr(*hPtr))) != kOkMfRC )
-      return rc;
-
-  cmErrSetup(&err,&ctx->rpt,"MIDI File");
-
+  cmMfRC_t rc = kOkMfRC;
+  _cmMidiFile_t* p = NULL;
+  
+  if((rc = cmMidiFileClose(hp)) != kOkMfRC )
+    return rc;
+  
   // allocate the midi file object 
-  if(( mfp = cmMemAllocZ( _cmMidiFile_t, 1)) == NULL )
-    return rc                                 = cmErrMsg(&err,kMemAllocFailMfRC,"MIDI file memory allocation failed.");
-
-  cmErrClone(&mfp->err,&err);
-
+  if(( p = cmMemAllocZ( _cmMidiFile_t, 1)) == NULL )
+    return rc = cmErrMsg(&ctx->err,kMemAllocFailMfRC,"MIDI file memory allocation failed.");
+  
+  cmErrSetup(&p->err,&ctx->rpt,"MIDI File");
+  
   // allocate the linked heap
-  if( cmLHeapIsValid( mfp->lhH = cmLHeapCreate( 1024, ctx )) == false )
-  {
-    rc = cmErrMsg(&err,kMemAllocFailMfRC,"MIDI heap allocation failed.");
-    goto errLabel;
-  }
+  if( cmLHeapIsValid( p->lhH = cmLHeapCreate( 1024, ctx )) == false )
+    rc = cmErrMsg(&p->err,kMemAllocFailMfRC,"MIDI heap allocation failed.");
+
+  if( rc != kOkMfRC )
+    _cmMidiFileClose(p);
+  else
+    hp->h = p;
+  
+  return rc;
+  
+}
+
+cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hp, const char* fn )
+{
+  cmMfRC_t       rc     = kOkMfRC;  
+  unsigned short trkIdx = 0;
+
+  if((rc = _cmMidiFileCreate(ctx,hp)) != kOkMfRC )
+    return rc;
+
+  _cmMidiFile_t* p    = _cmMidiFileHandleToPtr(*hp);
 
   // open the file
-  if(cmFileOpen(&mfp->fh,fn,kReadFileFl | kBinaryFileFl,mfp->err.rpt) != kOkFileRC )
+  if(cmFileOpen(&p->fh,fn,kReadFileFl | kBinaryFileFl,p->err.rpt) != kOkFileRC )
   {
-    rc = cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file open failed.");
+    rc = cmErrMsg(&p->err,kFileFailMfRC,"MIDI file open failed.");
     goto errLabel;
   }
 
   // read header and setup track array
-  if(( rc = _cmMidiFileReadHdr(mfp)) != kOkMfRC )
+  if(( rc = _cmMidiFileReadHdr(p)) != kOkMfRC )
     goto errLabel;
   
-  while( !cmFileEof(mfp->fh) && trkIdx < mfp->trkN )
+  while( !cmFileEof(p->fh) && trkIdx < p->trkN )
   {
     unsigned chkId = 0,chkN=0;
 
     // read the chunk id
-    if((rc = _cmMidiFileRead32(mfp,&chkId)) != kOkMfRC )
+    if((rc = _cmMidiFileRead32(p,&chkId)) != kOkMfRC )
       goto errLabel;
 
     // read the chunk size
-    if((rc = _cmMidiFileRead32(mfp,&chkN)) != kOkMfRC )
+    if((rc = _cmMidiFileRead32(p,&chkN)) != kOkMfRC )
       goto errLabel;
 
     // if this is not a trk chunk then skip it
     if( chkId != (unsigned)'MTrk')
     {
-      //if( fseek( mfp->fp, chkN, SEEK_CUR) != 0 )
-      if( cmFileSeek(mfp->fh,kCurFileFl,chkN) != kOkFileRC )
+      //if( fseek( p->fp, chkN, SEEK_CUR) != 0 )
+      if( cmFileSeek(p->fh,kCurFileFl,chkN) != kOkFileRC )
       {
-        rc = cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file seek failed.");
+        rc = cmErrMsg(&p->err,kFileFailMfRC,"MIDI file seek failed.");
         goto errLabel;
       }
     }  
     else
     {
-      if((rc = _cmMidiFileReadTrack(mfp,trkIdx)) != kOkMfRC )
+      if((rc = _cmMidiFileReadTrack(p,trkIdx)) != kOkMfRC )
         goto errLabel;
 
       ++trkIdx;
@@ -635,38 +641,55 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hPtr, const char* fn )
   }
 
   // store the file name
-  mfp->fn          = _cmMidiFileMalloc(mfp,strlen(fn)+1);
-  assert( mfp->fn != NULL );
-  strcpy(mfp->fn,fn);
+  p->fn          = cmLhAllocZ(p->lhH,char,strlen(fn)+1);
+  assert( p->fn != NULL );
+  strcpy(p->fn,fn);
   
-  _cmMidiFileLinearize(mfp);
+  _cmMidiFileLinearize(p);
   
-  hPtr->h = mfp;
 
  errLabel:
 
-  if( cmFileClose(&mfp->fh) != kOkFileRC )
-    rc = cmErrMsg(&mfp->err,kFileFailMfRC,"MIDI file close failed.");
+  if( cmFileClose(&p->fh) != kOkFileRC )
+    rc = cmErrMsg(&p->err,kFileFailMfRC,"MIDI file close failed.");
 
   if( rc != kOkMfRC )
-    _cmMidiFileClose(mfp);
+    _cmMidiFileClose(p);
 
   return rc;
 }
 
-
-
-cmMfRC_t        cmMidiFileClose( cmMidiFileH_t* h )
+cmMfRC_t        cmMidiFileCreate( cmCtx_t* ctx, cmMidiFileH_t* hp, unsigned trkN, unsigned ticksPerQN )
 {
-  cmMfRC_t rc;
+  cmMfRC_t       rc     = kOkMfRC;  
 
-  if( cmMidiFileIsNull(*h) )
-    return kOkMfRC;
-
-  if((rc = _cmMidiFileClose(_cmMidiFileHandleToPtr(*h))) == kOkMfRC )
+  if((rc = _cmMidiFileCreate(ctx,hp)) != kOkMfRC )
     return rc;
+  
+  _cmMidiFile_t* p    = _cmMidiFileHandleToPtr(*hp);
 
-  h->h = NULL;
+  p->ticksPerQN = ticksPerQN;
+  p->fmtId      = 1;
+  p->trkN       = trkN;
+  p->trkV       = cmLhAllocZ(p->lhH, _cmMidiTrack_t, p->trkN);
+  
+  return rc;
+}
+
+
+cmMfRC_t        cmMidiFileClose( cmMidiFileH_t* hp )
+{
+  cmMfRC_t rc = kOkMfRC;
+
+  if( hp==NULL || cmMidiFileIsValid(*hp)==false )
+    return kOkMfRC;
+  
+  _cmMidiFile_t* p = _cmMidiFileHandleToPtr(*hp);
+
+  if((rc = _cmMidiFileClose(p)) != kOkMfRC )
+    return rc;
+  
+  hp->h = NULL;
   return rc;
 }
 
@@ -1013,7 +1036,7 @@ cmMfRC_t   cmMidiFileWrite( cmMidiFileH_t h, const char* fn )
 
 
 bool   cmMidiFileIsValid( cmMidiFileH_t h )
-{ return !cmMidiFileIsNull(h); }
+{ return h.h != NULL; }
 
 unsigned    cmMidiFileTrackCount( cmMidiFileH_t h )
 {
@@ -1220,7 +1243,7 @@ cmMfRC_t cmMidiFileInsertMsg( cmMidiFileH_t h, unsigned uid, int dtick, cmMidiBy
   // complete the msg setup
   _cmMidiTrack_t* trk   = mfp->trkV + trkIdx;
   cmMidiTrackMsg_t* m   = _cmMidiFileAllocMsg(mfp, trkIdx, abs(dtick), status );
-  cmMidiChMsg_t*    c   = (cmMidiChMsg_t*)_cmMidiFileMalloc(mfp,sizeof(cmMidiChMsg_t));
+  cmMidiChMsg_t*    c   = cmLhAllocZ(mfp->lhH,cmMidiChMsg_t,1);
 
   m->u.chMsgPtr = c;
   
@@ -1254,6 +1277,105 @@ cmMfRC_t cmMidiFileInsertMsg( cmMidiFileH_t h, unsigned uid, int dtick, cmMidiBy
   return kOkMfRC;
 
 }
+
+// Only set
+//   atick    - used to position the msg in the track
+//   status   - this field is always set (Note that channel information must stripped from the status byte and included in the channel msg data)
+//   metaId   - this field is optional depending on the msg type
+//   byteCnt  - used to allocate storage for the data element in 'cmMidiTrackMsg_t.u'
+//   u        - the message data
+cmMfRC_t  cmMidiFileInsertTrackMsg( cmMidiFileH_t h, unsigned trkIdx, const cmMidiTrackMsg_t* msg )
+{
+  _cmMidiFile_t* p = _cmMidiFileHandleToPtr(h);
+
+  // validate the track index
+  if( trkIdx >= p->trkN )
+    return cmErrMsg(&p->err,kInvalidTrkIndexMfRC,"The track index (%i) is invalid.",trkIdx);
+
+  // allocate a new track record
+  cmMidiTrackMsg_t* m = (cmMidiTrackMsg_t*)cmLhAllocZ(p->lhH,char,sizeof(cmMidiTrackMsg_t)+msg->byteCnt);
+
+  // fill the track record
+  m->uid     = p->nextUid++;
+  m->atick   = msg->atick;
+  m->status  = msg->status;
+  m->metaId  = msg->metaId;
+  m->trkIdx  = trkIdx;
+  m->byteCnt = msg->byteCnt;
+  memcpy(&m->u,&msg->u,sizeof(msg->u));
+
+  // copy the exernal data
+  if( msg->byteCnt > 0 )
+  {
+    m->u.voidPtr = (m+1);
+    memcpy((void*)m->u.voidPtr,msg->u.voidPtr,msg->byteCnt);
+  }
+
+  cmMidiTrackMsg_t* m0 = NULL;
+  cmMidiTrackMsg_t* m1 = p->trkV[trkIdx].base;
+
+  // locate the track record before and after the new msg
+  for(; m1!=NULL; m1=m1->link)
+    if( m1->atick > m->atick )
+    {
+      if( m0 == NULL )
+        p->trkV[trkIdx].base = m;
+      else
+        m0->link = m;
+      
+      m->link = m1;
+      break;
+    }
+
+  // the new track record is the last msg
+  if( m1 == NULL )
+  {
+    m1                   = p->trkV[trkIdx].last;
+    m1->link             = m;
+    p->trkV[trkIdx].last = m;
+    if( p->trkV[trkIdx].base == NULL )
+      p->trkV[trkIdx].base = m;
+  }
+
+  
+  return kOkMfRC;
+   
+}
+
+cmMfRC_t  cmMidiFileInsertTrackChMsg( cmMidiFileH_t h, unsigned trkIdx, unsigned atick, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 )
+{
+  cmMidiTrackMsg_t m;
+  cmMidiChMsg_t   cm;
+
+  memset(&m,0,sizeof(m));
+  memset(&cm,0,sizeof(cm));
+
+  cm.ch = status & 0x0f;
+  cm.d0 = d0;
+  cm.d1 = d1;
+  
+  m.atick      = atick;
+  m.status     = status & 0xf0;
+  m.byteCnt    = sizeof(cm);
+  m.u.chMsgPtr = &cm;
+  
+  return cmMidiFileInsertTrackMsg(h,trkIdx,&m);
+}
+
+cmMfRC_t  cmMidFileInsertTrackTempoMsg( cmMidiFileH_t h, unsigned trkIdx, unsigned atick, unsigned bpm )
+{
+  cmMidiTrackMsg_t m;
+
+  memset(&m,0,sizeof(m));
+
+  m.atick      = atick;
+  m.status     = kMetaStId;
+  m.metaId     = kTempoMdId;
+  m.u.iVal     = 60000000/bpm;  // convert BPM to microsPerQN
+  
+  return cmMidiFileInsertTrackMsg(h,trkIdx,&m);
+}
+
 
 unsigned  cmMidiFileSeekUsecs( cmMidiFileH_t h, unsigned long long offsUSecs, unsigned* msgUsecsPtr, unsigned* microsPerTickPtr )
 {
@@ -1656,9 +1778,6 @@ void cmMidiFilePrintTracks( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt )
     }
   }  
 }
-
-bool cmMidiFileIsNull( cmMidiFileH_t h )
-{ return (_cmMidiFile_t*)h.h == NULL; }
 
 
 void cmMidiFileTestPrint( void* printDataPtr, const char* fmt, va_list vl )
