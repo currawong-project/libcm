@@ -3035,7 +3035,7 @@ cmRC_t  _cmScModulatorReset( cmScModulator* p, cmCtx_t* ctx, unsigned scLocIdx, 
       if( g->symId == entryGroupSymId )
       {
         cmCtxPrint(p->obj.ctx,"%s selected.\n",cmSymTblLabel(p->stH,entryGroupSymId));
-        p->xlist = p->glist;
+        p->xlist = g;
         break;
       }
   }
