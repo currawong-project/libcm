@@ -136,17 +136,20 @@ extern "C" {
   // Return midi file format id (0,1,2) or kInvalidId if 'h' is invalid.
   unsigned              cmMidiFileType( cmMidiFileH_t h );
 
-  // Returns ticks per quarter note or kInvalidMidiByte if 'h' is invalid or 0 if file uses SMPTE ticks per frame time base.
+  // Returns ticks per quarter note or kInvalidMidiByte if 'h' is
+  // invalid or 0 if file uses SMPTE ticks per frame time base.
   unsigned              cmMidiFileTicksPerQN( cmMidiFileH_t h );
 
   // The file name used in an earlier call to midiFileOpen() or NULL if this 
   // midi file did not originate from an actual file.
   const char*           cmMidiFileName( cmMidiFileH_t h );
 
-  // Returns SMPTE ticks per frame or kInvalidMidiByte if 'h' is invalid or 0 if file uses ticks per quarter note time base.
+  // Returns SMPTE ticks per frame or kInvalidMidiByte if 'h' is
+  // invalid or 0 if file uses ticks per quarter note time base.
   cmMidiByte_t          cmMidiFileTicksPerSmpteFrame( cmMidiFileH_t h );
 
-  // Returns SMPTE format or kInvalidMidiByte if 'h' is invalid or 0 if file uses ticks per quarter note time base.
+  // Returns SMPTE format or kInvalidMidiByte if 'h' is invalid or 0
+  // if file uses ticks per quarter note time base.
   cmMidiByte_t          cmMidiFileSmpteFormatId( cmMidiFileH_t h );
 
   // Returns count of records in track 'trackIdx' or kInvalidCnt if 'h' is invalid.
@@ -155,11 +158,13 @@ extern "C" {
   // Returns base of record chain from track 'trackIdx' or NULL if 'h' is invalid.
   const cmMidiTrackMsg_t* cmMidiFileTrackMsg( cmMidiFileH_t h, unsigned trackIdx );
 
-  // Returns the total count of records in the midi file and the number in the array returned by cmMidiFileMsgArray().
+  // Returns the total count of records in the midi file and the
+  // number in the array returned by cmMidiFileMsgArray(). 
   // Return kInvalidCnt if 'h' is invalid.
   unsigned              cmMidiFileMsgCount( cmMidiFileH_t h );
 
-  // Returns a pointer to the base of an array of pointers to each record in the file sorted in ascending time order.
+  // Returns a pointer to the base of an array of pointers to all records
+  // in the file sorted in ascending time order. 
   // Returns NULL if 'h' is invalid.
   const cmMidiTrackMsg_t** cmMidiFileMsgArray( cmMidiFileH_t h );
 
@@ -170,6 +175,16 @@ extern "C" {
   // If dtick is positive/negative then the new msg is inserted after/before the reference msg.  
   cmMfRC_t             cmMidiFileInsertMsg( cmMidiFileH_t h, unsigned uid, int dtick, cmMidiByte_t ch, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 );
 
+  //
+  // Insert a new cmMidiTrackMsg_t into the MIDI file on the specified track.
+  //
+  // Only the following fields need be set in 'msg'.
+  //   atick    - used to position the msg in the track
+  //   status   - this field is always set (Note that channel information must stripped from the status byte and included in the channel msg data)
+  //   metaId   - this field is optional depending on the msg type
+  //   byteCnt  - used to allocate storage for the data element in 'cmMidiTrackMsg_t.u'
+  //   u        - the message data
+  //
   cmMfRC_t             cmMidiFileInsertTrackMsg(     cmMidiFileH_t h, unsigned trkIdx, const cmMidiTrackMsg_t* msg );
   cmMfRC_t             cmMidiFileInsertTrackChMsg(   cmMidiFileH_t h, unsigned trkIdx, unsigned atick, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 );
   cmMfRC_t             cmMidFileInsertTrackTempoMsg( cmMidiFileH_t h, unsigned trkIdx, unsigned atick, unsigned bpm );

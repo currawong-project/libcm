@@ -40,12 +40,14 @@ typedef struct
   char*              fn;                 // file name or NULL if this object did not originate from a file
   unsigned           msgN;               // count of msg's in msgV[]
   cmMidiTrackMsg_t** msgV;               // sorted msg list
+  bool               msgVDirtyFl;        // msgV[] needs to be refreshed from trkV[] because new msg's were inserted.
   unsigned           nextUid;            // next available msg uid
 } _cmMidiFile_t;
 
 
 cmMidiFileH_t cmMidiFileNullHandle = cmSTATIC_NULL_HANDLE;
 
+const cmMidiTrackMsg_t** _cmMidiFileMsgArray( _cmMidiFile_t* p  );
 
 _cmMidiFile_t* _cmMidiFileHandleToPtr( cmMidiFileH_t h )
 {
@@ -435,9 +437,9 @@ void _cmMidiFileSetAccumulateTicks( _cmMidiFile_t* p )
   unsigned          i;
   bool              fl = true;
   
-  // iniitalize nextTrkTick[] and nextTrkMsg[].
+  // iniitalize nextTrkTick[] and nextTrkMsg[] to the first msg in each track
   for(i=0; i<p->trkN; ++i)
-    if((nextTrkMsg[i]  =  p->trkV[i].base) != NULL )
+    if((nextTrkMsg[i] =  p->trkV[i].base) != NULL )
       nextTrkMsg[i]->atick = nextTrkMsg[i]->dtick;
 
   while(1)
@@ -474,21 +476,23 @@ void _cmMidiFileSetAccumulateTicks( _cmMidiFile_t* p )
 
 void _cmMidiFileSetAbsoluteTime( _cmMidiFile_t* mfp )
 {
-  double             microsPerQN   = 60000000/120; // default tempo;
-  double             microsPerTick = microsPerQN / mfp->ticksPerQN;
-  unsigned long long amicro        = 0;
-  unsigned           i;
+  const cmMidiTrackMsg_t** msgV          = _cmMidiFileMsgArray(mfp);
+  double                   microsPerQN   = 60000000/120; // default tempo;
+  double                   microsPerTick = microsPerQN / mfp->ticksPerQN;
+  unsigned long long       amicro        = 0;
+  unsigned                 i;
+
 
   for(i=0; i<mfp->msgN; ++i)
   {
-    cmMidiTrackMsg_t* mp    = mfp->msgV[i];
+    cmMidiTrackMsg_t* mp    = (cmMidiTrackMsg_t*)msgV[i]; // cast away const
     unsigned          dtick = 0;
     
     if( i > 0 )
     {
       // atick must have already been set and sorted
-      assert( mp->atick >= mfp->msgV[i-1]->atick );
-      dtick = mp->atick -  mfp->msgV[i-1]->atick;
+      assert( mp->atick >= msgV[i-1]->atick );
+      dtick = mp->atick -  msgV[i-1]->atick;
     }
 
     amicro     += microsPerTick * dtick;
@@ -524,9 +528,13 @@ cmMfRC_t _cmMidiFileClose( _cmMidiFile_t* mfp )
   
 }
 
+
 void _cmMidiFileLinearize( _cmMidiFile_t* mfp )
 {
   unsigned trkIdx,i,j;
+
+  if( mfp->msgVDirtyFl == false )
+    return;
   
   // get the total trk msg count
   mfp->msgN = 0;
@@ -558,7 +566,21 @@ void _cmMidiFileLinearize( _cmMidiFile_t* mfp )
 
   // set the amicro value in each msg
   _cmMidiFileSetAbsoluteTime(mfp);
+
+  mfp->msgVDirtyFl = false;
   
+}
+
+// Note that p->msgV[] should always be accessed through this function
+// to guarantee that the p->msgVDirtyFl is checked and msgV[] is updated
+// in case msgV[] is out of sync (due to inserted msgs (see cmMidiFileInsertTrackMsg())
+// with trkV[].
+const cmMidiTrackMsg_t** _cmMidiFileMsgArray( _cmMidiFile_t* p  )
+{
+  _cmMidiFileLinearize(p);
+  
+  // this cast is needed to eliminate an apparently needless 'incompatible type' warning
+  return (const cmMidiTrackMsg_t**)p->msgV;
 }
 
 cmMfRC_t _cmMidiFileCreate( cmCtx_t* ctx, cmMidiFileH_t* hp )
@@ -644,10 +666,10 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hp, const char* fn )
   p->fn          = cmLhAllocZ(p->lhH,char,strlen(fn)+1);
   assert( p->fn != NULL );
   strcpy(p->fn,fn);
-  
+
+  p->msgVDirtyFl = true;
   _cmMidiFileLinearize(p);
   
-
  errLabel:
 
   if( cmFileClose(&p->fh) != kOkFileRC )
@@ -1133,6 +1155,7 @@ unsigned              cmMidiFileMsgCount( cmMidiFileH_t h )
   return mfp->msgN;
 }
 
+
 const cmMidiTrackMsg_t** cmMidiFileMsgArray(    cmMidiFileH_t h )
 {
   _cmMidiFile_t* mfp;
@@ -1140,18 +1163,18 @@ const cmMidiTrackMsg_t** cmMidiFileMsgArray(    cmMidiFileH_t h )
   if((mfp = _cmMidiFileHandleToPtr(h)) == NULL )
     return NULL;
 
-  // this cast is needed to eliminate an apparently needless 'incompatible type' warning
-  return (const cmMidiTrackMsg_t**)mfp->msgV;
+  return _cmMidiFileMsgArray(mfp); 
 }
 
 
 cmMidiTrackMsg_t*  _cmMidiFileUidToMsg( _cmMidiFile_t* mfp, unsigned uid )
 {
   unsigned i;
+  const cmMidiTrackMsg_t** msgV = _cmMidiFileMsgArray(mfp);
 
   for(i=0; i<mfp->msgN; ++i)
-    if( mfp->msgV[i]->uid == uid )
-      return mfp->msgV[i];
+    if( msgV[i]->uid == uid )
+      return (cmMidiTrackMsg_t*)msgV[i];
 
   return NULL;
 }
@@ -1272,18 +1295,12 @@ cmMfRC_t cmMidiFileInsertMsg( cmMidiFileH_t h, unsigned uid, int dtick, cmMidiBy
 
   trk->cnt += 1;
 
-  _cmMidiFileLinearize(mfp);
+  mfp->msgVDirtyFl = true;
 
   return kOkMfRC;
 
 }
 
-// Only set
-//   atick    - used to position the msg in the track
-//   status   - this field is always set (Note that channel information must stripped from the status byte and included in the channel msg data)
-//   metaId   - this field is optional depending on the msg type
-//   byteCnt  - used to allocate storage for the data element in 'cmMidiTrackMsg_t.u'
-//   u        - the message data
 cmMfRC_t  cmMidiFileInsertTrackMsg( cmMidiFileH_t h, unsigned trkIdx, const cmMidiTrackMsg_t* msg )
 {
   _cmMidiFile_t* p = _cmMidiFileHandleToPtr(h);
@@ -1311,13 +1328,14 @@ cmMfRC_t  cmMidiFileInsertTrackMsg( cmMidiFileH_t h, unsigned trkIdx, const cmMi
     memcpy((void*)m->u.voidPtr,msg->u.voidPtr,msg->byteCnt);
   }
 
-  cmMidiTrackMsg_t* m0 = NULL;
-  cmMidiTrackMsg_t* m1 = p->trkV[trkIdx].base;
+  cmMidiTrackMsg_t* m0 = NULL;                  // msg before insertion
+  cmMidiTrackMsg_t* m1 = p->trkV[trkIdx].base;  // msg after insertion
 
-  // locate the track record before and after the new msg
+  // locate the track record before and after the new msg based on 'atick' value
   for(; m1!=NULL; m1=m1->link)
+  {
     if( m1->atick > m->atick )
-    {
+    {      
       if( m0 == NULL )
         p->trkV[trkIdx].base = m;
       else
@@ -1326,17 +1344,42 @@ cmMfRC_t  cmMidiFileInsertTrackMsg( cmMidiFileH_t h, unsigned trkIdx, const cmMi
       m->link = m1;
       break;
     }
-
-  // the new track record is the last msg
-  if( m1 == NULL )
-  {
-    m1                   = p->trkV[trkIdx].last;
-    m1->link             = m;
-    p->trkV[trkIdx].last = m;
-    if( p->trkV[trkIdx].base == NULL )
-      p->trkV[trkIdx].base = m;
+    
+    m0 = m1;    
   }
 
+  // if the new track record was not inserted then it is the last msg
+  if( m1 == NULL )
+  {
+    assert(m0 == p->trkV[trkIdx].last);
+    
+    // link in the new msg
+    if( m0 != NULL )
+      m0->link = m;
+
+    // the new msg always becomes the last msg
+    p->trkV[trkIdx].last = m;
+    
+    // if the new msg is the first msg inserted in this track
+    if( p->trkV[trkIdx].base == NULL )
+      p->trkV[trkIdx].base = m;    
+  }
+
+  // set the dtick field of the new msg
+  if( m0 != NULL )
+  {
+    assert( m->atick >= m0->atick );
+    m->dtick = m->atick - m0->atick;
+  }
+
+  // update the dtick field of the msg following the new msg
+  if( m1 != NULL )
+  {
+    assert( m1->atick >= m->atick );
+    m1->dtick = m1->atick - m->atick;
+  }
+  
+  p->msgVDirtyFl = true;
   
   return kOkMfRC;
    
@@ -1387,14 +1430,15 @@ unsigned  cmMidiFileSeekUsecs( cmMidiFileH_t h, unsigned long long offsUSecs, un
   if( p->msgN == 0 )
     return cmInvalidIdx;
 
-  unsigned mi;
-  double microsPerQN   = 60000000.0/120.0;
-  double microsPerTick = microsPerQN / p->ticksPerQN;
-  double accUSecs      = 0;
-
+  unsigned                 mi;
+  double                   microsPerQN   = 60000000.0/120.0;
+  double                   microsPerTick = microsPerQN / p->ticksPerQN;
+  double                   accUSecs      = 0;
+  const cmMidiTrackMsg_t** msgV          = _cmMidiFileMsgArray(p);
+  
   for(mi=0; mi<p->msgN; ++mi)
   {
-    const cmMidiTrackMsg_t* mp = p->msgV[mi];
+    const cmMidiTrackMsg_t* mp = msgV[mi];
 
     if( mp->amicro >= offsUSecs )
       break;
@@ -1414,12 +1458,14 @@ unsigned  cmMidiFileSeekUsecs( cmMidiFileH_t h, unsigned long long offsUSecs, un
 
 double  cmMidiFileDurSecs( cmMidiFileH_t h )
 {
-  _cmMidiFile_t* mfp           = _cmMidiFileHandleToPtr(h);
+  _cmMidiFile_t* mfp = _cmMidiFileHandleToPtr(h);
 
   if( mfp->msgN == 0 )
     return 0;
+
+  const cmMidiTrackMsg_t** msgV = _cmMidiFileMsgArray(mfp);
   
-  return mfp->msgV[ mfp->msgN-1 ]->amicro / 1000000.0;
+  return msgV[ mfp->msgN-1 ]->amicro / 1000000.0;
 }
 
 typedef struct _cmMidiVoice_str
@@ -1471,7 +1517,9 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
   int               sustGateV[ kMidiChCnt];                  // true if the associated sustain pedal is down
   int               sostGateV[ kMidiChCnt];                  // true if the associated sostenuto pedal is down
   unsigned          i,j;
-
+  
+  const cmMidiTrackMsg_t** msgV = _cmMidiFileMsgArray(p);
+  
   // initialize the state tracking variables
   for(i=0; i<kMidiChCnt; ++i)
   {
@@ -1492,10 +1540,10 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
   // for each midi event
   for(mi=0; mi<p->msgN; ++mi)
   {
-    cmMidiTrackMsg_t* m = p->msgV[mi];
+    cmMidiTrackMsg_t* m = (cmMidiTrackMsg_t*)msgV[mi]; // cast away const
 
     // verify that time is also incrementing
-    assert(  mi==0 || (mi>0 &&  m->amicro >= p->msgV[mi-1]->amicro) );
+    assert(  mi==0 || (mi>0 &&  m->amicro >= msgV[mi-1]->amicro) );
 
     // ignore all non-channel messages
     if(  !cmMidiIsChStatus( m->status ) )
@@ -1656,12 +1704,14 @@ void cmMidiFileSetDelay( cmMidiFileH_t h, unsigned ticks )
   if((p = _cmMidiFileHandleToPtr(h)) == NULL )
     return;
 
+  const cmMidiTrackMsg_t** msgV = _cmMidiFileMsgArray(p);
+
   if( p->msgN == 0 )
     return;
 
   for(mi=0; mi<p->msgN; ++mi)
   {
-    cmMidiTrackMsg_t* mp = p->msgV[mi];
+    cmMidiTrackMsg_t* mp = (cmMidiTrackMsg_t*)msgV[mi]; // cast away const
     
     // locate the first msg which has a non-zero delta tick
     if( mp->dtick > 0 )
@@ -1742,14 +1792,16 @@ void _cmMidiFilePrintMsg( cmRpt_t* rpt, const cmMidiTrackMsg_t* tmp )
 
 void cmMidiFilePrintMsgs( cmMidiFileH_t h, cmRpt_t* rpt )
 {
-  const _cmMidiFile_t* p = _cmMidiFileHandleToPtr(h);
+  _cmMidiFile_t* p = _cmMidiFileHandleToPtr(h);
   unsigned mi;
   
   _cmMidiFilePrintHdr(p,rpt);
 
+  const cmMidiTrackMsg_t** msgV = _cmMidiFileMsgArray(p);
+
   for(mi=0; mi<p->msgN; ++mi)
   {
-    cmMidiTrackMsg_t* mp = p->msgV[mi];
+    const cmMidiTrackMsg_t* mp = msgV[mi];
 
     if( mp != NULL )
       _cmMidiFilePrintMsg(rpt,mp);
