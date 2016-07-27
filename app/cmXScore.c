@@ -37,28 +37,31 @@ cmXsH_t cmXsNullHandle = cmSTATIC_NULL_HANDLE;
 
 enum
 {
-  kSectionXsFl   = 0x000001,  // rvalue holds section number
-  kBarXsFl       = 0x000002,
-  kRestXsFl      = 0x000004,
-  kGraceXsFl     = 0x000008,
-  kDotXsFl       = 0x000010,
-  kChordXsFl     = 0x000020,
-  kDynXsFl       = 0x000040,
-  kEvenXsFl      = 0x000080,
-  kTempoXsFl     = 0x000100,
-  kHeelXsFl      = 0x000200,
-  kTieBegXsFl    = 0x000400,
-  kTieEndXsFl    = 0x000800,
-  kTieProcXsFl   = 0x001000,
-  kDampDnXsFl    = 0x002000,
-  kDampUpXsFl    = 0x004000,
-  kDampUpDnXsFl  = 0x008000,
-  kSostDnXsFl    = 0x010000,
-  kSostUpXsFl    = 0x020000,
-  kMetronomeXsFl = 0x040000,  // duration holds BPM
-  kOnsetXsFl     = 0x080000,  // this is a sounding note
-  kBegGroupXsFl  = 0x100000,
-  kEndGroupXsFl  = 0x200000
+  kSectionXsFl     = 0x000001,  // rvalue holds section number
+  kBarXsFl         = 0x000002,
+  kRestXsFl        = 0x000004,
+  kGraceXsFl       = 0x000008,
+  kDotXsFl         = 0x000010,
+  kChordXsFl       = 0x000020,
+  kDynXsFl         = 0x000040,
+  kEvenXsFl        = 0x000080,
+  kTempoXsFl       = 0x000100,
+  kHeelXsFl        = 0x000200,
+  kTieBegXsFl      = 0x000400,
+  kTieEndXsFl      = 0x000800,
+  kTieProcXsFl     = 0x001000,
+  kDampDnXsFl      = 0x002000,
+  kDampUpXsFl      = 0x004000,
+  kDampUpDnXsFl    = 0x008000,
+  kSostDnXsFl      = 0x010000,
+  kSostUpXsFl      = 0x020000,
+  kMetronomeXsFl   = 0x040000,  // duration holds BPM
+  kOnsetXsFl       = 0x080000,  // this is a sounding note
+  kBegGroupXsFl    = 0x100000,
+  kEndGroupXsFl    = 0x200000,
+  kBegGraceXsFl    = 0x400000,  // beg grace note group
+  kEndGraceXsFl    = 0x800000   // end grace note group
+  
 };
 
 struct cmXsMeas_str;
@@ -87,6 +90,7 @@ typedef struct cmXsNote_str
   unsigned                    evenGroupId;   // eveness group id
   unsigned                    dynGroupId;    // dynamics group id
   unsigned                    tempoGroupId;  // tempo group id
+  unsigned                    graceGroupId;  // grace note group id
 
   struct cmXsVoice_str*       voice;    // voice this note belongs to
   struct cmXsMeas_str*        meas;     // measure this note belongs to
@@ -94,7 +98,8 @@ typedef struct cmXsNote_str
   const cmXmlNode_t*          xmlNode;  // note xml ptr
 
   struct cmXsNote_str*        tied;     // subsequent note tied to this note
-
+  struct cmXsNote_str*        grace;    // grace note groups link backward in time from the anchor note
+ 
   struct cmXsNote_str*        mlink;    // measure note list
   struct cmXsNote_str*        slink;    // time sorted event list
 
@@ -1459,6 +1464,89 @@ cmXsRC_t _cmXScoreProcessPedals( cmXScore_t* p )
   return rc;
 }
 
+
+// Adjust the locations of grace notes. Note that this must be done
+// after reordering so that we can be sure that the order in time of
+// the notes in each group has been set prior to building the
+// grace note groups - which must be in reverse time order.
+cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
+{
+  cmXsRC_t    rc = kOkXsRC;
+  unsigned    graceGroupId = 1;
+  
+  for(; 1; ++graceGroupId)
+  {
+    cmXsNote_t* gnp         = NULL;
+    cmXsPart_t* pp          = p->partL;
+    double      ticksPerSec = 0;
+    
+    for(; pp!=NULL; pp=pp->link)
+    {
+      cmXsMeas_t* mp = pp->measL;
+      for(; mp!=NULL; mp=mp->link)
+      {
+        cmXsNote_t* np = mp->noteL;        
+        for(; np!=NULL; np=np->slink )
+        {
+          // notice change of tempo
+          if( cmIsFlag(np->flags,kMetronomeXsFl) )
+          {
+            // ticks/sec = ticks/qn * qn/sec
+            ticksPerSec  = mp->divisions * np->duration / 60.0;
+          }
+
+          // if this note is part of the grace note group we are searching for
+          if( np->graceGroupId == graceGroupId )
+          {
+            // add the note to the grace note list
+            np->grace = gnp;
+
+            // set each grace note to have 1/20 of a second duration
+            if( cmIsFlag(np->flags,kGraceXsFl) )
+              np->duration = floor(ticksPerSec / 20.0);
+
+            gnp = np;
+          }
+        }
+      }
+    }
+
+    // no records were found for this grace id - we're done
+    if( gnp == NULL )
+      break;
+
+    cmXsNote_t* p0 = NULL;
+    cmXsNote_t* p1 = gnp;
+    
+    for(; p1!=NULL; p1=p1->grace)
+    {
+      if(1)
+      {
+        const char* type = "g";
+        if( cmIsFlag(p1->flags,kBegGraceXsFl) )
+          type           = "b";
+        
+        if( cmIsFlag(p1->flags,kEndGraceXsFl) )
+          type = "i";
+        
+        bool fl = p0 != NULL && p0->tick < p1->tick;
+        printf("%3i %s %i %5i %i\n",p1->graceGroupId,type,p1->tick,p1->duration,fl);
+      }
+
+      // TODO:
+      // position grace notes here
+
+      
+      
+      p0 = p1;
+    }
+
+    
+
+  }
+  return rc;
+}
+
 cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn )
 {
   cmXsRC_t rc = kOkXsRC;
@@ -1558,11 +1646,13 @@ typedef struct
   float       rval;     //
   unsigned    midi;     //
   
-  cmXsNote_t* note;     // The cmXsNode_t* associated with this cmXsReorder_t record
+  cmXsNote_t* note;     // The cmXsNote_t* associated with this cmXsReorder_t record
   
   unsigned    dynIdx;    // cmInvalidIdx=ignore otherwise index into _cmXScoreDynMarkArray[]
-  unsigned    newFlags;    // 0=ignore | kSostUp/DnXsFl | kDampUp/DnXsFl  | kTieEndXsFl
+  unsigned    newFlags;  // 0=ignore | kSostUp/DnXsFl | kDampUp/DnXsFl  | kTieEndXsFl
   unsigned    newTick;   // 0=ignore >0 new tick value
+  char        graceType; // 0=ignore g=grace note i=anchor note
+  unsigned    graceGroupId; // 0=ignore >0=grace note group id
   unsigned    pitch;     // 0=ignore >0 new pitch
 } cmXsReorder_t;
 
@@ -1678,10 +1768,8 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
 
   // set the 'note' field on each cmXsReorder_t record
   for(i=0; i<rN; ++i)
-  {
     if((rV[i].note = _cmXsReorderFindNote(p,measNumb,rV+i,i)) == NULL )
       return kSyntaxErrorXsRC;
-  }
   
   cmXsMeas_t* mp  = rV[0].note->meas;
   cmXsNote_t* n0p = NULL;
@@ -1719,6 +1807,25 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
     // if a new note value was specified
     if( rV[i].pitch != 0 )
       rV[i].note->pitch = rV[i].pitch;
+
+    switch(rV[i].graceType)
+    {
+      case 'b':
+        rV[i].note->flags = cmSetFlag(rV[i].note->flags,kBegGraceXsFl);
+        break;
+        
+      case 'g':
+        break;
+        
+      case 'a':
+      case 's':
+      case 'f':
+        rV[i].note->flags = cmSetFlag(rV[i].note->flags,kEndGraceXsFl);
+        break;
+
+    }
+
+    rV[i].note->graceGroupId = rV[i].graceGroupId;
     
     n0p        = rV[i].note;
     n0p->slink = NULL;
@@ -1897,6 +2004,36 @@ cmXsRC_t  _cmXScoreReorderParseTick(cmXScore_t* p, const cmChar_t* b, unsigned l
   return rc;
 }
 
+cmXsRC_t  _cmXScoreReorderParseGrace(cmXScore_t* p, const cmChar_t* b, unsigned line, char* graceTypeRef )
+{
+  cmXsRC_t        rc = kOkXsRC;
+  const cmChar_t* s;
+
+  *graceTypeRef = 0;
+
+  if((s = strchr(b,'%')) == NULL )
+    return rc;
+
+  ++s;
+
+  switch(*s)
+  {
+    case 'b':
+    case 'g':
+    case 'a':
+    case 's':
+    case 'f':
+      *graceTypeRef = *s;
+      break;
+
+    default:
+      { assert(0); }
+  }
+  
+  return rc;
+  
+}
+
 cmXsRC_t  _cmXScoreReorderParsePitch(cmXScore_t* p, const cmChar_t* b, unsigned line, unsigned* pitchRef )
 {
   cmXsRC_t rc = kOkXsRC;
@@ -1937,26 +2074,24 @@ cmXsRC_t  _cmXScoreReorderParsePitch(cmXScore_t* p, const cmChar_t* b, unsigned 
   else
     rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"Pitch conversion from '%s' failed on line %i.",buf,line); 
 
-  return rc;
-  
+  return rc;  
 }
-
-
 
 cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
 {
   typedef enum { kFindMeasStId, kFindEventStId, kReadEventStId } stateId_t;
 
-  cmXsRC_t      rc      = kOkXsRC;
-  cmXScore_t*   p       = _cmXScoreHandleToPtr(h);
-  cmFileH_t     fH      = cmFileNullHandle;
-  cmChar_t*     b       = NULL;
-  unsigned      bN      = 0;
-  unsigned      ln      = 0;
-  stateId_t     stateId = kFindMeasStId;
-  unsigned      rN      = 1024;
-  unsigned      ri      = 0;
-  unsigned     measNumb = 0;
+  cmXsRC_t      rc       = kOkXsRC;
+  cmXScore_t*   p        = _cmXScoreHandleToPtr(h);
+  cmFileH_t     fH       = cmFileNullHandle;
+  cmChar_t*     b        = NULL;
+  unsigned      bN       = 0;
+  unsigned      ln       = 0;
+  stateId_t     stateId  = kFindMeasStId;
+  unsigned      rN       = 1024;
+  unsigned      ri       = 0;
+  unsigned      measNumb = 0;
+  unsigned      graceGroupId = 1;
   cmXsReorder_t rV[ rN ];
   
   if( cmFileOpen(&fH,fn,kReadFileFl,p->err.rpt) != kOkFileRC )
@@ -2029,10 +2164,27 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
             if((rc = _cmXScoreReorderParseTick(p, b, ln+1, &r.newTick)) != kOkXsRC )
               goto errLabel;
 
+            // parse the %grace note marker
+            if((rc = _cmXScoreReorderParseGrace(p, b, ln+1, &r.graceType)) != kOkXsRC )
+              goto errLabel;
+
             // parse the $pitch marker
             if((rc =  _cmXScoreReorderParsePitch(p, b, ln+1, &r.pitch )) != kOkXsRC )
               goto errLabel;
 
+            // process grace notes - these need to be processed separate from
+            // the _cmXScoreReorderMeas() because grace notes may cross measure boundaries.
+            if( r.graceType != 0 )
+            {
+              r.graceGroupId = graceGroupId;
+
+              // if this is an end of a grace note group
+              if( r.graceType != 'g' && r.graceType != 'b' )
+              {
+                graceGroupId += 1;
+              }
+              
+            }
 
             // store the record
             assert( ri < rN );
@@ -2075,6 +2227,8 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
 
   // resort to force the links to be correct
   _cmXScoreSort(p);
+
+  _cmXScoreProcessGraceNotes( p );
   
  errLabel:
   cmFileClose(&fH);
@@ -2608,113 +2762,10 @@ void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
   }
 }
 
-typedef struct cmXsMidiEvt_str
-{
-  unsigned         flags;     // k???XsFl
-  unsigned         tick;      // start tick
-  unsigned         durTicks;  // dur-ticks
-  unsigned         voice;     // score voice number
-  unsigned         d0;        // MIDI d0   (barNumb)
-  unsigned         d1;        // MIDI d1
-  struct cmXsMidiEvt_str* link;
-} cmXsMidiEvt_t;
-
-typedef struct cmXsMidiFile_str
-{
-  cmXsMidiEvt_t* elist;
-  cmXsMidiEvt_t* eol;
-
-  unsigned pitch_min;
-  unsigned pitch_max;
-  
-} cmXsMidiFile_t;
-
-cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, const cmChar_t* dir, const cmChar_t* fn )
-{
-  cmXsRC_t        rc         = kOkXsRC;
-  cmSvgH_t        svgH       = cmSvgNullHandle;
-  cmXsMidiEvt_t*  e          = mf->elist;
-  unsigned        noteHeight = 10;
-  const cmChar_t* svgFn      = cmFsMakeFn(dir,fn,"html",NULL);
-  const cmChar_t* cssFn      = cmFsMakeFn(NULL,fn,"css",NULL);
-  cmChar_t*       t0         = NULL;  // temporary dynamic string
-  
-  // create the SVG writer
-  if( cmSvgWriterAlloc(ctx,&svgH) != kOkSvgRC )
-  {
-    rc = cmErrMsg(&p->err,kSvgFailXsRC,"Unable to create the MIDI SVG output file '%s'.",cmStringNullGuard(svgFn));
-    goto errLabel;
-  }
-
-  // for each MIDI file element
-  for(; e!=NULL && rc==kOkXsRC; e=e->link)
-  {
-    switch( e->flags & (kOnsetXsFl|kBarXsFl|kDampDnXsFl|kDampUpDnXsFl|kSostDnXsFl))
-    {
-      
-      // if this is a note
-      case kOnsetXsFl:
-        {
-          const cmChar_t* classLabel = "note";
-      
-          t0 = cmTsPrintfP(t0,"note_%i%s",e->voice, cmIsFlag(e->flags,kGraceXsFl) ? "_g":"");
-      
-          if( cmIsFlag(e->flags,kGraceXsFl) )
-            classLabel = "grace";
-      
-          if( cmSvgWriterRect(svgH, e->tick, e->d0 * noteHeight,  e->durTicks,  noteHeight-1, t0 ) != kOkSvgRC )
-            rc = kSvgFailXsRC;
-          else
-            if( cmSvgWriterText(svgH, e->tick + e->durTicks/2, e->d0 * noteHeight + noteHeight/2, cmMidiToSciPitch( e->d0, NULL, 0), "pitch") != kOkSvgRC )
-              rc = kSvgFailXsRC;
-        }
-        break;
-
-        // if this is a bar
-      case kBarXsFl:
-        {
-          if( cmSvgWriterLine(svgH, e->tick, 0, e->tick, 127*noteHeight, "bar") != kOkSvgRC )
-            rc = kSvgFailXsRC;
-          else
-          {
-            if( cmSvgWriterText(svgH, e->tick, 10, t0 = cmTsPrintfP(t0,"%i",e->d0), "text" ) != kOkSvgRC )
-              rc = kSvgFailXsRC;
-          }
-        }
-        break;
-
-        // if this is a pedal event
-      case kDampDnXsFl:
-      case kDampUpDnXsFl:
-      case kSostDnXsFl:
-        {
-          const cmChar_t* classLabel =        cmIsFlag(e->flags,kSostDnXsFl) ? "sost" : "damp";
-          unsigned        y          = (128 + cmIsFlag(e->flags,kSostDnXsFl)?1:0) * noteHeight;
-          cmSvgWriterRect(svgH, e->tick, y, e->durTicks, noteHeight-1, classLabel);
-        }
-        break;
-    }
-  }
-  
-  if( rc != kOkXsRC )
-    cmErrMsg(&p->err,kSvgFailXsRC,"SVG element insert failed.");
-
-  if( rc == kOkXsRC )
-    if( cmSvgWriterWrite(svgH,cssFn,svgFn) != kOkSvgRC )
-      rc = cmErrMsg(&p->err,kSvgFailXsRC,"SVG file write to '%s' failed.",cmStringNullGuard(svgFn));
-  
- errLabel:
-  cmSvgWriterFree(&svgH);
-  cmFsFreeFn(svgFn);
-  cmFsFreeFn(cssFn);
-  cmMemFree(t0);
-  
-  return rc;
-}
-
-cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, const cmChar_t* dir, const cmChar_t* fn )
+cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cmChar_t* fn )
 {
   cmXsRC_t rc = kOkXsRC;
+  cmXScore_t* p = _cmXScoreHandleToPtr(h);
   
   if( p->partL==NULL || p->partL->measL == NULL )
     return rc;
@@ -2808,9 +2859,115 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, co
 }
 
 
-void _cmXsPushMidiEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsigned tick, unsigned durTick, unsigned voice, unsigned d0, unsigned d1 )
+
+typedef struct cmXsSvgEvt_str
 {
-  cmXsMidiEvt_t* e = cmLhAllocZ(p->lhH,cmXsMidiEvt_t,1);
+  unsigned         flags;     // k???XsFl
+  unsigned         tick;      // start tick
+  unsigned         durTicks;  // dur-ticks
+  unsigned         voice;     // score voice number
+  unsigned         d0;        // MIDI d0   (barNumb)
+  unsigned         d1;        // MIDI d1
+  struct cmXsSvgEvt_str* link;
+} cmXsSvgEvt_t;
+
+typedef struct cmXsMidiFile_str
+{
+  cmXsSvgEvt_t* elist;
+  cmXsSvgEvt_t* eol;
+
+  unsigned pitch_min;
+  unsigned pitch_max;
+  
+} cmXsMidiFile_t;
+
+cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, const cmChar_t* dir, const cmChar_t* fn )
+{
+  cmXsRC_t        rc         = kOkXsRC;
+  cmSvgH_t        svgH       = cmSvgNullHandle;
+  cmXsSvgEvt_t*  e          = mf->elist;
+  unsigned        noteHeight = 10;
+  const cmChar_t* svgFn      = cmFsMakeFn(dir,fn,"html",NULL);
+  const cmChar_t* cssFn      = cmFsMakeFn(NULL,fn,"css",NULL);
+  cmChar_t*       t0         = NULL;  // temporary dynamic string
+  
+  // create the SVG writer
+  if( cmSvgWriterAlloc(ctx,&svgH) != kOkSvgRC )
+  {
+    rc = cmErrMsg(&p->err,kSvgFailXsRC,"Unable to create the MIDI SVG output file '%s'.",cmStringNullGuard(svgFn));
+    goto errLabel;
+  }
+
+  // for each MIDI file element
+  for(; e!=NULL && rc==kOkXsRC; e=e->link)
+  {
+    switch( e->flags & (kOnsetXsFl|kBarXsFl|kDampDnXsFl|kDampUpDnXsFl|kSostDnXsFl))
+    {
+      
+      // if this is a note
+      case kOnsetXsFl:
+        {
+          const cmChar_t* classLabel = "note";
+      
+          t0 = cmTsPrintfP(t0,"note_%i%s",e->voice, cmIsFlag(e->flags,kGraceXsFl) ? "_g":"");
+      
+          if( cmIsFlag(e->flags,kGraceXsFl) )
+            classLabel = "grace";
+      
+          if( cmSvgWriterRect(svgH, e->tick, e->d0 * noteHeight,  e->durTicks,  noteHeight-1, t0 ) != kOkSvgRC )
+            rc = kSvgFailXsRC;
+          else
+            if( cmSvgWriterText(svgH, e->tick + e->durTicks/2, e->d0 * noteHeight + noteHeight/2, cmMidiToSciPitch( e->d0, NULL, 0), "pitch") != kOkSvgRC )
+              rc = kSvgFailXsRC;
+        }
+        break;
+
+        // if this is a bar
+      case kBarXsFl:
+        {
+          if( cmSvgWriterLine(svgH, e->tick, 0, e->tick, 127*noteHeight, "bar") != kOkSvgRC )
+            rc = kSvgFailXsRC;
+          else
+          {
+            if( cmSvgWriterText(svgH, e->tick, 10, t0 = cmTsPrintfP(t0,"%i",e->d0), "text" ) != kOkSvgRC )
+              rc = kSvgFailXsRC;
+          }
+        }
+        break;
+
+        // if this is a pedal event
+      case kDampDnXsFl:
+      case kDampUpDnXsFl:
+      case kSostDnXsFl:
+        {
+          const cmChar_t* classLabel =        cmIsFlag(e->flags,kSostDnXsFl) ? "sost" : "damp";
+          unsigned        y          = (128 + cmIsFlag(e->flags,kSostDnXsFl)?1:0) * noteHeight;
+          cmSvgWriterRect(svgH, e->tick, y, e->durTicks, noteHeight-1, classLabel);
+        }
+        break;
+    }
+  }
+  
+  if( rc != kOkXsRC )
+    cmErrMsg(&p->err,kSvgFailXsRC,"SVG element insert failed.");
+
+  if( rc == kOkXsRC )
+    if( cmSvgWriterWrite(svgH,cssFn,svgFn) != kOkSvgRC )
+      rc = cmErrMsg(&p->err,kSvgFailXsRC,"SVG file write to '%s' failed.",cmStringNullGuard(svgFn));
+  
+ errLabel:
+  cmSvgWriterFree(&svgH);
+  cmFsFreeFn(svgFn);
+  cmFsFreeFn(cssFn);
+  cmMemFree(t0);
+  
+  return rc;
+}
+
+
+void _cmXsPushSvgEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsigned tick, unsigned durTick, unsigned voice, unsigned d0, unsigned d1 )
+{
+  cmXsSvgEvt_t* e = cmLhAllocZ(p->lhH,cmXsSvgEvt_t,1);
   e->flags    = flags;
   e->tick     = tick;
   e->durTicks = durTick;
@@ -2832,16 +2989,13 @@ void _cmXsPushMidiEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsi
   mf->eol = e;
 }
 
-cmXsRC_t _cmXScoreGenMidi( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cmChar_t* fn )
+cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cmChar_t* fn )
 {
   cmXScore_t* p  = _cmXScoreHandleToPtr(h);
   cmXsPart_t* pp = p->partL;
-
+  
   cmXsMidiFile_t mf;
   memset(&mf,0,sizeof(mf));
-
-  // assign durations to pedal down events
-  _cmXScoreProcessPedals(p);
 
   for(; pp!=NULL; pp=pp->link)
   {
@@ -2856,7 +3010,7 @@ cmXsRC_t _cmXScoreGenMidi( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const c
         if( cmIsFlag(note->flags,kMetronomeXsFl) )
         {
           // set BPM as d0
-          _cmXsPushMidiEvent(p,&mf,note->flags,note->tick,0,0,note->duration,0);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->duration,0);
           continue;
           
         }
@@ -2872,14 +3026,14 @@ cmXsRC_t _cmXScoreGenMidi( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const c
             for(; tn!=NULL; tn=tn->tied)
               durTick += tn->duration;
           }
-          _cmXsPushMidiEvent(p,&mf,note->flags,note->tick,durTick,note->voice->id,d0,note->vel);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,durTick,note->voice->id,d0,note->vel);
           continue;
         }
 
         // if this is a bar event
         if( cmIsFlag(note->flags,kBarXsFl) )
         {
-          _cmXsPushMidiEvent(p,&mf,note->flags,note->tick,0,0,note->meas->number,0);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->meas->number,0);
           continue;
         }
 
@@ -2887,7 +3041,7 @@ cmXsRC_t _cmXScoreGenMidi( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const c
         if( cmIsFlag(note->flags,kDampDnXsFl|kDampUpDnXsFl|kSostDnXsFl) )
         {
           unsigned d0 = cmIsFlag(note->flags,kSostDnXsFl) ? kSostenutoCtlMdId : kSustainCtlMdId;          
-          _cmXsPushMidiEvent(p,&mf,note->flags,note->tick,note->duration,0,d0,127);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,note->duration,0,d0,127);
           continue;
         }
         
@@ -2895,7 +3049,6 @@ cmXsRC_t _cmXScoreGenMidi( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const c
     }
   }
 
-  _cmXsWriteMidiFile( ctx, p, &mf, dir, fn );
 
   return _cmXsWriteMidiSvg( ctx, p, &mf, dir, fn );
 
@@ -2916,6 +3069,9 @@ cmXsRC_t cmXScoreTest(
 
   if( reorderFn != NULL )
     cmXScoreReorder(h,reorderFn);
+
+  // assign durations to pedal down events
+  _cmXScoreProcessPedals(_cmXScoreHandleToPtr(h));
   
   if( csvOutFn != NULL )
   {
@@ -2943,7 +3099,9 @@ cmXsRC_t cmXScoreTest(
   {
     cmFileSysPathPart_t* pp = cmFsPathParts(midiOutFn);
     
-    _cmXScoreGenMidi( ctx, h, pp->dirStr, pp->fnStr );
+    _cmXScoreGenSvg( ctx, h, pp->dirStr, pp->fnStr );
+
+    _cmXsWriteMidiFile(ctx, h, pp->dirStr, pp->fnStr );
 
     cmFsFreePathParts(pp);
     
