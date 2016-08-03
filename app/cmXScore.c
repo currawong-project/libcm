@@ -1525,8 +1525,9 @@ void _cmXScoreGraceOverlayTime( cmXScore_t* p, unsigned graceGroupId, cmXsNote_t
 // grace note groups - which must be in reverse time order.
 cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
 {
-  cmXsRC_t    rc = kOkXsRC;
-  unsigned    graceGroupId = 1;
+  cmXsRC_t rc           = kOkXsRC;
+  unsigned graceGroupId = 1;
+  double   graceDurSec  = 1.0/15.0;  // duration of all grace notes in seconds
   
   for(; 1; ++graceGroupId)
   {
@@ -1567,7 +1568,7 @@ cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
               
             // set each grace note to have 1/20 of a second duration
             if( cmIsFlag(np->flags,kGraceXsFl) )
-              np->duration = floor(ticksPerSec / 20.0);
+              np->duration = floor(ticksPerSec * graceDurSec);
 
             gN += 1;
           }
@@ -1639,7 +1640,7 @@ cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
     mp = gn0p->meas;
     for(i=0; n0p != gn1p; n1p=n1p->slink )
     {
-      // if we are crossing a measure boundardy
+      // if we are crossing a measure boundary
       if( n1p == NULL )
       {
         mp  = mp->link;
