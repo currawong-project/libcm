@@ -37,30 +37,33 @@ cmXsH_t cmXsNullHandle = cmSTATIC_NULL_HANDLE;
 
 enum
 {
-  kSectionXsFl     = 0x000001,  // rvalue holds section number
-  kBarXsFl         = 0x000002,
-  kRestXsFl        = 0x000004,
-  kGraceXsFl       = 0x000008,
-  kDotXsFl         = 0x000010,
-  kChordXsFl       = 0x000020,
-  kDynXsFl         = 0x000040,
-  kEvenXsFl        = 0x000080,
-  kTempoXsFl       = 0x000100,
-  kHeelXsFl        = 0x000200,
-  kTieBegXsFl      = 0x000400,
-  kTieEndXsFl      = 0x000800,
-  kTieProcXsFl     = 0x001000,
-  kDampDnXsFl      = 0x002000,
-  kDampUpXsFl      = 0x004000,
-  kDampUpDnXsFl    = 0x008000,
-  kSostDnXsFl      = 0x010000,
-  kSostUpXsFl      = 0x020000,
-  kMetronomeXsFl   = 0x040000,  // duration holds BPM
-  kOnsetXsFl       = 0x080000,  // this is a sounding note
-  kBegGroupXsFl    = 0x100000,
-  kEndGroupXsFl    = 0x200000,
-  kBegGraceXsFl    = 0x400000,  // beg grace note group
-  kEndGraceXsFl    = 0x800000   // end grace note group
+  kSectionXsFl     = 0x0000001,  // rvalue holds section number
+  kBarXsFl         = 0x0000002,
+  kRestXsFl        = 0x0000004,
+  kGraceXsFl       = 0x0000008,
+  kDotXsFl         = 0x0000010,
+  kChordXsFl       = 0x0000020,
+  kDynXsFl         = 0x0000040,
+  kEvenXsFl        = 0x0000080,
+  kTempoXsFl       = 0x0000100,
+  kHeelXsFl        = 0x0000200,
+  kTieBegXsFl      = 0x0000400,
+  kTieEndXsFl      = 0x0000800,
+  kTieProcXsFl     = 0x0001000,
+  kDampDnXsFl      = 0x0002000,
+  kDampUpXsFl      = 0x0004000,
+  kDampUpDnXsFl    = 0x0008000,
+  kSostDnXsFl      = 0x0010000,
+  kSostUpXsFl      = 0x0020000,
+  kMetronomeXsFl   = 0x0040000,  // duration holds BPM
+  kOnsetXsFl       = 0x0080000,  // this is a sounding note
+  kBegGroupXsFl    = 0x0100000,
+  kEndGroupXsFl    = 0x0200000,
+  kBegGraceXsFl    = 0x0400000,  // beg grace note group
+  kEndGraceXsFl    = 0x0800000,  // end grace note group
+  kAddGraceXsFl    = 0x1000000,  // end grace note group operator flag - add time
+  kSubGraceXsFl    = 0x2000000,  //  "    "    "     "      "       "  - subtract time
+  kFirstGraceXsFl  = 0x4000000,  //  "    "    "     "      "       "  - sync to first note
   
 };
 
@@ -1464,6 +1467,57 @@ cmXsRC_t _cmXScoreProcessPedals( cmXScore_t* p )
   return rc;
 }
 
+void _cmXScoreInsertTime( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* np, unsigned expand_ticks )
+{
+  for(; mp!=NULL; mp=mp->link)
+  {  
+    if( np == NULL )
+      np = mp->noteL;
+  
+    for(; np!=NULL; np=np->slink)
+      np->tick += expand_ticks;
+  }   
+}
+
+// Insert the grace notes in between the first and last note in the group
+// by inserting time between the first and last note.
+void _cmXScoreGraceInsertTime( cmXScore_t* p, unsigned graceGroupId, cmXsNote_t* aV[], unsigned aN )
+{
+  cmXsNote_t* np = NULL;
+  unsigned expand_ticks = 0;
+  unsigned ticks = aV[aN-1]->tick;
+  unsigned i;
+  for(i=0; i<aN; ++i)
+    if( cmIsFlag(aV[i]->flags,kGraceXsFl) && aV[i]->graceGroupId == graceGroupId )
+    {
+      aV[i]->tick   = ticks;
+      ticks        += aV[i]->duration;
+      expand_ticks += aV[i]->duration;
+      np            = aV[i];
+    }
+
+  np = np->slink;
+  if( np != NULL )
+    _cmXScoreInsertTime(p,np->meas,np,expand_ticks);
+}
+
+// Insert the grace notes in between the first and last note in the group
+// but do not insert any additional time betwee the first and last note.
+// In effect time is removed from the first note and taken by the grace notes.
+void _cmXScoreGraceOverlayTime( cmXScore_t* p, unsigned graceGroupId, cmXsNote_t* aV[], unsigned aN )
+{
+  assert(aN >= 3 );
+  
+  unsigned t = aV[aN-1]->tick;
+  int      i = (int)aN-2;
+  
+  for(; i>0; --i)
+    if( cmIsFlag(aV[i]->flags,kGraceXsFl) && aV[i]->graceGroupId == graceGroupId )
+    {
+      aV[i]->tick = t - aV[i]->duration;
+      t           =     aV[i]->tick;
+    }
+}
 
 // Adjust the locations of grace notes. Note that this must be done
 // after reordering so that we can be sure that the order in time of
@@ -1476,7 +1530,9 @@ cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
   
   for(; 1; ++graceGroupId)
   {
-    cmXsNote_t* gnp         = NULL;
+    cmXsNote_t* gn0p        = NULL;
+    cmXsNote_t* gn1p        = NULL;
+    unsigned    gN          = 0;
     cmXsPart_t* pp          = p->partL;
     double      ticksPerSec = 0;
     
@@ -1498,47 +1554,119 @@ cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
           // if this note is part of the grace note group we are searching for
           if( np->graceGroupId == graceGroupId )
           {
-            // add the note to the grace note list
-            np->grace = gnp;
+            // track the first note in the grace note list
+            if( gn0p == NULL )
+              gn0p = np;
 
+            // add the note to the end of the grace note list
+            if( gn1p != NULL )
+              gn1p->grace = np;
+
+            // track the last note in the grace note list
+            gn1p = np;
+              
             // set each grace note to have 1/20 of a second duration
             if( cmIsFlag(np->flags,kGraceXsFl) )
               np->duration = floor(ticksPerSec / 20.0);
 
-            gnp = np;
+            gN += 1;
           }
-        }
+            
+        } //
       }
     }
 
     // no records were found for this grace id - we're done
-    if( gnp == NULL )
+    if( gn0p == NULL )
       break;
 
-    cmXsNote_t* p0 = NULL;
-    cmXsNote_t* p1 = gnp;
-    
-    for(; p1!=NULL; p1=p1->grace)
+    // grace note groups must have at least 3 members
+    if( gN < 3 )
     {
-      if(1)
+      rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"The grace not group ending in meas %i has fewer than 3 (%i) members.", gn1p->meas->number, gN );
+      break;
+    }
+
+    
+    // gn0p is now set to the first note in th group
+    // gn1p is now set to the last note in the group
+
+    // verify that the first note is marked with kBegGraceXsFl
+    if( cmIsNotFlag(gn0p->flags,kBegGraceXsFl) )
+    {
+      rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"The first note in a grace note group in meas %i is not marked with a 'b'.", gn0p->meas->number );
+      break;
+    }
+
+    // verify that the last note is marked with kEndGraceXsFl
+    if( cmIsNotFlag(gn1p->flags,kEndGraceXsFl) )
+    {
+      rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"The last note in a grace note group in meas %i is not marked with a valid operator character.", gn1p->meas->number );
+      break;
+    }
+
+    // count the total number of events between gn0p and gn1p
+    cmXsNote_t* n0p = NULL;
+    cmXsNote_t* n1p = gn0p;
+    cmXsMeas_t* mp  = gn0p->meas;
+    unsigned    aN  = 0;
+    for(; n0p != gn1p; n1p=n1p->slink )
+    {
+      // if we are crossing a measure boundary
+      if( n1p == NULL )
       {
-        const char* type = "g";
-        if( cmIsFlag(p1->flags,kBegGraceXsFl) )
-          type           = "b";
-        
-        if( cmIsFlag(p1->flags,kEndGraceXsFl) )
-          type = "i";
-        
-        bool fl = p0 != NULL && p0->tick < p1->tick;
-        printf("%3i %s %i %5i %i\n",p1->graceGroupId,type,p1->tick,p1->duration,fl);
+        mp  = mp->link;
+        assert(mp!=NULL);
+        n1p = mp->noteL;        
       }
 
-      // TODO:
-      // position grace notes here
+      if(1)
+      {
+        bool     fl   = n0p != NULL && n0p->tick < n1p->tick;
+        unsigned type = n1p->flags & (kBegGraceXsFl|kEndGraceXsFl|kAddGraceXsFl|kSubGraceXsFl|kFirstGraceXsFl);
+        printf("%3i 0x%08x %i %5i %i\n",n1p->graceGroupId,type,n1p->tick,n1p->duration,fl);
+      }
+      
+      ++aN;
+      n0p = n1p;
+    }
 
+    // create a vector of pointers to all events between gn0p and gn1p
+    cmXsNote_t* aV[ aN ];
+    unsigned    i;
+    n1p = gn0p;
+    n0p = NULL;
+    mp = gn0p->meas;
+    for(i=0; n0p != gn1p; n1p=n1p->slink )
+    {
+      // if we are crossing a measure boundardy
+      if( n1p == NULL )
+      {
+        mp  = mp->link;
+        assert(mp!=NULL);
+        n1p = mp->noteL;        
+      }
       
-      
-      p0 = p1;
+      assert(i<aN);
+      aV[i++] = n1p;
+      n0p     = n1p;
+    }
+
+    switch( gn1p->flags & (kAddGraceXsFl | kSubGraceXsFl | kFirstGraceXsFl) )
+    {
+      case kAddGraceXsFl:
+        _cmXScoreGraceInsertTime(p, graceGroupId, aV, aN );
+        break;
+        
+      case kSubGraceXsFl:
+        _cmXScoreGraceOverlayTime(p, graceGroupId, aV, aN );
+        break;
+        
+      case kFirstGraceXsFl:
+        break;
+        
+      default:
+        { assert(0); }
     }
 
     
@@ -1648,12 +1776,12 @@ typedef struct
   
   cmXsNote_t* note;     // The cmXsNote_t* associated with this cmXsReorder_t record
   
-  unsigned    dynIdx;    // cmInvalidIdx=ignore otherwise index into _cmXScoreDynMarkArray[]
-  unsigned    newFlags;  // 0=ignore | kSostUp/DnXsFl | kDampUp/DnXsFl  | kTieEndXsFl
-  unsigned    newTick;   // 0=ignore >0 new tick value
-  char        graceType; // 0=ignore g=grace note i=anchor note
+  unsigned    dynIdx;       // cmInvalidIdx=ignore otherwise index into _cmXScoreDynMarkArray[]
+  unsigned    newFlags;     // 0=ignore | kSostUp/DnXsFl | kDampUp/DnXsFl  | kTieEndXsFl
+  unsigned    newTick;      // 0=ignore >0 new tick value
+  unsigned    graceFlags;   // 0=ignore See kXXXGraceXsFl
   unsigned    graceGroupId; // 0=ignore >0=grace note group id
-  unsigned    pitch;     // 0=ignore >0 new pitch
+  unsigned    pitch;        // 0=ignore >0 new pitch
 } cmXsReorder_t;
 
 typedef struct _cmXScoreDynMark_str
@@ -1807,25 +1935,9 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
     // if a new note value was specified
     if( rV[i].pitch != 0 )
       rV[i].note->pitch = rV[i].pitch;
-
-    switch(rV[i].graceType)
-    {
-      case 'b':
-        rV[i].note->flags = cmSetFlag(rV[i].note->flags,kBegGraceXsFl);
-        break;
-        
-      case 'g':
-        break;
-        
-      case 'a':
-      case 's':
-      case 'f':
-        rV[i].note->flags = cmSetFlag(rV[i].note->flags,kEndGraceXsFl);
-        break;
-
-    }
-
-    rV[i].note->graceGroupId = rV[i].graceGroupId;
+    
+    rV[i].note->flags        |= rV[i].graceFlags;
+    rV[i].note->graceGroupId  = rV[i].graceGroupId;
     
     n0p        = rV[i].note;
     n0p->slink = NULL;
@@ -2004,30 +2116,38 @@ cmXsRC_t  _cmXScoreReorderParseTick(cmXScore_t* p, const cmChar_t* b, unsigned l
   return rc;
 }
 
-cmXsRC_t  _cmXScoreReorderParseGrace(cmXScore_t* p, const cmChar_t* b, unsigned line, char* graceTypeRef )
+cmXsRC_t  _cmXScoreReorderParseGrace(cmXScore_t* p, const cmChar_t* b, unsigned line, cmXsReorder_t* r, unsigned* graceGroupIdRef )
 {
   cmXsRC_t        rc = kOkXsRC;
   const cmChar_t* s;
-
-  *graceTypeRef = 0;
 
   if((s = strchr(b,'%')) == NULL )
     return rc;
 
   ++s;
 
-  switch(*s)
+  r->graceGroupId = *graceGroupIdRef;
+  
+  while(1)
   {
-    case 'b':
-    case 'g':
-    case 'a':
-    case 's':
-    case 'f':
-      *graceTypeRef = *s;
-      break;
+    switch(*s)
+    {
+      case 'b': r->graceFlags |= kBegGraceXsFl;                   break;        
+      case 'a': r->graceFlags |= kAddGraceXsFl   | kEndGraceXsFl; break;
+      case 's': r->graceFlags |= kSubGraceXsFl   | kEndGraceXsFl; break;
+      case 'f': r->graceFlags |= kFirstGraceXsFl | kEndGraceXsFl; break;
+      case 'g': break;
 
-    default:
-      { assert(0); }
+      case '%':
+        *graceGroupIdRef += 1;
+        ++s;
+        continue;
+        
+      default:
+        { assert(0); }
+    }
+    
+    break;
   }
   
   return rc;
@@ -2165,7 +2285,7 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
               goto errLabel;
 
             // parse the %grace note marker
-            if((rc = _cmXScoreReorderParseGrace(p, b, ln+1, &r.graceType)) != kOkXsRC )
+            if((rc = _cmXScoreReorderParseGrace(p, b, ln+1, &r, &graceGroupId)) != kOkXsRC )
               goto errLabel;
 
             // parse the $pitch marker
@@ -2174,6 +2294,7 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
 
             // process grace notes - these need to be processed separate from
             // the _cmXScoreReorderMeas() because grace notes may cross measure boundaries.
+            /*
             if( r.graceType != 0 )
             {
               r.graceGroupId = graceGroupId;
@@ -2185,7 +2306,8 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
               }
               
             }
-
+            */
+            
             // store the record
             assert( ri < rN );
             rV[ri++] = r;
@@ -2225,10 +2347,14 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
   // the bar lines should be the first event in the measure
   _cmXScoreFixBarLines(p);
 
-  // resort to force the links to be correct
+  // resort to force the links to be correct 
   _cmXScoreSort(p);
 
+  // process the grace notes.
   _cmXScoreProcessGraceNotes( p );
+
+  // inserting grace notes may have left the score unsorted
+  _cmXScoreSort(p);
   
  errLabel:
   cmFileClose(&fH);
@@ -2688,6 +2814,9 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note,unsigned index )
   if( note->tempoGroupId != 0 )
     cmRptPrintf(rpt," t=%i",note->tempoGroupId);
 
+  if( note->graceGroupId != 0)
+    cmRptPrintf(rpt," g=%i",note->graceGroupId);
+
 }
 
 
@@ -3107,7 +3236,7 @@ cmXsRC_t cmXScoreTest(
     
   }
   
-  //cmXScoreReport(h,&ctx->rpt,false);
+  cmXScoreReport(h,&ctx->rpt,true);
 
   return cmXScoreFinalize(&h);
 
