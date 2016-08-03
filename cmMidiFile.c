@@ -535,6 +535,8 @@ void _cmMidiFileLinearize( _cmMidiFile_t* mfp )
 
   if( mfp->msgVDirtyFl == false )
     return;
+
+  mfp->msgVDirtyFl = false;
   
   // get the total trk msg count
   mfp->msgN = 0;
@@ -567,7 +569,6 @@ void _cmMidiFileLinearize( _cmMidiFile_t* mfp )
   // set the amicro value in each msg
   _cmMidiFileSetAbsoluteTime(mfp);
 
-  mfp->msgVDirtyFl = false;
   
 }
 
