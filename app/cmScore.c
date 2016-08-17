@@ -361,6 +361,22 @@ void _cmScFreeMarkList( cmScMark_t* markList )
   }
 }
 
+void _cmScFreeSectList( cmSc_t* p )
+{
+  
+  // release the section linked list
+  cmScSect_t* sp = p->sectList;
+  cmScSect_t* np = NULL;
+  while(sp!=NULL)
+  {
+    np = sp->link;
+    cmMemFree(sp);
+    sp = np;
+  }
+  
+  p->sectList = NULL;
+}
+
 void _cmScFreeSetList( cmScSet_t* setList )
 {
   cmScSet_t* tp = setList;
@@ -411,6 +427,8 @@ cmScRC_t _cmScFinalize( cmSc_t* p )
     }
     cmMemFree(p->sets);
   }
+
+  _cmScFreeSectList( p );
 
   _cmScFreeSetList(p->setList);
 
@@ -1119,9 +1137,10 @@ cmScRC_t _cmScProcSets( cmSc_t* p )
 
 
 
-cmScRC_t _cmScProcSections( cmSc_t* p, cmScSect_t* sectList )
+cmScRC_t _cmScProcSections( cmSc_t* p )
 {
   cmScRC_t rc = kOkScRC;
+  cmScSect_t* sectList = p->sectList;
   unsigned i;
 
   // count the sections
@@ -1166,16 +1185,9 @@ cmScRC_t _cmScProcSections( cmSc_t* p, cmScSect_t* sectList )
     }
   }
 
-  // release the section linked list
-  sp = sectList;
-  cmScSect_t* np = NULL;
-  while(sp!=NULL)
-  {
-    np = sp->link;
-    cmMemFree(sp);
-    sp = np;
-  }
 
+  _cmScFreeSectList(p);
+  
   //_cmScPrintSets("Sets",p->setList );
 
   _cmScProcSets(p);
@@ -1587,7 +1599,7 @@ cmScRC_t cmScoreInitialize( cmCtx_t* ctx, cmScH_t* hp, const cmChar_t* fn, doubl
   if((rc = _cmScInitLocArray(p)) != kOkScRC )
     goto errLabel;
 
-  if((rc = _cmScProcSections(p,p->sectList)) != kOkScRC )
+  if((rc = _cmScProcSections(p)) != kOkScRC )
     goto errLabel;
 
   if((rc = _cmScProcMarkers(p)) != kOkScRC )
