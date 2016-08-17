@@ -167,6 +167,24 @@ void _cmSvgSize( cmSvg_t* p, double* widthRef, double* heightRef )
   *heightRef = max_y - min_y;
 }
 
+void _cmSvgWriterFlipY( cmSvg_t* p, unsigned height )
+{
+  cmSvgEle_t* e = p->elist;
+  for(; e!=NULL; e=e->link)
+  {
+    e->y0 = (-e->y0) + height;
+    e->y1 = (-e->y1) + height;
+
+    if( e->id == kRectSvgId )
+    {
+      double t = e->y1;
+      e->y1 = e->y0;
+      e->y0 = t;
+    }
+    
+  }
+}
+
 
 cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* outFn )
 {
@@ -178,6 +196,8 @@ cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* 
   cmFileH_t   fH        = cmFileNullHandle;
   
   _cmSvgSize(p, &svgWidth, &svgHeight );
+
+  _cmSvgWriterFlipY( p, svgHeight );
   
   if( cmFileOpen(&fH,outFn,kWriteFileFl,p->err.rpt) != kOkFileRC )
     return cmErrMsg(&p->err,kFileFailSvgRC,"SVG file create failed for '%s'.",cmStringNullGuard(outFn));

@@ -21,7 +21,7 @@ enum
   cmSvgRC_t cmSvgWriterFree(    cmSvgH_t* hp );
   bool      cmSvgWriterIsValid( cmSvgH_t h );
   
-  cmSvgRC_t cmSvgWriterRect( cmSvgH_t h, double  x, double y,  double ww,  double hh,  const cmChar_t* cssClassLabel );
+  cmSvgRC_t cmSvgWriterRect( cmSvgH_t h, double  x, double y,  double ww, double hh, const cmChar_t* cssClassLabel );
   cmSvgRC_t cmSvgWriterLine( cmSvgH_t h, double x0, double y0, double x1, double y1, const cmChar_t* cssClassLabel );
   cmSvgRC_t cmSvgWriterText( cmSvgH_t h, double  x, double y,  const cmChar_t* text, const cmChar_t* cssClassLabel );
 
