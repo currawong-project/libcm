@@ -186,6 +186,7 @@ void _cmSvgWriterFlipY( cmSvg_t* p, unsigned height )
 }
 
 
+
 cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* outFn )
 {
   cmSvgRC_t   rc        = kOkSvgRC;
@@ -194,17 +195,34 @@ cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* 
   double      svgHeight = 0;
   cmSvgEle_t* e         = p->elist;
   cmFileH_t   fH        = cmFileNullHandle;
+  cmChar_t*   s0        = NULL;
+  cmChar_t*   s1        = NULL;
+
+  cmChar_t hdr[] =
+    "<!DOCTYPE html>"
+    "<html>"
+    "<head>"
+    "<meta charset=\"utf-8\">"    
+    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
+    "<script type=\"text/javascript\" src=\"svg-pan-zoom.min.js\"></script>"
+    "<script>"
+    " var panZoom = null;"
+    "  function doOnLoad() { panZoom = svgPanZoom(document.querySelector('#mysvg'), { controlIconsEnabled:true } ) }"
+    "</script>"
+    "</head>"
+    "<body onload=\"doOnLoad()\">"
+    "<svg id=\"mysvg\" width=\"%f\" height=\"%f\">";
+
+ 
   
   _cmSvgSize(p, &svgWidth, &svgHeight );
 
   _cmSvgWriterFlipY( p, svgHeight );
-  
-  if( cmFileOpen(&fH,outFn,kWriteFileFl,p->err.rpt) != kOkFileRC )
-    return cmErrMsg(&p->err,kFileFailSvgRC,"SVG file create failed for '%s'.",cmStringNullGuard(outFn));
 
-  if( cmFilePrintf(fH,"<!DOCTYPE html>\n<html>\n<head><link rel=\"stylesheet\" type=\"text/css\" href=\"%s\"></head><body>\n<svg width=\"%f\" height=\"%f\">\n",svgWidth,svgHeight,cssFn) != kOkFileRC )
+  // print the file header
+  if( (s0 = cmTsPrintfP(s0,hdr,cssFn,svgWidth,svgHeight)) == NULL )
   {
-    rc = cmErrMsg(&p->err,kFileFailSvgRC,"File prefix write failed.");
+    rc = cmErrMsg(&p->err,kPrintFailSvgRC,"File prefix write failed.");
     goto errLabel;
   }
 
@@ -213,18 +231,18 @@ cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* 
     switch( e->id )
     {
       case kRectSvgId:
-        if( cmFilePrintf(fH,"<rect x=\"%f\" y=\"%f\" width=\"%f\" height=\"%f\" class=\"%s\"/>\n",e->x0,e->y0,e->x1-e->x0,e->y1-e->y0,e->cssClass) != kOkFileRC )
-          rc = kFileFailSvgRC;
+        if( (s1 = cmTsPrintfP(s1,"<rect x=\"%f\" y=\"%f\" width=\"%f\" height=\"%f\" class=\"%s\"/>\n",e->x0,e->y0,e->x1-e->x0,e->y1-e->y0,e->cssClass)) == NULL )
+          rc = kPrintFailSvgRC;
         break;
         
       case kLineSvgId:
-        if( cmFilePrintf(fH,"<line x1=\"%f\" y1=\"%f\" x2=\"%f\" y2=\"%f\" class=\"%s\"/>\n",e->x0,e->y0,e->x1,e->y1,e->cssClass) != kOkFileRC )
-          rc = kFileFailSvgRC;
+        if( (s1 = cmTsPrintfP(s1,"<line x1=\"%f\" y1=\"%f\" x2=\"%f\" y2=\"%f\" class=\"%s\"/>\n",e->x0,e->y0,e->x1,e->y1,e->cssClass)) == NULL )
+          rc = kPrintFailSvgRC;
         break;
         
       case kTextSvgId:
-        if( cmFilePrintf(fH,"<text x=\"%f\" y=\"%f\" class=\"%s\">%s</text>\n",e->x0,e->y0,e->cssClass,e->text) != kOkFileRC )
-          rc = kFileFailSvgRC;        
+        if( (s1 = cmTsPrintfP(s1,"<text x=\"%f\" y=\"%f\" class=\"%s\">%s</text>\n",e->x0,e->y0,e->cssClass,e->text)) == NULL )
+          rc = kPrintFailSvgRC;        
         break;
         
       default:
@@ -234,21 +252,38 @@ cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* 
 
     if( rc != kOkSvgRC )
     {
-      rc = cmErrMsg(&p->err,kFileFailSvgRC,"Element write failed.");
+      rc = cmErrMsg(&p->err,kPrintFailSvgRC,"Element write failed.");
       break;
     }
+
+    s0 = cmTextAppendSS(s0,s1);
+    
   }
   
-  if( cmFilePrint(fH,"</svg>\n</body>\n</html>\n") != kOkFileRC )
+  if( (s1 = cmTsPrintfP(s1,"</svg>\n</body>\n</html>\n")) == NULL )
   {
-    rc = cmErrMsg(&p->err,kFileFailSvgRC,"File suffix write failed.");
+    rc = cmErrMsg(&p->err,kPrintFailSvgRC,"File suffix write failed.");
     goto errLabel;
   }
 
+  if( cmFileOpen(&fH,outFn,kWriteFileFl,p->err.rpt) != kOkFileRC )
+  {
+    rc = cmErrMsg(&p->err,kFileFailSvgRC,"SVG file create failed for '%s'.",cmStringNullGuard(outFn));
+    goto errLabel;
+  }
+  
+  if( cmFilePrint(fH,s0 = cmTextAppendSS(s0,s1)) != kOkFileRC )
+  {    
+    rc = cmErrMsg(&p->err,kFileFailSvgRC,"File write failed.");
+    goto errLabel;
+  }
 
  errLabel:
   cmFileClose(&fH);
 
+  cmMemFree(s0);
+  cmMemFree(s1);
+  
   return rc;
 }
 

@@ -9,6 +9,7 @@ enum
 {
   kOkSvgRC = cmOkRC,
   kFileFailSvgRC,
+  kPrintFailSvgRC,
   kLHeapFailSvgRC
 };
 
@@ -25,6 +26,10 @@ enum
   cmSvgRC_t cmSvgWriterLine( cmSvgH_t h, double x0, double y0, double x1, double y1, const cmChar_t* cssClassLabel );
   cmSvgRC_t cmSvgWriterText( cmSvgH_t h, double  x, double y,  const cmChar_t* text, const cmChar_t* cssClassLabel );
 
+  // Write the SVG file.  Note that header on this file references the CSS file 'cssFn'
+  // and the Javascript file svg-pan-zoom.min.js from https://github.com/ariutta/svg-pan-zoom.
+  // Both the CSS file and svg-pan-zoom.min.js should therefore be in the same directory
+  // as the output HTML file.
   cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h, const cmChar_t* cssFn, const cmChar_t* outFn );
   
 #ifdef __cplusplus
