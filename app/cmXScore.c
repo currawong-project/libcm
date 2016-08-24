@@ -882,32 +882,6 @@ cmXsNote_t*  _cmXScoreInsertSortedNote( cmXsNote_t* s0, cmXsNote_t* np )
   return s0;
 }
 
-void _cmXScoreSort( cmXScore_t* p )
-{
-  // for each part
-  cmXsPart_t* pp = p->partL;
-  for(; pp!=NULL; pp=pp->link)
-  {
-    // for each measure in this part
-    cmXsMeas_t* mp = pp->measL;
-    for(; mp!=NULL; mp=mp->link)
-    {
-      // explicitely set noteL to NULL to in case we are re-sorting
-      mp->noteL = NULL;
-
-      // for each voice in this measure
-      cmXsVoice_t* vp = mp->voiceL;
-      for(; vp!=NULL; vp=vp->link)
-      {
-        // for each note in this measure
-        cmXsNote_t* np = vp->noteL;
-        for(; np!=NULL; np=np->mlink)
-          mp->noteL = _cmXScoreInsertSortedNote(mp->noteL,np);
-      }
-    }
-  }
-}
-
 // Set the cmXsNode_t.secs and dsecs.
 void _cmXScoreSetAbsoluteTime( cmXScore_t* p )
 {
@@ -958,6 +932,36 @@ void _cmXScoreSetAbsoluteTime( cmXScore_t* p )
       }
     }
   }
+}
+
+
+void _cmXScoreSort( cmXScore_t* p )
+{
+  // for each part
+  cmXsPart_t* pp = p->partL;
+  for(; pp!=NULL; pp=pp->link)
+  {
+    // for each measure in this part
+    cmXsMeas_t* mp = pp->measL;
+    for(; mp!=NULL; mp=mp->link)
+    {
+      // explicitely set noteL to NULL to in case we are re-sorting
+      mp->noteL = NULL;
+
+      // for each voice in this measure
+      cmXsVoice_t* vp = mp->voiceL;
+      for(; vp!=NULL; vp=vp->link)
+      {
+        // for each note in this measure
+        cmXsNote_t* np = vp->noteL;
+        for(; np!=NULL; np=np->mlink)
+          mp->noteL = _cmXScoreInsertSortedNote(mp->noteL,np);
+      }
+    }
+  }
+
+  // The order of events may have changed update the absolute time.
+  _cmXScoreSetAbsoluteTime( p );
 }
 
 // All notes in a[aN] are on the same tick
@@ -1514,7 +1518,7 @@ void _cmXScoreGraceInsertTimeBase( cmXScore_t* p, unsigned graceGroupId, cmXsNot
     _cmXScoreInsertTime(p,np->meas,np,expand_ticks);
 }
 
-// Insert the grace notes in between the first and last note in the group
+// (a) Insert the grace notes in between the first and last note in the group
 // by inserting time between the first and last note.
 // Note that in effect his means that the last note is pushed back
 // in time by the total duration of the grace notes.
@@ -1523,7 +1527,7 @@ void _cmXScoreGraceInsertTime( cmXScore_t* p, unsigned graceGroupId, cmXsNote_t*
   _cmXScoreGraceInsertTimeBase( p, graceGroupId,aV,aN, aV[aN-1]->tick );
 }
 
-// Insert the grace notes in between the first and last note in the group
+// (s) Insert the grace notes in between the first and last note in the group
 // but do not insert any additional time betwee the first and last note.
 // In effect time is removed from the first note and taken by the grace notes.
 // The time position of the last note is therefore unchanged.
@@ -1550,7 +1554,7 @@ void _cmXScoreGraceOverlayTime( cmXScore_t* p, unsigned graceGroupId, cmXsNote_t
     }
 }
 
-// Play the first grace at the time of the first note in the group (which is a non-grace note)
+// (A) Play the first grace at the time of the first note in the group (which is a non-grace note)
 // and then expand time while inserting the other grace notes.
 void _cmXScoreGraceInsertAfterFirst( cmXScore_t* p, unsigned graceGroupId, cmXsNote_t* aV[], unsigned aN )
 {
@@ -1558,7 +1562,7 @@ void _cmXScoreGraceInsertAfterFirst( cmXScore_t* p, unsigned graceGroupId, cmXsN
 }
 
 
-// Play the first grace not shortly (one grace note duration) after the first note
+// (n) Play the first grace not shortly (one grace note duration) after the first note
 // in the group (which is a non-grace note) and then expand time while inserting the other
 // grace notes.
 void _cmXScoreGraceInsertSoonAfterFirst( cmXScore_t* p, unsigned graceGroupId, cmXsNote_t* aV[], unsigned aN )
@@ -1672,7 +1676,7 @@ cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
         n1p = mp->noteL;        
       }
 
-      if(1)
+      if(0)
       {
         bool     fl   = n0p != NULL && n0p->tick < n1p->tick;
         unsigned type = n1p->flags & (kBegGraceXsFl|kEndGraceXsFl|kAddGraceXsFl|kSubGraceXsFl|kAFirstGraceXsFl|kNFirstGraceXsFl);
@@ -1772,8 +1776,6 @@ cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn )
   _cmXScoreSpreadGraceNotes(p);
 
   _cmXScoreSort(p);
-
-  _cmXScoreSetAbsoluteTime(p);
 
   _cmXScoreResolveTiesAndLoc(p);
 
@@ -3298,7 +3300,7 @@ cmXsRC_t cmXScoreTest(
     
   }
   
-  cmXScoreReport(h,&ctx->rpt,true);
+  //cmXScoreReport(h,&ctx->rpt,true);
 
  errLabel:
   return cmXScoreFinalize(&h);
