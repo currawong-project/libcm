@@ -798,8 +798,6 @@ cmSmgRC_t cmScoreMatchGraphicUpdateMidiFromScore( cmCtx_t* ctx, cmSmgH_t h, cons
     goto errLabel;
   }
 
-  cmMidiFilePrintMsgs(mfH, p->err.rpt );
-
 
  errLabel:
   cmMidiFileClose(&mfH);
