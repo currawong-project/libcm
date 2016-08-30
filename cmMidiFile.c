@@ -256,7 +256,7 @@ cmMfRC_t _cmMidiFileReadChannelMsg( _cmMidiFile_t* mfp, cmMidiByte_t* rsPtr, cmM
   unsigned byteN = cmMidiStatusToByteCount(tmp->status);
   
   if( byteN==kInvalidMidiByte || byteN > 2 )
-    return cmErrMsg(&mfp->err,kInvalidStatusMfRC,"Invalid status:0x%x %i.",tmp->status,tmp->status);
+    return cmErrMsg(&mfp->err,kInvalidStatusMfRC,"Invalid status:0x%x %i byte cnt:%i.",tmp->status,tmp->status,byteN);
 
   unsigned i;
   for(i=useRsFl; i<byteN; ++i)
@@ -339,7 +339,7 @@ cmMfRC_t _cmMidiFileReadTrack( _cmMidiFile_t* mfp, unsigned short trkIdx )
     if((rc = _cmMidiFileRead8(mfp,&status)) != kOkMfRC )
       return rc;
 
-    //printf("st:%i 0x%x\n",status,status);
+    //printf("%5i st:%i 0x%x\n",dticks,status,status);
 
     // append a track msg
     if((rc = _cmMidiFileAppendTrackMsg( mfp, trkIdx, dticks, status, &tmp )) != kOkMfRC )
@@ -677,8 +677,11 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hp, const char* fn )
     rc = cmErrMsg(&p->err,kFileFailMfRC,"MIDI file close failed.");
 
   if( rc != kOkMfRC )
+  {
     _cmMidiFileClose(p);
-
+    hp->h = NULL;
+  }
+  
   return rc;
 }
 
@@ -971,12 +974,75 @@ cmMfRC_t _cmMidiFileWriteMetaMsg( _cmMidiFile_t* mfp, const cmMidiTrackMsg_t* tm
   return rc;
 }
 
+cmMfRC_t _cmMidiFileInsertEotMsg( _cmMidiFile_t* p, unsigned trkIdx )
+{
+  _cmMidiTrack_t* trk = p->trkV + trkIdx;
+  cmMidiTrackMsg_t* m0 = NULL;
+  cmMidiTrackMsg_t* m = trk->base;
+
+  // locate the current EOT msg on this track
+  for(; m!=NULL; m=m->link)
+  {
+    if( m->status == kMetaStId && m->metaId == kEndOfTrkMdId )
+    {
+      // If this EOT msg is the last msg in the track  ...
+      if( m->link == NULL )
+      {
+        assert( m == trk->last );
+        return kOkMfRC; // ... then there is nothing else to do
+      }
+
+      // If this EOT msg is not the last in the track ...
+      if( m0 != NULL )
+        m0->link = m->link;  // ... then unlink it
+
+      break;
+    }
+
+    m0 = m;
+  }
+
+  // if we get here then the last msg in the track was not an EOT msg
+
+  // if there was no previously allocated EOT msg
+  if( m == NULL )
+  {
+    m   = _cmMidiFileAllocMsg(p, trkIdx, 1, kMetaStId );
+    m->metaId = kEndOfTrkMdId;
+    trk->cnt += 1;
+    
+  }
+
+  // link an EOT msg as the last msg on the track
+
+  // if the track is currently empty
+  if( m0 == NULL )
+  {
+    trk->base = m;
+    trk->last = m;
+  }
+  else // link the msg as the last on on the track
+  {
+    assert( m0 == trk->last);
+    m0->link = m;
+    m->link  = NULL;
+    trk->last = m;
+  }
+
+  return kOkMfRC;
+
+}
+
 cmMfRC_t _cmMidiFileWriteTrack( _cmMidiFile_t* mfp, unsigned trkIdx )
 {
   cmMfRC_t          rc        = kOkMfRC;
   cmMidiTrackMsg_t* tmp       = mfp->trkV[trkIdx].base;
   cmMidiByte_t      runStatus = 0;
 
+  // be sure there is a EOT msg at the end of this track
+  if((rc = _cmMidiFileInsertEotMsg(mfp, trkIdx )) != kOkMfRC )
+    return rc;
+  
   for(; tmp != NULL; tmp=tmp->link)
   {
     // write the msg tick count
@@ -1379,7 +1445,8 @@ cmMfRC_t  cmMidiFileInsertTrackMsg( cmMidiFileH_t h, unsigned trkIdx, const cmMi
     assert( m1->atick >= m->atick );
     m1->dtick = m1->atick - m->atick;
   }
-  
+
+  p->trkV[trkIdx].cnt += 1;  
   p->msgVDirtyFl = true;
   
   return kOkMfRC;
@@ -1402,6 +1469,8 @@ cmMfRC_t  cmMidiFileInsertTrackChMsg( cmMidiFileH_t h, unsigned trkIdx, unsigned
   m.status     = status & 0xf0;
   m.byteCnt    = sizeof(cm);
   m.u.chMsgPtr = &cm;
+
+  assert( m.status >= kNoteOffMdId && m.status <= kPbendMdId );
   
   return cmMidiFileInsertTrackMsg(h,trkIdx,&m);
 }
