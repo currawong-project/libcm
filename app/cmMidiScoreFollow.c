@@ -112,6 +112,14 @@ void _cmMsf_ReportMidiErrors( const _cmMsf_ScoreFollow_t* f, cmScH_t scH, const 
   }
 }
 
+void _cmMsf_WriteMatchFileHeader( cmFileH_t fH )
+{
+  cmFilePrintf(fH,"  Score Score Score MIDI  MIDI MIDI\n");
+  cmFilePrintf(fH,"  Bar   UUID  Pitch UUID  Ptch Vel.\n");
+  cmFilePrintf(fH,"- ----- ----- ----- ----- ---- ----\n");
+}
+
+
 // Write one scScoreMatcherResult_t record to the file fH.
 unsigned _cmMsf_WriteMatchFileLine( cmFileH_t fH, cmScH_t scH, const cmScMatcherResult_t* r )
 {
@@ -130,7 +138,7 @@ unsigned _cmMsf_WriteMatchFileLine( cmFileH_t fH, cmScH_t scH, const cmScMatcher
     cmMidiToSciPitch(e->pitch,buf,5);
   }
   
-  cmFilePrintf(fH,"m %3i %5i %4s %5i %4s %3i\n",
+  cmFilePrintf(fH,"m %5i %5i %5s %5i %4s %3i\n",
     loc==NULL ? 0 : loc->barNumb,              // score evt bar
     scUid,                                     // score event uuid
     buf,                                       // score event pitch
@@ -147,17 +155,17 @@ void _cmMsf_ScoreFollowCb( struct cmScMatcher_str* p, void* arg, cmScMatcherResu
   r->rV[r->rN++] = *rp;
 }
 
-cmMsfRC_t cmMidiScoreFollowMain( cmCtx_t* ctx )
+cmMsfRC_t cmMidiScoreFollowMain(
+  cmCtx_t* ctx,
+  const cmChar_t* scoreCsvFn,      // score CSV file as generated from cmXScoreTest().
+  const cmChar_t* midiFn,          // MIDI file to track
+  const cmChar_t* matchRptOutFn,   // Score follow status report 
+  const cmChar_t* matchSvgOutFn,   // Score follow graphic report
+  const cmChar_t* midiOutFn,       // (optional) midiFn with apply sostenuto and velocities from the score to the MIDI file
+  const cmChar_t* tlBarOutFn       // (optional) bar positions sutiable for use in a cmTimeLine description file.
+)
 {
-  cmMsfRC_t             rc          = kOkMsfRC;
-  //const cmChar_t* scoreFn         = cmFsMakeUserDirFn("src/kc/src/kc/data","mod2e.csv");
-  const cmChar_t*          scoreFn  = cmFsMakeUserDirFn("temp","a7.csv");
-  const cmChar_t*          midiFn   = cmFsMakeUserDirFn("media/projects/imag_themes/scores/gen","round1-utf8_11.mid");
-  const cmChar_t*          outFn    = cmFsMakeUserDirFn("temp","match.txt");
-  const cmChar_t*          svgFn    = cmFsMakeUserDirFn("temp","score0.html");
-  const cmChar_t*          newMidiFn= cmFsMakeUserDirFn("temp","a7.mid");
-  const cmChar_t*          tlBarFn  = cmFsMakeUserDirFn("temp","time_line_temp.txt");
-  
+  cmMsfRC_t                rc        = kOkMsfRC;  
   double                   srate    = 96000.0;
   cmScMatcher*             smp      = NULL;  
   cmScH_t                  scH      = cmScNullHandle;
@@ -179,16 +187,16 @@ cmMsfRC_t cmMidiScoreFollowMain( cmCtx_t* ctx )
   cmCtx* prCtx   = cmCtxAlloc(NULL, err.rpt, cmLHeapNullHandle, cmSymTblNullHandle );
   
   // initialize the score
-  if( cmScoreInitialize( ctx, &scH, scoreFn, srate, NULL, 0, NULL, NULL, cmSymTblNullHandle) != kOkScRC )
+  if( cmScoreInitialize( ctx, &scH, scoreCsvFn, srate, NULL, 0, NULL, NULL, cmSymTblNullHandle) != kOkScRC )
   {
-    rc = cmErrMsg(&err,kFailMsfRC,"cmScoreInitialize() failed on %s",cmStringNullGuard(scoreFn));
+    rc = cmErrMsg(&err,kFailMsfRC,"cmScoreInitialize() failed on %s",cmStringNullGuard(scoreCsvFn));
     goto errLabel;
   }
 
   // setup the callback record
   if((sfr.rAllocN  = cmScoreEvtCount( scH )*2) == 0)
   {
-    rc = cmErrMsg(&err,kFailMsfRC,"The score %s appears to be empty.",cmStringNullGuard(scoreFn));
+    rc = cmErrMsg(&err,kFailMsfRC,"The score %s appears to be empty.",cmStringNullGuard(scoreCsvFn));
     goto errLabel;
   }
 
@@ -229,19 +237,21 @@ cmMsfRC_t cmMidiScoreFollowMain( cmCtx_t* ctx )
   printf("MIDI notes:%i Score Events:%i\n",mN,cmScoreEvtCount(scH));
 
   // create the output file
-  if( cmFileOpen(&fH,outFn,kWriteFileFl,&ctx->rpt) != kOkFileRC )
+  if( cmFileOpen(&fH,matchRptOutFn,kWriteFileFl,&ctx->rpt) != kOkFileRC )
   {
-    rc = cmErrMsg(&err,kFailMsfRC,"Unable to create the file '%s'.",cmStringNullGuard(outFn));
+    rc = cmErrMsg(&err,kFailMsfRC,"Unable to create the file '%s'.",cmStringNullGuard(matchRptOutFn));
     goto errLabel;    
   }
 
   // allocate the graphics object
-  if( cmScoreMatchGraphicAlloc( ctx, &smgH, scoreFn, midiFn ) != kOkSmgRC )
+  if( cmScoreMatchGraphicAlloc( ctx, &smgH, scoreCsvFn, midiFn ) != kOkSmgRC )
   {
     rc = cmErrMsg(&err,kFailMsfRC,"Score Match Graphics allocation failed..");
     goto errLabel;    
   }
 
+  // write the match report output file header
+  _cmMsf_WriteMatchFileHeader(fH);
 
   // for each score follower callback record 
   for(i=0; i<sfr.rN; ++i)
@@ -267,12 +277,14 @@ cmMsfRC_t cmMidiScoreFollowMain( cmCtx_t* ctx )
   //cmMidiFilePrintMsgs( mfH, &ctx->rpt );
 
   // write the tracking match file as an SVG file.
-  cmScoreMatchGraphicWrite( smgH, svgFn );
+  cmScoreMatchGraphicWrite( smgH, matchSvgOutFn );
 
   // write a cmTimeLine file which contains markers at each bar position
-  cmScoreMatchGraphicGenTimeLineBars(smgH, tlBarFn, srate );
+  if( tlBarOutFn != NULL )
+    cmScoreMatchGraphicGenTimeLineBars(smgH, tlBarOutFn, srate );
 
-  cmScoreMatchGraphicUpdateMidiFromScore( ctx, smgH, newMidiFn );
+  if( midiOutFn != NULL )
+    cmScoreMatchGraphicUpdateMidiFromScore( ctx, smgH, midiOutFn );
 
 
  errLabel:
@@ -286,12 +298,12 @@ cmMsfRC_t cmMidiScoreFollowMain( cmCtx_t* ctx )
 
   cmCtxFree(&prCtx);
 
-  cmFsFreeFn(scoreFn);
-  cmFsFreeFn(midiFn);
-  cmFsFreeFn(outFn);
-  cmFsFreeFn(svgFn);
-  cmFsFreeFn(newMidiFn);
-  cmFsFreeFn(tlBarFn);
+  //cmFsFreeFn(scoreCsvFn);
+  //cmFsFreeFn(midiFn);
+  //cmFsFreeFn(matchRptOutFn);
+  //cmFsFreeFn(matchSvgOutFn);
+  //cmFsFreeFn(outMidiFn);
+  //cmFsFreeFn(tlBarFn);
   
   return rc;
 }
