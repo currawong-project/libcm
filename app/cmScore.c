@@ -154,15 +154,16 @@ cmScEvtRef_t _cmScEvtRefArray[] =
 
 cmScEvtRef_t _cmScDynRefArray[] = 
 {
-  { 1, 0, "pppp"},
-  { 2, 0, "ppp" },
-  { 3, 0, "pp"  },
-  { 4, 0, "p"   },
-  { 5, 0, "mp"  },
-  { 6, 0, "mf"  },
-  { 7, 0, "f"   },
-  { 8, 0, "ff"  },
-  { 9, 0, "fff" },
+  { 1, 0, "silent"},
+  { 2, 0, "pppp"},
+  { 3, 0, "ppp" },
+  { 4, 0, "pp"  },
+  { 5, 0, "p"   },
+  { 6, 0, "mp"  },
+  { 7, 0, "mf"  },
+  { 8, 0, "f"   },
+  { 9, 0, "ff"  },
+  { 10, 0, "fff" },
   { kInvalidDynScId,0, "***" },
 };
 
