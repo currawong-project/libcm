@@ -690,7 +690,7 @@ cmSmgRC_t _cmScoreMatchGraphicInsertMidiMsg( cmSmg_t* p, cmMidiFileH_t mfH, bool
   cmMidiByte_t midi_vel     = pedalDnFl ? 64 :   0;
   cmMidiByte_t midi_ch      = 0;
 
-  printf("pedal:%s\n",pedalDnFl?"down":"up");
+  //printf("pedal:%s\n",pedalDnFl?"down":"up");
   
   // insert a pedal msg relative to the reference event
   if( cmMidiFileInsertMsg(mfH, m->uid, dtick_offset, midi_ch, kCtlMdId, kSostenutoCtlMdId, midi_vel ) != kOkMfRC )
