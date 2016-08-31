@@ -18,7 +18,8 @@ extern "C" {
     kPedalStateErrorXsRc,
     kMidiFailXsRC,
     kFileFailXsRC,
-    kSvgFailXsRC
+    kSvgFailXsRC,
+    kOverlapWarnXsRC
   };
 
   typedef cmRC_t     cmXsRC_t;

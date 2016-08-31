@@ -1208,6 +1208,83 @@ cmXsRC_t  _cmXScoreResolveOctaveShift( cmXScore_t* p )
   return kOkXsRC;
 }
 
+cmXsNote_t*  _cmXScoreFindOverlappingNote( cmXScore_t* p, const cmXsNote_t* knp )
+{
+  cmXsPart_t* pp = p->partL;
+
+  // for each part
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp = pp->measL;
+
+    // for each measure
+    for(; mp!=NULL; mp=mp->link)
+    {
+      cmXsNote_t* np = mp->noteL;
+
+      // for each note in this measure
+      for(; np!=NULL; np=np->slink)
+        if( np->uid != knp->uid
+          && cmIsFlag(np->flags,kOnsetXsFl)
+          && knp->pitch == np->pitch
+          && knp->tick >= np->tick 
+          && knp->tick <  (np->tick + np->duration)  )
+        {
+          return np;
+        }
+    }
+  }
+  return NULL;
+}
+
+void  _cmXScoreProcessOverlappingNotes( cmXScore_t* p )
+{
+  cmXsPart_t* pp = p->partL;
+
+  // for each part
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp = pp->measL;
+
+    // for each measure
+    for(; mp!=NULL; mp=mp->link)
+    {
+      cmXsNote_t* np = mp->noteL;
+      cmXsNote_t* fnp;
+      
+      // for each note in this measure
+      for(; np!=NULL; np=np->slink)
+        if( cmIsFlag(np->flags,kOnsetXsFl) && (fnp = _cmXScoreFindOverlappingNote(p,np)) != NULL)
+        {
+          // is np entirely contained inside fnp
+          bool embeddedFl = fnp->tick + fnp->duration > np->tick + np->duration;
+          
+          //printf("bar=%3i %4s voice:%2i %2i : %7i %7i : %7i %7i : %7i : %c \n",np->meas->number,cmMidiToSciPitch(np->pitch,NULL,0),np->voice->id,fnp->voice->id,fnp->tick,fnp->tick+fnp->duration,np->tick,np->tick+np->duration, (fnp->tick+fnp->duration) - np->tick, embeddedFl ? 'E' : 'O');
+
+          // turn off embedded notes
+          if( embeddedFl )
+          {
+            if( np->voice->id == fnp->voice->id )
+              cmErrWarnMsg(&p->err,kOverlapWarnXsRC,"A time embedded note (bar=%i %s) was removed even though it overlapped with a note in the same voice.",np->meas->number,cmMidiToSciPitch(np->pitch,NULL,0));
+            
+            np->flags = cmClrFlag(np->flags,kOnsetXsFl);
+          }
+          else
+          {
+            int d = (fnp->tick+fnp->duration) - np->tick;
+
+            // shorten the first note
+            if( d > 0 && d < fnp->duration )
+              fnp->duration -= d;
+
+            // move the second note just past it
+            np->tick       = fnp->tick + fnp->duration + 1;
+          }
+        }
+    }
+  }
+}
+
 
 // The identical pitch may be notated to play simultaneously on different voices.
 // As performed on the piano this will equate to a single sounding note.
@@ -2426,7 +2503,7 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
 
 
 
-/*
+/* CSV score columns
   kMidiFileIdColScIdx= 0,
   kTypeLabelColScIdx = 3,
   kDSecsColScIdx     = 4,
@@ -2719,7 +2796,6 @@ cmXsRC_t _cmXScoreWriteCsvRow(
 
  errLabel:
   return rc;
-
 }
 
 cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
@@ -3076,9 +3152,12 @@ cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, con
   cmSvgH_t        svgH       = cmSvgNullHandle;
   cmXsSvgEvt_t*   e          = mf->elist;
   unsigned        noteHeight = 10;
-  const cmChar_t* svgFn      = cmFsMakeFn(dir,fn,"html",NULL);
+  cmChar_t*       fn0        = cmMemAllocStr( fn );  
+  const cmChar_t* svgFn      = cmFsMakeFn(dir,fn0 = cmTextAppendSS(fn0,"_midi_svg"),"html",NULL);
   const cmChar_t* cssFn      = cmFsMakeFn(NULL,fn,"css",NULL);
   cmChar_t*       t0         = NULL;  // temporary dynamic string
+
+  cmMemFree(fn0);
   
   // create the SVG writer
   if( cmSvgWriterAlloc(ctx,&svgH) != kOkSvgRC )
@@ -3265,7 +3344,10 @@ cmXsRC_t cmXScoreTest(
 
   // assign durations to pedal down events
   _cmXScoreProcessPedals(_cmXScoreHandleToPtr(h));
-  
+
+  // remove some notes which share a pitch which are overlapped or embedded
+  _cmXScoreProcessOverlappingNotes(_cmXScoreHandleToPtr(h));
+
   if( csvOutFn != NULL )
   {
     cmScH_t scH = cmScNullHandle;
@@ -3287,7 +3369,7 @@ cmXsRC_t cmXScoreTest(
 
     cmSymTblDestroy(&stH); 
   }
-
+  
   if( midiOutFn != NULL )
   {
     cmFileSysPathPart_t* pp = cmFsPathParts(midiOutFn);
