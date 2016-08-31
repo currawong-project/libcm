@@ -76,7 +76,6 @@ typedef struct cmXsNote_str
   unsigned                    uid;      // unique id of this note record
   unsigned                    flags;    // See k???XsFl
   unsigned                    pitch;    // midi pitch
-  unsigned                    velocity; // midi velocity
   unsigned                    dynamics; // dynamic level 1=pppp 9=fff
   unsigned                    vel;      // score specified MIDI velocity 
   cmChar_t                    step;     // A-G
@@ -1931,30 +1930,31 @@ typedef struct _cmXScoreDynMark_str
 
 _cmXScoreDynMark_t _cmXScoreDynMarkArray[] =
 {
-  {"pppp-", 1,  1, -1,   3},
-  {"pppp",  2,  1,  0,  10},
-  {"pppp+", 3,  1,  1,  22},
-  {"ppp-",  3,  2, -1,  22},
-  {"ppp",   4,  2,  0,  29},
-  {"ppp+",  5,  2,  1,  36},
-  {"pp-",   5,  3, -1,  36},
-  {"pp",    6,  3,  0,  43},
-  {"pp+",   7,  3,  1,  50},
-  {"p-",    7,  4, -1,  50},
-  {"p",     8,  4,  0,  57},
-  {"p+",    9,  4,  1,  64},
-  {"mp-",   9,  5, -1,  64},
-  {"mp",   10,  5,  0,  71},
-  {"mp+",  11,  5,  1,  78},
-  {"mf-",  11,  6, -1,  78},
-  {"mf",   12,  6,  0,  85},
-  {"mf+",  13,  6,  1,  92},
-  {"f-",   13,  7, -1,  92},
-  {"f",    14,  7,  0,  99},
-  {"f+",   15,  7,  1, 106}, 
-  {"ff",   16,  8,  0, 113},
-  {"ff+",  17,  8,  1, 120},
-  {"fff",  18,  9,  0, 127},
+  {"s",     1,  0,  0,   1}, // silent note
+  {"pppp-", 2,  1, -1,   3},
+  {"pppp",  3,  1,  0,  10},
+  {"pppp+", 4,  1,  1,  22},
+  {"ppp-",  4,  2, -1,  22},
+  {"ppp",   5,  2,  0,  29},
+  {"ppp+",  6,  2,  1,  36},
+  {"pp-",   6,  3, -1,  36},
+  {"pp",    7,  3,  0,  43},
+  {"pp+",   8,  3,  1,  50},
+  {"p-",    8,  4, -1,  50},
+  {"p",     9,  4,  0,  57},
+  {"p+",   10,  4,  1,  64},
+  {"mp-",  10,  5, -1,  64},
+  {"mp",   11,  5,  0,  71},
+  {"mp+",  12,  5,  1,  78},
+  {"mf-",  12,  6, -1,  78},
+  {"mf",   13,  6,  0,  85},
+  {"mf+",  14,  6,  1,  92},
+  {"f-",   14,  7, -1,  92},
+  {"f",    15,  7,  0,  99},
+  {"f+",   16,  7,  1, 106}, 
+  {"ff",   17,  8,  0, 113},
+  {"ff+",  18,  8,  1, 120},
+  {"fff",  19,  9,  0, 127},
   {NULL,0,0,0,0}
   
 };
@@ -2139,6 +2139,7 @@ cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lin
   {
     switch(s[i])
     {
+      case 's':
       case 'm':
       case 'p':
       case 'f':
@@ -2478,6 +2479,12 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
 
   }
 
+  // If reorder records remain to be processed
+  if( ri > 0 )
+    if((rc =  _cmXScoreReorderMeas(p, measNumb, rV, ri )) != kOkXsRC )
+      goto errLabel;
+    
+  
   // the ticks may have changed so the 'secs' and 'dsecs' must be updated
   _cmXScoreSetAbsoluteTime( p );
 
@@ -3064,12 +3071,13 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
         switch( np->flags & (kOnsetXsFl|kMetronomeXsFl|kDampDnXsFl|kDampUpDnXsFl|kSostDnXsFl) )
         {
           case kOnsetXsFl:
-            if( cmMidiFileInsertTrackChMsg(mfH, 1, np->tick,                kNoteOnMdId,  np->pitch, np->vel ) != kOkMfRC
-              ||cmMidiFileInsertTrackChMsg(mfH, 1, np->tick + np->duration, kNoteOffMdId, np->pitch, 0 ) != kOkMfRC )
             {
-              rc = kMidiFailXsRC;
+              if( cmMidiFileInsertTrackChMsg(mfH, 1, np->tick,                kNoteOnMdId,  np->pitch, np->vel ) != kOkMfRC
+                ||cmMidiFileInsertTrackChMsg(mfH, 1, np->tick + np->duration, kNoteOffMdId, np->pitch, 0 )       != kOkMfRC )
+              {
+                rc = kMidiFailXsRC;
+              }
             }
-
             break;
             
           case kDampDnXsFl:
