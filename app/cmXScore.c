@@ -84,11 +84,13 @@ typedef struct cmXsNote_str
   unsigned                    staff;    // 1=treble 2=bass
   unsigned                    tick;     //
   unsigned                    duration; // duration in ticks
+  unsigned                    tied_dur; // duration in ticks (including all tied notes)
   double                      secs;     // absolute time in seconds
   double                      dsecs;    // delta time in seconds since previous event
   unsigned                    locIdx;   // location index (chords share the same location index)
   double                      rvalue;   // 1/rvalue = rythmic value (1/0.5 double whole 1/1 whole 1/2 half 1/4=quarter note, 1/8=eighth note, ...)
   const cmChar_t*             tvalue;   // text value
+  unsigned                    mf_uid;   // MIDI file uid assigned to this event
 
   unsigned                    evenGroupId;   // eveness group id
   unsigned                    dynGroupId;    // dynamics group id
@@ -239,8 +241,9 @@ cmXsRC_t _cmXScorePushNote( cmXScore_t* p, cmXsMeas_t* meas, unsigned voiceId, c
     n->mlink = note;
   }
 
-  note->voice = v;
-  note->uid   = p->nextUid++;
+  note->voice    = v;
+  note->uid      = p->nextUid++;
+  note->tied_dur = note->duration;
 
   return kOkXsRC;
 }
@@ -605,6 +608,7 @@ cmXsRC_t _cmXScorePushNonNote( cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_
   note->rvalue   = rvalue;
   note->tvalue   = tvalue;
   note->duration = duration;
+  note->tied_dur = duration;
   note->meas     = meas;
   note->xmlNode  = noteXmlNode;
 
@@ -1065,6 +1069,7 @@ void _cmXScoreSpreadGraceNotes( cmXScore_t* p )
 
 bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* n0p, bool rptFl )
 {
+  cmXsNote_t* nbp       = n0p;
   cmXsNote_t* nnp       = n0p->slink;  // begin w/ note following np
   unsigned    measNumb  = mp->number;
   cmChar_t    acc       = n0p->alter==-1?'b' : (n0p->alter==1?'#':' ');
@@ -1093,9 +1098,11 @@ bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* n0p, boo
       // if this note is tied to the originating note (np)
       if( nnp->voice->id == n0p->voice->id && nnp->step == n0p->step && nnp->octave == n0p->octave )
       {
-        nnp->flags |= kTieProcXsFl;
-        nnp->flags  = cmClrFlag(nnp->flags,kOnsetXsFl);
-        n0p->tied   = nnp;
+        nnp->flags    |= kTieProcXsFl;
+        nnp->flags     = cmClrFlag(nnp->flags,kOnsetXsFl);
+        n0p->tied      = nnp;
+        nbp->tied_dur += nnp->duration;
+        nnp->tied_dur  = 0;
 
         if( rptFl )
           printf("---> %i %i %s ",nnp->meas->number,nnp->tick,cmMidiToSciPitch(nnp->pitch,NULL,0));
@@ -1118,10 +1125,10 @@ bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* n0p, boo
 
 void  _cmXScoreResolveTiesAndLoc( cmXScore_t* p )
 {
-  unsigned n   = 0;
-  unsigned m   = 0;
-  bool     rptFl = false;
-  cmXsPart_t* pp = p->partL;
+  unsigned    n     = 0;        // count of notes which begin a tie
+  unsigned    m     = 0;        // count of tied notes that are correctly terminated.
+  bool        rptFl = false;
+  cmXsPart_t* pp    = p->partL;
 
   // for each part
   for(; pp!=NULL; pp=pp->link)
@@ -1227,7 +1234,7 @@ cmXsNote_t*  _cmXScoreFindOverlappingNote( cmXScore_t* p, const cmXsNote_t* knp 
           && cmIsFlag(np->flags,kOnsetXsFl)
           && knp->pitch == np->pitch
           && knp->tick >= np->tick 
-          && knp->tick <  (np->tick + np->duration)  )
+          && knp->tick <  (np->tick + np->tied_dur)  )
         {
           return np;
         }
@@ -1256,7 +1263,7 @@ void  _cmXScoreProcessOverlappingNotes( cmXScore_t* p )
         if( cmIsFlag(np->flags,kOnsetXsFl) && (fnp = _cmXScoreFindOverlappingNote(p,np)) != NULL)
         {
           // is np entirely contained inside fnp
-          bool embeddedFl = fnp->tick + fnp->duration > np->tick + np->duration;
+          bool embeddedFl = fnp->tick + fnp->tied_dur > np->tick + np->tied_dur;
           
           //printf("bar=%3i %4s voice:%2i %2i : %7i %7i : %7i %7i : %7i : %c \n",np->meas->number,cmMidiToSciPitch(np->pitch,NULL,0),np->voice->id,fnp->voice->id,fnp->tick,fnp->tick+fnp->duration,np->tick,np->tick+np->duration, (fnp->tick+fnp->duration) - np->tick, embeddedFl ? 'E' : 'O');
 
@@ -1270,14 +1277,14 @@ void  _cmXScoreProcessOverlappingNotes( cmXScore_t* p )
           }
           else
           {
-            int d = (fnp->tick+fnp->duration) - np->tick;
+            int d = (fnp->tick+fnp->tied_dur) - np->tick;
 
             // shorten the first note
-            if( d > 0 && d < fnp->duration )
-              fnp->duration -= d;
+            if( d > 0 && d < fnp->tied_dur )
+              fnp->tied_dur -= d;
 
             // move the second note just past it
-            np->tick       = fnp->tick + fnp->duration + 1;
+            np->tick       = fnp->tick + fnp->tied_dur + 1;
           }
         }
     }
@@ -1404,7 +1411,7 @@ cmXsRC_t _cmXScoreWriteScorePlotFile( cmXScore_t* p, const cmChar_t* fn )
       {
         if( cmIsFlag(np->flags,kMetronomeXsFl) )
         {
-          double bps =  np->duration / 60.0;
+          double bps =  np->tied_dur / 60.0;
 
           // t   b  t
           // - = -  -
@@ -1418,7 +1425,7 @@ cmXsRC_t _cmXScoreWriteScorePlotFile( cmXScore_t* p, const cmChar_t* fn )
           {
             onset_secs += (np->tick - tick0) / ticks_per_sec;
             tick0       = np->tick;
-            cmFilePrintf(fH,"n %f %f %i %s %s\n",onset_secs,np->duration/ticks_per_sec,np->uid,cmMidiToSciPitch(np->pitch,NULL,0),cmIsFlag(np->flags,kGraceXsFl)?"G":"N");
+            cmFilePrintf(fH,"n %f %f %i %s %s\n",onset_secs,np->tied_dur/ticks_per_sec,np->uid,cmMidiToSciPitch(np->pitch,NULL,0),cmIsFlag(np->flags,kGraceXsFl)?"G":"N");
           }
         }
       }
@@ -1700,7 +1707,7 @@ cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
               
             // set each grace note to have 1/20 of a second duration
             if( cmIsFlag(np->flags,kGraceXsFl) )
-              np->duration = floor(ticksPerSec * graceDurSec);
+              np->duration = np->tied_dur = floor(ticksPerSec * graceDurSec);
 
             gN += 1;
           } 
@@ -2938,7 +2945,7 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note,unsigned index )
     note->voice->id,
     note->locIdx,
     note->tick,
-    note->duration,
+    note->tied_dur,
     note->rvalue,
     N,B,R,G,D,C,e,d,t,P,s,S,H,T0,T1,O);
 
@@ -3072,8 +3079,11 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
         {
           case kOnsetXsFl:
             {
-              if( cmMidiFileInsertTrackChMsg(mfH, 1, np->tick,                kNoteOnMdId,  np->pitch, np->vel ) != kOkMfRC
-                ||cmMidiFileInsertTrackChMsg(mfH, 1, np->tick + np->duration, kNoteOffMdId, np->pitch, 0 )       != kOkMfRC )
+              if( np->tied_dur <= 0 )
+                cmErrWarnMsg(&p->err,kOkXsRC,"A zero length note was encountered bar:%i tick:%i %s",np->meas->number,np->tick,cmMidiToSciPitch(np->pitch,NULL,0));
+              
+              if( cmMidiFileInsertTrackChMsg(mfH, 1, np->tick,                kNoteOnMdId,  np->pitch, np->vel, &np->mf_uid ) != kOkMfRC
+                ||cmMidiFileInsertTrackChMsg(mfH, 1, np->tick + np->tied_dur, kNoteOffMdId, np->pitch, 0, &np->mf_uid )       != kOkMfRC )
               {
                 rc = kMidiFailXsRC;
               }
@@ -3084,9 +3094,12 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
           case kDampUpDnXsFl:
           case kSostDnXsFl:
             {
+              if( np->duration <= 0 )
+                cmErrWarnMsg(&p->err,kOkXsRC,"A zero length pedal event was encountered bar:%i tick:%i",np->meas->number,np->tick);
+              
               cmMidiByte_t d0     = cmIsFlag(np->flags,kSostDnXsFl) ? kSostenutoCtlMdId : kSustainCtlMdId;              
-              if( (cmMidiFileInsertTrackChMsg(mfH, 1, np->tick,                kCtlMdId, d0, 127 ) != kOkMfRC )
-                ||(cmMidiFileInsertTrackChMsg(mfH, 1, np->tick + np->duration, kCtlMdId, d0,   0 ) != kOkMfRC ) )
+              if( (cmMidiFileInsertTrackChMsg(mfH, 1, np->tick,                kCtlMdId, d0, 127, &np->mf_uid ) != kOkMfRC )
+                ||(cmMidiFileInsertTrackChMsg(mfH, 1, np->tick + np->duration, kCtlMdId, d0,   0, &np->mf_uid ) != kOkMfRC ) )
               {
                 rc = kMidiFailXsRC;
               }
@@ -3094,7 +3107,7 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
             break;
 
           case kMetronomeXsFl:
-            if( cmMidFileInsertTrackTempoMsg(mfH, 0, np->tick, np->duration ) != kOkMfRC )
+            if( cmMidFileInsertTrackTempoMsg(mfH, 0, np->tick, np->duration, &np->mf_uid ) != kOkMfRC )
               rc = kMidiFailXsRC;            
             break;
             
@@ -3141,6 +3154,7 @@ typedef struct cmXsSvgEvt_str
   unsigned         voice;     // score voice number
   unsigned         d0;        // MIDI d0   (barNumb)
   unsigned         d1;        // MIDI d1
+  unsigned         mf_uid;
   struct cmXsSvgEvt_str* link;
 } cmXsSvgEvt_t;
 
@@ -3162,7 +3176,7 @@ cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, con
   unsigned        noteHeight = 10;
   cmChar_t*       fn0        = cmMemAllocStr( fn );  
   const cmChar_t* svgFn      = cmFsMakeFn(dir,fn0 = cmTextAppendSS(fn0,"_midi_svg"),"html",NULL);
-  const cmChar_t* cssFn      = cmFsMakeFn(NULL,fn,"css",NULL);
+  const cmChar_t* cssFn      = cmFsMakeFn(NULL,"score_midi_svg","css",NULL);
   cmChar_t*       t0         = NULL;  // temporary dynamic string
 
   cmMemFree(fn0);
@@ -3193,8 +3207,12 @@ cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, con
           if( cmSvgWriterRect(svgH, e->tick, e->d0 * noteHeight,  e->durTicks,  noteHeight-1, t0 ) != kOkSvgRC )
             rc = kSvgFailXsRC;
           else
-            if( cmSvgWriterText(svgH, e->tick + e->durTicks/2, e->d0 * noteHeight + noteHeight/2, cmMidiToSciPitch( e->d0, NULL, 0), "pitch") != kOkSvgRC )
+          {
+            t0 = cmTsPrintfP(t0,"%s %i",cmMidiToSciPitch( e->d0, NULL, 0),e->mf_uid);
+            
+            if( cmSvgWriterText(svgH, e->tick + e->durTicks/2, e->d0 * noteHeight + noteHeight/2, t0, "pitch") != kOkSvgRC )
               rc = kSvgFailXsRC;
+          }
         }
         break;
 
@@ -3241,7 +3259,7 @@ cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, con
 }
 
 
-void _cmXsPushSvgEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsigned tick, unsigned durTick, unsigned voice, unsigned d0, unsigned d1 )
+void _cmXsPushSvgEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsigned tick, unsigned durTick, unsigned voice, unsigned d0, unsigned d1, unsigned mf_uid )
 {
   cmXsSvgEvt_t* e = cmLhAllocZ(p->lhH,cmXsSvgEvt_t,1);
   e->flags    = flags;
@@ -3250,6 +3268,8 @@ void _cmXsPushSvgEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsig
   e->voice    = voice;
   e->d0       = d0;       // note=pitch bar=number pedal=ctl# metronome=BPM 
   e->d1       = d1;
+  e->mf_uid   = mf_uid;
+  
   if( mf->eol != NULL )
     mf->eol->link = e;
   else
@@ -3286,7 +3306,7 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
         if( cmIsFlag(note->flags,kMetronomeXsFl) )
         {
           // set BPM as d0
-          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->duration,0);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->duration,0,note->mf_uid);
           continue;
           
         }
@@ -3295,21 +3315,21 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
         if( cmIsFlag(note->flags,kOnsetXsFl) )
         {
           unsigned d0      =  cmSciPitchToMidiPitch( note->step, note->alter, note->octave );
-          unsigned durTick = note->duration;
+          unsigned durTick = note->tied_dur;
           if( note->tied != NULL )
           {
             cmXsNote_t* tn = note->tied;
             for(; tn!=NULL; tn=tn->tied)
-              durTick += tn->duration;
+              durTick += tn->tied_dur;
           }
-          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,durTick,note->voice->id,d0,note->vel);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,durTick,note->voice->id,d0,note->vel,note->mf_uid);
           continue;
         }
 
         // if this is a bar event
         if( cmIsFlag(note->flags,kBarXsFl) )
         {
-          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->meas->number,0);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->meas->number,0, note->mf_uid);
           continue;
         }
 
@@ -3317,7 +3337,7 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
         if( cmIsFlag(note->flags,kDampDnXsFl|kDampUpDnXsFl|kSostDnXsFl) )
         {
           unsigned d0 = cmIsFlag(note->flags,kSostDnXsFl) ? kSostenutoCtlMdId : kSustainCtlMdId;          
-          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,note->duration,0,d0,127);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,note->duration,0,d0,127,note->mf_uid);
           continue;
         }
         
@@ -3353,7 +3373,7 @@ cmXsRC_t cmXScoreTest(
   // assign durations to pedal down events
   _cmXScoreProcessPedals(_cmXScoreHandleToPtr(h));
 
-  // remove some notes which share a pitch which are overlapped or embedded
+  // remove some notes which share a pitch and are overlapped or embedded within another note.
   _cmXScoreProcessOverlappingNotes(_cmXScoreHandleToPtr(h));
 
   if( csvOutFn != NULL )
@@ -3381,16 +3401,16 @@ cmXsRC_t cmXScoreTest(
   if( midiOutFn != NULL )
   {
     cmFileSysPathPart_t* pp = cmFsPathParts(midiOutFn);
-    
-    _cmXScoreGenSvg( ctx, h, pp->dirStr, pp->fnStr );
 
     _cmXsWriteMidiFile(ctx, h, pp->dirStr, pp->fnStr );
+    
+    _cmXScoreGenSvg( ctx, h, pp->dirStr, pp->fnStr );
 
     cmFsFreePathParts(pp);
     
   }
   
-  //cmXScoreReport(h,&ctx->rpt,true);
+  cmXScoreReport(h,&ctx->rpt,true);
 
  errLabel:
   return cmXScoreFinalize(&h);

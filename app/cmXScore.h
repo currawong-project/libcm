@@ -19,7 +19,8 @@ extern "C" {
     kMidiFailXsRC,
     kFileFailXsRC,
     kSvgFailXsRC,
-    kOverlapWarnXsRC
+    kOverlapWarnXsRC,
+    kZeroLengthEventXsRC
   };
 
   typedef cmRC_t     cmXsRC_t;
