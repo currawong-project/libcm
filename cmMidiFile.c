@@ -1368,9 +1368,12 @@ cmMfRC_t cmMidiFileInsertMsg( cmMidiFileH_t h, unsigned uid, int dtick, cmMidiBy
 
 }
 
-cmMfRC_t  cmMidiFileInsertTrackMsg( cmMidiFileH_t h, unsigned trkIdx, const cmMidiTrackMsg_t* msg )
+cmMfRC_t  cmMidiFileInsertTrackMsg( cmMidiFileH_t h, unsigned trkIdx, const cmMidiTrackMsg_t* msg, unsigned* uidRef )
 {
   _cmMidiFile_t* p = _cmMidiFileHandleToPtr(h);
+
+  if( uidRef != NULL )
+    *uidRef = cmInvalidId;
 
   // validate the track index
   if( trkIdx >= p->trkN )
@@ -1395,6 +1398,9 @@ cmMfRC_t  cmMidiFileInsertTrackMsg( cmMidiFileH_t h, unsigned trkIdx, const cmMi
     memcpy((void*)m->u.voidPtr,msg->u.voidPtr,msg->byteCnt);
   }
 
+  if( uidRef != NULL )
+    *uidRef = m->uid;
+  
   cmMidiTrackMsg_t* m0 = NULL;                  // msg before insertion
   cmMidiTrackMsg_t* m1 = p->trkV[trkIdx].base;  // msg after insertion
 
@@ -1448,12 +1454,14 @@ cmMfRC_t  cmMidiFileInsertTrackMsg( cmMidiFileH_t h, unsigned trkIdx, const cmMi
 
   p->trkV[trkIdx].cnt += 1;  
   p->msgVDirtyFl = true;
+
+
   
   return kOkMfRC;
    
 }
 
-cmMfRC_t  cmMidiFileInsertTrackChMsg( cmMidiFileH_t h, unsigned trkIdx, unsigned atick, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 )
+cmMfRC_t  cmMidiFileInsertTrackChMsg( cmMidiFileH_t h, unsigned trkIdx, unsigned atick, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1, unsigned* uidRef )
 {
   cmMidiTrackMsg_t m;
   cmMidiChMsg_t   cm;
@@ -1472,10 +1480,10 @@ cmMfRC_t  cmMidiFileInsertTrackChMsg( cmMidiFileH_t h, unsigned trkIdx, unsigned
 
   assert( m.status >= kNoteOffMdId && m.status <= kPbendMdId );
   
-  return cmMidiFileInsertTrackMsg(h,trkIdx,&m);
+  return cmMidiFileInsertTrackMsg(h,trkIdx,&m,uidRef);
 }
 
-cmMfRC_t  cmMidFileInsertTrackTempoMsg( cmMidiFileH_t h, unsigned trkIdx, unsigned atick, unsigned bpm )
+cmMfRC_t  cmMidFileInsertTrackTempoMsg( cmMidiFileH_t h, unsigned trkIdx, unsigned atick, unsigned bpm, unsigned* uidRef )
 {
   cmMidiTrackMsg_t m;
 
@@ -1486,7 +1494,7 @@ cmMfRC_t  cmMidFileInsertTrackTempoMsg( cmMidiFileH_t h, unsigned trkIdx, unsign
   m.metaId     = kTempoMdId;
   m.u.iVal     = 60000000/bpm;  // convert BPM to microsPerQN
   
-  return cmMidiFileInsertTrackMsg(h,trkIdx,&m);
+  return cmMidiFileInsertTrackMsg(h,trkIdx,&m,uidRef);
 }
 
 

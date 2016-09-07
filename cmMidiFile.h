@@ -185,9 +185,9 @@ extern "C" {
   //   byteCnt  - used to allocate storage for the data element in 'cmMidiTrackMsg_t.u'
   //   u        - the message data
   //
-  cmMfRC_t             cmMidiFileInsertTrackMsg(     cmMidiFileH_t h, unsigned trkIdx, const cmMidiTrackMsg_t* msg );
-  cmMfRC_t             cmMidiFileInsertTrackChMsg(   cmMidiFileH_t h, unsigned trkIdx, unsigned atick, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 );
-  cmMfRC_t             cmMidFileInsertTrackTempoMsg( cmMidiFileH_t h, unsigned trkIdx, unsigned atick, unsigned bpm );
+  cmMfRC_t             cmMidiFileInsertTrackMsg(     cmMidiFileH_t h, unsigned trkIdx, const cmMidiTrackMsg_t* msg, unsigned* uidRef );
+  cmMfRC_t             cmMidiFileInsertTrackChMsg(   cmMidiFileH_t h, unsigned trkIdx, unsigned atick, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1, unsigned* uidRef );
+  cmMfRC_t             cmMidFileInsertTrackTempoMsg( cmMidiFileH_t h, unsigned trkIdx, unsigned atick, unsigned bpm, unsigned* uidRef );
   
   // Return a pointer to the first msg at or after 'usecsOffs' or kInvalidIdx if no
   // msg exists after 'usecsOffs'.  Note that 'usecOffs' is an offset from the beginning
