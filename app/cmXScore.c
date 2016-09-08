@@ -1376,8 +1376,18 @@ void  _cmXScoreSetMeasGroups( cmXScore_t* p, unsigned flag )
           }
 
           if( cmIsFlag(np->flags,kSectionXsFl) )
-            sectionId = np->tvalue==NULL ? 0 : strtol(np->tvalue,NULL,10);
-
+          {
+            sectionId = 0;
+            
+            if( np->tvalue == NULL )
+              cmErrWarnMsg(&p->err,kSyntaxErrorXsRC,"An apparent section label in measure '%i' is blank.",np->meas->number);            
+            else
+            if( cmTextToUInt( np->tvalue, &sectionId, NULL ) != kOkTxRC )
+              cmErrWarnMsg(&p->err,kSyntaxErrorXsRC,"The section label '%s' is not an integer.",np->tvalue);
+                
+                //sectionId = np->tvalue==NULL ? 0 : strtol(np->tvalue,NULL,10);
+          }
+          
           n0       = NULL;
         }
       }
