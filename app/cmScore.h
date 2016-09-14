@@ -280,8 +280,12 @@ extern "C" {
   // Generate a new score file from a MIDI file.
   cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* scoreFn );
 
-  void          cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn );
+  // Print open the score file 'fn' and report the contents.  This function
+  // simply wraps calls to cmScoreInitialize() and cmScorePrint().
+  void          cmScoreReport( cmCtx_t* ctx, const cmChar_t* fn );
 
+  void          cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn );
+    
   //)
   
 #ifdef __cplusplus

@@ -2417,6 +2417,16 @@ cmScRC_t      cmScoreDecode( const void* msg, unsigned msgByteCnt, cmScMsg_t* m)
   return kOkScRC;
 }
 
+const cmChar_t* _cmScoreSectionLabel( cmSc_t* p, const cmScoreEvt_t* r )
+{
+  unsigned i;
+  for(i=0; i<p->sectCnt; ++i)
+    if( p->sect[i].locPtr != NULL && p->sect[i].locPtr->index == r->locIdx && p->sect[i].begEvtIndex == r->index )
+      return p->sect[i].label;
+
+  return NULL;
+}
+
 void _cmScorePrintHdr( cmRpt_t* rpt )
 {
   cmRptPrintf(rpt,"evnt  CSV             bar\n");
@@ -2424,12 +2434,13 @@ void _cmScorePrintHdr( cmRpt_t* rpt )
   cmRptPrintf(rpt,"----- ----- ----- --- --- ----- ----- --- -------\n");  
 }
 
-void _cmScorePrintEvent( const cmScoreEvt_t* r, unsigned i, cmRpt_t* rpt )
+void _cmScorePrintEvent( cmSc_t* p, const cmScoreEvt_t* r, unsigned i, cmRpt_t* rpt )
 {
+  bool eolFl = true;
   switch(r->type)
   {
     case kBarEvtScId:
-      cmRptPrintf(rpt,"%5i %5i %3i bar\n",
+      cmRptPrintf(rpt,"%5i %5i %3i bar ",
         i,
         r->line,
         r->barNumb );
@@ -2437,7 +2448,7 @@ void _cmScorePrintEvent( const cmScoreEvt_t* r, unsigned i, cmRpt_t* rpt )
 
     case kPedalEvtScId:
     case kNonEvtScId:
-      cmRptPrintf(rpt,"%5i %5i %5i %3i %3i %s %5s %c%c%c %s\n",
+      cmRptPrintf(rpt,"%5i %5i %5i %3i %3i %s %5s   %c%c%c %-7s ",
         i,
         r->line,
         r->locIdx,
@@ -2448,12 +2459,20 @@ void _cmScorePrintEvent( const cmScoreEvt_t* r, unsigned i, cmRpt_t* rpt )
         cmIsFlag(r->flags,kEvenScFl)  ? 'e' : ' ',
         cmIsFlag(r->flags,kTempoScFl) ? 't' : ' ',
         cmIsFlag(r->flags,kDynScFl)   ? 'd' : ' ',
+        //cmIsFlag(r->flags,kDynScFl)   ? 7-strlen(cmScDynIdToLabel(r->dynVal)) : 7,
         cmIsFlag(r->flags,kDynScFl)   ? cmScDynIdToLabel(r->dynVal) : "");          
       break;
 
     default:
+      eolFl = false;
       break;
   }
+
+  const cmChar_t* sectionLabel;
+  if((sectionLabel = _cmScoreSectionLabel(p,r)) != NULL )
+    cmRptPrintf(rpt,"section:%s ",sectionLabel);
+
+  cmRptPrintf(rpt,"\n");
   
 }
 
@@ -2466,7 +2485,7 @@ void cmScorePrint( cmScH_t h, cmRpt_t* rpt )
   _cmScorePrintHdr(rpt);
   
   for(i=0; i<p->cnt; ++i)
-    _cmScorePrintEvent(p->array+i,i,rpt);
+    _cmScorePrintEvent(p,p->array+i,i,rpt);
 }
 
 
@@ -2491,7 +2510,7 @@ void cmScorePrintSets( cmScH_t h, cmRpt_t* rpt )
         
       _cmScorePrintHdr(rpt);
       for(j=0; j<s->eleCnt; ++j)
-        _cmScorePrintEvent(*s->eleArray+j,j,rpt);
+        _cmScorePrintEvent(p,*s->eleArray+j,j,rpt);
 
       cmRptPrintf(rpt,"Targets Section: ");
       for(j=0; j<s->sectCnt; ++j)
@@ -2717,7 +2736,7 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
 }
 
 
-void cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
+void cmScoreReport( cmCtx_t* ctx, const cmChar_t* fn )
 {
   cmScH_t h = cmScNullHandle;
   if( cmScoreInitialize(ctx,&h,fn,0,NULL,0,NULL,NULL, cmSymTblNullHandle ) != kOkScRC )
@@ -2727,6 +2746,11 @@ void cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
 
   cmScoreFinalize(&h);
 }
+
+void cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn )
+{
+}
+
 
 // 1. Fix absolute message time which was incorrect on original score file.
 // 2. 
