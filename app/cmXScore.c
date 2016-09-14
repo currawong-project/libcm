@@ -90,7 +90,6 @@ typedef struct cmXsNote_str
   unsigned                    locIdx;   // location index (chords share the same location index)
   double                      rvalue;   // 1/rvalue = rythmic value (1/0.5 double whole 1/1 whole 1/2 half 1/4=quarter note, 1/8=eighth note, ...)
   const cmChar_t*             tvalue;   // text value
-  unsigned                    mf_uid;   // MIDI file uid assigned to this event
 
   unsigned                    evenGroupId;   // eveness group id
   unsigned                    dynGroupId;    // dynamics group id
@@ -3092,8 +3091,8 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
               if( np->tied_dur <= 0 )
                 cmErrWarnMsg(&p->err,kOkXsRC,"A zero length note was encountered bar:%i tick:%i %s",np->meas->number,np->tick,cmMidiToSciPitch(np->pitch,NULL,0));
               
-              if( cmMidiFileInsertTrackChMsg(mfH, 1, np->tick,                kNoteOnMdId,  np->pitch, np->vel, &np->mf_uid ) != kOkMfRC
-                ||cmMidiFileInsertTrackChMsg(mfH, 1, np->tick + np->tied_dur, kNoteOffMdId, np->pitch, 0, &np->mf_uid )       != kOkMfRC )
+              if( cmMidiFileInsertTrackChMsg(mfH, 1, np->tick,                kNoteOnMdId,  np->pitch, np->vel ) != kOkMfRC
+                ||cmMidiFileInsertTrackChMsg(mfH, 1, np->tick + np->tied_dur, kNoteOffMdId, np->pitch, 0 )       != kOkMfRC )
               {
                 rc = kMidiFailXsRC;
               }
@@ -3108,8 +3107,8 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
                 cmErrWarnMsg(&p->err,kOkXsRC,"A zero length pedal event was encountered bar:%i tick:%i",np->meas->number,np->tick);
               
               cmMidiByte_t d0     = cmIsFlag(np->flags,kSostDnXsFl) ? kSostenutoCtlMdId : kSustainCtlMdId;              
-              if( (cmMidiFileInsertTrackChMsg(mfH, 1, np->tick,                kCtlMdId, d0, 127, &np->mf_uid ) != kOkMfRC )
-                ||(cmMidiFileInsertTrackChMsg(mfH, 1, np->tick + np->duration, kCtlMdId, d0,   0, &np->mf_uid ) != kOkMfRC ) )
+              if( (cmMidiFileInsertTrackChMsg(mfH, 1, np->tick,                kCtlMdId, d0, 127 ) != kOkMfRC )
+                ||(cmMidiFileInsertTrackChMsg(mfH, 1, np->tick + np->duration, kCtlMdId, d0,   0 ) != kOkMfRC ) )
               {
                 rc = kMidiFailXsRC;
               }
@@ -3117,7 +3116,7 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
             break;
 
           case kMetronomeXsFl:
-            if( cmMidFileInsertTrackTempoMsg(mfH, 0, np->tick, np->duration, &np->mf_uid ) != kOkMfRC )
+            if( cmMidFileInsertTrackTempoMsg(mfH, 0, np->tick, np->duration ) != kOkMfRC )
               rc = kMidiFailXsRC;            
             break;
             
@@ -3164,7 +3163,6 @@ typedef struct cmXsSvgEvt_str
   unsigned         voice;     // score voice number
   unsigned         d0;        // MIDI d0   (barNumb)
   unsigned         d1;        // MIDI d1
-  unsigned         mf_uid;
   struct cmXsSvgEvt_str* link;
 } cmXsSvgEvt_t;
 
@@ -3218,7 +3216,7 @@ cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, con
             rc = kSvgFailXsRC;
           else
           {
-            t0 = cmTsPrintfP(t0,"%s %i",cmMidiToSciPitch( e->d0, NULL, 0),e->mf_uid);
+            t0 = cmTsPrintfP(t0,"%s",cmMidiToSciPitch( e->d0, NULL, 0));
             
             if( cmSvgWriterText(svgH, e->tick + e->durTicks/2, e->d0 * noteHeight + noteHeight/2, t0, "pitch") != kOkSvgRC )
               rc = kSvgFailXsRC;
@@ -3269,7 +3267,7 @@ cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, con
 }
 
 
-void _cmXsPushSvgEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsigned tick, unsigned durTick, unsigned voice, unsigned d0, unsigned d1, unsigned mf_uid )
+void _cmXsPushSvgEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsigned tick, unsigned durTick, unsigned voice, unsigned d0, unsigned d1 )
 {
   cmXsSvgEvt_t* e = cmLhAllocZ(p->lhH,cmXsSvgEvt_t,1);
   e->flags    = flags;
@@ -3278,7 +3276,6 @@ void _cmXsPushSvgEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsig
   e->voice    = voice;
   e->d0       = d0;       // note=pitch bar=number pedal=ctl# metronome=BPM 
   e->d1       = d1;
-  e->mf_uid   = mf_uid;
   
   if( mf->eol != NULL )
     mf->eol->link = e;
@@ -3316,7 +3313,7 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
         if( cmIsFlag(note->flags,kMetronomeXsFl) )
         {
           // set BPM as d0
-          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->duration,0,note->mf_uid);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->duration,0);
           continue;
           
         }
@@ -3332,14 +3329,14 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
             for(; tn!=NULL; tn=tn->tied)
               durTick += tn->tied_dur;
           }
-          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,durTick,note->voice->id,d0,note->vel,note->mf_uid);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,durTick,note->voice->id,d0,note->vel);
           continue;
         }
 
         // if this is a bar event
         if( cmIsFlag(note->flags,kBarXsFl) )
         {
-          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->meas->number,0, note->mf_uid);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->meas->number,0);
           continue;
         }
 
@@ -3347,7 +3344,7 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
         if( cmIsFlag(note->flags,kDampDnXsFl|kDampUpDnXsFl|kSostDnXsFl) )
         {
           unsigned d0 = cmIsFlag(note->flags,kSostDnXsFl) ? kSostenutoCtlMdId : kSustainCtlMdId;          
-          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,note->duration,0,d0,127,note->mf_uid);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,note->duration,0,d0,127);
           continue;
         }
         
