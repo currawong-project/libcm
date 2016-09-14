@@ -199,19 +199,19 @@ cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* 
   cmChar_t*   s1        = NULL;
 
   cmChar_t hdr[] =
-    "<!DOCTYPE html>"
-    "<html>"
-    "<head>"
-    "<meta charset=\"utf-8\">"    
-    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-    "<script type=\"text/javascript\" src=\"svg-pan-zoom.min.js\"></script>"
-    "<script>"
-    " var panZoom = null;"
-    "  function doOnLoad() { panZoom = svgPanZoom(document.querySelector('#mysvg'), { controlIconsEnabled:true } ) }"
-    "</script>"
-    "</head>"
-    "<body onload=\"doOnLoad()\">"
-    "<svg id=\"mysvg\" width=\"%f\" height=\"%f\">";
+    "<!DOCTYPE html>\n"
+    "<html>\n"
+    "<head>\n"
+    "<meta charset=\"utf-8\">\n"    
+    "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">\n"
+    "<script type=\"text/javascript\" src=\"svg-pan-zoom.min.js\"></script>\n"
+    "<script>\n"
+    " var panZoom = null;\n"
+    "  function doOnLoad() { panZoom = svgPanZoom(document.querySelector('#mysvg'), { controlIconsEnabled:true } ) }\n"
+    "</script>\n"
+    "</head>\n"
+    "<body onload=\"doOnLoad()\">\n"
+    "<svg id=\"mysvg\" width=\"%f\" height=\"%f\">\n";
 
  
   
