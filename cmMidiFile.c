@@ -1907,6 +1907,38 @@ void cmMidiFilePrintTracks( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt )
 void cmMidiFileTestPrint( void* printDataPtr, const char* fmt, va_list vl )
 { vprintf(fmt,vl); }
 
+cmMidiFileDensity_t* cmMidiFileNoteDensity( cmMidiFileH_t h, unsigned* cntRef )
+{
+  int                      msgN = cmMidiFileMsgCount(h);
+  const cmMidiTrackMsg_t** msgs = cmMidiFileMsgArray(h);
+  cmMidiFileDensity_t*     dV   = cmMemAllocZ(cmMidiFileDensity_t,msgN);
+  
+  int i,j,k;
+  for(i=0,k=0; i<msgN && k<msgN; ++i)
+    if( msgs[i]->status == kNoteOnMdId && msgs[i]->u.chMsgPtr->d1 > 0 )
+    {
+      dV[k].uid    = msgs[i]->uid;
+      dV[k].amicro = msgs[i]->amicro;
+      
+      for(j=i; j>=0; --j)
+      {
+        if( msgs[i]->amicro - msgs[j]->amicro > 1000000 )
+          break;
+
+        dV[k].density += 1;
+      }
+      
+      k += 1;
+      
+    }
+
+  if( cntRef != NULL )
+    *cntRef = k;
+
+  return dV;
+}
+
+
 cmMfRC_t cmMidiFileGenPlotFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outFn )
 {
   cmMfRC_t                 rc  = kOkMfRC;

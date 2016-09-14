@@ -212,10 +212,21 @@ extern "C" {
 
   void                  cmMidiFilePrintMsgs( cmMidiFileH_t h, cmRpt_t* rpt );
   void                  cmMidiFilePrintTrack( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt );
-  void                  cmMidiFileTest( const char* fn, cmCtx_t* ctx );
+
+  typedef struct
+  {
+    unsigned           uid;
+    unsigned long long amicro;
+    unsigned           density;
+    
+  } cmMidiFileDensity_t;
+  cmMidiFileDensity_t* cmMidiFileNoteTimeDensity( cmMidiFileH_t h, unsigned* cntRef );
 
   // Generate a piano-roll plot description file which can be displayed with cmXScore.m
   cmMfRC_t             cmMidiFileGenPlotFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outFn );
+
+  void                  cmMidiFileTest( const char* fn, cmCtx_t* ctx );
+
 
   
   //)
