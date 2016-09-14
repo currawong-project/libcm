@@ -117,7 +117,8 @@ extern "C" {
     kLargeDeltaTickMfRC, // 12 (a large delta tick value was filtered)
     kUidNotFoundMfRC,    // 13
     kUidNotANoteMsgMfRC, // 14
-    kInvalidTrkIndexMfRC // 15
+    kInvalidTrkIndexMfRC,// 15
+    kSvgFailMfRC         // 16
   };
 
   extern cmMidiFileH_t cmMidiFileNullHandle;
@@ -220,10 +221,15 @@ extern "C" {
     unsigned           density;
     
   } cmMidiFileDensity_t;
-  cmMidiFileDensity_t* cmMidiFileNoteTimeDensity( cmMidiFileH_t h, unsigned* cntRef );
+
+  // Generate the note onset density measure for each note in the MIDI file.
+  // Delete the returned memory with a call to cmMemFree().
+  cmMidiFileDensity_t* cmMidiFileNoteDensity( cmMidiFileH_t h, unsigned* cntRef );
 
   // Generate a piano-roll plot description file which can be displayed with cmXScore.m
   cmMfRC_t             cmMidiFileGenPlotFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outFn );
+
+  cmMfRC_t             cmMidiFileGenSvgFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outSvgFn, const cmChar_t* cssFn );
 
   void                  cmMidiFileTest( const char* fn, cmCtx_t* ctx );
 

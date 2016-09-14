@@ -8,8 +8,11 @@
 #include "cmMallocDebug.h"
 #include "cmLinkedHeap.h"
 #include "cmTime.h"
+#include "cmText.h"
 #include "cmMidi.h"
 #include "cmMidiFile.h"
+#include "cmSvgWriter.h"
+
 
 #ifdef cmBIG_ENDIAN
 #define mfSwap16(v)  (v)
@@ -1972,6 +1975,99 @@ cmMfRC_t cmMidiFileGenPlotFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmCh
   
   cmMidiFileClose(&mfH);
   cmFileClose(&fH);
+  return rc;
+}
+
+cmMfRC_t cmMidiFileGenSvgFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outSvgFn, const cmChar_t* cssFn )
+{
+  cmMfRC_t                 rc   = kOkMfRC;
+  cmSvgH_t                 svgH = cmSvgNullHandle;
+  cmMidiFileH_t            mfH  = cmMidiFileNullHandle;
+  unsigned                 msgN = 0;
+  const cmMidiTrackMsg_t**       msgs = NULL;
+  unsigned noteHeight = 10;
+  double micros_per_sec = 1000.0;
+  unsigned i;
+
+  if((rc = cmMidiFileOpen(ctx,&mfH,midiFn)) != kOkMfRC )
+  {
+    rc = cmErrMsg(&ctx->err,rc,"Unable to open the MIDI file '%s'.",cmStringNullGuard(midiFn));
+    goto errLabel;
+  }
+
+ cmMidiFileCalcNoteDurations( mfH );
+
+  msgN = cmMidiFileMsgCount(mfH);
+  msgs = cmMidiFileMsgArray(mfH);
+
+  
+  if( cmSvgWriterAlloc(ctx,&svgH) != kOkSvgRC )
+  {
+    rc = cmErrMsg(&ctx->err,kSvgFailMfRC,"Unable to create the MIDI SVG output file '%s'.",cmStringNullGuard(outSvgFn));
+    goto errLabel;
+  }
+
+
+  for(i=0; i<msgN && rc==kOkMfRC; ++i)    
+    if( msgs[i]->status == kNoteOnMdId && msgs[i]->u.chMsgPtr->d1 > 0 )
+    {
+      const cmMidiTrackMsg_t* m = msgs[i];
+
+      
+      if( cmSvgWriterRect(svgH, m->amicro/micros_per_sec, m->u.chMsgPtr->d0 * noteHeight,  m->u.chMsgPtr->durMicros/micros_per_sec,  noteHeight-1, "note" ) != kOkSvgRC )
+        rc = kSvgFailMfRC;
+
+      const cmChar_t* t0 = cmMidiToSciPitch(m->u.chMsgPtr->d0,NULL,0);
+
+      if( cmSvgWriterText(svgH, (m->amicro + (m->u.chMsgPtr->durMicros/2)) / micros_per_sec, m->u.chMsgPtr->d0 * noteHeight, t0, "text" ) != kOkSvgRC )
+        rc = kSvgFailMfRC;
+
+    }
+
+  if( rc != kOkMfRC )
+  {
+    cmErrMsg(&ctx->err,rc,"SVG Shape insertion failed.");
+    goto errLabel;
+  }
+  
+  unsigned             dN = 0;
+  cmMidiFileDensity_t* dV = cmMidiFileNoteDensity( mfH, &dN );
+  double               t0 = 0;
+  double               y0 = 64.0;
+  cmChar_t*            tx = NULL;
+  
+  for(i=0; i<dN; ++i)
+  {
+    const cmMidiTrackMsg_t* m;
+
+    if((m = _cmMidiFileUidToMsg( _cmMidiFileHandleToPtr(mfH), dV[i].uid )) == NULL )
+      rc = cmErrMsg(&ctx->err,kUidNotFoundMfRC,"The MIDI msg form UID:%i was not found.",dV[i].uid);
+    else
+    {
+      double t1 = m->amicro / micros_per_sec;
+      double y1 = dV[i].density * noteHeight;
+      
+      cmSvgWriterLine(svgH, t0, y0, t1, y1, "density" );
+      cmSvgWriterText(svgH, t1, y1, tx = cmTsPrintfP(tx,"%i",dV[i].density),"dtext");
+
+      t0 = t1;
+      y0 = y1;
+
+    }
+  }
+
+  cmMemFree(dV);
+  cmMemFree(tx);
+  
+  if( rc == kOkMfRC )
+    if( cmSvgWriterWrite(svgH,cssFn,outSvgFn) != kOkSvgRC )
+      rc = cmErrMsg(&ctx->err,kSvgFailMfRC,"SVG file write to '%s' failed.",cmStringNullGuard(outSvgFn));
+
+
+ errLabel:
+  cmMidiFileClose(&mfH);
+  cmSvgWriterFree(&svgH);
+  
   return rc;
 }
 
