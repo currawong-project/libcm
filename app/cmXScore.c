@@ -1842,89 +1842,6 @@ cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
   return rc;
 }
 
-cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn )
-{
-  cmXsRC_t rc = kOkXsRC;
-
-  if((rc = cmXScoreFinalize(hp)) != kOkXsRC )
-    return rc;
-
-  cmXScore_t* p = cmMemAllocZ(cmXScore_t,1);
-
-  cmErrSetup(&p->err,&ctx->rpt,"XScore");
-
-  // create a local linked heap
-  if( cmLHeapIsValid( p->lhH = cmLHeapCreate(8196,ctx)) == false )
-    return cmErrMsg(&p->err,kLHeapFailXsRC,"Lheap create failed.");
-
-  // open the music xml file
-  if( cmXmlAlloc(ctx, &p->xmlH, xmlFn) != kOkXmlRC )
-  {
-    rc = cmErrMsg(&p->err,kXmlFailXsRC,"Unable to open the MusicXML file '%s'.",cmStringNullGuard(xmlFn));
-    goto errLabel;
-  }
-
-  //cmXmlPrint(p->xmlH,&ctx->rpt);
-
-  // parse the part-list
-  if((rc = _cmXScoreParsePartList( p )) != kOkXsRC )
-    goto errLabel;
-
-  // parse each score 'part'
-  cmXsPart_t* pp = p->partL;
-  for(; pp!=NULL; pp=pp->link)
-    if((rc = _cmXScoreParsePart(p,pp)) != kOkXsRC )
-      goto errLabel;
-
-  // fill in the note->slink chain to link the notes in each measure in time order
-  _cmXScoreSort(p);
-
-  _cmXScoreSpreadGraceNotes(p);
-
-  _cmXScoreSort(p);
-
-  _cmXScoreResolveTiesAndLoc(p);
-
-  _cmXScoreRemoveDuplicateNotes(p);
-
-  _cmXScoreSetMeasGroups(p,kEvenXsFl);
-  _cmXScoreSetMeasGroups(p,kDynXsFl);
-  _cmXScoreSetMeasGroups(p,kTempoXsFl);
-
-  //_cmXScoreResolveOctaveShift(p);
-
-  // CSV output initialize failed.
-  if( cmCsvInitialize(&p->csvH,ctx) != kOkCsvRC )
-    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV output object create failed.");
-
- errLabel:
-  if( rc != kOkXsRC )
-    _cmXScoreFinalize(p);
-  else
-    hp->h = p;
-
-  return rc;
-}
-
-cmXsRC_t cmXScoreFinalize( cmXsH_t* hp )
-{
-  cmXsRC_t rc = kOkXsRC;
-
-  if( hp == NULL || cmXScoreIsValid(*hp)==false )
-    return kOkXsRC;
-
-  cmXScore_t* p = _cmXScoreHandleToPtr(*hp);
-
-  if((rc = _cmXScoreFinalize(p)) != kOkXsRC )
-    return rc;
-
-  hp->h = NULL;
-
-  return rc;
-}
-
-bool     cmXScoreIsValid( cmXsH_t h )
-{ return h.h != NULL; }
 
 //-------------------------------------------------------------------------------------------
 
@@ -2365,12 +2282,11 @@ cmXsRC_t  _cmXScoreReorderParsePitch(cmXScore_t* p, const cmChar_t* b, unsigned 
   return rc;  
 }
 
-cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
+cmXsRC_t _cmXsApplyEditFile( cmXScore_t* p, const cmChar_t* fn )
 {
   typedef enum { kFindMeasStId, kFindEventStId, kReadEventStId } stateId_t;
 
   cmXsRC_t      rc       = kOkXsRC;
-  cmXScore_t*   p        = _cmXScoreHandleToPtr(h);
   cmFileH_t     fH       = cmFileNullHandle;
   cmChar_t*     b        = NULL;
   unsigned      bN       = 0;
@@ -2536,6 +2452,107 @@ cmXsRC_t cmXScoreReorder( cmXsH_t h, const cmChar_t* fn )
   return rc;
 }
 
+
+
+cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* editFn )
+{
+  cmXsRC_t rc = kOkXsRC;
+
+  if((rc = cmXScoreFinalize(hp)) != kOkXsRC )
+    return rc;
+
+  cmXScore_t* p = cmMemAllocZ(cmXScore_t,1);
+
+  cmErrSetup(&p->err,&ctx->rpt,"XScore");
+
+  // create a local linked heap
+  if( cmLHeapIsValid( p->lhH = cmLHeapCreate(8196,ctx)) == false )
+    return cmErrMsg(&p->err,kLHeapFailXsRC,"Lheap create failed.");
+
+  // open the music xml file
+  if( cmXmlAlloc(ctx, &p->xmlH, xmlFn) != kOkXmlRC )
+  {
+    rc = cmErrMsg(&p->err,kXmlFailXsRC,"Unable to open the MusicXML file '%s'.",cmStringNullGuard(xmlFn));
+    goto errLabel;
+  }
+
+  //cmXmlPrint(p->xmlH,&ctx->rpt);
+
+  // parse the part-list
+  if((rc = _cmXScoreParsePartList( p )) != kOkXsRC )
+    goto errLabel;
+
+  // parse each score 'part'
+  cmXsPart_t* pp = p->partL;
+  for(; pp!=NULL; pp=pp->link)
+    if((rc = _cmXScoreParsePart(p,pp)) != kOkXsRC )
+      goto errLabel;
+
+  // fill in the note->slink chain to link the notes in each measure in time order
+  _cmXScoreSort(p);
+
+  _cmXScoreSpreadGraceNotes(p);
+
+  _cmXScoreSort(p);
+
+  _cmXScoreResolveTiesAndLoc(p);
+
+  _cmXScoreRemoveDuplicateNotes(p);
+
+  _cmXScoreSetMeasGroups(p,kEvenXsFl);
+  _cmXScoreSetMeasGroups(p,kDynXsFl);
+  _cmXScoreSetMeasGroups(p,kTempoXsFl);
+
+  //_cmXScoreResolveOctaveShift(p);
+
+  // CSV output initialize failed.
+  if( cmCsvInitialize(&p->csvH,ctx) != kOkCsvRC )
+    rc = cmErrMsg(&p->err,kCsvFailXsRC,"CSV output object create failed.");
+
+  if( editFn != NULL )
+  {
+    if((rc = _cmXsApplyEditFile(p,editFn)) != kOkXsRC )
+    {
+      cmErrMsg(&ctx->err,rc,"XScore reorder failed.");
+      goto errLabel;
+    }
+  }
+
+  // assign durations to pedal down events
+  _cmXScoreProcessPedals(p);
+
+  // remove some notes which share a pitch and are overlapped or embedded within another note.
+  _cmXScoreProcessOverlappingNotes(p);
+
+  
+ errLabel:
+  if( rc != kOkXsRC )
+    _cmXScoreFinalize(p);
+  else
+    hp->h = p;
+
+  return rc;
+}
+
+cmXsRC_t cmXScoreFinalize( cmXsH_t* hp )
+{
+  cmXsRC_t rc = kOkXsRC;
+
+  if( hp == NULL || cmXScoreIsValid(*hp)==false )
+    return kOkXsRC;
+
+  cmXScore_t* p = _cmXScoreHandleToPtr(*hp);
+
+  if((rc = _cmXScoreFinalize(p)) != kOkXsRC )
+    return rc;
+
+  hp->h = NULL;
+
+  return rc;
+}
+
+bool     cmXScoreIsValid( cmXsH_t h )
+{ return h.h != NULL; }
 
 
 
@@ -3626,31 +3643,20 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
   return _cmXsWriteMidiSvg( ctx, p, &mf, dir, fn );
 }
 
+
 cmXsRC_t cmXScoreTest(
   cmCtx_t* ctx,
   const cmChar_t* xmlFn,
-  const cmChar_t* reorderFn,
+  const cmChar_t* editFn,
   const cmChar_t* csvOutFn,
   const cmChar_t* midiOutFn)
 {
   cmXsRC_t rc;
   cmXsH_t h = cmXsNullHandle;
 
-  if((rc = cmXScoreInitialize( ctx, &h, xmlFn)) != kOkXsRC )
+  // Parse the XML file and apply the changes in editFn.
+  if((rc = cmXScoreInitialize( ctx, &h, xmlFn,editFn)) != kOkXsRC )
     return cmErrMsg(&ctx->err,rc,"XScore alloc failed.");
-
-  if( reorderFn != NULL )
-    if((rc = cmXScoreReorder(h,reorderFn)) != kOkXsRC )
-    {
-      cmErrMsg(&ctx->err,rc,"XScore reorder failed.");
-      goto errLabel;
-    }
-
-  // assign durations to pedal down events
-  _cmXScoreProcessPedals(_cmXScoreHandleToPtr(h));
-
-  // remove some notes which share a pitch and are overlapped or embedded within another note.
-  _cmXScoreProcessOverlappingNotes(_cmXScoreHandleToPtr(h));
 
   if( csvOutFn != NULL )
   {
@@ -3694,7 +3700,6 @@ cmXsRC_t cmXScoreTest(
   
   //cmXScoreReport(h,&ctx->rpt,true);
 
- errLabel:
   return cmXScoreFinalize(&h);
 
 }
