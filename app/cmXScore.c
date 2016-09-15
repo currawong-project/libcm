@@ -71,6 +71,16 @@ enum
 struct cmXsMeas_str;
 struct cmXsVoice_str;
 
+typedef struct cmXsComplexity_str
+{
+  unsigned sum_d_vel;
+  unsigned sum_d_rym;
+  unsigned sum_d_lpch;
+  unsigned sum_n_lpch;
+  unsigned sum_d_rpch;
+  unsigned sum_n_rpch;
+} cmXsComplexity_t;
+
 typedef struct cmXsNote_str
 {
   unsigned                    uid;      // unique id of this note record
@@ -106,6 +116,8 @@ typedef struct cmXsNote_str
  
   struct cmXsNote_str*        mlink;    // measure note list
   struct cmXsNote_str*        slink;    // time sorted event list
+
+  cmXsComplexity_t            cplx;
 
 } cmXsNote_t;
 
@@ -157,6 +169,8 @@ typedef struct
 
   cmXsSpan_t* spanL;
   unsigned    nextUid;
+
+  cmXsComplexity_t cplx_max;
 } cmXScore_t;
 
 cmXScore_t* _cmXScoreHandleToPtr( cmXsH_t h )
@@ -3050,6 +3064,200 @@ void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
   }
 }
 
+typedef struct
+{
+  unsigned ival;
+  double   fval;
+  unsigned cnt;
+} cmXsHist_t;
+
+void _cmXsHistUpdateI( cmXsHist_t* hist, unsigned histN, unsigned ival )
+{
+  unsigned i;
+  
+  for(i=0; i<histN && hist[i].cnt!=0; ++i)
+    if( hist[i].ival == ival )
+      break;
+
+  if( i==histN )
+    return;
+  
+  hist[i].ival = ival;
+  hist[i].cnt += 1;
+  
+}
+
+void _cmXsHistUpdateF( cmXsHist_t* hist, unsigned histN, double fval )
+{
+  unsigned i;
+  
+  for(i=0; i<histN && hist[i].cnt!=0; ++i)
+    if( hist[i].fval == fval )
+      break;
+
+  if( i==histN )
+    return;
+  
+  hist[i].fval = fval;
+  hist[i].cnt += 1;
+}
+
+unsigned _cmXsHistValue( cmXsHist_t* hist, unsigned histN )
+{
+  unsigned i,n;
+  for(i=0,n=0; i<histN && hist[i].cnt>0; ++i)
+    n += 1;
+
+  return n;
+}
+
+const cmXsNote_t*  _cmXsMeasComplexityInWindow( const cmXsNote_t* n0, cmXsNote_t* n1, double wndSecs )
+{
+  const cmXsNote_t* n2          = NULL;
+  unsigned    l_pch_0     = 0;
+  unsigned    l_pch_value = 0;
+  unsigned    l_pch_cnt   = 0;
+  unsigned    r_pch_0     = 0;
+  unsigned    r_pch_value = 0;
+  unsigned    r_pch_cnt   = 0;
+  unsigned    i           = 0;
+
+
+  unsigned   histN = 100;
+  cmXsHist_t velHist[ histN ];
+  cmXsHist_t rymHist[ histN ];
+
+  memset(velHist,0,sizeof(velHist));
+  memset(rymHist,0,sizeof(rymHist));
+
+  const cmXsNote_t* n = n0;
+  
+  while(n!=NULL && n != n1)
+  {
+    // if this event is less than wndSecs behind 'n1' and is not a sounding note ...
+    if( n1->secs - n->secs <= wndSecs && cmIsFlag(n->flags,kOnsetXsFl) )
+    {
+      // if this is not the first note in the window
+      if( i > 0 )
+      {
+        _cmXsHistUpdateI( velHist,  histN, n->dynamics );
+        _cmXsHistUpdateF( rymHist,  histN, n->rvalue );         
+      
+        switch( n->staff )
+        {
+          case 1:
+            r_pch_value += r_pch_0 > n->pitch ? r_pch_0-n->pitch : n->pitch-r_pch_0;
+            r_pch_cnt   += 1;
+            break;
+          
+          case 2:
+            l_pch_value += l_pch_0 > n->pitch ? l_pch_0-n->pitch : n->pitch-l_pch_0;
+            r_pch_cnt   += 1;
+            break;
+          
+          default:
+            { assert(0); }
+        }
+      }
+
+      // store the pitch values to compare on the next interation
+      switch( n->staff )
+      {
+        case 1:
+          r_pch_0 = n->pitch;
+          break;
+        
+        case 2:
+          l_pch_0 = n->pitch;
+          break;
+        
+        default:
+          { assert(0); }
+      }
+
+      // track the first note that is inside the window
+      if( i == 0 )
+        n2 = n;
+
+      // count the number of notes in the window
+      i += 1;
+
+    }
+
+    cmXsMeas_t* m = n->meas;
+    
+    // advance th note pointer
+    n  = n->slink;
+
+    // if we have reached the end of a measure
+    if( n == NULL )
+    {
+      if( m != NULL )
+      {
+        m = m->link;
+        if( m != NULL )
+          n = m->noteL;
+      }
+    }
+    
+  }
+
+  n1->cplx.sum_d_vel  = _cmXsHistValue( velHist, histN );
+  n1->cplx.sum_d_rym  = _cmXsHistValue( rymHist, histN );
+  n1->cplx.sum_d_lpch = l_pch_value;
+  n1->cplx.sum_n_lpch = l_pch_cnt;
+  n1->cplx.sum_d_rpch = r_pch_value;
+  n1->cplx.sum_n_rpch = r_pch_cnt;
+  
+  return n2;
+}
+
+cmXsRC_t _cmXsMeasComplexity( cmXsH_t h, double wndSecs )
+{
+  cmXsRC_t    rc = kOkXsRC;
+  cmXScore_t* p  = _cmXScoreHandleToPtr(h);  
+  cmXsPart_t* pp = p->partL;
+
+  memset(&p->cplx_max,0,sizeof(p->cplx_max));
+  
+  const cmXsNote_t* n0 = NULL;
+  
+  // for each part
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp = pp->measL;
+
+    // for each measure
+    for(; mp!=NULL; mp=mp->link)
+    {
+      cmXsNote_t* n1 = mp->noteL;
+
+
+      // for each note in this measure
+      for(; n1!=NULL; n1=n1->slink)
+        if( cmIsFlag(n1->flags,kOnsetXsFl) )
+        {
+          if( n0 == NULL )
+            n0 = n1;
+          else
+            if((n0 = _cmXsMeasComplexityInWindow(n0,n1,wndSecs)) == NULL )
+              n0 = n1;
+
+          // track the max value for all complexity values to allow 
+          // eventual normalization of the complexity values
+          p->cplx_max.sum_d_vel  = cmMax(p->cplx_max.sum_d_vel, n1->cplx.sum_d_vel);
+          p->cplx_max.sum_d_rym  = cmMax(p->cplx_max.sum_d_rym, n1->cplx.sum_d_rym);
+          p->cplx_max.sum_d_lpch = cmMax(p->cplx_max.sum_d_lpch,n1->cplx.sum_d_lpch);
+          p->cplx_max.sum_n_lpch = cmMax(p->cplx_max.sum_n_lpch,n1->cplx.sum_n_lpch);
+          p->cplx_max.sum_d_rpch = cmMax(p->cplx_max.sum_d_rpch,n1->cplx.sum_d_rpch);
+          p->cplx_max.sum_n_rpch = cmMax(p->cplx_max.sum_n_rpch,n1->cplx.sum_n_rpch);
+        
+        }
+    }
+  }
+  return rc;
+}
+
 cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cmChar_t* fn )
 {
   cmXsRC_t rc = kOkXsRC;
@@ -3163,6 +3371,7 @@ typedef struct cmXsSvgEvt_str
   unsigned         voice;     // score voice number
   unsigned         d0;        // MIDI d0   (barNumb)
   unsigned         d1;        // MIDI d1
+  cmXsComplexity_t cplx;
   struct cmXsSvgEvt_str* link;
 } cmXsSvgEvt_t;
 
@@ -3176,6 +3385,44 @@ typedef struct cmXsMidiFile_str
   
 } cmXsMidiFile_t;
 
+
+void _cmXsWriteMidiSvgLegend( cmSvgH_t svgH, unsigned index,  const cmChar_t* label, const cmChar_t* classStr )
+{
+  double x = 100;
+  double y = 120*10 - 20*index;
+  
+  cmSvgWriterText( svgH, x, y, label, "legend" );
+
+  x += 75;
+  cmSvgWriterLine( svgH, x, y, x+125, y, classStr );
+}
+
+void _cmXsWriteMidiSvgLinePoint( cmSvgH_t svgH, double x0, double y0, double x1, double y1, double y_max, const cmChar_t* classStr, const cmChar_t* label )
+{
+  int  bn = 255;
+  char b[bn+1];
+  double y_scale = 10;
+  double y_label = y1;
+  
+  b[0] = 0;
+  y0 = (y0/y_max) * 127.0 * y_scale;
+  y1 = (y1/y_max) * 127.0 * y_scale;
+  
+  cmSvgWriterLine(svgH, x0, y0,  x1, y1,  classStr );
+
+  if( y0 != y1 )
+    snprintf(b,bn,"%5.0f %s",y_label,label==NULL?"":label);
+  else
+  {
+    if( label != NULL )
+      snprintf(b,bn,"%s",label);
+  }
+  
+  if( strlen(b) )
+    cmSvgWriterText(svgH, x1, y1, b, "pt_text");
+
+}
+
 cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, const cmChar_t* dir, const cmChar_t* fn )
 {
   cmXsRC_t        rc         = kOkXsRC;
@@ -3186,7 +3433,8 @@ cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, con
   const cmChar_t* svgFn      = cmFsMakeFn(dir,fn0 = cmTextAppendSS(fn0,"_midi_svg"),"html",NULL);
   const cmChar_t* cssFn      = cmFsMakeFn(NULL,"score_midi_svg","css",NULL);
   cmChar_t*       t0         = NULL;  // temporary dynamic string
-
+  unsigned        i          = 0;
+  const cmXsSvgEvt_t* e0 = NULL;
   cmMemFree(fn0);
   
   // create the SVG writer
@@ -3196,6 +3444,13 @@ cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, con
     goto errLabel;
   }
 
+  _cmXsWriteMidiSvgLegend( svgH, 0,  "Velocity",    "cplx_vel" );
+  _cmXsWriteMidiSvgLegend( svgH, 1,  "Duration",    "cplx_rym" );
+  _cmXsWriteMidiSvgLegend( svgH, 2,  "Left Pitch",  "cplx_lpch" );
+  _cmXsWriteMidiSvgLegend( svgH, 3,  "Right Pitch", "cplx_rpch" );
+  _cmXsWriteMidiSvgLegend( svgH, 4,  "Density",     "cplx_density" );
+
+  
   // for each MIDI file element
   for(; e!=NULL && rc==kOkXsRC; e=e->link)
   {
@@ -3220,7 +3475,25 @@ cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, con
             
             if( cmSvgWriterText(svgH, e->tick + e->durTicks/2, e->d0 * noteHeight + noteHeight/2, t0, "pitch") != kOkSvgRC )
               rc = kSvgFailXsRC;
+            else
+            {
+              if( e0 != NULL )
+              {
+                bool fl = (i % 10) == 0;
+                
+                _cmXsWriteMidiSvgLinePoint(svgH, e0->tick, e0->cplx.sum_d_vel,  e->tick, e->cplx.sum_d_vel,  p->cplx_max.sum_d_vel, "cplx_vel",fl?"V":NULL);
+                _cmXsWriteMidiSvgLinePoint(svgH, e0->tick, e0->cplx.sum_d_rym,  e->tick, e->cplx.sum_d_rym,  p->cplx_max.sum_d_rym, "cplx_rym",fl?"D":NULL);
+                _cmXsWriteMidiSvgLinePoint(svgH, e0->tick, e0->cplx.sum_d_lpch, e->tick, e->cplx.sum_d_lpch, p->cplx_max.sum_d_lpch, "cplx_lpch",fl?"L":NULL);
+                _cmXsWriteMidiSvgLinePoint(svgH, e0->tick, e0->cplx.sum_d_rpch, e->tick, e->cplx.sum_d_rpch, p->cplx_max.sum_d_rpch, "cplx_rpch",fl?"R":NULL);
+                _cmXsWriteMidiSvgLinePoint(svgH, e0->tick, e0->cplx.sum_n_lpch + e0->cplx.sum_n_rpch, e->tick, e->cplx.sum_n_lpch  + e->cplx.sum_n_rpch, p->cplx_max.sum_n_lpch + p->cplx_max.sum_n_rpch, "cplx_density",fl?"N":NULL);
+              }
+
+              e0 = e;
+            }
+            
           }
+
+          i+=1;
         }
         break;
 
@@ -3247,7 +3520,7 @@ cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, con
           cmSvgWriterRect(svgH, e->tick, y, e->durTicks, noteHeight-1, classLabel);
         }
         break;
-    }
+    }    
   }
   
   if( rc != kOkXsRC )
@@ -3267,7 +3540,7 @@ cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, con
 }
 
 
-void _cmXsPushSvgEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsigned tick, unsigned durTick, unsigned voice, unsigned d0, unsigned d1 )
+void _cmXsPushSvgEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsigned tick, unsigned durTick, unsigned voice, unsigned d0, unsigned d1, const cmXsComplexity_t* cplx )
 {
   cmXsSvgEvt_t* e = cmLhAllocZ(p->lhH,cmXsSvgEvt_t,1);
   e->flags    = flags;
@@ -3276,6 +3549,9 @@ void _cmXsPushSvgEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsig
   e->voice    = voice;
   e->d0       = d0;       // note=pitch bar=number pedal=ctl# metronome=BPM 
   e->d1       = d1;
+  
+  if( cplx != NULL )
+    e->cplx     = *cplx;
   
   if( mf->eol != NULL )
     mf->eol->link = e;
@@ -3313,7 +3589,7 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
         if( cmIsFlag(note->flags,kMetronomeXsFl) )
         {
           // set BPM as d0
-          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->duration,0);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->duration,0,NULL);
           continue;
           
         }
@@ -3329,14 +3605,14 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
             for(; tn!=NULL; tn=tn->tied)
               durTick += tn->tied_dur;
           }
-          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,durTick,note->voice->id,d0,note->vel);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,durTick,note->voice->id,d0,note->vel,&note->cplx);
           continue;
         }
 
         // if this is a bar event
         if( cmIsFlag(note->flags,kBarXsFl) )
         {
-          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->meas->number,0);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,0,0,note->meas->number,0,NULL);
           continue;
         }
 
@@ -3344,7 +3620,7 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
         if( cmIsFlag(note->flags,kDampDnXsFl|kDampUpDnXsFl|kSostDnXsFl) )
         {
           unsigned d0 = cmIsFlag(note->flags,kSostDnXsFl) ? kSostenutoCtlMdId : kSustainCtlMdId;          
-          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,note->duration,0,d0,127);
+          _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,note->duration,0,d0,127,NULL);
           continue;
         }
         
@@ -3407,6 +3683,10 @@ cmXsRC_t cmXScoreTest(
   
   if( midiOutFn != NULL )
   {
+    double wndSecs = 1.0;
+    _cmXsMeasComplexity(h,wndSecs);
+
+    
     cmFileSysPathPart_t* pp = cmFsPathParts(midiOutFn);
 
     _cmXsWriteMidiFile(ctx, h, pp->dirStr, pp->fnStr );
@@ -3417,7 +3697,7 @@ cmXsRC_t cmXScoreTest(
     
   }
   
-  cmXScoreReport(h,&ctx->rpt,true);
+  //cmXScoreReport(h,&ctx->rpt,true);
 
  errLabel:
   return cmXScoreFinalize(&h);
