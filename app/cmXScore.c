@@ -3111,13 +3111,15 @@ unsigned _cmXsHistValue( cmXsHist_t* hist, unsigned histN )
   return n;
 }
 
+// Measure the score complexity for the the time window 'wndSecs' seconds
+// prior to the note n1 and following n0.
 const cmXsNote_t*  _cmXsMeasComplexityInWindow( const cmXsNote_t* n0, cmXsNote_t* n1, double wndSecs )
 {
   const cmXsNote_t* n2          = NULL;
   unsigned    l_pch_0     = 0;
   unsigned    l_pch_value = 0;
-  unsigned    l_pch_cnt   = 0;
-  unsigned    r_pch_0     = 0;
+  unsigned    l_pch_cnt   = n1->staff==1 ? 0 : 1;
+  unsigned    r_pch_0     = n1->staff==1 ? 1 : 0;
   unsigned    r_pch_value = 0;
   unsigned    r_pch_cnt   = 0;
   unsigned    i           = 0;
@@ -3137,44 +3139,35 @@ const cmXsNote_t*  _cmXsMeasComplexityInWindow( const cmXsNote_t* n0, cmXsNote_t
     // if this event is less than wndSecs behind 'n1' and is not a sounding note ...
     if( n1->secs - n->secs <= wndSecs && cmIsFlag(n->flags,kOnsetXsFl) )
     {
-      // if this is not the first note in the window
-      if( i > 0 )
-      {
-        _cmXsHistUpdateI( velHist,  histN, n->dynamics );
-        _cmXsHistUpdateF( rymHist,  histN, n->rvalue );         
-      
-        switch( n->staff )
-        {
-          case 1:
-            r_pch_value += r_pch_0 > n->pitch ? r_pch_0-n->pitch : n->pitch-r_pch_0;
-            r_pch_cnt   += 1;
-            break;
-          
-          case 2:
-            l_pch_value += l_pch_0 > n->pitch ? l_pch_0-n->pitch : n->pitch-l_pch_0;
-            r_pch_cnt   += 1;
-            break;
-          
-          default:
-            { assert(0); }
-        }
-      }
+      _cmXsHistUpdateI( velHist,  histN, n->dynamics );
+      _cmXsHistUpdateF( rymHist,  histN, n->rvalue );
 
-      // store the pitch values to compare on the next interation
       switch( n->staff )
       {
-        case 1:
+        case 1:        // treble cleff
+          if( i > 0 )
+          {
+            r_pch_value += r_pch_0 > n->pitch ? r_pch_0-n->pitch : n->pitch-r_pch_0;
+            r_pch_cnt   += 1;
+          }
+          
           r_pch_0 = n->pitch;
           break;
-        
-        case 2:
-          l_pch_0 = n->pitch;
+          
+        case 2:        // bass cleff
+          if( i > 0 )
+          {
+            l_pch_value += l_pch_0 > n->pitch ? l_pch_0-n->pitch : n->pitch-l_pch_0;
+            l_pch_cnt   += 1;
+          }
+          
+          l_pch_0 = n->pitch;                      
           break;
-        
+          
         default:
           { assert(0); }
       }
-
+      
       // track the first note that is inside the window
       if( i == 0 )
         n2 = n;
@@ -3202,6 +3195,7 @@ const cmXsNote_t*  _cmXsMeasComplexityInWindow( const cmXsNote_t* n0, cmXsNote_t
     
   }
 
+  // update the cplx record in n1 with the results of this window analysis
   n1->cplx.sum_d_vel  = _cmXsHistValue( velHist, histN );
   n1->cplx.sum_d_rym  = _cmXsHistValue( rymHist, histN );
   n1->cplx.sum_d_lpch = l_pch_value;
@@ -3212,6 +3206,8 @@ const cmXsNote_t*  _cmXsMeasComplexityInWindow( const cmXsNote_t* n0, cmXsNote_t
   return n2;
 }
 
+// Measure the score complexity and fill in the cmXsComplexity_t record associated
+// with the cmXsNote_t record of each sounding note.
 cmXsRC_t _cmXsMeasComplexity( cmXsH_t h, double wndSecs )
 {
   cmXsRC_t    rc = kOkXsRC;
@@ -3360,8 +3356,6 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
   
   return rc;
 }
-
-
 
 typedef struct cmXsSvgEvt_str
 {
@@ -3630,7 +3624,6 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
 
 
   return _cmXsWriteMidiSvg( ctx, p, &mf, dir, fn );
-
 }
 
 cmXsRC_t cmXScoreTest(
@@ -3683,6 +3676,8 @@ cmXsRC_t cmXScoreTest(
   
   if( midiOutFn != NULL )
   {
+
+    // measure the score complexity
     double wndSecs = 1.0;
     _cmXsMeasComplexity(h,wndSecs);
 
