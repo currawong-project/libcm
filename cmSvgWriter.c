@@ -185,7 +185,14 @@ void _cmSvgWriterFlipY( cmSvg_t* p, unsigned height )
   }
 }
 
-
+/*
+   "<script type=\"text/javascript\" src=\"svg-pan-zoom.min.js\"></script>\n"
+    "<script>\n"
+    " var panZoom = null;\n"
+    "  function doOnLoad() { panZoom = svgPanZoom(document.querySelector('#mysvg'), { controlIconsEnabled:true } ) }\n"
+    "</script>\n"
+ 
+ */
 
 cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* outFn )
 {
@@ -204,11 +211,6 @@ cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* 
     "<head>\n"
     "<meta charset=\"utf-8\">\n"    
     "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">\n"
-    "<script type=\"text/javascript\" src=\"svg-pan-zoom.min.js\"></script>\n"
-    "<script>\n"
-    " var panZoom = null;\n"
-    "  function doOnLoad() { panZoom = svgPanZoom(document.querySelector('#mysvg'), { controlIconsEnabled:true } ) }\n"
-    "</script>\n"
     "</head>\n"
     "<body onload=\"doOnLoad()\">\n"
     "<svg id=\"mysvg\" width=\"%f\" height=\"%f\">\n";
