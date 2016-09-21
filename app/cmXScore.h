@@ -58,6 +58,8 @@ extern "C" {
 
   void     cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl );
 
+  cmXsRC_t cmXScoreGenEditFile( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* outFn );
+
   // Generate the CSV file suitable for use by cmScore.
   cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* reorderFn, const cmChar_t* csvOutFn, const cmChar_t* midiOutFn );
   

@@ -71,14 +71,15 @@ enum
 struct cmXsMeas_str;
 struct cmXsVoice_str;
 
+// Values measured for each sounding note in the preceding time window....
 typedef struct cmXsComplexity_str
 {
-  unsigned sum_d_vel;
-  unsigned sum_d_rym;
-  unsigned sum_d_lpch;
-  unsigned sum_n_lpch;
-  unsigned sum_d_rpch;
-  unsigned sum_n_rpch;
+  unsigned sum_d_vel;   // sum of first order difference of cmXsNote_t.dynamics 
+  unsigned sum_d_rym;   // sum of first order difference of cmXsNote_t.rvalue 
+  unsigned sum_d_lpch;  // sum of first order difference of cmXsNote_t.pitch of note assigned to the bass cleff
+  unsigned sum_n_lpch;  // count of notes assigned to the bass cleff
+  unsigned sum_d_rpch;  // sum of first order difference of cmXsNote_t.pitch of note assigned to the treble cleff 
+  unsigned sum_n_rpch;  // count of notes assigned to the treble cleff
 } cmXsComplexity_t;
 
 typedef struct cmXsNote_str
@@ -2011,8 +2012,8 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
     if( cmIsFlag(rV[i].newFlags,kTieEndXsFl) )
     {
       rV[i].note->flags |= kTieEndXsFl;
-      rV[i].note->flags = cmClrFlag(rV[i].note->flags, kOnsetXsFl);
-      rV[i].newFlags = cmClrFlag(rV[i].newFlags,kTieEndXsFl );
+      rV[i].note->flags  = cmClrFlag( rV[i].note->flags, kOnsetXsFl );
+      rV[i].newFlags     = cmClrFlag( rV[i].newFlags,    kTieEndXsFl);
     }
 
     // if a new note value was specified
@@ -2032,7 +2033,6 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
   {
     if( rV[i].newFlags != 0 )
     {
-
       if( cmIsFlag(rV[i].newFlags,kDampDnXsFl ) )
         _cmXScoreInsertPedalEvent(p,rV + i,kDampDnXsFl);
 
@@ -2043,8 +2043,7 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
         _cmXScoreInsertPedalEvent(p,rV + i,kDampUpXsFl);
 
       if( cmIsFlag(rV[i].newFlags,kSostUpXsFl ) )
-        _cmXScoreInsertPedalEvent(p,rV + i,kSostUpXsFl);
-      
+        _cmXScoreInsertPedalEvent(p,rV + i,kSostUpXsFl);      
     }
   }
 
@@ -2603,6 +2602,7 @@ cmXsRC_t _cmXScoreWriteCsvHdr( cmXScore_t* p )
   return kOkXsRC;
 }
 
+
 cmXsRC_t _cmXScoreWriteCsvBlankCols( cmXScore_t* p, unsigned cnt, cmCsvCell_t** leftCellPtrPtr )
 {
   unsigned i;
@@ -3081,6 +3081,47 @@ void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
   }
 }
 
+void _cmXScoreGenEditFileWrite( void* arg, const cmChar_t* text )
+{
+  if( text != NULL && arg != NULL )
+  {
+    cmFileH_t* hp = (cmFileH_t*)arg;
+    cmFilePrint(*hp,text);
+  }
+}
+
+cmXsRC_t cmXScoreGenEditFile( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* outFn )
+{
+  cmXsH_t   xsH = cmXsNullHandle;
+  cmFileH_t fH  = cmFileNullHandle;
+  cmXsRC_t  rc  = kOkXsRC;
+  cmErr_t   err;
+  cmRpt_t   rpt;
+
+  cmErrSetup(&err,&ctx->rpt,"cmXScoreGenEditFile");
+  cmRptSetup(&rpt,_cmXScoreGenEditFileWrite,_cmXScoreGenEditFileWrite,&fH);
+
+  if((rc = cmXScoreInitialize(ctx,&xsH,xmlFn,NULL)) != kOkXsRC )
+    return rc;
+
+  if( cmFileOpen(&fH,outFn,kWriteFileFl,&ctx->rpt) != kOkFileRC )
+  {
+    cmErrMsg(&err,kFileFailXsRC,"Unable to open the output file '%s'.",cmStringNullGuard(outFn));
+    goto errLabel;
+  }
+  
+  cmXScoreReport(xsH,&rpt,true);
+  
+ errLabel:
+  
+  if( cmFileClose(&fH) != kOkFileRC )
+    rc = cmErrMsg(&err,kFileFailXsRC,"File close failed on '%s'.",cmStringNullGuard(outFn));
+  
+  cmXScoreFinalize(&xsH);
+
+  return rc;
+}
+
 typedef struct
 {
   unsigned ival;
@@ -3376,13 +3417,13 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
 
 typedef struct cmXsSvgEvt_str
 {
-  unsigned         flags;     // k???XsFl
-  unsigned         tick;      // start tick
-  unsigned         durTicks;  // dur-ticks
-  unsigned         voice;     // score voice number
-  unsigned         d0;        // MIDI d0   (barNumb)
-  unsigned         d1;        // MIDI d1
-  cmXsComplexity_t cplx;
+  unsigned               flags;    // k???XsFl
+  unsigned               tick;     // start tick
+  unsigned               durTicks; // dur-ticks
+  unsigned               voice;    // score voice number
+  unsigned               d0;       // MIDI d0   (barNumb)
+  unsigned               d1;       // MIDI d1
+  cmXsComplexity_t       cplx;
   struct cmXsSvgEvt_str* link;
 } cmXsSvgEvt_t;
 
@@ -3638,8 +3679,7 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
       }
     }
   }
-
-
+  
   return _cmXsWriteMidiSvg( ctx, p, &mf, dir, fn );
 }
 
