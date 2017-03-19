@@ -538,7 +538,7 @@ cmSmgRC_t cmScoreMatchGraphicWrite( cmSmgH_t h, const cmChar_t* fn )
   svgHeight += 10; // add a right and lower border
   svgWidth  += 10;
 
-  cmFilePrintf(fH,"<!DOCTYPE html>\n<html>\n<head><link rel=\"stylesheet\" type=\"text/css\" href=\"score0.css\"></head><body>\n<svg width=\"%i\" height=\"%i\">\n",svgWidth,svgHeight);
+  cmFilePrintf(fH,"<!DOCTYPE html>\n<html>\n<head><link rel=\"stylesheet\" type=\"text/css\" href=\"cmScoreMatchGraphic.css\"></head><body>\n<svg width=\"%i\" height=\"%i\">\n",svgWidth,svgHeight);
 
   for(i=0; i<p->locN; ++i)
   {
@@ -690,7 +690,7 @@ cmSmgRC_t _cmScoreMatchGraphicInsertMidiMsg( cmSmg_t* p, cmMidiFileH_t mfH, bool
   cmMidiByte_t midi_vel     = pedalDnFl ? 64 :   0;
   cmMidiByte_t midi_ch      = 0;
 
-  printf("pedal:%s\n",pedalDnFl?"down":"up");
+  //printf("pedal:%s\n",pedalDnFl?"down":"up");
   
   // insert a pedal msg relative to the reference event
   if( cmMidiFileInsertMsg(mfH, m->uid, dtick_offset, midi_ch, kCtlMdId, kSostenutoCtlMdId, midi_vel ) != kOkMfRC )
@@ -797,8 +797,6 @@ cmSmgRC_t cmScoreMatchGraphicUpdateMidiFromScore( cmCtx_t* ctx, cmSmgH_t h, cons
     rc = cmErrMsg(&p->err,kMidiFileFailSmgRC,"MIDI file write failed on '%s'.",cmStringNullGuard(newMidiFn));
     goto errLabel;
   }
-
-  cmMidiFilePrintMsgs(mfH, p->err.rpt );
 
 
  errLabel:

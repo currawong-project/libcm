@@ -657,7 +657,7 @@ cmDspRC_t _cmDspTimeLineRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
           cmTlObj_t* op;
           if((op = cmTimeLineIdToObj(p->tlH, cmInvalidId, markerId )) != NULL )
           {
-            assert(op->typeId == kMarkerTlId);
+            assert(op->typeId == kMarkerTlId || op->typeId == kMidiEvtTlId );
 
             p->afIdx = op->begSmpIdx;
 

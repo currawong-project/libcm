@@ -18,7 +18,9 @@ extern "C" {
     kPedalStateErrorXsRc,
     kMidiFailXsRC,
     kFileFailXsRC,
-    kSvgFailXsRC
+    kSvgFailXsRC,
+    kOverlapWarnXsRC,
+    kZeroLengthEventXsRC
   };
 
   typedef cmRC_t     cmXsRC_t;
@@ -41,31 +43,22 @@ extern "C" {
   //
   // M-x load-file ~/src/emacs/proc_music_xml.el
   //
-  // 3) How to assigned dynamic markings (they are not attached to notes). (from MIDI file?)
-  // 4) Tempo syntax is inconsistent (only a problem in full part2 score)     
-  // 5) Heel is being parsed but not used. 
-  // 6) Sostenuto pedal events are not being parsed because they are not pedal events.
-  // 7) What is a 'pedal-change' event vs. a 'pedal-stop' event.
-  // 8) Verify the colors. (done)
-  // 9) Remove blank bars at end (done in xml - do in score)
-  //10) Need to assign section targets (always default to next section)
-  //11) Mark tied notes for skip. (done)
-  //12) Determine note off locations based on ties and slurs - defer 'pedal' to player
-  //13) Check that the measures are given in sorted order.
-  //14) Current implementation assumes meter changes only occur at measure boundaries.
-  //15) Score Fixes: Add meter to bar 1, fix time errors (shown in voice report)
-  //16) The order of notes is now correct (4/6/16) after applying
-  //    the grace note ordering changed specified in 'score_print_mk_edit.txt',
-  //    via cmXScoreReorder() however the ticks are now incorrect - fix them.
-  
-  cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn );
+
+  // Initialize an cmXScore object from a Sibelius generated MusicXML file.
+  // Optionally include an 'edit' file to attach additional score information.
+  // Note that the 'edit' file is created by marking up a file created via
+  // cmXScoreReport().
+  cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* editFn );
   cmXsRC_t cmXScoreFinalize( cmXsH_t* hp );
 
+  
   bool     cmXScoreIsValid( cmXsH_t h );
 
   cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn );
 
   void     cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl );
+
+  cmXsRC_t cmXScoreGenEditFile( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* outFn );
 
   // Generate the CSV file suitable for use by cmScore.
   cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* reorderFn, const cmChar_t* csvOutFn, const cmChar_t* midiOutFn );

@@ -8,8 +8,11 @@
 #include "cmMallocDebug.h"
 #include "cmLinkedHeap.h"
 #include "cmTime.h"
+#include "cmText.h"
 #include "cmMidi.h"
 #include "cmMidiFile.h"
+#include "cmSvgWriter.h"
+
 
 #ifdef cmBIG_ENDIAN
 #define mfSwap16(v)  (v)
@@ -256,7 +259,7 @@ cmMfRC_t _cmMidiFileReadChannelMsg( _cmMidiFile_t* mfp, cmMidiByte_t* rsPtr, cmM
   unsigned byteN = cmMidiStatusToByteCount(tmp->status);
   
   if( byteN==kInvalidMidiByte || byteN > 2 )
-    return cmErrMsg(&mfp->err,kInvalidStatusMfRC,"Invalid status:0x%x %i.",tmp->status,tmp->status);
+    return cmErrMsg(&mfp->err,kInvalidStatusMfRC,"Invalid status:0x%x %i byte cnt:%i.",tmp->status,tmp->status,byteN);
 
   unsigned i;
   for(i=useRsFl; i<byteN; ++i)
@@ -339,7 +342,7 @@ cmMfRC_t _cmMidiFileReadTrack( _cmMidiFile_t* mfp, unsigned short trkIdx )
     if((rc = _cmMidiFileRead8(mfp,&status)) != kOkMfRC )
       return rc;
 
-    //printf("st:%i 0x%x\n",status,status);
+    //printf("%5i st:%i 0x%x\n",dticks,status,status);
 
     // append a track msg
     if((rc = _cmMidiFileAppendTrackMsg( mfp, trkIdx, dticks, status, &tmp )) != kOkMfRC )
@@ -677,8 +680,11 @@ cmMfRC_t cmMidiFileOpen( cmCtx_t* ctx, cmMidiFileH_t* hp, const char* fn )
     rc = cmErrMsg(&p->err,kFileFailMfRC,"MIDI file close failed.");
 
   if( rc != kOkMfRC )
+  {
     _cmMidiFileClose(p);
-
+    hp->h = NULL;
+  }
+  
   return rc;
 }
 
@@ -971,12 +977,75 @@ cmMfRC_t _cmMidiFileWriteMetaMsg( _cmMidiFile_t* mfp, const cmMidiTrackMsg_t* tm
   return rc;
 }
 
+cmMfRC_t _cmMidiFileInsertEotMsg( _cmMidiFile_t* p, unsigned trkIdx )
+{
+  _cmMidiTrack_t* trk = p->trkV + trkIdx;
+  cmMidiTrackMsg_t* m0 = NULL;
+  cmMidiTrackMsg_t* m = trk->base;
+
+  // locate the current EOT msg on this track
+  for(; m!=NULL; m=m->link)
+  {
+    if( m->status == kMetaStId && m->metaId == kEndOfTrkMdId )
+    {
+      // If this EOT msg is the last msg in the track  ...
+      if( m->link == NULL )
+      {
+        assert( m == trk->last );
+        return kOkMfRC; // ... then there is nothing else to do
+      }
+
+      // If this EOT msg is not the last in the track ...
+      if( m0 != NULL )
+        m0->link = m->link;  // ... then unlink it
+
+      break;
+    }
+
+    m0 = m;
+  }
+
+  // if we get here then the last msg in the track was not an EOT msg
+
+  // if there was no previously allocated EOT msg
+  if( m == NULL )
+  {
+    m   = _cmMidiFileAllocMsg(p, trkIdx, 1, kMetaStId );
+    m->metaId = kEndOfTrkMdId;
+    trk->cnt += 1;
+    
+  }
+
+  // link an EOT msg as the last msg on the track
+
+  // if the track is currently empty
+  if( m0 == NULL )
+  {
+    trk->base = m;
+    trk->last = m;
+  }
+  else // link the msg as the last on on the track
+  {
+    assert( m0 == trk->last);
+    m0->link = m;
+    m->link  = NULL;
+    trk->last = m;
+  }
+
+  return kOkMfRC;
+
+}
+
 cmMfRC_t _cmMidiFileWriteTrack( _cmMidiFile_t* mfp, unsigned trkIdx )
 {
   cmMfRC_t          rc        = kOkMfRC;
   cmMidiTrackMsg_t* tmp       = mfp->trkV[trkIdx].base;
   cmMidiByte_t      runStatus = 0;
 
+  // be sure there is a EOT msg at the end of this track
+  if((rc = _cmMidiFileInsertEotMsg(mfp, trkIdx )) != kOkMfRC )
+    return rc;
+  
   for(; tmp != NULL; tmp=tmp->link)
   {
     // write the msg tick count
@@ -1379,8 +1448,11 @@ cmMfRC_t  cmMidiFileInsertTrackMsg( cmMidiFileH_t h, unsigned trkIdx, const cmMi
     assert( m1->atick >= m->atick );
     m1->dtick = m1->atick - m->atick;
   }
-  
+
+  p->trkV[trkIdx].cnt += 1;  
   p->msgVDirtyFl = true;
+
+
   
   return kOkMfRC;
    
@@ -1402,6 +1474,8 @@ cmMfRC_t  cmMidiFileInsertTrackChMsg( cmMidiFileH_t h, unsigned trkIdx, unsigned
   m.status     = status & 0xf0;
   m.byteCnt    = sizeof(cm);
   m.u.chMsgPtr = &cm;
+
+  assert( m.status >= kNoteOffMdId && m.status <= kPbendMdId );
   
   return cmMidiFileInsertTrackMsg(h,trkIdx,&m);
 }
@@ -1836,6 +1910,38 @@ void cmMidiFilePrintTracks( cmMidiFileH_t h, unsigned trkIdx, cmRpt_t* rpt )
 void cmMidiFileTestPrint( void* printDataPtr, const char* fmt, va_list vl )
 { vprintf(fmt,vl); }
 
+cmMidiFileDensity_t* cmMidiFileNoteDensity( cmMidiFileH_t h, unsigned* cntRef )
+{
+  int                      msgN = cmMidiFileMsgCount(h);
+  const cmMidiTrackMsg_t** msgs = cmMidiFileMsgArray(h);
+  cmMidiFileDensity_t*     dV   = cmMemAllocZ(cmMidiFileDensity_t,msgN);
+  
+  int i,j,k;
+  for(i=0,k=0; i<msgN && k<msgN; ++i)
+    if( msgs[i]->status == kNoteOnMdId && msgs[i]->u.chMsgPtr->d1 > 0 )
+    {
+      dV[k].uid    = msgs[i]->uid;
+      dV[k].amicro = msgs[i]->amicro;
+      
+      for(j=i; j>=0; --j)
+      {
+        if( msgs[i]->amicro - msgs[j]->amicro > 1000000 )
+          break;
+
+        dV[k].density += 1;
+      }
+      
+      k += 1;
+      
+    }
+
+  if( cntRef != NULL )
+    *cntRef = k;
+
+  return dV;
+}
+
+
 cmMfRC_t cmMidiFileGenPlotFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outFn )
 {
   cmMfRC_t                 rc  = kOkMfRC;
@@ -1869,6 +1975,99 @@ cmMfRC_t cmMidiFileGenPlotFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmCh
   
   cmMidiFileClose(&mfH);
   cmFileClose(&fH);
+  return rc;
+}
+
+cmMfRC_t cmMidiFileGenSvgFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outSvgFn, const cmChar_t* cssFn )
+{
+  cmMfRC_t                 rc   = kOkMfRC;
+  cmSvgH_t                 svgH = cmSvgNullHandle;
+  cmMidiFileH_t            mfH  = cmMidiFileNullHandle;
+  unsigned                 msgN = 0;
+  const cmMidiTrackMsg_t**       msgs = NULL;
+  unsigned noteHeight = 10;
+  double micros_per_sec = 1000.0;
+  unsigned i;
+
+  if((rc = cmMidiFileOpen(ctx,&mfH,midiFn)) != kOkMfRC )
+  {
+    rc = cmErrMsg(&ctx->err,rc,"Unable to open the MIDI file '%s'.",cmStringNullGuard(midiFn));
+    goto errLabel;
+  }
+
+ cmMidiFileCalcNoteDurations( mfH );
+
+  msgN = cmMidiFileMsgCount(mfH);
+  msgs = cmMidiFileMsgArray(mfH);
+
+  
+  if( cmSvgWriterAlloc(ctx,&svgH) != kOkSvgRC )
+  {
+    rc = cmErrMsg(&ctx->err,kSvgFailMfRC,"Unable to create the MIDI SVG output file '%s'.",cmStringNullGuard(outSvgFn));
+    goto errLabel;
+  }
+
+
+  for(i=0; i<msgN && rc==kOkMfRC; ++i)    
+    if( msgs[i]->status == kNoteOnMdId && msgs[i]->u.chMsgPtr->d1 > 0 )
+    {
+      const cmMidiTrackMsg_t* m = msgs[i];
+
+      
+      if( cmSvgWriterRect(svgH, m->amicro/micros_per_sec, m->u.chMsgPtr->d0 * noteHeight,  m->u.chMsgPtr->durMicros/micros_per_sec,  noteHeight-1, "note" ) != kOkSvgRC )
+        rc = kSvgFailMfRC;
+
+      const cmChar_t* t0 = cmMidiToSciPitch(m->u.chMsgPtr->d0,NULL,0);
+
+      if( cmSvgWriterText(svgH, (m->amicro + (m->u.chMsgPtr->durMicros/2)) / micros_per_sec, m->u.chMsgPtr->d0 * noteHeight, t0, "text" ) != kOkSvgRC )
+        rc = kSvgFailMfRC;
+
+    }
+
+  if( rc != kOkMfRC )
+  {
+    cmErrMsg(&ctx->err,rc,"SVG Shape insertion failed.");
+    goto errLabel;
+  }
+  
+  unsigned             dN = 0;
+  cmMidiFileDensity_t* dV = cmMidiFileNoteDensity( mfH, &dN );
+  double               t0 = 0;
+  double               y0 = 64.0;
+  cmChar_t*            tx = NULL;
+  
+  for(i=0; i<dN; ++i)
+  {
+    const cmMidiTrackMsg_t* m;
+
+    if((m = _cmMidiFileUidToMsg( _cmMidiFileHandleToPtr(mfH), dV[i].uid )) == NULL )
+      rc = cmErrMsg(&ctx->err,kUidNotFoundMfRC,"The MIDI msg form UID:%i was not found.",dV[i].uid);
+    else
+    {
+      double t1 = m->amicro / micros_per_sec;
+      double y1 = dV[i].density * noteHeight;
+      
+      cmSvgWriterLine(svgH, t0, y0, t1, y1, "density" );
+      cmSvgWriterText(svgH, t1, y1, tx = cmTsPrintfP(tx,"%i",dV[i].density),"dtext");
+
+      t0 = t1;
+      y0 = y1;
+
+    }
+  }
+
+  cmMemFree(dV);
+  cmMemFree(tx);
+  
+  if( rc == kOkMfRC )
+    if( cmSvgWriterWrite(svgH,cssFn,outSvgFn) != kOkSvgRC )
+      rc = cmErrMsg(&ctx->err,kSvgFailMfRC,"SVG file write to '%s' failed.",cmStringNullGuard(outSvgFn));
+
+
+ errLabel:
+  cmMidiFileClose(&mfH);
+  cmSvgWriterFree(&svgH);
+  
   return rc;
 }
 

@@ -201,7 +201,7 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspInst_t* max_lwr_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Max Lwr"),          0.0, -1.0, 5.0, 3.0);
   cmDspInst_t* min_off_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Min Off"),          0.0, 50.0, 0.1, 30.0);
   cmDspInst_t* max_off_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Max Off"),          0.0, 50.0, 0.1, 30.0);
-  cmDspInst_t* min_wet_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Min Wet"),          0.0,  1.0, 0.01, 1.0);
+  cmDspInst_t* min_wet_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Min Wet"),          0.0,  1.0, 0.01, 0.0);
   cmDspInst_t* max_wet_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Max Wet"),          0.0,  1.0, 0.01, 1.0);
 
 

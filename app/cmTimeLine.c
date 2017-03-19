@@ -134,7 +134,7 @@ cmTlMidiFile_t*  _cmTlMidiFileObjPtr(  _cmTl_t* p, cmTlObj_t* op, bool errFl )
   if( op==NULL || op->typeId != kMidiFileTlId )
   {
     if( errFl && p != NULL)
-      cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");
+      cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion to MIDI file failed.");
     return NULL;
   }
 
@@ -147,7 +147,7 @@ cmTlMidiEvt_t*   _cmTlMidiEvtObjPtr(   _cmTl_t* p, cmTlObj_t* op, bool errFl )
   if( op==NULL || op->typeId != kMidiEvtTlId )
   {
     if( errFl && p != NULL )
-      cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");
+      cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion to MIDI event failed.");
     return NULL;
   }
 
@@ -173,7 +173,7 @@ cmTlAudioEvt_t*  _cmTlAudioEvtObjPtr(  _cmTl_t* p, cmTlObj_t* op, bool errFl )
   if( op==NULL || op->typeId != kAudioEvtTlId )
   {
     if( errFl && p != NULL)
-      cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");
+      cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion to audio event failed.");
     return NULL;
   }
   return (cmTlAudioEvt_t*)op;
@@ -186,7 +186,7 @@ cmTlMarker_t*    _cmTlMarkerObjPtr(    _cmTl_t* p, cmTlObj_t* op, bool errFl )
   if( op==NULL || op->typeId != kMarkerTlId )
   {
     if( errFl && p != NULL)
-      cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion failed.");
+      cmErrMsg(&p->err,kTypeCvtFailTlRC,"A time line object type promotion to marker object failed.");
     return NULL;
   }
   return (cmTlMarker_t*)op;
@@ -1227,31 +1227,37 @@ _cmTlObj_t* _cmTimeLineObjAtTime( _cmTl_t* p, unsigned seqId, unsigned seqSmpIdx
   _cmTlObj_t* op      = p->seq[seqId].first;
   _cmTlObj_t* min_op  = NULL;
   unsigned    minDist = UINT_MAX;
-
+  bool        inFl    = false;
+  
+  // for each object in the requested sequence
   for(; op!=NULL; op=op->next)
     if( typeId==cmInvalidId || op->obj->typeId == typeId )
     {
-      // if seqSmpIdx is inside this object - then return it as the solution
+      bool in0Fl = false;
+      
+      // if seqSmpIdx is inside this object - then the returned object must contain seqSmpIdx
+      // (but the ideal point to return is the one which contains seqSmpIdx and also has
+      //  a begin or end point very close to seqSmpIdx - so this defer selecting an object
+      // until all objects which may contain seqSmpIdx have been examined 
       if((op->obj->seqSmpIdx <= seqSmpIdx && seqSmpIdx < (op->obj->seqSmpIdx + op->obj->durSmpCnt)))
-        return op;
-
+      {
+        inFl  = true;   // the returned object must contain seqSmpIdx
+        in0Fl = true;   // this object contains seqSmpIdx
+      }
+      
       // measure the distance from seqSmpIdx to the begin and end of this object
       unsigned d0 =  op->obj->seqSmpIdx                    < seqSmpIdx ? seqSmpIdx - op->obj->seqSmpIdx                    : op->obj->seqSmpIdx - seqSmpIdx;
       unsigned d1 =  op->obj->seqSmpIdx+op->obj->durSmpCnt < seqSmpIdx ? seqSmpIdx - op->obj->seqSmpIdx+op->obj->durSmpCnt : op->obj->seqSmpIdx+op->obj->durSmpCnt - seqSmpIdx;
 
-      // d0 and d1 should decrease as the cur object approaches seqSmpIdx
-      // If they do not then the search is over - return the closest point.
-      if( d0>minDist && d1>minDist)
-        break;
 
       // track the min dist and the assoc'd obj
-      if( d0 < minDist )
+      if( d0 < minDist && (inFl==false || inFl==in0Fl))
       {
         minDist = d0;
         min_op  = op;
       }
 
-      if( d1 < minDist )
+      if( d1 < minDist && (inFl==false || inFl==in0Fl))
       {
         minDist = d1;
         min_op  = op;
