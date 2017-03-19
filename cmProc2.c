@@ -2498,9 +2498,9 @@ cmRC_t  cmPvSynDoIt( cmPvSyn* p, const cmSample_t* v )
   return cmOkRC;
 }
 
-
 const cmSample_t* cmPvSynExecOut(cmPvSyn* p )
 { return cmOlaExecOut(&p->ola); }
+
 
 //------------------------------------------------------------------------------------------------------------
 cmMidiSynth* cmMidiSynthAlloc( cmCtx* ctx, cmMidiSynth* ap, const cmMidiSynthPgm* pgmArray, unsigned pgmCnt, unsigned voiceCnt, unsigned procSmpCnt, unsigned outChCnt, cmReal_t srate  )
@@ -5947,9 +5947,9 @@ cmRC_t      cmExpanderBankExecD( cmExpanderBank* p, double* x, unsigned bandN )
 cmSpecDist_t* cmSpecDistAlloc( cmCtx* ctx,cmSpecDist_t* ap, unsigned procSmpCnt, double srate, unsigned wndSmpCnt, unsigned hopFcmt, unsigned olaWndTypeId  )
 {
   cmSpecDist_t* p = cmObjAlloc( cmSpecDist_t, ctx, ap );
-
+  
   //p->iSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
-  //p->oSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);
+  //p->oSpecVa   = cmVectArrayAlloc(ctx,kRealVaFl);  
   p->statVa     = cmVectArrayAlloc(ctx,kDoubleVaFl);
   
   if( procSmpCnt != 0 )
@@ -6458,6 +6458,203 @@ const cmSample_t* cmSpecDistOut(  cmSpecDist_t* p )
 { 
   return cmPvSynExecOut(p->pvs); 
 }
+
+
+//------------------------------------------------------------------------------------------------------------
+cmSpecDist2_t* cmSpecDist2Alloc( cmCtx* ctx,cmSpecDist2_t* ap, unsigned procSmpCnt, double srate, unsigned wndSmpCnt, unsigned hopFcmt, unsigned olaWndTypeId  )
+{
+  cmSpecDist2_t* p = cmObjAlloc( cmSpecDist2_t, ctx, ap );
+
+  if( procSmpCnt != 0 )
+  {
+    if( cmSpecDist2Init( p, procSmpCnt, srate, wndSmpCnt, hopFcmt, olaWndTypeId ) != cmOkRC )
+      cmSpecDist2Free(&p);
+  }
+
+  return p;
+
+}
+
+cmRC_t cmSpecDist2Free( cmSpecDist2_t** pp )
+{
+  if( pp == NULL || *pp == NULL )
+    return cmOkRC;
+
+  cmSpecDist2_t* p = *pp;
+  
+  cmSpecDist2Final(p);
+  cmObjFree(pp);
+  return cmOkRC;
+
+}
+
+cmRC_t cmSpecDist2Init( cmSpecDist2_t* p, unsigned procSmpCnt, double srate, unsigned wndSmpCnt, unsigned hopFcmt, unsigned olaWndTypeId  )
+{
+  cmRC_t rc;
+  if((rc = cmSpecDist2Final(p)) != cmOkRC )
+    return rc;
+
+  unsigned flags = 0;
+
+
+  p->srate        = srate;
+  p->wndSmpCnt    = wndSmpCnt;
+  p->hopSmpCnt    = (unsigned)floor(wndSmpCnt/hopFcmt);
+  p->procSmpCnt   = procSmpCnt;
+
+  p->ceiling      = 30;
+  p->expo         = 2.0;
+    
+  p->thresh       = 60;
+  p->uprSlope     = 0.0;
+  p->lwrSlope     = 2.0;
+
+  p->mix          = 0.0;
+
+  p->pva = cmPvAnlAlloc(  p->obj.ctx, NULL, procSmpCnt, srate, wndSmpCnt, p->hopSmpCnt, flags );
+  p->pvs = cmPvSynAlloc(  p->obj.ctx, NULL, procSmpCnt, srate, wndSmpCnt, p->hopSmpCnt, olaWndTypeId );
+
+
+  return rc;
+}
+
+cmRC_t cmSpecDist2Final(cmSpecDist2_t* p )
+{
+  cmRC_t rc = cmOkRC;
+
+  
+  cmPvAnlFree(&p->pva);
+  cmPvSynFree(&p->pvs);
+  return rc;
+}
+
+void _cmSpecDist2Bump( cmSpecDist2_t* p, cmReal_t* x, unsigned binCnt, double thresh, double expo)
+{
+  unsigned i     = 0;  
+  double   minDb = -100.0;
+  
+  thresh = -fabs(thresh);
+
+  for(i=0; i<binCnt; ++i)
+  {
+    double y;
+
+    if( x[i] < minDb )
+      x[i] = minDb;
+
+    if( x[i] > thresh )
+      y = 1;
+    else
+    {
+      y  = (minDb - x[i])/(minDb - thresh);  
+      y += y - pow(y,expo);
+    }
+
+    x[i] = minDb + (-minDb) * y;
+
+  }  
+}
+
+void _cmSpecDist2BasicMode(cmSpecDist2_t* p, cmReal_t* X1m, unsigned binCnt, cmReal_t thresh, double upr, double lwr )
+{
+
+  unsigned i=0;
+
+  if( lwr < 0.3 )
+    lwr = 0.3;
+
+  for(i=0; i<binCnt; ++i)
+  {
+    cmReal_t a = fabs(X1m[i]);
+    cmReal_t d = a - thresh;
+
+    X1m[i] = -thresh;
+
+    if( d > 0 )
+      X1m[i] -= (lwr*d);
+    else
+      X1m[i] -= (upr*d);
+  }
+
+}
+
+cmRC_t  cmSpecDist2Exec( cmSpecDist2_t* p, const cmSample_t* sp, unsigned sn )
+{
+
+  assert( sn == p->procSmpCnt );
+
+  unsigned binN = p->pva->binCnt;
+
+  // cmPvAnlExec() returns true when it calc's a new spectral output frame
+  if( cmPvAnlExec( p->pva, sp, sn ) )
+  {
+    cmReal_t X0m[binN];
+    cmReal_t X1m[binN]; 
+
+    // take the mean of the the input magntitude spectrum
+    cmReal_t u0 = cmVOR_Mean(p->pva->magV,binN);
+
+    // convert magnitude to db (range=-1000.0 to 0.0)
+    cmVOR_AmplToDbVV(X0m, binN, p->pva->magV, -1000.0 );
+    cmVOR_Copy(X1m,binN,X0m);
+
+    // bump transform X0m
+    _cmSpecDist2Bump(p,X0m, binN, p->ceiling, p->expo);
+
+    // xfade bump output with raw input: X1m = (X0m*mix) + (X1m*(1.0-mix))
+    cmVOR_MultVS(X0m,binN,p->mix);
+    cmVOR_MultVS(X1m,binN,1.0 - p->mix );
+    cmVOR_AddVV(X1m,binN,X0m);
+
+    // basic transform 
+    _cmSpecDist2BasicMode(p,X1m,binN,p->thresh,p->uprSlope,p->lwrSlope);
+    
+    // convert db back to magnitude
+    cmVOR_DbToAmplVV(X1m, binN, X1m );
+
+
+    // convert the mean input magnitude to db
+    cmReal_t idb = 20*log10(u0);
+    
+    // get the mean output magnitude spectra
+    cmReal_t u1 = cmVOR_Mean(X1m,binN);
+
+    if( idb > -150.0 )
+    {
+      // set the output gain such that the mean output magnitude
+      // will match the mean input magnitude
+      p->ogain = u0/u1;  
+    }
+    else
+    {
+      cmReal_t a0 = 0.9;
+      p->ogain *= a0;
+    }
+
+    // apply the output gain
+    cmVOR_MultVS(X1m,binN,cmMin(4.0,p->ogain));
+
+
+    // convert back to time domain
+    cmPvSynExec(p->pvs, X1m, p->pva->phsV );
+  
+    p->fi += 1;
+  }
+ 
+  return cmOkRC;
+}
+
+
+const cmSample_t* cmSpecDist2Out(  cmSpecDist2_t* p )
+{ 
+  return cmPvSynExecOut(p->pvs); 
+}
+
+void  cmSpecDist2Report( cmSpecDist2_t* p )
+{
+  printf("ceil:%f expo:%f mix:%f thresh:%f upr:%f lwr:%f\n", p->ceiling,p->expo,p->mix,p->thresh,p->lwrSlope,p->uprSlope);
+}
+
 
 //------------------------------------------------------------------------------------------------------------
 

@@ -1313,6 +1313,44 @@ extern "C" {
 
   //------------------------------------------------------------------------------------------------------------
   //)
+
+  //( { label:cmSpecDist file_desc:"Spectral distortion 2 algorithm based on non-linear transform." kw:[proc]}    
+
+  typedef struct
+  {
+    cmObj    obj;
+    double   srate;
+    unsigned wndSmpCnt;
+    unsigned hopFcmt;
+    unsigned hopSmpCnt;
+    unsigned procSmpCnt;
+    
+    cmPvAnl* pva;
+    cmPvSyn* pvs;
+
+    double   ceiling;
+    double   expo;    
+    double   mix;
+    double   thresh;
+    double   uprSlope;
+    double   lwrSlope;
+
+    cmReal_t ogain;
+
+    unsigned       fi;          // total count of frames processed by cmSpecDistExec()
+
+  } cmSpecDist2_t;
+
+  cmSpecDist2_t*    cmSpecDist2Alloc( cmCtx* ctx,cmSpecDist2_t* ap, unsigned procSmpCnt, double srate, unsigned wndSmpCnt, unsigned hopFcmt, unsigned olaWndTypeId  ); 
+  cmRC_t            cmSpecDist2Free( cmSpecDist2_t** pp );
+  cmRC_t            cmSpecDist2Init( cmSpecDist2_t* p, unsigned procSmpCnt, double srate, unsigned wndSmpCnt, unsigned hopFcmt, unsigned olaWndTypeId  );
+  cmRC_t            cmSpecDist2Final(cmSpecDist2_t* p );
+  cmRC_t            cmSpecDist2Exec( cmSpecDist2_t* p, const cmSample_t* sp, unsigned sn );
+  const cmSample_t* cmSpecDist2Out(  cmSpecDist2_t* p );
+  void              cmSpecDist2Report( cmSpecDist2_t* p );
+  
+  //------------------------------------------------------------------------------------------------------------
+  //)
   
   //( { label:cmBinMtxFile file_desc:"Write a binary matrix which can be read by readBinFile.m." kw:[proc]}
   
