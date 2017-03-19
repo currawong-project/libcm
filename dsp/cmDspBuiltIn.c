@@ -5481,7 +5481,8 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmBcastSymClassCons,
   cmSegLineClassCons,
 
-  cmKrClassCons,  
+  cmKrClassCons,
+  cmKr2ClassCons,
   cmTimeLineClassCons,
   cmScoreClassCons,
   cmMidiFilePlayClassCons,

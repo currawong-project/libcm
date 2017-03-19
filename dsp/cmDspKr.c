@@ -283,6 +283,252 @@ cmDspClass_t* cmKrClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
+//( { label:cmDspKr2 file_desc:"Spectral non-linear distortion effect." kw:[sunit] }
+
+enum
+{
+  kWndSmpCntKr2Id,
+  kHopFactKr2Id,
+  
+  kCeilKr2Id,
+  kExpoKr2Id,
+  
+  kThreshKr2Id,
+  kLwrSlopeKr2Id,
+  kUprSlopeKr2Id,
+
+  kMixKr2Id,
+
+  kWetKr2Id,
+  kAudioInKr2Id,
+  kAudioOutKr2Id
+};
+
+typedef struct
+{
+  cmDspInst_t   inst;
+  cmCtx*        ctx;
+  cmSpecDist2_t* sdp;
+} cmDspKr2_t;
+ 
+cmDspClass_t _cmKr2DC;
+
+
+cmDspInst_t*  _cmDspKr2Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  cmDspVarArg_t args[] =
+  {
+    { "wndn",    kWndSmpCntKr2Id,   0, 0,   kInDsvFl  | kUIntDsvFl   | kReqArgDsvFl,   "Window sample count"   },
+    { "hopf",    kHopFactKr2Id,     0, 0,   kInDsvFl  | kUIntDsvFl   | kOptArgDsvFl,   "Hop factor" },
+    
+    { "ceil",    kCeilKr2Id,     0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl,   "Ceiling" },
+    { "expo",    kExpoKr2Id,        0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl,   "Exponent" },
+    
+    { "thrh",    kThreshKr2Id,      0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl,   "Threshold" },
+    { "lwrs",    kLwrSlopeKr2Id,    0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl,   "Lower Slope"},
+    { "uprs",    kUprSlopeKr2Id,    0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl,   "Upper Slope"},
+
+    { "mix",     kMixKr2Id,         0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl,   "Mix"},
+    
+    { "wet",     kWetKr2Id,         0, 0,   kInDsvFl  | kSampleDsvFl,                  "Wet mix level."},
+    { "in",      kAudioInKr2Id,     0, 0,   kInDsvFl  | kAudioBufDsvFl, "Audio Input" },
+    { "out",     kAudioOutKr2Id,    0, 1,   kOutDsvFl | kAudioBufDsvFl, "Audio Output" },
+    { NULL, 0, 0, 0, 0 }
+  };
+
+  cmDspKr2_t* p           = cmDspInstAlloc(cmDspKr2_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+  unsigned   defWndSmpCnt = cmDspDefaultUInt(&p->inst,kWndSmpCntKr2Id);
+  unsigned   wndSmpCnt    = cmNextPowerOfTwo( defWndSmpCnt );
+  
+  cmDspSetDefaultUInt(   ctx,&p->inst, kWndSmpCntKr2Id, defWndSmpCnt, wndSmpCnt );
+  cmDspSetDefaultUInt(   ctx,&p->inst, kHopFactKr2Id,  0, 4 );
+  
+  cmDspSetDefaultDouble( ctx,&p->inst, kCeilKr2Id,  0, 20.0 );
+  cmDspSetDefaultDouble( ctx,&p->inst, kExpoKr2Id,     0,  2.0 );
+
+  cmDspSetDefaultDouble( ctx,&p->inst, kThreshKr2Id,   0, 60.0 );
+  cmDspSetDefaultDouble( ctx,&p->inst, kLwrSlopeKr2Id, 0, 2.0 );
+  cmDspSetDefaultDouble( ctx,&p->inst, kUprSlopeKr2Id, 0, 0.0 );
+  
+  cmDspSetDefaultDouble( ctx,&p->inst, kMixKr2Id,      0, 0.0 );
+  
+  cmDspSetDefaultSample( ctx,&p->inst, kWetKr2Id,      0, 1.0);
+
+  //_cmDspKr2CmInit(ctx,p); // initialize the cm library
+
+  p->ctx = cmCtxAlloc(NULL,ctx->rpt,ctx->lhH,ctx->stH);
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspKr2Free(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t rc = kOkDspRC;
+  cmDspKr2_t* p = (cmDspKr2_t*)inst;
+
+  cmSpecDist2Free(&p->sdp);
+
+  cmCtxFree(&p->ctx);
+  //_cmDspKr2CmFinal(ctx,p);  // finalize the cm library
+
+  return rc;
+}
+
+
+cmDspRC_t _cmDspKr2Setup(cmDspCtx_t* ctx, cmDspKr2_t* p )
+{
+  cmDspRC_t rc           = kOkDspRC;
+  unsigned  wndSmpCnt    = cmDspUInt(&p->inst,kWndSmpCntKr2Id);
+  unsigned  hopFact      = cmDspUInt(&p->inst,kHopFactKr2Id);
+  unsigned  olaWndTypeId =kHannWndId;
+
+  cmSpecDist2Free(&p->sdp);
+
+  p->sdp = cmSpecDist2Alloc(p->ctx, NULL, cmDspSamplesPerCycle(ctx), cmDspSampleRate(ctx), wndSmpCnt, hopFact, olaWndTypeId);
+
+  assert(p->sdp != NULL );
+
+  if((rc = cmDspZeroAudioBuf(ctx,&p->inst,kAudioOutKr2Id)) != kOkDspRC )
+    return rc;
+  
+  return rc;
+}
+
+
+cmDspRC_t _cmDspKr2Reset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspKr2_t*   p  = (cmDspKr2_t*)inst;
+  cmDspRC_t    rc;
+
+  if((rc = cmDspApplyAllDefaults(ctx,inst)) != kOkDspRC )
+    return rc;
+
+  return _cmDspKr2Setup(ctx,p);
+}
+
+cmDspRC_t _cmDspKr2Exec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspKr2_t* p = (cmDspKr2_t*)inst;
+  cmDspRC_t rc = kOkDspRC;
+
+  unsigned          iChIdx  = 0;
+  const cmSample_t* ip      = cmDspAudioBuf(ctx,inst,kAudioInKr2Id,iChIdx);
+  unsigned          iSmpCnt = cmDspVarRows(inst,kAudioInKr2Id);
+
+  // if no connected
+  if( iSmpCnt == 0 )
+    return rc;
+  
+  unsigned          oChIdx  = 0;
+  cmSample_t*       op      = cmDspAudioBuf(ctx,inst,kAudioOutKr2Id,oChIdx);
+  unsigned          oSmpCnt = cmDspVarRows(inst,kAudioOutKr2Id);
+  const cmSample_t* sp;
+
+  cmSample_t wet = cmDspSample(inst,kWetKr2Id);
+
+  cmSpecDist2Exec(p->sdp,ip,iSmpCnt);
+  
+  if((sp = cmSpecDist2Out(p->sdp)) != NULL )
+  {
+    cmVOS_MultVVS(op,oSmpCnt,sp,wet);
+  }
+
+  if( wet<1.0 )
+    cmVOS_MultSumVVS(op,oSmpCnt,ip,1.0-wet);
+
+  return rc;
+}
+
+cmDspRC_t _cmDspKr2Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspKr2_t* p = (cmDspKr2_t*)inst;
+  cmDspRC_t rc = kOkDspRC;
+
+
+  cmDspSetEvent(ctx,inst,evt);
+
+  switch( evt->dstVarId )
+  {
+    case kWndSmpCntKr2Id:
+    case kHopFactKr2Id:
+      _cmDspKr2Setup(ctx,p);
+
+      // THIS IS A HACK
+      // WHEN WND OR HOP CHANGE THE RESULTING CHANGES
+      // SHOULD BE ISOLATED IN cmSpecDist() AND THE
+      // CURRENT STATE OF THE PARAMETERS SHOULD NOT BE
+      // LOST - IF THE CHANGES WERE ISOLATED WITHIN PVANL 
+      // AND PVSYN IT MIGHT BE POSSIBLE TO DO WITH 
+      // MINIMAL AUDIO INTERUPTION.
+
+
+      p->sdp->ceiling   = cmDspDouble(inst,kCeilKr2Id);   
+      p->sdp->expo      = cmDspDouble(inst,kExpoKr2Id);   
+      
+      p->sdp->thresh   = cmDspDouble(inst,kThreshKr2Id);   
+      p->sdp->uprSlope = cmDspDouble(inst,kUprSlopeKr2Id); 
+      p->sdp->lwrSlope = cmDspDouble(inst,kLwrSlopeKr2Id); 
+
+      p->sdp->mix      = cmDspDouble(inst,kMixKr2Id);
+      
+      printf("wsn:%i hsn:%i\n",p->sdp->wndSmpCnt,p->sdp->hopSmpCnt);
+      break;
+
+    case kCeilKr2Id:     
+      p->sdp->ceiling  = cmDspDouble(inst,kCeilKr2Id);   
+      break;
+    
+    case kExpoKr2Id:     
+      p->sdp->expo  = cmDspDouble(inst,kExpoKr2Id);   
+      break;
+      
+    case kThreshKr2Id:     
+      p->sdp->thresh   = cmDspDouble(inst,kThreshKr2Id);   
+      break;
+
+    case kUprSlopeKr2Id:   
+      p->sdp->uprSlope = cmDspDouble(inst,kUprSlopeKr2Id); 
+      break;
+
+    case kLwrSlopeKr2Id:   
+      p->sdp->lwrSlope = cmDspDouble(inst,kLwrSlopeKr2Id); 
+      break;
+
+    case kMixKr2Id:   
+      p->sdp->mix = cmDspDouble(inst,kMixKr2Id); 
+      break;
+
+      
+    case kWetKr2Id:
+      break;
+
+    default:
+      { assert(0); }
+  }
+
+  cmSpecDist2Report(p->sdp);
+  
+  return rc;
+}
+
+cmDspClass_t* cmKr2ClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmKr2DC,ctx,"Kr2",
+    NULL,
+    _cmDspKr2Alloc,
+    _cmDspKr2Free,
+    _cmDspKr2Reset,
+    _cmDspKr2Exec,
+    _cmDspKr2Recv,
+    NULL,NULL,
+    "Fourier based non-linear transformer two.");
+
+  return &_cmKr2DC;
+}
+
+
+//------------------------------------------------------------------------------------------------------------
+//)
 //( { label:cmDspTimeLine file_desc:"Time line user interface unit." kw:[sunit] }
 
 enum
