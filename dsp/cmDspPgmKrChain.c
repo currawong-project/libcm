@@ -332,7 +332,11 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspSysInstallCb(h, xfadMs, "val", xfad, "ms", NULL );
   cmDspSysInstallCb(h, modp, mlbl("xfad"), xfadMs,  "val", NULL);
 
-  cmDspSysInstallCb(h, modp, mlbl("win"),  wnd_ctl, "sel",  NULL );
+  // TODO: FIX THIS: can't send window length (e.g. 1024,2048, ... ) to a 'MsgList' with 4 elements
+  // since it expects an index betweeen 0 and 3.  CRASH!
+  //cmDspSysInstallCb(h, modp, mlbl("win"),  wnd_ctl, "sel",  NULL );
+
+  
   cmDspSysInstallCb(h, modp, mlbl("hop"),  hop_ctl, "sel", NULL );
   cmDspSysInstallCb(h, modp, mlbl("mod"),  mod_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("thr"),  thr_ctl, "val", NULL );
