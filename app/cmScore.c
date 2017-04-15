@@ -764,7 +764,12 @@ cmScRC_t _cmScParseNoteOn( cmSc_t* p, unsigned rowIdx, cmScoreEvt_t* s, unsigned
     return cmErrMsg(&p->err,kSyntaxErrScRC,"Unable to convert the scientific pitch '%s' to a MIDI value. ");
 
   if((midiVel = cmCsvCellUInt( p->cH,rowIdx,kD1ColScIdx)) >= kInvalidMidiVelocity )
-    return cmErrMsg(&p->err,kSyntaxErrScRC,"An invalid MIDI velocity (%i) was encountered.",midiVel);
+  {
+    //return cmErrMsg(&p->err,kSyntaxErrScRC,"An invalid MIDI velocity (%i) was encountered.",midiVel);
+    midiVel = 64;
+    cmErrWarnMsg(&p->err,kSyntaxErrScRC,"An invalilid MIDI velocity (%i) was encountered.",midiVel);
+  }
+    
   
   // get the sec's field - or DBL_MAX if it is not set
   if((secs =  cmCsvCellDouble(p->cH, rowIdx, kSecsColScIdx )) == DBL_MAX) // Returns DBL_MAX on error.
