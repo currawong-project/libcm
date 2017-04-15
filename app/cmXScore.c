@@ -2359,7 +2359,7 @@ cmXsRC_t _cmXsApplyEditFile( cmXScore_t* p, const cmChar_t* fn )
             if((rc = _cmXScoreReorderParseDyn(p,b,ln+1,&r.dynIdx)) != kOkXsRC )
               goto errLabel;
             
-            // parse the flag edits
+            // parse the flag edits following a '~'
             if((rc = _cmXScoreReorderParseFlags(p,b,ln+1, &r.newFlags)) != kOkXsRC )
               goto errLabel;
 
@@ -3693,6 +3693,14 @@ cmXsRC_t cmXScoreTest(
 {
   cmXsRC_t rc;
   cmXsH_t h = cmXsNullHandle;
+
+  if( editFn!=NULL && !cmFsIsFile(editFn) )
+  {
+    cmRptPrintf(&ctx->rpt,"The edit file %s does not exist. A new edit file is therefore being created.",editFn);
+    cmXScoreGenEditFile(ctx,xmlFn,editFn);
+    editFn = NULL;
+  }
+  
 
   // Parse the XML file and apply the changes in editFn.
   if((rc = cmXScoreInitialize( ctx, &h, xmlFn,editFn)) != kOkXsRC )
