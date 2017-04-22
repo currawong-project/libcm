@@ -64,7 +64,8 @@ enum
   kAddGraceXsFl    = 0x01000000,  // (a) end grace note group operator flag - add time
   kSubGraceXsFl    = 0x02000000,  // (s)  "    "    "     "      "       "  - subtract time
   kAFirstGraceXsFl = 0x04000000,  // (A) add time after first note
-  kNFirstGraceXsFl = 0x08000000   // (n) grace notes start as soon as possible after first note and add time
+  kNFirstGraceXsFl = 0x08000000,  // (n) grace notes start as soon as possible after first note and add time
+  kDeleteXsFl      = 0x10000000
   
 };
 
@@ -262,9 +263,40 @@ cmXsRC_t _cmXScorePushNote( cmXScore_t* p, cmXsMeas_t* meas, unsigned voiceId, c
   return kOkXsRC;
 }
 
+
+void _cmXScoreRemoveNote( cmXsNote_t* note )
+{
+  cmXsNote_t* n0 = NULL;
+  cmXsNote_t* n1 = note->voice->noteL;
+  
+  for(; n1!=NULL; n1=n1->mlink)
+    if( n1->uid == note->uid )
+    {
+      if( n0 == NULL )
+        note->voice->noteL = NULL;
+      else
+        n0->mlink = n1->mlink;
+
+      break;
+    }
+
+  n0 = NULL;
+  n1 = note->meas->noteL;
+  for(; n1!=NULL; n1=n1->slink)
+    if( n1->uid == note->uid )
+    {
+      if( n0 == NULL )
+        note->voice->noteL = NULL;
+      else
+        n0->slink = n1->slink;
+
+      break;
+    }
+ 
+}
+
 void _cmXScoreInsertNoteBefore( cmXsNote_t* note, cmXsNote_t* nn )
 {
-
   // insert the new note into the voice list before 'note'
   cmXsNote_t* n0 = NULL;
   cmXsNote_t* n1 = note->voice->noteL;
@@ -1922,11 +1954,22 @@ cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsR
         int         index = 0;
         for(; np!=NULL; np=np->slink,++index)
         {
+
+
+          if( 0 /*mp->number==17*/)
+            printf("voice: %i %i loc:%i %i  tick:%i %i pitch:%i %i idx:%i %i\n",
+              np->voice->id, r->voice, 
+              np->locIdx ,  r->locIdx ,
+              np->tick ,  r->tick ,
+              np->pitch ,  r->midi ,
+              index ,  r->idx );
+              
+          
           if( np->voice->id == r->voice &&
             np->locIdx == r->locIdx &&
             np->tick == r->tick &&
-            np->duration == r->durtn &&
-            np->rvalue == r->rval &&
+            //np->duration == r->durtn &&
+            //np->rvalue == r->rval &&
             np->pitch == r->midi &&
             index == r->idx )
           {
@@ -1982,7 +2025,13 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
   for(i=0; i<rN; ++i)
     if((rV[i].note = _cmXsReorderFindNote(p,measNumb,rV+i,i)) == NULL )
       return kSyntaxErrorXsRC;
-  
+
+
+  // remove deleted notes
+  for(i=0; i<rN; ++i)
+    if( cmIsFlag(rV[i].newFlags,kDeleteXsFl) )
+      _cmXScoreRemoveNote( rV[i].note );
+      
   cmXsMeas_t* mp  = rV[0].note->meas;
   cmXsNote_t* n0p = NULL;
 
@@ -1992,6 +2041,10 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
   // according to their order in rV[].
   for(i=0; i<rN; ++i)
   {
+    
+    if( cmIsFlag(rV[i].newFlags,kDeleteXsFl) )
+      continue;
+    
     if( n0p == NULL )
       mp->noteL = rV[i].note;
     else
@@ -2022,6 +2075,8 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
     
     rV[i].note->flags        |= rV[i].graceFlags;
     rV[i].note->graceGroupId  = rV[i].graceGroupId;
+
+
     
     n0p        = rV[i].note;
     n0p->slink = NULL;
@@ -2166,6 +2221,10 @@ cmXsRC_t  _cmXScoreReorderParseFlags(cmXScore_t* p, const cmChar_t* b, unsigned 
         *newFlagsRef |= kTieEndXsFl;   // set tie end flag
         break;
 
+      case '&':
+        *newFlagsRef |= kDeleteXsFl; // delete this evetn
+        break;
+        
       default:
         if( i == 0 )
           return cmErrMsg(&p->err,kSyntaxErrorXsRC,"Unexpected flag marking '%c' on line %i.",*s,line);
@@ -2393,6 +2452,7 @@ cmXsRC_t _cmXsApplyEditFile( cmXScore_t* p, const cmChar_t* fn )
             
             // store the record
             assert( ri < rN );
+
             rV[ri++] = r;
 
             continue;
@@ -2490,7 +2550,7 @@ cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, c
   // fill in the note->slink chain to link the notes in each measure in time order
   _cmXScoreSort(p);
 
-  _cmXScoreSpreadGraceNotes(p);
+  // kpl: 4/19/17 fix problem where notes ended up out of order by one tick _cmXScoreSpreadGraceNotes(p);
 
   _cmXScoreSort(p);
 
