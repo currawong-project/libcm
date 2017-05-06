@@ -65,7 +65,9 @@ enum
   kSubGraceXsFl    = 0x02000000,  // (s)  "    "    "     "      "       "  - subtract time
   kAFirstGraceXsFl = 0x04000000,  // (A) add time after first note
   kNFirstGraceXsFl = 0x08000000,  // (n) grace notes start as soon as possible after first note and add time
-  kDeleteXsFl      = 0x10000000
+  kDeleteXsFl      = 0x10000000,
+  kDynBegForkXsFl  = 0x20000000,
+  kDynEndForkXsFl  = 0x40000000
   
 };
 
@@ -174,6 +176,8 @@ typedef struct
 
   cmXsComplexity_t cplx_max;
 } cmXScore_t;
+
+void  _cmXScoreReport( cmXScore_t* p, cmRpt_t* rpt, bool sortFl );
 
 cmXScore_t* _cmXScoreHandleToPtr( cmXsH_t h )
 {
@@ -1165,7 +1169,7 @@ bool  _cmXScoreFindTiedNote( cmXScore_t* p, cmXsMeas_t* mp, cmXsNote_t* n0p, boo
     }
   }
 
-  cmErrWarnMsg(&p->err,kUnterminatedTieXsRC,"The tied %c%c%i in measure %i was not terminated.",n0p->step,acc,n0p->octave,measNumb);
+  cmErrWarnMsg(&p->err,kUnterminatedTieXsRC,"The tied %c%c%i in measure %i (tick:%i) was not terminated.",n0p->step,acc,n0p->octave,measNumb,n0p->tick);
   return false;
 }
 
@@ -1789,7 +1793,7 @@ cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
     // verify that the first note is marked with kBegGraceXsFl
     if( cmIsNotFlag(gn0p->flags,kBegGraceXsFl) )
     {
-      rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"The first note in a grace note group in meas %i is not marked with a 'b'.", gn0p->meas->number );
+      rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"The first note in a grace note group in meas %i tick %i groupid:%i is not marked with a 'b'.", gn0p->meas->number, gn0p->tick, graceGroupId );
       break;
     }
 
@@ -1876,6 +1880,88 @@ cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
 }
 
 
+cmXsNote_t* _cmXScoreDynamicForkEndNote( cmXsNote_t* bnp )
+{
+  assert( cmIsFlag(bnp->flags,kDynBegForkXsFl) );
+
+  cmXsMeas_t* mp = bnp->meas;
+  cmXsNote_t* np = bnp->slink;
+
+  for(; mp!=NULL; mp=mp->link,np = mp==NULL?NULL :  mp->noteL)
+  {    
+    for(; np!=NULL; np=np->slink)
+    {
+      if( cmIsFlag(np->flags,kDynEndForkXsFl) && np->voice->id == bnp->voice->id )
+        return np;
+    }
+  }
+
+  return NULL;
+}
+
+cmXsRC_t _cmXScoreProcessDynamicFork( cmXScore_t* p, cmXsNote_t* bnp )
+{
+  cmXsNote_t* enp;
+
+  if((enp = _cmXScoreDynamicForkEndNote(bnp)) == NULL)
+    return cmErrMsg(&p->err,kSyntaxErrorXsRC,"The dynamic fork beginning in measure %i at tick %i voice %i was not terminated.", bnp->meas->number,bnp->tick,bnp->voice->id);
+
+
+  double begDynFrac = bnp->dynamics;
+  double begVelFrac = bnp->vel;
+  double endDynFrac = enp->dynamics;
+  double endVelFrac = enp->vel;
+
+  cmXsMeas_t* mp = bnp->meas;
+  cmXsNote_t* np = bnp->slink;
+
+  for(; mp!=NULL && np!=enp; mp=mp->link,np=mp==NULL ? NULL : mp->noteL)
+  {
+    for(; np!=NULL && np!=enp; np=np->slink)
+
+      /*
+
+        Conditioning this on np->dynamics==0 will may cause 'silent' notes to be assigned 
+        a non-zero dynamics value - this is best fixed by using a different special value
+        for silent notes
+
+        BUG BUG BUG BUG BUG
+
+       */       
+      if( np->voice == bnp->voice && np->dynamics == 0 )
+      {
+        double frac     = ((double)np->tick - bnp->tick) / (enp->tick - bnp->tick);
+        np->dynamics =  lround(begDynFrac + ((endDynFrac - begDynFrac) * frac));
+        np->vel      =  lround(begVelFrac + ((endVelFrac - begVelFrac) * frac));        
+      }
+  }
+
+  return kOkXsRC;
+}
+
+
+cmXsRC_t _cmXScoreProcessDynamicForks( cmXScore_t* p )
+{
+  cmXsRC_t    rc = kOkXsRC;
+  cmXsPart_t* pp = p->partL;
+
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp = pp->measL;
+    for(; mp!=NULL; mp=mp->link)
+      {
+        cmXsNote_t* np = mp->noteL;        
+        for(; np!=NULL; np=np->slink )
+        {
+          if( cmIsFlag(np->flags,kDynBegForkXsFl) )
+            if((rc =  _cmXScoreProcessDynamicFork(p,np)) != kOkXsRC )
+              return rc;
+        }
+      }
+  }
+  
+  return rc;
+}
 //-------------------------------------------------------------------------------------------
 
 
@@ -1956,7 +2042,7 @@ cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsR
         {
 
 
-          if( 0 /*mp->number==17*/)
+          if( 0 /*mp->number==43*/ )
             printf("voice: %i %i loc:%i %i  tick:%i %i pitch:%i %i idx:%i %i\n",
               np->voice->id, r->voice, 
               np->locIdx ,  r->locIdx ,
@@ -1969,10 +2055,11 @@ cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsR
             np->locIdx == r->locIdx &&
             np->tick == r->tick &&
             //np->duration == r->durtn &&
-            //np->rvalue == r->rval &&
+            np->rvalue == r->rval &&
             np->pitch == r->midi &&
             index == r->idx )
           {
+            //printf("Found: %i \n", r->midi);
             return np;
           }
         }
@@ -2061,6 +2148,14 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
       rV[i].note->vel      = _cmXScoreDynMarkArray[ rV[i].dynIdx ].vel;
     }
 
+    // Set the dynamic fork begin/end flags for later _cmXScoreProcessDynamicForks()
+    if( cmIsFlag(rV[i].newFlags,kDynBegForkXsFl) )
+      rV[i].note->flags = cmSetFlag(rV[i].note->flags,kDynBegForkXsFl); 
+
+    if( cmIsFlag(rV[i].newFlags,kDynEndForkXsFl) )
+      rV[i].note->flags = cmSetFlag(rV[i].note->flags,kDynEndForkXsFl); 
+
+    
     // if the tie end flag was set
     if( cmIsFlag(rV[i].newFlags,kTieEndXsFl) )
     {
@@ -2106,10 +2201,13 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
 
 }
 
-cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lineNumb, unsigned* dynIdxRef )
+cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lineNumb, unsigned* dynIdxRef, unsigned* flagsRef )
 {
-  cmXsRC_t rc = kOkXsRC;
-  const cmChar_t* s;
+  cmXsRC_t        rc        = kOkXsRC;
+  const cmChar_t* s         = NULL;
+  bool            begForkFl = false;
+  bool            endForkFl = false;
+    
 
   *dynIdxRef = cmInvalidIdx;
 
@@ -2126,8 +2224,27 @@ cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lin
   if( *s == '(' )
     ++s;  // skip the paren.
 
+  if( *s == '!')
+  {
+    endForkFl = true;
+    ++s;      
+  }   
+
   if( *s == 0 )
     return cmErrMsg(&p->err,kSyntaxErrorXsRC,"Unexpected end-of-line on dynamics parsing on line:%i.",lineNumb);
+
+
+  // check for beg/end fork dynamic 
+  if( isupper(*s) )
+  {
+    if( !endForkFl)
+      begForkFl=true;
+  }
+  else
+  {
+    if( endForkFl )
+      return cmErrMsg(&p->err,kSyntaxErrorXsRC,"A double exclaimation point (end-of-dynamic fork) must always be followed by an upper case M,P, or F. See line:%i",lineNumb);
+  }
 
   unsigned i      = 0;
   unsigned j      = 0;
@@ -2138,7 +2255,9 @@ cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lin
   
   for(i=0; j<n && doneFl==false; ++i)
   {
-    switch(s[i])
+    char c = tolower(s[i]);
+    
+    switch(c)
     {
       case 's':
       case 'm':
@@ -2146,7 +2265,7 @@ cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lin
       case 'f':
       case '+':
       case '-':
-        mark[j++] = s[i];
+        mark[j++] = c;
         break;
         
       case ')':   // ending paren.
@@ -2173,6 +2292,12 @@ cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lin
 
 
   *dynIdxRef = j;
+  
+  if( begForkFl )
+    *flagsRef = cmSetFlag(*flagsRef,kDynBegForkXsFl);
+
+  if( endForkFl )
+    *flagsRef = cmSetFlag(*flagsRef,kDynEndForkXsFl);
       
   return rc;
 }
@@ -2414,14 +2539,14 @@ cmXsRC_t _cmXsApplyEditFile( cmXScore_t* p, const cmChar_t* fn )
             }
 
             
-            // parse the dynamic marking following a '!'
-            if((rc = _cmXScoreReorderParseDyn(p,b,ln+1,&r.dynIdx)) != kOkXsRC )
-              goto errLabel;
-            
             // parse the flag edits following a '~'
             if((rc = _cmXScoreReorderParseFlags(p,b,ln+1, &r.newFlags)) != kOkXsRC )
               goto errLabel;
 
+            // parse the dynamic marking following a '!'
+            if((rc = _cmXScoreReorderParseDyn(p,b,ln+1,&r.dynIdx, &r.newFlags)) != kOkXsRC )
+              goto errLabel;
+                        
             // parse the @newtick marker
             if((rc = _cmXScoreReorderParseTick(p, b, ln+1, &r.newTick)) != kOkXsRC )
               goto errLabel;
@@ -2504,6 +2629,15 @@ cmXsRC_t _cmXsApplyEditFile( cmXScore_t* p, const cmChar_t* fn )
 
   // inserting grace notes may have left the score unsorted
   _cmXScoreSort(p);
+  
+  // process the dynamic forks
+  _cmXScoreProcessDynamicForks(p);
+
+
+
+  _cmXScoreReport(p, NULL, true );
+
+
   
  errLabel:
   cmFileClose(&fH);
@@ -3067,12 +3201,31 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note,unsigned index )
   if( note->graceGroupId != 0)
     cmRptPrintf(rpt," g=%i",note->graceGroupId);
 
+  /*
+  if( cmIsFlag(note->flags,kBegGraceXsFl) )
+    cmRptPrintf(rpt," B");
+
+  if( cmIsFlag(note->flags,kEndGraceXsFl) )
+    cmRptPrintf(rpt," E");
+
+  if( note->dynamics != 0)
+    cmRptPrintf(rpt," dyn=%i",note->dynamics);
+
+  if( cmIsFlag(note->flags,kDynBegForkXsFl) )
+    cmRptPrintf(rpt," B");
+
+  if( cmIsFlag(note->flags,kDynEndForkXsFl) )
+    cmRptPrintf(rpt," E");
+  
+  */
 }
 
 
-void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
+void  _cmXScoreReport( cmXScore_t* p, cmRpt_t* rpt, bool sortFl )
 {
-  cmXScore_t* p  = _cmXScoreHandleToPtr(h);
+  if( rpt == NULL )
+    rpt = p->err.rpt;
+  
   cmXsPart_t* pp = p->partL;
 
   for(; pp!=NULL; pp=pp->link)
@@ -3139,6 +3292,12 @@ void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
       }
     }
   }
+}
+
+void  cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl )
+{
+  cmXScore_t* p  = _cmXScoreHandleToPtr(h);
+  return _cmXScoreReport(p,rpt,sortFl);
 }
 
 void _cmXScoreGenEditFileWrite( void* arg, const cmChar_t* text )
@@ -3756,7 +3915,7 @@ cmXsRC_t cmXScoreTest(
 
   if( editFn!=NULL && !cmFsIsFile(editFn) )
   {
-    cmRptPrintf(&ctx->rpt,"The edit file %s does not exist. A new edit file is therefore being created.",editFn);
+    cmRptPrintf(&ctx->rpt,"The edit file %s does not exist. A new edit file will be created.",editFn);
     cmXScoreGenEditFile(ctx,xmlFn,editFn);
     editFn = NULL;
   }
