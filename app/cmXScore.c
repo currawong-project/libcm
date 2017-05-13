@@ -1718,13 +1718,13 @@ void _cmXScoreGraceInsertSoonAfterFirst( cmXScore_t* p, unsigned graceGroupId, c
 // after reordering so that we can be sure that the order in time of
 // the notes in each group has been set prior to building the
 // grace note groups - which must be in reverse time order.
-cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
+cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p, unsigned nextGraceGroupId )
 {
   cmXsRC_t rc           = kOkXsRC;
   unsigned graceGroupId = 1;
   double   graceDurSec  = 1.0/15.0;  // duration of all grace notes in seconds
 
-  for(; 1; ++graceGroupId)
+  for(; graceGroupId<nextGraceGroupId; ++graceGroupId)
   {
     cmXsNote_t* gn0p        = NULL;      // first note in the grace group
     cmXsNote_t* gn1p        = NULL;      // last note in the grace group
@@ -1776,14 +1776,14 @@ cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
       } // for each measure
     } // for each part
 
-    // no records were found for this grace id - we're done
+    // no records were found for this grace id - this grace group id was not used
     if( gn0p == NULL )
-      break;
+      continue;
 
     // grace note groups must have at least 3 members
     if( gN < 3 )
     {
-      rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"The grace not group ending in meas %i has fewer than 3 (%i) members.", gn1p->meas->number, gN );
+      rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"The grace not group (groupid=%i) ending in meas %i has fewer than 3 (%i) members.", gn1p->graceGroupId, gn1p->meas->number, gN );
       break;
     }
     
@@ -2405,6 +2405,12 @@ cmXsRC_t  _cmXScoreReorderParseGrace(cmXScore_t* p, const cmChar_t* b, unsigned 
       case 'A': r->graceFlags |= kAFirstGraceXsFl| kEndGraceXsFl; break;
       case 'n': r->graceFlags |= kNFirstGraceXsFl| kEndGraceXsFl; break;
       case 'g': break;
+        
+      case '1':
+        r->graceGroupId += 1;
+        ++s;
+        continue;
+        
 
       case '%':
         *graceGroupIdRef += 1;
@@ -2625,7 +2631,7 @@ cmXsRC_t _cmXsApplyEditFile( cmXScore_t* p, const cmChar_t* fn )
   _cmXScoreSort(p);
 
   // process the grace notes.
-  _cmXScoreProcessGraceNotes( p );
+  _cmXScoreProcessGraceNotes( p, graceGroupId );
 
   // inserting grace notes may have left the score unsorted
   _cmXScoreSort(p);
@@ -2633,12 +2639,9 @@ cmXsRC_t _cmXsApplyEditFile( cmXScore_t* p, const cmChar_t* fn )
   // process the dynamic forks
   _cmXScoreProcessDynamicForks(p);
 
+  //_cmXScoreReport(p, NULL, true );
 
 
-  _cmXScoreReport(p, NULL, true );
-
-
-  
  errLabel:
   cmFileClose(&fH);
   cmMemFree(b);
@@ -3200,7 +3203,6 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note,unsigned index )
 
   if( note->graceGroupId != 0)
     cmRptPrintf(rpt," g=%i",note->graceGroupId);
-
   /*
   if( cmIsFlag(note->flags,kBegGraceXsFl) )
     cmRptPrintf(rpt," B");
@@ -3216,8 +3218,7 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note,unsigned index )
 
   if( cmIsFlag(note->flags,kDynEndForkXsFl) )
     cmRptPrintf(rpt," E");
-  
-  */
+  */  
 }
 
 
@@ -3965,7 +3966,7 @@ cmXsRC_t cmXScoreTest(
     
   }
   
-  //cmXScoreReport(h,&ctx->rpt,true);
+  cmXScoreReport(h,&ctx->rpt,true);
 
   return cmXScoreFinalize(&h);
 
