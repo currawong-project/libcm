@@ -33,6 +33,8 @@
 
 #include "cmSvgWriter.h"
 
+
+
 cmXsH_t cmXsNullHandle = cmSTATIC_NULL_HANDLE;
 
 enum
@@ -1880,7 +1882,7 @@ cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p, unsigned nextGraceGroupId )
 }
 
 
-cmXsNote_t* _cmXScoreDynamicForkEndNote( cmXsNote_t* bnp )
+cmXsNote_t* _cmXScoreDynamicForkEndNote( cmXScore_t* p, cmXsNote_t* bnp )
 {
   assert( cmIsFlag(bnp->flags,kDynBegForkXsFl) );
 
@@ -1891,7 +1893,13 @@ cmXsNote_t* _cmXScoreDynamicForkEndNote( cmXsNote_t* bnp )
   {    
     for(; np!=NULL; np=np->slink)
     {
-      if( cmIsFlag(np->flags,kDynEndForkXsFl) && np->voice->id == bnp->voice->id )
+      if( cmIsFlag(np->flags,kDynBegForkXsFl) )
+      {
+        cmErrMsg(&p->err,kSyntaxErrorXsRC,"The a dynamic fork begin (meas:%i loc:%i) was found prior to a matched end.",np->meas->number,np->locIdx);
+        return NULL;
+      }   
+        
+      if( cmIsFlag(np->flags,kDynEndForkXsFl) /*&& np->voice->id == bnp->voice->id*/ )
         return np;
     }
   }
@@ -1903,10 +1911,11 @@ cmXsRC_t _cmXScoreProcessDynamicFork( cmXScore_t* p, cmXsNote_t* bnp )
 {
   cmXsNote_t* enp;
 
-  if((enp = _cmXScoreDynamicForkEndNote(bnp)) == NULL)
-    return cmErrMsg(&p->err,kSyntaxErrorXsRC,"The dynamic fork beginning in measure %i at tick %i voice %i was not terminated.", bnp->meas->number,bnp->tick,bnp->voice->id);
+  if((enp = _cmXScoreDynamicForkEndNote(p,bnp)) == NULL)
+    return cmErrMsg(&p->err,kSyntaxErrorXsRC,"The dynamic fork beginning in measure %i at tick %i voice %i loc:%i was not terminated.", bnp->meas->number,bnp->tick,bnp->voice->id,bnp->locIdx);
 
-
+  //cmRptPrintf( p->err.rpt, "Dynamic Fork: meas:%i tick:%i loc:%i to meas:%i tick:%i loc:%i\n", bnp->meas->number, bnp->tick, bnp->locIdx, enp->meas->number, enp->tick, enp->locIdx );
+  
   double begDynFrac = bnp->dynamics;
   double begVelFrac = bnp->vel;
   double endDynFrac = enp->dynamics;
@@ -1915,25 +1924,29 @@ cmXsRC_t _cmXScoreProcessDynamicFork( cmXScore_t* p, cmXsNote_t* bnp )
   cmXsMeas_t* mp = bnp->meas;
   cmXsNote_t* np = bnp->slink;
 
-  for(; mp!=NULL && np!=enp; mp=mp->link,np=mp==NULL ? NULL : mp->noteL)
+  while( mp != NULL )
   {
-    for(; np!=NULL && np!=enp; np=np->slink)
+    for(; np!=NULL; np=np->slink)
+    {
 
-      /*
-
-        Conditioning this on np->dynamics==0 will may cause 'silent' notes to be assigned 
-        a non-zero dynamics value - this is best fixed by using a different special value
-        for silent notes
-
-        BUG BUG BUG BUG BUG
-
-       */       
-      if( np->voice == bnp->voice && np->dynamics == 0 )
+      //Conditioning this on np->dynamics==0 will may would cause 'silent' notes to be assigned 
+      //  a non-zero dynamics value - so we condition on np->vel instead.
+      if( cmIsFlag(np->flags,kOnsetXsFl) && np->vel == 0 )
       {
         double frac     = ((double)np->tick - bnp->tick) / (enp->tick - bnp->tick);
         np->dynamics =  lround(begDynFrac + ((endDynFrac - begDynFrac) * frac));
         np->vel      =  lround(begVelFrac + ((endVelFrac - begVelFrac) * frac));        
       }
+
+      if( np == enp )
+        break;
+    }
+
+    if( np == enp)
+      break;
+        
+    if( (mp=mp->link) != NULL )
+      np=mp->noteL;
   }
 
   return kOkXsRC;
@@ -3203,6 +3216,10 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note,unsigned index )
 
   if( note->graceGroupId != 0)
     cmRptPrintf(rpt," g=%i",note->graceGroupId);
+
+  if( note->dynamics != 0)
+    cmRptPrintf(rpt," dyn=%i %i",note->dynamics,note->vel);
+  
   /*
   if( cmIsFlag(note->flags,kBegGraceXsFl) )
     cmRptPrintf(rpt," B");
@@ -3210,8 +3227,6 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note,unsigned index )
   if( cmIsFlag(note->flags,kEndGraceXsFl) )
     cmRptPrintf(rpt," E");
 
-  if( note->dynamics != 0)
-    cmRptPrintf(rpt," dyn=%i",note->dynamics);
 
   if( cmIsFlag(note->flags,kDynBegForkXsFl) )
     cmRptPrintf(rpt," B");
@@ -3563,8 +3578,9 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
       if( mp->divisions != ticksPerQN )
         cmErrWarnMsg(&p->err,kMidiFailXsRC,"The 'tick per quarter note' (divisions) field in measure %i does not match the value in the first measure (%i).",mp->divisions,ticksPerQN);
 
+      unsigned ni = 0;
       // for each note in this measure
-      for(; np!=NULL; np=np->slink)
+      for(; np!=NULL; np=np->slink,++ni)
       {
         switch( np->flags & (kOnsetXsFl|kMetronomeXsFl|kDampDnXsFl|kDampUpDnXsFl|kSostDnXsFl) )
         {
@@ -3572,6 +3588,14 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
             {
               if( np->tied_dur <= 0 )
                 cmErrWarnMsg(&p->err,kOkXsRC,"A zero length note was encountered bar:%i tick:%i %s",np->meas->number,np->tick,cmMidiToSciPitch(np->pitch,NULL,0));
+
+              /*
+              if( mp->number == 20 )
+              {
+                _cmXScoreReportNote(ctx->err.rpt,np,ni);
+                cmRptPrintf(ctx->err.rpt,"\n");
+              }
+              */
               
               if( cmMidiFileInsertTrackChMsg(mfH, 1, np->tick,                kNoteOnMdId,  np->pitch, np->vel ) != kOkMfRC
                 ||cmMidiFileInsertTrackChMsg(mfH, 1, np->tick + np->tied_dur, kNoteOffMdId, np->pitch, 0 )       != kOkMfRC )
@@ -3732,12 +3756,12 @@ cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, con
       // if this is a note
       case kOnsetXsFl:
         {
-          const cmChar_t* classLabel = "note";
+          //const cmChar_t* classLabel = "note";
       
           t0 = cmTsPrintfP(t0,"note_%i%s",e->voice, cmIsFlag(e->flags,kGraceXsFl) ? "_g":"");
       
-          if( cmIsFlag(e->flags,kGraceXsFl) )
-            classLabel = "grace";
+          //if( cmIsFlag(e->flags,kGraceXsFl) )
+          //  classLabel = "grace";
       
           if( cmSvgWriterRect(svgH, e->tick, e->d0 * noteHeight,  e->durTicks,  noteHeight-1, t0 ) != kOkSvgRC )
             rc = kSvgFailXsRC;
