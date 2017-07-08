@@ -36,7 +36,7 @@
 
 #include "cmDspPgmKrChain.h"
 
-#undef KR2
+#define KR2
 
 
 cmDspRC_t krLoadRsrc(cmDspSysH_t h, cmErr_t* err, krRsrc_t* r)
@@ -335,6 +335,11 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspSysInstallCb(h, xfadMs, "val", xfad, "ms", NULL );
   cmDspSysInstallCb(h, modp, mlbl("xfad"), xfadMs,  "val", NULL);
 
+  cmDspInst_t* sw_btn = cmDspSysAllocButton( h, lbl("switch"), 0);
+  cmDspSysInstallCb( h, sw_btn, "sym",  achan, "trig", NULL ); 
+
+  
+  
   // TODO: FIX THIS: can't send window length (e.g. 1024,2048, ... ) to a 'MsgList' with 4 elements
   // since it expects an index betweeen 0 and 3.  CRASH!
   //cmDspSysInstallCb(h, modp, mlbl("win"),  wnd_ctl, "sel",  NULL );
@@ -525,6 +530,9 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspInst_t* xfadMs = cmDspSysAllocInst(h,"Scalar", lbl("Xfade Ms"),     5, kNumberDuiId, 0.0,   1000.0,0.01, 50.0 );  
   cmDspSysInstallCb(h, xfadMs, "val", xfad, "ms", NULL );
   cmDspSysInstallCb(h, modp, mlbl("xfad"), xfadMs,  "val", NULL);
+  
+  cmDspInst_t* sw_btn = cmDspSysAllocButton( h, lbl("switch"), 0);
+  cmDspSysInstallCb( h, sw_btn, "sym",  achan, "trig", NULL ); 
 
   cmDspSysInstallCb(h, modp, mlbl("win"),  wnd_ctl, "sel",  NULL );
   cmDspSysInstallCb(h, modp, mlbl("hop"),  hop_ctl, "sel",  NULL );
