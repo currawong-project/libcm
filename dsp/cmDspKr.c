@@ -1911,9 +1911,9 @@ cmDspInst_t*  _cmDspScaleRangeAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
   cmDspVarArg_t args[] =
   {
     { "min_in",   kMinInSrId,  0,0, kInDsvFl | kDoubleDsvFl , "Min Input value."},
-    { "max_in",   kMaxInSrId,  0,0, kInDsvFl | kDoubleDsvFl , "Min Input value."},
-    { "min_out",  kMinOutSrId, 0,0, kInDsvFl | kDoubleDsvFl , "Min Input value."},
-    { "max_out",  kMaxOutSrId, 0,0, kInDsvFl | kDoubleDsvFl , "Min Input value."},
+    { "max_in",   kMaxInSrId,  0,0, kInDsvFl | kDoubleDsvFl , "Max Input value."},
+    { "min_out",  kMinOutSrId, 0,0, kInDsvFl | kDoubleDsvFl , "Min Output value."},
+    { "max_out",  kMaxOutSrId, 0,0, kInDsvFl | kDoubleDsvFl , "Max Output value."},
     { "val_in",   kValInSrId,  0,0, kInDsvFl | kDoubleDsvFl,  "Input value."},
     { "val_out",  kValOutSrId, 0,0, kOutDsvFl | kDoubleDsvFl, "Output value"},
     { NULL, 0, 0, 0, 0 }
