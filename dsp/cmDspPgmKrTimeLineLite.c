@@ -60,6 +60,7 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspInst_t* ai0 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 0);
   cmDspInst_t* ai1 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 1);
+  cmDspInst_t* mip = cmDspSysAllocInst(h,"MidiIn",      NULL, 0);
   
   cmDspInst_t* tlp  = cmDspSysAllocInst(h,"TimeLine",    "tl",  2, r.tlFn, r.tlPrefixPath );
   cmDspInst_t* scp  = cmDspSysAllocInst(h,"Score",       "sc",  1, r.scFn );
@@ -85,10 +86,10 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   _cmDspSys_TlXformChain(h, &c1, preGrpSymId, cmpPreGrpSymId, modp, 1, 1 );
 
 
-  cmDspInst_t* ao0 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 4 ); // Piano     1 Output
-  cmDspInst_t* ao1 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 5 ); //           2
-  cmDspInst_t* ao2 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 2 ); // Transform 1 OUtput
-  cmDspInst_t* ao3 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 ); //           2
+  cmDspInst_t* ao0 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 4 ); // 4 Piano     1 Output
+  cmDspInst_t* ao1 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 5 ); // 5          2
+  cmDspInst_t* ao2 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 2 ); // 2 Transform 1 OUtput
+  cmDspInst_t* ao3 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 ); // 3          2
 
   cmDspSysNewPage(h,"Main");
   cmDspInst_t* onb     = cmDspSysAllocInst(h,"Button", "start",   2, kButtonDuiId, 1.0 );

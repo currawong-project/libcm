@@ -36,7 +36,7 @@
 
 #include "cmDspPgmKrChain.h"
 
-#define KR2
+#undef KR2
 
 
 cmDspRC_t krLoadRsrc(cmDspSysH_t h, cmErr_t* err, krRsrc_t* r)
@@ -113,6 +113,9 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspInst_t* cost_rt  = cmDspSysAllocInst(h, "Router",      NULL,  2,  measRtrChCnt, measRtrChCnt-1 );
 
   // Scale/ranges applied to incoming measurements.
+  cmDspInst_t* cel_sr   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0,  0.0,  100.0 );
+  cmDspInst_t* exp_sr   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0,-10.0,   10.0 );
+  cmDspInst_t* mix_sr   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0,  0.01,   1.0 );
   cmDspInst_t* thr_sr   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0, 0.01, 100.0 );
   cmDspInst_t* upr_sr   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0, -1.0, 5.0 );
   cmDspInst_t* lwr_sr   = cmDspSysAllocInst(h, "ScaleRange",  NULL,  4,  0.0, 1.0, -5.0, 5.0 );
@@ -122,19 +125,19 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
  
   // Parameter-> kr routers (routers used to cross-fade between the two kr units)
   unsigned paramRtChCnt = 2;
-  cmDspInst_t* mod_rt   = cmDspSysAllocInst(h, "Router",      lbl("mod_rt"),  2,  paramRtChCnt, paramRtChCnt-1 );
   cmDspInst_t* wnd_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
   cmDspInst_t* hop_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
+  cmDspInst_t* cel_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
+  cmDspInst_t* exp_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
+  cmDspInst_t* mix_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
   cmDspInst_t* thr_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
   cmDspInst_t* upr_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
   cmDspInst_t* lwr_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
-  cmDspInst_t* inv_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
-  cmDspInst_t* off_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
   cmDspInst_t* wet_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
 
   // Audio processors
-  cmDspInst_t* kr0  = cmDspSysAllocInst(h, "Kr",         NULL,   2, krWndSmpCnt, krHopFact );
-  cmDspInst_t* kr1  = cmDspSysAllocInst(h, "Kr",         NULL,   2, krWndSmpCnt, krHopFact );
+  cmDspInst_t* kr0  = cmDspSysAllocInst(h, "Kr2",         NULL,   2, krWndSmpCnt, krHopFact );
+  cmDspInst_t* kr1  = cmDspSysAllocInst(h, "Kr2",         NULL,   2, krWndSmpCnt, krHopFact );
   cmDspInst_t* xfad = cmDspSysAllocInst(h, "Xfader",     NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl ); 
   cmDspInst_t* mix  = cmDspSysAllocInst(h, "AMix",       NULL,   3, xfadeChCnt,  mixGain, mixGain );
   cmDspInst_t* cmp  = cmDspSysAllocInst(h, "Compressor", NULL,   8, cmpBypassFl, cmpThreshDb, cmpRatio_num, cmpAtkMs, cmpRlsMs, cmpMakeup, cmpWndMs, cmpWndMaxMs ); 
@@ -193,6 +196,12 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspSysInstallCb(h, cost_sr,      "val_out", cost_rt, "f-in",   NULL );
 
   cmDspSysNewColumn(h,0);
+  cmDspInst_t* min_cel_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Min Ceil"),         0.0,100.0, 0.1,  10.0);
+  cmDspInst_t* max_cel_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Max Ceil"),         0.0,100.0, 0.1,  50.0);
+  cmDspInst_t* min_exp_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Min Exp"),        -10.0, 10.0, 0.01, 1.0);
+  cmDspInst_t* max_exp_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Max Exp"),        -10.0, 10.0, 0.01, 4.0);
+  cmDspInst_t* min_mix_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Min Mix"),          0.0,  1.0, 0.01, 0.0);
+  cmDspInst_t* max_mix_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Max Mix"),          0.0,  1.0, 0.01, 1.0);
   cmDspInst_t* min_thr_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Min Thresh"),       0.0,100.0, 1.0, 30.0);
   cmDspInst_t* max_thr_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Max Thresh"),       0.0,100.0, 1.0, 80.0);
   cmDspInst_t* min_upr_ctl   = cmDspSysAllocScalarP( h,preGrpSymId, NULL, lbl("Min Upr"),         -1.0,  1.0, 0.001, -0.5);
@@ -207,21 +216,15 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
 
   // Parameter number controls 
   cmDspSysNewColumn(h,0);
-  cmDspInst_t* mod_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Mode"),      0.0, 4.0, 1.0, 1.0);
   cmDspInst_t* wnd_ctl = cmDspSysAllocMsgListP(h,preGrpSymId,NULL, lbl("WndSmpCnt"), NULL, "wndSmpCnt", 2);
   cmDspInst_t* hop_ctl = cmDspSysAllocMsgListP(h,preGrpSymId,NULL, lbl("HopFact"),   NULL, "hopFact",   2);
+  cmDspInst_t* cel_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Ceiling"),   0.0, 100.0, 0.1,  30.0 );
+  cmDspInst_t* exp_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Expo"),    -10.0,  10.0, 0.01,  2.0 );
+  cmDspInst_t* mix_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Mix"),       0.0,   1.0, 0.01,  0.0 );    
   cmDspInst_t* thr_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Threshold"), 0.0, 100.0, 1.0,  60.0 );
   cmDspInst_t* upr_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Upr slope"), 0.0,  10.0, 0.01,  0.0 ); 
   cmDspInst_t* lwr_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Lwr slope"), 0.3,  10.0, 0.01,  2.0 );
-  cmDspInst_t* off_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Offset"),    0.0, 100.0, 0.01, 20.0 );
-  cmDspInst_t* inv_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Invert"),    0.0,   1.0, 1.0,   0.0 );  
   cmDspInst_t* wet_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Wet Dry"),   0.0,   1.0, 0.001, 1.0 );
-
-
-  cmDspSysInstallCb(h, mod_ctl, "val",         mod_rt, "f-in",    NULL );
-  cmDspSysInstallCb(h, achan,   "ch",          mod_rt, "sel",     NULL );   // ach->rt sel
-  cmDspSysInstallCb(h, mod_rt,  "f-out-0",     kr0,    "mode",    NULL );   // mode->kr
-  cmDspSysInstallCb(h, mod_rt,  "f-out-1",     kr1,    "mode",    NULL );   // mode->kr
 
   cmDspSysInstallCb(h, wnd_ctl, "out",         wnd_rt, "f-in",    NULL );
   cmDspSysInstallCb(h, achan,   "ch",          wnd_rt, "sel",     NULL );   // ach->rt sel
@@ -233,6 +236,43 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspSysInstallCb(h, hop_rt,  "f-out-0",     kr0,    "hopf",    NULL );   // hopf->kr
   cmDspSysInstallCb(h, hop_rt,  "f-out-1",     kr1,    "hopf",    NULL );   // hopf->kr
 
+
+  cmDspSysInstallCb(h, min_cel_ctl, "val",     cel_sr, "min_out", NULL );
+  cmDspSysInstallCb(h, max_cel_ctl, "val",     cel_sr, "max_out", NULL );
+  cmDspSysInstallCb(h, even_rt,     "f-out-0", cel_sr, "val_in",  NULL );
+  cmDspSysInstallCb(h, dynm_rt,     "f-out-0", cel_sr, "val_in",  NULL );
+  cmDspSysInstallCb(h, tmpo_rt,     "f-out-0", cel_sr, "val_in",  NULL );
+  cmDspSysInstallCb(h, cost_rt,     "f-out-0", cel_sr, "val_in",  NULL );
+  cmDspSysInstallCb(h, cel_sr,      "val_out", cel_ctl,"val",     NULL );
+  cmDspSysInstallCb(h, cel_ctl,     "val",     cel_rt, "f-in",    NULL );
+  cmDspSysInstallCb(h, achan,       "ch",      cel_rt, "sel",     NULL );   // ach->rt sel
+  cmDspSysInstallCb(h, cel_rt,      "f-out-0", kr0,    "ceil",    NULL );   // cel->kr
+  cmDspSysInstallCb(h, cel_rt,      "f-out-1", kr1,    "ceil",    NULL );   // cel->kr
+
+  cmDspSysInstallCb(h, min_exp_ctl, "val",     exp_sr, "min_out", NULL );
+  cmDspSysInstallCb(h, max_exp_ctl, "val",     exp_sr, "max_out", NULL );
+  cmDspSysInstallCb(h, even_rt,     "f-out-0", exp_sr, "val_in",  NULL );
+  cmDspSysInstallCb(h, dynm_rt,     "f-out-0", exp_sr, "val_in",  NULL );
+  cmDspSysInstallCb(h, tmpo_rt,     "f-out-0", exp_sr, "val_in",  NULL );
+  cmDspSysInstallCb(h, cost_rt,     "f-out-0", exp_sr, "val_in",  NULL );
+  cmDspSysInstallCb(h, exp_sr,      "val_out", exp_ctl,"val",     NULL );
+  cmDspSysInstallCb(h, exp_ctl,     "val",     exp_rt, "f-in",    NULL );
+  cmDspSysInstallCb(h, achan,       "ch",      exp_rt, "sel",     NULL );   // ach->rt sel
+  cmDspSysInstallCb(h, exp_rt,      "f-out-0", kr0,    "expo",    NULL );   // exp->kr
+  cmDspSysInstallCb(h, exp_rt,      "f-out-1", kr1,    "expo",    NULL );   // exp->kr
+
+  cmDspSysInstallCb(h, min_mix_ctl, "val",     mix_sr, "min_out", NULL );
+  cmDspSysInstallCb(h, max_mix_ctl, "val",     mix_sr, "max_out", NULL );
+  cmDspSysInstallCb(h, even_rt,     "f-out-0", mix_sr, "val_in",  NULL );
+  cmDspSysInstallCb(h, dynm_rt,     "f-out-0", mix_sr, "val_in",  NULL );
+  cmDspSysInstallCb(h, tmpo_rt,     "f-out-0", mix_sr, "val_in",  NULL );
+  cmDspSysInstallCb(h, cost_rt,     "f-out-0", mix_sr, "val_in",  NULL );
+  cmDspSysInstallCb(h, mix_sr,      "val_out", mix_ctl,"val",     NULL );
+  cmDspSysInstallCb(h, mix_ctl,     "val",     mix_rt, "f-in",    NULL );
+  cmDspSysInstallCb(h, achan,       "ch",      mix_rt, "sel",     NULL );   // ach->rt sel
+  cmDspSysInstallCb(h, mix_rt,      "f-out-0", kr0,    "mix",    NULL );   // mix->kr
+  cmDspSysInstallCb(h, mix_rt,      "f-out-1", kr1,    "mix",    NULL );   // mix->kr
+  
   cmDspSysInstallCb(h, min_thr_ctl, "val",     thr_sr, "min_out", NULL );
   cmDspSysInstallCb(h, max_thr_ctl, "val",     thr_sr, "max_out", NULL );
   cmDspSysInstallCb(h, even_rt,     "f-out-0", thr_sr, "val_in",  NULL );
@@ -268,31 +308,13 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspSysInstallCb(h, achan,       "ch",      lwr_rt, "sel",     NULL );   // ach->rt sel
   cmDspSysInstallCb(h, lwr_rt,      "f-out-0", kr0,    "lwrs",    NULL );   // lwr->kr
   cmDspSysInstallCb(h, lwr_rt,      "f-out-1", kr1,    "lwrs",    NULL );   // lwr->kr
-
-  cmDspSysInstallCb(h, min_off_ctl, "val",     off_sr, "min_out", NULL );
-  cmDspSysInstallCb(h, max_off_ctl, "val",     off_sr, "max_out", NULL );
-  cmDspSysInstallCb(h, even_rt,     "f-out-3", off_sr, "val_in",  NULL );
-  cmDspSysInstallCb(h, dynm_rt,     "f-out-3", off_sr, "val_in",  NULL );
-  cmDspSysInstallCb(h, tmpo_rt,     "f-out-3", off_sr, "val_in",  NULL );
-  cmDspSysInstallCb(h, cost_rt,     "f-out-3", off_sr, "val_in",  NULL );
-  cmDspSysInstallCb(h, off_sr,      "val_out", off_ctl,"val",     NULL );
-  cmDspSysInstallCb(h, off_ctl,     "val",     off_rt, "f-in",    NULL );
-  cmDspSysInstallCb(h, achan,       "ch",      off_rt, "sel",     NULL );   // ach->rt sel
-  cmDspSysInstallCb(h, off_rt,      "f-out-0", kr0,    "offs",    NULL );   // off->kr
-  cmDspSysInstallCb(h, off_rt,      "f-out-1", kr1,    "offs",    NULL );   // off->kr
-
-  cmDspSysInstallCb(h, inv_ctl,     "val",     inv_rt, "f-in",   NULL );
-  cmDspSysInstallCb(h, achan,       "ch",      inv_rt, "sel",    NULL );   // ach->rt sel
-  cmDspSysInstallCb(h, inv_rt,      "f-out-0", kr0,    "invt",   NULL );   // inv->kr
-  cmDspSysInstallCb(h, inv_rt,      "f-out-1", kr1,    "invt",   NULL );   // inv->kr
-
+  
   cmDspSysInstallCb(h, min_wet_ctl, "val",     wet_sr, "min_out", NULL );
   cmDspSysInstallCb(h, max_wet_ctl, "val",     wet_sr, "max_out", NULL );
   cmDspSysInstallCb(h, even_rt,     "f-out-4", wet_sr, "val_in",  NULL );
   cmDspSysInstallCb(h, dynm_rt,     "f-out-4", wet_sr, "val_in",  NULL );
   cmDspSysInstallCb(h, tmpo_rt,     "f-out-4", wet_sr, "val_in",  NULL );
   cmDspSysInstallCb(h, cost_rt,     "f-out-4", wet_sr, "val_in",  NULL );
-
   cmDspSysInstallCb(h, wet_sr,      "val_out", wet_ctl,"val",     NULL );
   cmDspSysInstallCb(h, wet_ctl,     "val",     wet_rt, "f-in",    NULL );
   cmDspSysInstallCb(h, achan,       "ch",      wet_rt, "sel",     NULL );   // ach->rt sel
@@ -346,12 +368,19 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
 
   
   cmDspSysInstallCb(h, modp, mlbl("hop"),  hop_ctl, "sel", NULL );
-  cmDspSysInstallCb(h, modp, mlbl("mod"),  mod_ctl, "val", NULL );
+  cmDspSysInstallCb(h, modp, mlbl("ceil"), cel_ctl, "val", NULL );
+  cmDspSysInstallCb(h, modp, mlbl("expo"), exp_ctl, "val", NULL );
+  cmDspSysInstallCb(h, modp, mlbl("mix"),  mix_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("thr"),  thr_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("upr"),  upr_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("lwr"),  lwr_ctl, "val", NULL );
-  cmDspSysInstallCb(h, modp, mlbl("off"),  off_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("wet"),  wet_ctl, "val", NULL );
+  cmDspSysInstallCb(h, modp, mlbl("minc"), min_cel_ctl, "val", NULL );
+  cmDspSysInstallCb(h, modp, mlbl("maxc"), max_cel_ctl, "val", NULL );
+  cmDspSysInstallCb(h, modp, mlbl("mine"), min_exp_ctl, "val", NULL );
+  cmDspSysInstallCb(h, modp, mlbl("maxe"), max_exp_ctl, "val", NULL );
+  cmDspSysInstallCb(h, modp, mlbl("minm"), min_mix_ctl, "val", NULL );
+  cmDspSysInstallCb(h, modp, mlbl("maxm"), max_mix_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("mint"), min_thr_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("maxt"), max_thr_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("minu"), min_upr_ctl, "val", NULL );
