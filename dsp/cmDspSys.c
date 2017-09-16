@@ -732,6 +732,10 @@ cmDspRC_t cmDspSysRcvMsg(    cmDspSysH_t h, cmAudioSysCtx_t* asCtx, const void* 
           pkt.msgArray  = (cmMidiMsg*)(hdr + 5);
           unsigned     midiSymId = cmDspSysRegisterStaticSymbol(h,"_midi");
 
+                               // HACK:
+          v.flags = kMtxDsvFl; // The value is not really a matrix but only _cmDspMidiInRecvFunc()
+                               // ever needs to decode value and it does not look at the value type flags.
+                               
           v.u.m.u.vp = &pkt;
           cmDspSysBroadcastValue(h, midiSymId, &v);
 
