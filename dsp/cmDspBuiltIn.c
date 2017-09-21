@@ -602,6 +602,8 @@ cmDspClass_t*  cmSigGenClassCons( cmDspCtx_t* ctx )
 //( { label:cmDspMidiIn file_desc:"MIDI input port." kw:[sunit] }
 enum
 {
+  kInDeviceMiId,
+  kInPortMiId,
   kDeviceMiId,
   kPortMiId,
   kSmpIdxMiId,
@@ -617,16 +619,53 @@ cmDspClass_t _cmMidiInDC;
 
 typedef struct
 {
-  cmDspInst_t inst;
-  unsigned midiSymId;
-  unsigned prevSmpIdx;
+  cmDspInst_t  inst;
+  unsigned     midiSymId;
+  unsigned     prevSmpIdx;
   cmTimeSpec_t prevTimeStamp;
+  unsigned     inDevIdx;
+  unsigned     inPortIdx;
 } cmDspMidiIn_t;
+
+
+cmDspRC_t _cmDspMidiInSetDevice( cmDspCtx_t* ctx, cmDspMidiIn_t* p, const cmChar_t* deviceStr )
+{
+  cmDspRC_t rc = kOkDspRC;
+
+  if( deviceStr != NULL )
+  {
+    if((p->inDevIdx = cmMpDeviceNameToIndex(deviceStr)) == cmInvalidIdx )
+      rc = cmDspInstErr(ctx,&p->inst,kInvalidArgDspRC,"The MIDI input device '%s' could not be found.",cmStringNullGuard(deviceStr));
+    p->inPortIdx = cmInvalidIdx; // set the port as invalid until it is explicitely set.
+  }
+  return rc;
+}
+
+cmDspRC_t _cmDspMidiInSetPort( cmDspCtx_t* ctx, cmDspMidiIn_t* p, const cmChar_t* portStr )
+{
+  cmDspRC_t rc = kOkDspRC;
+
+  if( portStr == NULL )
+    return rc;
+
+  if( p->inDevIdx == cmInvalidIdx )
+    rc = cmDspInstErr(ctx,&p->inst,kInvalidArgDspRC,"The MIDI input port cannot be set until the MIDI input device is set.");
+  else
+  {
+    if((p->inPortIdx = cmMpDevicePortNameToIndex(p->inDevIdx,kOutMpFl,portStr)) == cmInvalidIdx )
+      rc = cmDspInstErr(ctx,&p->inst,kInvalidArgDspRC,"The MIDI input port '%s' could not be found on device '%s'.",cmStringNullGuard(portStr),cmStringNullGuard(cmMpDeviceName(p->inDevIdx)));
+  }
+
+  return rc;
+}
 
 cmDspInst_t*  _cmDspMidiInAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
   cmDspVarArg_t args[] =
   {
+    { "indev",  kInDeviceMiId, 0,  0,  kInDsvFl | kStrzDsvFl | kOptArgDsvFl, "Listen only to this MIDI device"},
+    { "inport", kInPortMiId,   0,  0,  kInDsvFl | kStrzDsvFl | kOptArgDsvFl, "Listen only to this MIDI port"},
+    
     { "device", kDeviceMiId, 0,  0,  kOutDsvFl | kUIntDsvFl, "MIDI device" },
     { "port",   kPortMiId,   0,  0,  kOutDsvFl | kUIntDsvFl, "MIDI device port"},
     { "smpidx", kSmpIdxMiId, 0,  0,  kOutDsvFl | kUIntDsvFl, "Message time tag as sample index."},
@@ -640,6 +679,9 @@ cmDspInst_t*  _cmDspMidiInAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigne
 
   cmDspMidiIn_t* p = cmDspInstAlloc(cmDspMidiIn_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
 
+  p->inDevIdx  = cmInvalidIdx;
+  p->inPortIdx = cmInvalidIdx;
+  
  p->midiSymId =  cmDspSysAssignInstAttrSymbolStr( ctx->dspH, &p->inst, "_midi" );
 
   return &p->inst;
@@ -649,43 +691,72 @@ cmDspRC_t _cmDspMidiInReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
 {
   cmDspRC_t      rc = kOkDspRC;
   cmDspMidiIn_t* p  = (cmDspMidiIn_t*)inst;
+  
   cmDspApplyAllDefaults(ctx,inst);
+
+  if(_cmDspMidiInSetDevice(ctx,p,cmDspStrcz(inst,kInDeviceMiId)) == kOkDspRC )
+    _cmDspMidiInSetPort(  ctx,p,cmDspStrcz(inst,kInPortMiId));
+  
   p->prevSmpIdx = 0;
   return rc;
 } 
+
+cmDspRC_t _cmDspMidiInRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspMidiIn_t* p = (cmDspMidiIn_t*)inst;
+
+  switch( evt->dstVarId )
+  {
+    case kInDeviceMiId:      
+      _cmDspMidiInSetDevice(ctx, p, cmDsvStrcz(evt->valuePtr));
+      break;
+
+    case kInPortMiId:
+      _cmDspMidiInSetPort(ctx, p, cmDsvStrcz(evt->valuePtr));
+      break;
+  }
+    
+  return kOkDspRC;
+
+}
 
 cmDspRC_t  _cmDspMidiInRecvFunc(   cmDspCtx_t* ctx, cmDspInst_t* inst,  unsigned attrSymId, const cmDspValue_t* value )
 {
   cmDspMidiIn_t* p = (cmDspMidiIn_t*)inst;
 
+  
   if( attrSymId == p->midiSymId )
   {
     cmMidiPacket_t* pkt = (cmMidiPacket_t*)(value->u.m.u.vp);
     unsigned i;
 
-    cmDspSetUInt(ctx, inst, kDeviceMiId, pkt->devIdx);
-    cmDspSetUInt(ctx, inst, kPortMiId,   pkt->portIdx); 
-
-    for(i=0; i<pkt->msgCnt; ++i)
+    if( (p->inDevIdx==cmInvalidIdx || p->inDevIdx==pkt->devIdx) && (p->inPortIdx==cmInvalidIdx || p->inPortIdx==pkt->portIdx ) )
     {
-      cmMidiMsg* m = pkt->msgArray + i;
-      unsigned   deltaSmpCnt = 0;
-      if( p->prevTimeStamp.tv_sec!=0 && p->prevTimeStamp.tv_nsec!=0 )
-        deltaSmpCnt = floor(cmTimeElapsedMicros(&p->prevTimeStamp,&m->timeStamp) * cmDspSampleRate(ctx) / 1000000.0);
+    
+      cmDspSetUInt(ctx, inst, kDeviceMiId, pkt->devIdx);
+      cmDspSetUInt(ctx, inst, kPortMiId,   pkt->portIdx); 
 
-      if( p->prevSmpIdx == 0 )
-        p->prevSmpIdx = ctx->cycleCnt * cmDspSamplesPerCycle(ctx);
-      else
-        p->prevSmpIdx += deltaSmpCnt;
+      for(i=0; i<pkt->msgCnt; ++i)
+      {
+        cmMidiMsg* m = pkt->msgArray + i;
+        unsigned   deltaSmpCnt = 0;
+        if( p->prevTimeStamp.tv_sec!=0 && p->prevTimeStamp.tv_nsec!=0 )
+          deltaSmpCnt = floor(cmTimeElapsedMicros(&p->prevTimeStamp,&m->timeStamp) * cmDspSampleRate(ctx) / 1000000.0);
 
-      cmDspSetUInt(ctx, inst, kSmpIdxMiId, p->prevSmpIdx );
-      cmDspSetUInt(ctx, inst, kSecMiId,    m->timeStamp.tv_sec);
-      cmDspSetUInt(ctx, inst, kNSecMiId,   m->timeStamp.tv_nsec);
-      cmDspSetUInt(ctx, inst, kD1MiId,     m->d1 );
-      cmDspSetUInt(ctx, inst, kD0MiId,     m->d0 );
-      cmDspSetUInt(ctx, inst, kStatusMiId, m->status );
+        if( p->prevSmpIdx == 0 )
+          p->prevSmpIdx = ctx->cycleCnt * cmDspSamplesPerCycle(ctx);
+        else
+          p->prevSmpIdx += deltaSmpCnt;
 
-      p->prevTimeStamp = m->timeStamp;
+        cmDspSetUInt(ctx, inst, kSmpIdxMiId, p->prevSmpIdx );
+        cmDspSetUInt(ctx, inst, kSecMiId,    m->timeStamp.tv_sec);
+        cmDspSetUInt(ctx, inst, kNSecMiId,   m->timeStamp.tv_nsec);
+        cmDspSetUInt(ctx, inst, kD1MiId,     m->d1 );
+        cmDspSetUInt(ctx, inst, kD0MiId,     m->d0 );
+        cmDspSetUInt(ctx, inst, kStatusMiId, m->status );
+
+        p->prevTimeStamp = m->timeStamp;
+      }
     }
   }
 
@@ -700,7 +771,7 @@ cmDspClass_t*  cmMidiInClassCons( cmDspCtx_t* ctx )
     NULL,
     _cmDspMidiInReset,
     NULL,
-    NULL,
+    _cmDspMidiInRecv,
     NULL,
     _cmDspMidiInRecvFunc,
     "Midi input port");
@@ -737,7 +808,7 @@ cmDspRC_t _cmDspMidiOutSetDevice( cmDspCtx_t* ctx, cmDspMidiOut_t* p, const cmCh
 
   if( deviceStr != NULL )
     if((p->devIdx = cmMpDeviceNameToIndex(deviceStr)) == cmInvalidIdx )
-      rc = cmDspInstErr(ctx,&p->inst,kInvalidArgDspRC,"The MIDI device '%s' could not be found.",cmStringNullGuard(deviceStr));
+      rc = cmDspInstErr(ctx,&p->inst,kInvalidArgDspRC,"The MIDI output device '%s' could not be found.",cmStringNullGuard(deviceStr));
   return rc;
 }
 
@@ -753,7 +824,7 @@ cmDspRC_t _cmDspMidiOutSetPort( cmDspCtx_t* ctx, cmDspMidiOut_t* p, const cmChar
   else
   {
     if((p->portIdx = cmMpDevicePortNameToIndex(p->devIdx,kOutMpFl,portStr)) == cmInvalidIdx )
-      rc = cmDspInstErr(ctx,&p->inst,kInvalidArgDspRC,"The MIDI port '%s' could not be found on device '%s'.",cmStringNullGuard(portStr),cmStringNullGuard(cmMpDeviceName(p->devIdx)));
+      rc = cmDspInstErr(ctx,&p->inst,kInvalidArgDspRC,"The MIDI out port '%s' could not be found on device '%s'.",cmStringNullGuard(portStr),cmStringNullGuard(cmMpDeviceName(p->devIdx)));
   }
 
   return rc;
