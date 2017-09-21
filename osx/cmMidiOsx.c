@@ -27,7 +27,9 @@ typedef struct
 typedef struct
 {
   char*      nameStr;
-
+  unsigned   devId;     // this device is known to OSX by this id
+  unsigned   devIdx;    // this device is known externally by this device index (also index into cmMpRoot.devArray[])
+  
   unsigned   iPortCnt;
   cmMpPort*  iPortArray;
 
@@ -336,7 +338,7 @@ cmMpRC_t _cmMpIsDeviceActive( unsigned devIdx, MIDIDeviceRef mdr, ItemCount* src
   return rc;
 }
 
-cmMpRC_t _cmMpCreateDevice( unsigned devIdx, cmMpDev* drp,  MIDIPortRef inPortRef, cmMpCallback_t cbFunc, void* cbDataPtr, unsigned parserBufByteCnt, cmErr_t* errPtr )
+cmMpRC_t _cmMpCreateDevice( unsigned deviceId, unsigned deviceIdx, cmMpDev* drp,  MIDIPortRef inPortRef, cmMpCallback_t cbFunc, void* cbDataPtr, unsigned parserBufByteCnt, cmErr_t* errPtr )
 {
   cmMpRC_t        rc        = kOkMpRC;
   MIDIDeviceRef mdr;
@@ -349,11 +351,11 @@ cmMpRC_t _cmMpCreateDevice( unsigned devIdx, cmMpDev* drp,  MIDIPortRef inPortRe
   _cmMpDeviceInit(drp);
 
   // get the device ref
-  if((mdr = MIDIGetDevice(devIdx)) == 0 )
-    return _cmMpError(errPtr,kSysErrMpRC,noErr,"Get midi device %i failed.",devIdx);
+  if((mdr = MIDIGetDevice(deviceId)) == 0 )
+    return _cmMpError(errPtr,kSysErrMpRC,noErr,"Get midi device %i failed.",deviceId);
    
   // determine if the device port count and whether it is active
-  if((rc = _cmMpIsDeviceActive(devIdx, mdr, &devSrcCnt, &devDstCnt, &activeFl, errPtr )) != kOkMpRC )
+  if((rc = _cmMpIsDeviceActive(deviceId, mdr, &devSrcCnt, &devDstCnt, &activeFl, errPtr )) != kOkMpRC )
     return rc;
 
   // if the device is not active return with the device record empty
@@ -371,6 +373,9 @@ cmMpRC_t _cmMpCreateDevice( unsigned devIdx, cmMpDev* drp,  MIDIPortRef inPortRe
   // form the device name string
   drp->nameStr = _cmMpFormLabel( errPtr, (MIDIObjectRef)mdr);
 
+  drp->devId = deviceId;
+  drp->devIdx = deviceIdx;
+
 
   unsigned entityCnt = MIDIDeviceGetNumberOfEntities(mdr);
   unsigned iPortCnt  = 0;
@@ -385,7 +390,7 @@ cmMpRC_t _cmMpCreateDevice( unsigned devIdx, cmMpDev* drp,  MIDIPortRef inPortRe
     // get the entity reference
     if((mer = MIDIDeviceGetEntity( mdr, ei)) == 0 )
     {
-      rc = _cmMpError(errPtr,kSysErrMpRC,noErr,"Get midi device %i entity %i failed.",devIdx,ei);
+      rc = _cmMpError(errPtr,kSysErrMpRC,noErr,"Get midi device %i entity %i failed.",deviceId,ei);
       goto errLabel;
     }
 
@@ -403,18 +408,20 @@ cmMpRC_t _cmMpCreateDevice( unsigned devIdx, cmMpDev* drp,  MIDIPortRef inPortRe
       // fill idArray with the unique id's of the active ports on this entity
       if((rc = _cmMpGetEntityUniqueIdArray(mer,idArray,entityPortCnt,inputFl,&activeCnt,errPtr)) != kOkMpRC )
       {
-        rc = _cmMpError(errPtr,rc,noErr,"Unable to locate unique source ids on device:%i entity:%i",devIdx,ei);
+        rc = _cmMpError(errPtr,rc,noErr,"Unable to locate unique source ids on device:%i entity:%i",deviceId,ei);
         goto errLabel;
       }
 
       // assign the unique id's to each cmMpPort assoc'd with this entity
-      _cmMpInitPortArray(devIdx, inPortRef, mer, portArray + portCnt, idArray, entityPortCnt, inputFl, cbFunc, cbDataPtr, parserBufByteCnt, errPtr );
+      _cmMpInitPortArray(deviceIdx, inPortRef, mer, portArray + portCnt, idArray, entityPortCnt, inputFl, cbFunc, cbDataPtr, parserBufByteCnt, errPtr );
 
       if( inputFl )
         iPortCnt += entityPortCnt;
       else
         oPortCnt += entityPortCnt;
 
+
+      //printf("OSX MIDI %i %i %i %s\n",deviceId,ei,i,drp->nameStr);
     }
   }
 
@@ -454,7 +461,7 @@ cmMpRC_t _cmMpCreateDeviceArray( cmMpRoot* rp, unsigned parserBufByteCnt )
     cmMpDev* drp = rp->devArray + rp->devCnt;
 
     // attempt to create a device record for device di
-    if((rc = _cmMpCreateDevice(  di, drp, rp->inPortRef, rp->cbFunc, rp->cbDataPtr, parserBufByteCnt, &rp->err )) != kOkMpRC )
+    if((rc = _cmMpCreateDevice(  di, rp->devCnt, drp, rp->inPortRef, rp->cbFunc, rp->cbDataPtr, parserBufByteCnt, &rp->err )) != kOkMpRC )
       goto errLabel;
 
     // if the device di is active 
