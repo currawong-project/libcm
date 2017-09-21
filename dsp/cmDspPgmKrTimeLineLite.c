@@ -60,7 +60,7 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspInst_t* ai0 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 0);
   cmDspInst_t* ai1 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 1);
-  cmDspInst_t* mip = cmDspSysAllocInst(h,"MidiIn",      NULL, 0);
+  cmDspInst_t* mip = cmDspSysAllocInst(h,"MidiIn",      NULL,  2, "MOTU - Traveler mk3", "MIDI Port");
   
   cmDspInst_t* tlp  = cmDspSysAllocInst(h,"TimeLine",    "tl",  2, r.tlFn, r.tlPrefixPath );
   cmDspInst_t* scp  = cmDspSysAllocInst(h,"Score",       "sc",  1, r.scFn );
@@ -249,23 +249,23 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, scp, "sel",    prp, "in",    NULL );
 
   // MIDI file player to score follower and sampler
-  cmDspSysInstallCb(h, mfp,  "smpidx",  sfp, "smpidx",NULL );
-  cmDspSysInstallCb(h, mfp,  "id",      sfp, "muid",  NULL );
+  cmDspSysInstallCb(h, mip,  "smpidx",  sfp, "smpidx",NULL );
+  //cmDspSysInstallCb(h, mfp,  "id",      sfp, "muid",  NULL );
 
-  cmDspSysInstallCb(h, mfp,   "d1",     sfp,  "d1",    NULL );
-  cmDspSysInstallCb(h, mfp,   "d1",     nmp,  "d1",    NULL );
+  cmDspSysInstallCb(h, mip,   "d1",     sfp,  "d1",    NULL );
+  cmDspSysInstallCb(h, mip,   "d1",     nmp,  "d1",    NULL );
   cmDspSysInstallCb(h, nmp,   "d1",     mop,  "d1",    NULL );
-  cmDspSysInstallCb(h, nmp,   "d1",     mo2p, "d1",    NULL );
+  //cmDspSysInstallCb(h, nmp,   "d1",     mo2p, "d1",    NULL );
 
-  cmDspSysInstallCb(h, mfp,  "d0",      sfp,  "d0",   NULL );
-  cmDspSysInstallCb(h, mfp,  "d0",      nmp,  "d0",   NULL );
+  cmDspSysInstallCb(h, mip,  "d0",      sfp,  "d0",   NULL );
+  cmDspSysInstallCb(h, mip,  "d0",      nmp,  "d0",   NULL );
   cmDspSysInstallCb(h, nmp,  "d0",      mop,  "d0",   NULL );
-  cmDspSysInstallCb(h, nmp,  "d0",      mo2p, "d0",   NULL );
+  //cmDspSysInstallCb(h, nmp,  "d0",      mo2p, "d0",   NULL );
 
-  cmDspSysInstallCb(h, mfp,  "status",  sfp,  "status",NULL );
-  cmDspSysInstallCb(h, mfp,  "status",  nmp,  "status",NULL );
+  cmDspSysInstallCb(h, mip,  "status",  sfp,  "status",NULL );
+  cmDspSysInstallCb(h, mip,  "status",  nmp,  "status",NULL );
   cmDspSysInstallCb(h, nmp,  "status",  mop,  "status",NULL );
-  cmDspSysInstallCb(h, nmp,  "status",  mo2p, "status",NULL );
+  //cmDspSysInstallCb(h, nmp,  "status",  mo2p, "status",NULL );
 
 
   // score follower to recd_play,modulator and printers
