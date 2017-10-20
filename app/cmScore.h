@@ -57,11 +57,11 @@ extern "C" {
   // cmScoreSection_t.vars[].
   enum
   {
-    kInvalidVarScId,
-    kEvenVarScId,
-    kDynVarScId,
-    kTempoVarScId,
-    kScVarCnt
+    kInvalidVarScId, // 0
+    kEvenVarScId,    // 1
+    kDynVarScId,     // 2
+    kTempoVarScId,   // 3
+    kScVarCnt       
   };
 
   struct cmScoreLoc_str;
