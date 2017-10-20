@@ -2707,6 +2707,8 @@ _cmScModTypeMap_t _cmScModTypeArray[] =
   { kSetLineModTId, 3, "sline" },
   { kPostModTId,    4, "post"  },
   { kExecModTId,    5, "exec"  },
+  { kInputModTId,   6, "input" },
+  { kCrossModTId,   7, "cross" },
   { kInvalidModTId, 0, "<invalid>"}
 };
 
@@ -2748,7 +2750,7 @@ cmScModVar_t* _cmScModulatorInsertVar( cmScModulator* p, unsigned varSymId, unsi
   {
     vp = cmMemAllocZ(cmScModVar_t,1);
     vp->varSymId = varSymId;
-    vp->outVarId = cmInvalidId;
+    vp->varId = cmInvalidId;
     vp->vlink    = p->vlist;
     p->vlist     = vp;
   }
@@ -2771,14 +2773,9 @@ cmScModEntry_t* _cmScModulatorInsertEntry(cmScModulator* p, cmScModEntryGroup_t*
 
   g->earray[idx].scLocIdx = scLocIdx;
   g->earray[idx].typeId   = typeId;
-  g->earray[idx].varPtr   = _cmScModulatorInsertVar(p,varSymId,0);
-
-  if( g->earray[idx].varPtr->outVarId == cmInvalidIdx )
-    g->earray[idx].varPtr->outVarId = p->outVarCnt++;
 
   return g->earray + idx;
 }
-
 
 /*
 {
@@ -2832,6 +2829,114 @@ cmRC_t _cmScModulatorParseParam( cmScModulator* p, cmSymTblH_t stH, cmJsonNode_t
   return rc;
 }
 
+
+
+// If the requested parameter has a value then return it in *valPtr.
+// If it does not then do nothing. This function applies scaling to RHS values.
+cmRC_t  _cmScModGetParam( cmScModulator* p, const cmScModParam_t* pp, double* valPtr )
+{
+  cmRC_t rc = cmOkRC;
+
+  switch( pp->pid )
+  {
+    case kInvalidModPId:
+      rc  = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "An invalid parameter was encountered.");
+      goto errLabel;
+      break;
+
+    case kLiteralModPId:
+      *valPtr = pp->val;
+      break;
+
+    case kSymbolModPId:
+      {
+        cmScModVar_t* vp;
+
+        // get a pointer to the parameter variable
+        if((vp = _cmScModSymToVar(p, pp->symId )) == NULL )
+        {
+          rc  = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Variable '%s' not found.",cmSymTblLabel(p->stH,pp->symId));    
+          goto errLabel;
+        } 
+
+        // if this is not a 'calculated' paramter then scale it here.
+        if( cmIsFlag(vp->flags,kCalcModFl ) && vp->min!=DBL_MAX && vp->max!=DBL_MAX )
+          *valPtr = (vp->value - vp->min)/(vp->max-vp->min);
+        else
+          *valPtr = vp->value;
+      }
+      break;
+
+    default:
+      { assert(0); }
+  }
+
+ errLabel:
+  return rc;
+}
+
+void _cmScModDumpParam( cmScModulator* p, const cmChar_t* label, const cmScModParam_t* pp )
+{
+  printf("%s: ",label);
+
+  switch( pp->pid )
+  {
+    case kInvalidModPId:
+      printf("<invalid>");
+      break;
+
+    case kLiteralModPId:
+      if( pp->val == DBL_MAX )
+        printf("<max> ");
+      else
+        printf("%f ",pp->val);
+      break;
+
+    case kSymbolModPId:
+      printf("%s ",cmSymTblLabel(p->stH,pp->symId));
+      break;
+
+    default:
+      { assert(0); }
+  }
+}
+
+void _cmScModDumpVal( cmChar_t* label, double val )
+{
+  printf("%s:",label);
+
+  if( val == DBL_MAX )
+    printf("<max> " );
+  else
+    printf("%f ",val);
+}
+
+
+void _cmScModDumpVar( cmScModulator* p, const cmScModVar_t* vp )
+{
+   printf("%7s %3i fl:0x%x entry:%p alink:%p %s",cmSymTblLabel(p->stH,vp->varSymId),vp->varId,vp->flags,vp->entry,vp->alink, cmIsFlag(vp->flags,kInputModFl)?"input":"");
+    _cmScModDumpVal("val",vp->value);
+    _cmScModDumpVal("min",vp->min);
+    _cmScModDumpVal("max",vp->max);
+    _cmScModDumpVal("rate",vp->rate);
+    _cmScModDumpVal("v0",vp->v0);
+}
+
+void _cmScModDumpEntry( cmScModulator* p, const cmScModEntry_t* ep)
+{
+  const _cmScModTypeMap_t* tm = _cmScModTypeIdToMap( ep->typeId );
+
+  printf("%10i ",ep->scLocIdx);
+    
+  printf("%5s %7s", tm==NULL ? "invld" : tm->label, cmSymTblLabel(p->stH,ep->varPtr->varSymId));
+  _cmScModDumpParam(p," beg", &ep->beg);
+  _cmScModDumpParam(p," end", &ep->end);
+  _cmScModDumpParam(p," min", &ep->min);
+  _cmScModDumpParam(p," max", &ep->max);
+  _cmScModDumpParam(p," rate",&ep->rate);
+  printf("\n");
+  
+}
 
 cmRC_t _cmScModParseEntryGroup( cmScModulator* p, cmCtx_t* ctx, cmJsonH_t jsH, cmSymTblH_t stH, cmJsonNode_t* jnp, cmScModEntryGroup_t* g, const cmChar_t* fn )
 {
@@ -2914,9 +3019,11 @@ cmRC_t _cmScModParseEntryGroup( cmScModulator* p, cmCtx_t* ctx, cmJsonH_t jsH, c
     // get the count of the elmenets in the data array
     unsigned paramCnt = cmJsonChildCount(onp);
 
+
     // fill the entry record and find or create the target var
     cmScModEntry_t* ep = _cmScModulatorInsertEntry(p,g,i,scLocIdx,varSymId,map->typeId,paramCnt);
 
+    
     typedef struct
     {
       const cmChar_t* label;
@@ -2932,6 +3039,7 @@ cmRC_t _cmScModParseEntryGroup( cmScModulator* p, cmCtx_t* ctx, cmJsonH_t jsH, c
       { "val", &ep->beg },
       { "end", &ep->end },
       { "dur", &ep->dur },
+      { "arg", &ep->arg },
       { NULL, NULL }
     };
 
@@ -2939,7 +3047,21 @@ cmRC_t _cmScModParseEntryGroup( cmScModulator* p, cmCtx_t* ctx, cmJsonH_t jsH, c
     for(j=0; mapArray[j].param!=NULL; ++j)
       if((dnp = cmJsonFindValue(jsH,mapArray[j].label, onp, kInvalidTId )) != NULL )
         if((rc = _cmScModulatorParseParam(p,stH,dnp,mapArray[j].param)) != cmOkRC )
-          goto errLabel;    
+          goto errLabel;
+
+    // create the variable associated with this entry
+    ep->varPtr = _cmScModulatorInsertVar(p,varSymId, ep->typeId==kInputModTId ? kInputModFl : 0);
+
+
+    // set the variable id value
+    if( ep->varPtr->varId == cmInvalidIdx )
+    {
+      if( ep->typeId != kInputModTId )
+        ep->varPtr->varId = p->outVarCnt++;
+      else
+        ep->varPtr->varId = p->inVarCnt++;
+    }
+    
   }
 
  errLabel:
@@ -3022,6 +3144,8 @@ cmRC_t  _cmScModulatorReset( cmScModulator* p, cmCtx_t* ctx, unsigned scLocIdx, 
   p->elist     = NULL;
   p->nei       = 0;
   p->outVarCnt = 0;
+  p->inVarCnt  = 0;
+  
   
   // reload the file
   if((rc = _cmScModulatorParse(p,ctx,p->stH,p->fn)) != cmOkRC )
@@ -3120,13 +3244,29 @@ cmScModVar_t* cmScModulatorOutVar( cmScModulator* p, unsigned idx )
   cmScModEntryGroup_t* g = p->glist;
   for(; g!=NULL; g=g->link)
     for(i=0; i<g->en; ++i)
-      if( g->earray[i].varPtr->outVarId == idx )
+      if( cmIsNotFlag(g->earray[i].varPtr->flags,kInputModFl) && g->earray[i].varPtr->varId == idx )
         return g->earray[i].varPtr;
 
   return NULL;  
 }
 
-cmRC_t         cmScModulatorSetValue( cmScModulator* p, unsigned varSymId, double value, double min, double max )
+unsigned        cmScModulatorInVarCount( cmScModulator* p )
+{ return p->inVarCnt; }
+
+cmScModVar_t* cmScModulatorInVar( cmScModulator* p, unsigned idx )
+{
+  unsigned i;
+  cmScModEntryGroup_t* g = p->glist;
+  for(; g!=NULL; g=g->link)
+    for(i=0; i<g->en; ++i)
+      if( cmIsFlag(g->earray[i].varPtr->flags,kInputModFl) && g->earray[i].varPtr->varId == idx )
+        return g->earray[i].varPtr;
+
+  return NULL;  
+}
+
+
+cmScModVar_t* _cmScModSetValuePrefix( cmScModulator* p, unsigned varSymId )
 {
   cmScModVar_t* vp;
   // if the var does not exist ....
@@ -3137,10 +3277,27 @@ cmRC_t         cmScModulatorSetValue( cmScModulator* p, unsigned varSymId, doubl
     assert(vp!=NULL);    
   }
 
+  return vp;
+}
+
+
+cmRC_t         cmScModulatorSetValueMinMax( cmScModulator* p, unsigned varSymId, double value, double min, double max )
+{
+  cmScModVar_t* vp =  _cmScModSetValuePrefix(p, varSymId );
+  
   assert( min <= max);
 
   vp->min   = min;
   vp->max   = max;  
+  vp->value = value;
+
+  return cmOkRC;
+}
+
+cmRC_t         cmScModulatorSetValue( cmScModulator* p, unsigned varSymId, double value )
+{
+  cmScModVar_t* vp =  _cmScModSetValuePrefix(p, varSymId );
+  
   vp->value = value;
 
   return cmOkRC;
@@ -3171,50 +3328,6 @@ void  _cmScModUnlinkActive( cmScModulator* p, cmScModVar_t* vp, cmScModVar_t* pp
   vp->entry = NULL;
 }
 
-// If the requested parameter has a value then return it in *valPtr.
-// If it does not then do nothing. This function applies scaling to RHS values.
-cmRC_t  _cmScModGetParam( cmScModulator* p, const cmScModParam_t* pp, double* valPtr )
-{
-  cmRC_t rc = cmOkRC;
-
-  switch( pp->pid )
-  {
-    case kInvalidModPId:
-      rc  = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "An invalid parameter was encountered.");
-      goto errLabel;
-      break;
-
-    case kLiteralModPId:
-      *valPtr = pp->val;
-      break;
-
-    case kSymbolModPId:
-      {
-        cmScModVar_t* vp;
-
-        // get a pointer to the parameter variable
-        if((vp = _cmScModSymToVar(p, pp->symId )) == NULL )
-        {
-          rc  = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Variable '%s' not found.",cmSymTblLabel(p->stH,pp->symId));    
-          goto errLabel;
-        } 
-
-        // if this is not a 'calculated' paramter then scale it here.
-        if( cmIsFlag(vp->flags,kCalcModFl ) && vp->min!=DBL_MAX && vp->max!=DBL_MAX )
-          *valPtr = (vp->value - vp->min)/(vp->max-vp->min);
-        else
-          *valPtr = vp->value;
-      }
-      break;
-
-    default:
-      { assert(0); }
-  }
-
- errLabel:
-  return rc;
-}
-
 cmRC_t  _cmScModActivateEntries( cmScModulator* p, cmScModEntry_t* earray, unsigned* idxRef, unsigned cnt, unsigned scLocIdx );
 
 cmRC_t  _cmScModActivateGroup( cmScModulator* p, cmScModEntry_t* ep )
@@ -3229,6 +3342,49 @@ cmRC_t  _cmScModActivateGroup( cmScModulator* p, cmScModEntry_t* ep )
     }
 
   return cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Entry group '%s' not found.",cmSymTblLabel(p->stH,ep->beg.symId));    
+}
+
+
+cmRC_t _cmScModGetCrossParam( cmScModulator* p, cmScModEntry_t* ep, cmScModParam_t* pp, const cmChar_t* label, double* valRef )
+{
+  cmRC_t rc;
+  
+  if((rc = _cmScModGetParam(p, pp, valRef )) != cmOkRC )
+    rc = cmCtxRtCondition( &p->obj, cmInvalidArgRC, "Invalid %s parameter for cross variable:%s",label,cmSymTblLabel(p->stH,ep->varPtr->varSymId) );
+
+  return rc;
+  
+}
+
+cmRC_t _cmScModExecCross( cmScModulator* p, cmScModEntry_t* ep )
+{
+  cmRC_t rc = cmOkRC;
+  double x  = 0.0;
+  //double x0 = 0.0, x1 = 0.0;
+  double y0 = 0.0, y1 = 0.0;
+
+  if((rc = _cmScModGetCrossParam(p, ep, &ep->arg, "src var", &x )) != cmOkRC )
+    return rc;
+    
+  //if((rc = _cmScModGetCrossParam(p, ep, &ep->beg, "src min", &x0 )) != cmOkRC )
+  //  return rc;
+
+  //if((rc = _cmScModGetCrossParam(p, ep, &ep->end, "src max", &x1 )) != cmOkRC )
+  //  return rc;
+  
+  if((rc = _cmScModGetCrossParam(p, ep, &ep->min, "dst min", &y0 )) != cmOkRC )
+    return rc;
+  
+  if((rc = _cmScModGetCrossParam(p, ep, &ep->max, "dst max", &y1 )) != cmOkRC )
+    return rc;
+
+  //double xx = x0 + (x-x0) / (x1-x0);
+
+  printf("%s x:%f y0:%f y1:%f\n",__FUNCTION__,x,y0,y1);
+  
+  ep->varPtr->value =  y0 + x * (y1-y0);
+
+  return rc;  
 }
 
 // Type specific variable activation - 
@@ -3277,6 +3433,12 @@ cmRC_t _cmScModActivate(cmScModulator* p, cmScModEntry_t* ep )
       rc = _cmScModActivateGroup(p,ep);
       break;
 
+    case kInputModTId:
+      break;
+
+    case kCrossModTId:
+      break;
+
     default:
       { assert(0); }
   }
@@ -3306,6 +3468,7 @@ cmRC_t  _cmScModExecSendValue( cmScModulator* p, cmScModVar_t* vp )
   return rc;
 }
 
+// Execute a variable.
 // Return true if vp should be deactivated otherwise return false.
 bool  _cmScModExec( cmScModulator* p, cmScModVar_t* vp )
 {
@@ -3322,6 +3485,7 @@ bool  _cmScModExec( cmScModulator* p, cmScModVar_t* vp )
       
     case kSetModTId:
       {
+        // Get a new value for the variable *vp.
         if((rc = _cmScModGetParam(p,&vp->entry->beg,&vp->value)) != cmOkRC )
           goto errLabel;
         
@@ -3343,6 +3507,7 @@ bool  _cmScModExec( cmScModulator* p, cmScModVar_t* vp )
         if((rc = _cmScModGetParam(p,&vp->entry->dur,&td)) != cmOkRC) 
           goto errLabel;
 
+        // update the value of the var *vp
         double v  = vp->v0 + (v1-vp->v0) * (vp->phase * p->samplesPerCycle) / (p->srate * td);        
 
         if((fl =  (vp->value <= v1 && v >= v1) || (vp->value >= v1 && v <= v1 )) == true )
@@ -3360,6 +3525,16 @@ bool  _cmScModExec( cmScModulator* p, cmScModVar_t* vp )
       sendFl = false;
       break;
 
+    case kInputModTId:
+      sendFl = false;
+      break;
+      
+    case kCrossModTId:
+      _cmScModExecCross(p,vp->entry);
+      vp->phase = 0; // force the value to be sent
+      fl = true;
+      break;
+      
     default:
       { assert(0); }
   }
@@ -3451,58 +3626,13 @@ cmRC_t cmScModulatorExec( cmScModulator* p, unsigned scLocIdx )
 }
 
 
-void _cmScModDumpParam( cmScModulator* p, const cmChar_t* label, cmScModParam_t* pp )
-{
-  printf("%s: ",label);
-
-  switch( pp->pid )
-  {
-    case kInvalidModPId:
-      printf("<invalid>");
-      break;
-
-    case kLiteralModPId:
-      if( pp->val == DBL_MAX )
-        printf("<max> ");
-      else
-        printf("%f ",pp->val);
-      break;
-
-    case kSymbolModPId:
-      printf("%s ",cmSymTblLabel(p->stH,pp->symId));
-      break;
-
-    default:
-      { assert(0); }
-  }
-}
-
-void _cmScModDumpVal( cmChar_t* label, double val )
-{
-  printf("%s:",label);
-
-  if( val == DBL_MAX )
-    printf("<max> " );
-  else
-    printf("%f ",val);
-}
-
-void _cmScModDumpVar( cmScModulator* p, const cmScModVar_t* vp )
-{
-    printf("%7s %3i fl:0x%x entry:%p alink:%p ",cmSymTblLabel(p->stH,vp->varSymId),vp->outVarId,vp->flags,vp->entry,vp->alink);
-    _cmScModDumpVal("val",vp->value);
-    _cmScModDumpVal("min",vp->min);
-    _cmScModDumpVal("max",vp->max);
-    _cmScModDumpVal("rate",vp->rate);
-    _cmScModDumpVal("v0",vp->v0);
-}
 
 cmRC_t  cmScModulatorDump(  cmScModulator* p )
 {
   cmRC_t rc = cmOkRC;
 
   printf("MOD:\n");
-  printf("nei:%i alist:%p outVarCnt:%i\n",p->nei,p->alist,p->outVarCnt);
+  printf("nei:%i alist:%p outVarCnt:%i inVarCnt:%i\n",p->nei,p->alist,p->outVarCnt,p->inVarCnt);
 
   printf("ENTRIES:\n");
   cmScModEntryGroup_t* g = p->glist;
@@ -3513,19 +3643,9 @@ cmRC_t  cmScModulatorDump(  cmScModulator* p )
     for(i=0; i<g->en; ++i)
     {
       cmScModEntry_t* ep = g->earray + i;
-      const _cmScModTypeMap_t* tm = _cmScModTypeIdToMap( ep->typeId );
-
       printf("%3i ",i);
-
-      printf("%10i ",ep->scLocIdx);
-    
-      printf("%5s %7s", tm==NULL ? "invld" : tm->label, cmSymTblLabel(p->stH,ep->varPtr->varSymId));
-      _cmScModDumpParam(p," beg", &ep->beg);
-      _cmScModDumpParam(p," end", &ep->end);
-      _cmScModDumpParam(p," min", &ep->min);
-      _cmScModDumpParam(p," max", &ep->max);
-      _cmScModDumpParam(p," rate",&ep->rate);
-      printf("\n");
+      
+      _cmScModDumpEntry(p,ep);
     }
   }
   

@@ -402,11 +402,21 @@ extern "C" {
 
   //( { label:cmScMod file_desc:"Store and recall parameter information under score follower control." kw:[proc] } 
   /*
+
+    File format:
+    {
+      entry_group_label :
+      [
+        <loc> <mod> <var> <type> <params>    // entry record
+      ]
+    }
+
+
     Syntax: <loc> <mod> <var> <type>   <params>
     <loc> - score location
     <mod> - name of the modulator 
     <var> - variable name 
-    <type> - type of operation
+    <type> - type of operation (see Types: note below)
 
     <params>
 
@@ -416,6 +426,7 @@ extern "C" {
     <val>  - type dependent value - see 'Types' below.  
     <end>  - ending value for a ramping variable
     <dur>  - determines the length of time to get to the ending value
+    <in>   - set to '1' to indicate that this is an input variable
 
     The value of parameters may be literal numeric values or may refer to
     variables by their name.
@@ -426,6 +437,8 @@ extern "C" {
     sline  = set <var> to <val> and ramp to <end> over <dur> seconds
     post   = send a 'post' msg after each transmission (can be used to change the cross-fader after each msg)
     exec   = execute the entry group <val>
+    input  = declare an 'input' variable and set its <min> and <max>.
+    cross  = generate an output value by interpolating between two preset values.
 
   */
   enum
@@ -436,13 +449,16 @@ extern "C" {
     kLineModTId,     // linear ramp variable to parray[0] over parray[1] seconds
     kSetLineModTId,  // set variable to parray[0] and ramp to parray[1] over parray[2] seconds
     kPostModTId,     //
-    kExecModTId      // execute an entry group 
+    kExecModTId,     // execute an entry group
+    kInputModTId,    // This is an 'input' variable.
+    kCrossModTId     // generate an output value by interpolating between two preset variable values
   };
 
   enum
   {
     kActiveModFl = 0x01,  // this variable is on the 'active' list
-    kCalcModFl   = 0x02   // when this variable is used as a parameter it's value must be calculated rather than used directly.
+    kCalcModFl   = 0x02,  // when this variable is used as a parameter it's value must be calculated rather than used directly.
+    kInputModFl  = 0x04   // this is an input variable
   };
 
   struct cmScModEntry_str;
@@ -461,11 +477,12 @@ extern "C" {
     double       val;     // value of literals
   } cmScModParam_t;
 
+  // cmScModVar_t is used to track the value of a variable.
   typedef struct cmScModVar_str
   {
     unsigned                 flags;    // see kXXXModFl flags above.
     unsigned                 varSymId; // variable name 
-    unsigned                 outVarId; // output var id
+    unsigned                 varId;    // var id
     double                   value;    // current value of this variable
     double                   v0;       // reserved internal variable
     unsigned                 phase;    // cycle phase since activation  
@@ -489,6 +506,7 @@ extern "C" {
     cmScModParam_t min;           // min value for this variable
     cmScModParam_t max;           // max value for this variable
     cmScModParam_t rate;          // update rate in milliseconds (DBL_MAX to disable)
+    cmScModParam_t arg;           // cross input variable
     cmScModVar_t*  varPtr;        // target variable 
   } cmScModEntry_t;
 
@@ -515,11 +533,12 @@ extern "C" {
     cmScModVar_t*   vlist;        // variable list
     cmScModVar_t*   alist;        // active variable list
     cmScModVar_t*   elist;        // last element on the active list
-    unsigned        nei;          // next entry index
+    unsigned        nei;          // next entry index in xlist->earray[] to examine for activation
     unsigned        outVarCnt;    // count of unique vars that are targets of entry recds
+    unsigned        inVarCnt;     
     bool            postFl;       // send a 'post' msg after each transmission
-    cmScModEntryGroup_t* xlist;
-    cmScModEntryGroup_t* glist;
+    cmScModEntryGroup_t* xlist;   // entry group to execute
+    cmScModEntryGroup_t* glist;   // entry group list
   } cmScModulator;
 
 
@@ -532,9 +551,14 @@ extern "C" {
   unsigned       cmScModulatorOutVarCount( cmScModulator* p );
 
   // Return a pointer to the variable at vlist[idx].
-  cmScModVar_t*  cmScModulatorOutVar( cmScModulator* p, unsigned idx ); 
+  cmScModVar_t*  cmScModulatorOutVar( cmScModulator* p, unsigned idx );
 
-  cmRC_t         cmScModulatorSetValue( cmScModulator* p, unsigned varSymId, double value, double min, double max );
+  unsigned       cmScModulatorInVarCount( cmScModulator* p );
+  cmScModVar_t*  cmScModulatorInVar( cmScModulator* p, unsigned idx );
+  
+
+  cmRC_t         cmScModulatorSetValueMinMax( cmScModulator* p, unsigned varSymId, double value, double min, double max );
+  cmRC_t         cmScModulatorSetValue(       cmScModulator* p, unsigned varSymId, double value );
 
   cmRC_t         cmScModulatorReset( cmScModulator* p, cmCtx_t* ctx, unsigned scLocIdx, unsigned entryGroupSymId );
   cmRC_t         cmScModulatorExec(  cmScModulator* p, unsigned scLocIdx );

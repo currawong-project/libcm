@@ -1307,6 +1307,7 @@ void _cmScFolMatcherCb( cmScMatcher* p, void* arg, cmScMatcherResult_t* rp )
         cmDsvSetDouble(&vv,ap->sfp->smp->set[i].value);
         cmDsvSetDouble(&cv,ap->sfp->smp->set[i].match_cost);
 
+               
         for(j=0; j<ap->sfp->smp->set[i].sp->sectCnt; ++j)
         {
           cmDspStoreSetValueViaSym(ap->ctx->dsH, ap->sfp->smp->set[i].sp->symArray[j], &vv );
@@ -1381,7 +1382,7 @@ cmDspRC_t _cmDspScFolReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
   cmDspRC_t     rc;
   if((rc = cmDspApplyAllDefaults(ctx,inst)) != kOkDspRC )
     return rc;
-
+  
   return _cmDspScFolOpenScore(ctx,inst);
 }
 
@@ -1499,6 +1500,10 @@ typedef struct
   unsigned       offSymId;
   unsigned       postSymId;
   unsigned       dumpSymId;
+  unsigned       minInVarId;
+  unsigned       maxInVarId;
+  unsigned*      inVarIdMap;
+  unsigned       inVarIdOffs;
 } cmDspScMod_t;
 
 void _cmDspScModCb( void* arg, unsigned varSymId, double value, bool postFl )
@@ -1560,33 +1565,45 @@ cmDspInst_t*  _cmDspScModAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned
     return NULL;
   }
   unsigned      fixArgCnt = sizeof(args)/sizeof(args[0]) - 1;
-  unsigned      argCnt    = fixArgCnt + cmScModulatorOutVarCount(mp);
+  unsigned      outVarCnt = cmScModulatorOutVarCount(mp);
+  unsigned      inVarCnt  = cmScModulatorInVarCount(mp);
+  unsigned      argCnt    = fixArgCnt + inVarCnt + outVarCnt;
   cmDspVarArg_t a[ argCnt+1 ];
   unsigned      i;
-
+  unsigned*     inVarIdMap = cmMemAllocZ( unsigned, inVarCnt );
   cmDspArgCopy( a, argCnt, 0, args, fixArgCnt );
 
   for(i=fixArgCnt; i<argCnt; ++i)
   {
-    unsigned            varIdx    = i - fixArgCnt;
-    const cmScModVar_t* vp        = cmScModulatorOutVar(mp,varIdx);
+    unsigned            inVarIdx  = i - fixArgCnt;
+    unsigned            outVarIdx = inVarIdx - inVarCnt; 
+    bool                inputFl   = inVarIdx < inVarCnt;
+    const cmScModVar_t* vp        = inputFl ? cmScModulatorInVar(mp,inVarIdx) : cmScModulatorOutVar(mp,outVarIdx);
     const cmChar_t*     label     = cmSymTblLabel( ctx->stH, vp->varSymId );
-    const cmChar_t*     docStr    = cmTsPrintfS("Variable output for %s",label);
+    const cmChar_t*     docStr    = cmTsPrintfS("Variable %s for %s",inputFl?"input":"output",label);
+    unsigned            flags     = inputFl ? kInDsvFl : kOutDsvFl;
 
-    cmDspArgSetup(ctx, a + i, label, cmInvalidId, i, 0, 0, kOutDsvFl | kDoubleDsvFl, docStr ); 
+    if( inputFl )
+      inVarIdMap[ inVarIdx ] = vp->varSymId;
+
+    cmDspArgSetup(ctx, a + i, label, cmInvalidId, i, 0, 0, flags | kDoubleDsvFl, docStr ); 
   }
   cmDspArgSetupNull(a+argCnt); // set terminating arg. flags
 
   cmDspScMod_t* p = cmDspInstAlloc(cmDspScMod_t,ctx,classPtr,a,instSymId,id,storeSymId,va_cnt,vl);
 
 
-  p->fn       = cmMemAllocStr(fn);
-  p->modLabel = cmMemAllocStr(modLabel);
-  p->mp       = mp;
-  p->onSymId  = cmSymTblId(ctx->stH,"on");
-  p->offSymId = cmSymTblId(ctx->stH,"off");
-  p->postSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"post");
-  p->dumpSymId = cmSymTblId(ctx->stH,"dump");
+  p->fn          = cmMemAllocStr(fn);
+  p->modLabel    = cmMemAllocStr(modLabel);
+  p->mp          = mp;
+  p->onSymId     = cmSymTblId(ctx->stH,"on");
+  p->offSymId    = cmSymTblId(ctx->stH,"off");
+  p->postSymId   = cmSymTblRegisterStaticSymbol(ctx->stH,"post");
+  p->dumpSymId   = cmSymTblId(ctx->stH,"dump");
+  p->minInVarId  = fixArgCnt;
+  p->maxInVarId  = p->minInVarId + inVarCnt - 1;
+  p->inVarIdMap  = inVarIdMap;
+  p->inVarIdOffs = fixArgCnt;
 
   mp->cbArg = p;  // set the modulator callback arg
 
@@ -1609,6 +1626,7 @@ cmDspRC_t _cmDspScModFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
 
   cmMemFree(p->fn);
   cmMemFree(p->modLabel);
+  cmMemFree(p->inVarIdMap);
   return rc;
 }
 
@@ -1627,6 +1645,13 @@ cmDspRC_t _cmDspScModRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   cmDspScMod_t* p  = (cmDspScMod_t*)inst;
 
   cmDspSetEvent(ctx,inst,evt);
+
+  if( p->minInVarId <= evt->dstVarId && evt->dstVarId <= p->maxInVarId )
+  {
+    double v = cmDspDouble(inst,evt->dstVarId);
+    printf("%s : %i %f\n",__FUNCTION__,evt->dstVarId,v);
+    cmScModulatorSetValue( p->mp, p->inVarIdMap[ evt->dstVarId - p->inVarIdOffs ], v );
+  }
   
   switch( evt->dstVarId )
   {
