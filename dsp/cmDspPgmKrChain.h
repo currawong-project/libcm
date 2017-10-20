@@ -31,6 +31,7 @@ typedef struct
   cmDspInst_t* kr0;  // audio input
   cmDspInst_t* kr1;
   cmDspInst_t* cmp;  // audio output
+  cmDspInst_t* even_ctl;
 } cmDspTlXform_t;
 
 
