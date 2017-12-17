@@ -231,6 +231,9 @@ extern "C" {
 
   cmMfRC_t             cmMidiFileGenSvgFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outSvgFn, const cmChar_t* cssFn );
 
+  // Generate a text file reportusing cmMIdiFilePrintMsgs()
+  cmMfRC_t             cmMidiFileReport(     cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outTextFn );
+
   void                  cmMidiFileTest( const char* fn, cmCtx_t* ctx );
 
 
