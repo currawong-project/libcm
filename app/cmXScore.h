@@ -53,7 +53,7 @@ extern "C" {
   
   bool     cmXScoreIsValid( cmXsH_t h );
 
-  cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn );
+  cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, int beginMeasNumb, const cmChar_t* csvFn );
 
   void     cmXScoreReport( cmXsH_t h, cmRpt_t* rpt, bool sortFl );
 
@@ -69,7 +69,10 @@ extern "C" {
   // internal call to cmXScoreGenEditFile().  This file can then be edited
   // to include the additional score file information and passed back by a later
   // call to this same function.
-  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* reorderFn, const cmChar_t* csvOutFn, const cmChar_t* midiOutFn );
+  // Set reportFl to true to print a report of the score following processing.
+  // Set begMeasNumb to the first measure the to be written to the output csv, MIDI and SVG files.
+  // Set begBPM to 0 to use the tempo from the score otherwise set it to the tempo at begMeasNumb.
+  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* reorderFn, const cmChar_t* csvOutFn, const cmChar_t* midiOutFn, bool reportFl, int begMeasNumb, int begBPM );
   
 #ifdef __cplusplus
 }
