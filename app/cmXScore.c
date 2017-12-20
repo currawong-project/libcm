@@ -274,12 +274,13 @@ cmXsRC_t _cmXScorePushNote( cmXScore_t* p, cmXsMeas_t* meas, unsigned voiceId, c
 }
 
 
-void _cmXScoreRemoveNote( cmXsNote_t* note )
+cmXsRC_t  _cmXScoreRemoveNote( cmXsNote_t* note )
 {
   cmXsNote_t* n0 = NULL;
   cmXsNote_t* n1 = note->voice->noteL;
-  
+  unsigned    cnt = 0;
   for(; n1!=NULL; n1=n1->mlink)
+  {
     if( n1->uid == note->uid )
     {
       if( n0 == NULL )
@@ -287,12 +288,17 @@ void _cmXScoreRemoveNote( cmXsNote_t* note )
       else
         n0->mlink = n1->mlink;
 
+      cnt = 1;
       break;
     }
 
+    n0 = n1;
+  }
+  
   n0 = NULL;
   n1 = note->meas->noteL;
   for(; n1!=NULL; n1=n1->slink)
+  {
     if( n1->uid == note->uid )
     {
       if( n0 == NULL )
@@ -300,13 +306,20 @@ void _cmXScoreRemoveNote( cmXsNote_t* note )
       else
         n0->slink = n1->slink;
 
+      cnt = 2;
       break;
     }
+    
+    n0 = n1;
+  }
+  return cnt == 2 ? kOkXsRC : kSyntaxErrorXsRC;
  
 }
 
 void _cmXScoreInsertNoteBefore( cmXsNote_t* note, cmXsNote_t* nn )
 {
+  assert( note != NULL );
+  
   // insert the new note into the voice list before 'note'
   cmXsNote_t* n0 = NULL;
   cmXsNote_t* n1 = note->voice->noteL;
@@ -2145,7 +2158,8 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
   // remove deleted notes
   for(i=0; i<rN; ++i)
     if( cmIsFlag(rV[i].newFlags,kDeleteXsFl) )
-      _cmXScoreRemoveNote( rV[i].note );
+      if( _cmXScoreRemoveNote( rV[i].note ) != kOkXsRC )
+        return cmErrMsg(&p->err,kSyntaxErrorXsRC,"Event marked to skip was not found in measure: %i",measNumb);
       
   cmXsMeas_t* mp  = rV[0].note->meas;
   cmXsNote_t* n0p = NULL;
@@ -3291,14 +3305,14 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note,unsigned index )
 
   if( cmIsFlag(note->flags,kEndGraceXsFl) )
     cmRptPrintf(rpt," E");
-
-
+    
   if( cmIsFlag(note->flags,kDynBegForkXsFl) )
     cmRptPrintf(rpt," B");
 
   if( cmIsFlag(note->flags,kDynEndForkXsFl) )
     cmRptPrintf(rpt," E");
-  */  
+  */
+    
 }
 
 
