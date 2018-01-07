@@ -1981,6 +1981,7 @@ typedef struct
   unsigned smpIdx;   // time of assoc'd MIDI event
   unsigned cnt;      // 
   double   val;      //
+  unsigned pitch;
 } _cmScMeasTimeEle_t;
 
 typedef struct
@@ -2050,7 +2051,7 @@ unsigned _cmScMeasTimeAlign( cmScMeas* p, cmScMeasSet_t* sp, cmScMatchMidi_t* m,
         {
           a[j].smpIdx += m[i].smpIdx;
           a[j].cnt    += 1;
-
+          a[j].pitch   = m[i].pitch;
           if( a[j].cnt == 1 )
             matchN += 1;  // only cnt one match per sc loc.
           break;
@@ -2139,7 +2140,10 @@ double _cmScMeasEven( cmScMeas* p, cmScMeasSet_t* sp, cmScMatchMidi_t* m, unsign
   // calc avg. delta time
   double d_avg  = 0;
   for(i=0; i<bn-1; ++i)
+  {
     d_avg  += b[i].val;
+    //printf("loc:%i %f\n",b[i].scLocIdx,b[i].val);
+  }
 
   d_avg /= (bn-1);
 
@@ -3360,27 +3364,18 @@ cmRC_t _cmScModExecCross( cmScModulator* p, cmScModEntry_t* ep )
 {
   cmRC_t rc = cmOkRC;
   double x  = 0.0;
-  //double x0 = 0.0, x1 = 0.0;
   double y0 = 0.0, y1 = 0.0;
 
   if((rc = _cmScModGetCrossParam(p, ep, &ep->arg, "src var", &x )) != cmOkRC )
     return rc;
     
-  //if((rc = _cmScModGetCrossParam(p, ep, &ep->beg, "src min", &x0 )) != cmOkRC )
-  //  return rc;
-
-  //if((rc = _cmScModGetCrossParam(p, ep, &ep->end, "src max", &x1 )) != cmOkRC )
-  //  return rc;
-  
   if((rc = _cmScModGetCrossParam(p, ep, &ep->min, "dst min", &y0 )) != cmOkRC )
     return rc;
   
   if((rc = _cmScModGetCrossParam(p, ep, &ep->max, "dst max", &y1 )) != cmOkRC )
     return rc;
 
-  //double xx = x0 + (x-x0) / (x1-x0);
-
-  printf("%s x:%f y0:%f y1:%f\n",__FUNCTION__,x,y0,y1);
+  //printf("%s x:%f y0:%f y1:%f\n",__FUNCTION__,x,y0,y1);
   
   ep->varPtr->value =  y0 + x * (y1-y0);
 

@@ -57,8 +57,8 @@ cmSRC += src/libcm/dsp/cmDspStore.c src/libcm/dsp/cmDspBuiltIn.c  src/libcm/dsp/
 cmHDR += src/libcm/dsp/cmDspPgm.h src/libcm/dsp/cmDspPgmPP.h src/libcm/dsp/cmDspPgmPPMain.h
 cmSRC += src/libcm/dsp/cmDspPgm.c src/libcm/dsp/cmDspPgmPP.c src/libcm/dsp/cmDspPgmPPMain.c
 
-cmHDR +=  src/libcm/dsp/cmDspKr.h src/libcm/dsp/cmDspPgmKr.h  src/libcm/dsp/cmDspPgmKrChain.h 
-cmSRC +=  src/libcm/dsp/cmDspKr.c src/libcm/dsp/cmDspPgmKr.c  src/libcm/dsp/cmDspPgmKrChain.c src/libcm/dsp/cmDspPgmKrTksb.c src/libcm/dsp/cmDspPgmKrTimeLineLite.c
+cmHDR +=  src/libcm/dsp/cmDspKr.h src/libcm/dsp/cmDspPgmKr.h  src/libcm/dsp/cmDspPgmKrChain.h  
+cmSRC +=  src/libcm/dsp/cmDspKr.c src/libcm/dsp/cmDspPgmKr.c  src/libcm/dsp/cmDspPgmKrChain2.c src/libcm/dsp/cmDspPgmKrTksb.c src/libcm/dsp/cmDspPgmKrTimeLineLite.c
 
 cmHDR += src/libcm/cmAudDsp.h src/libcm/cmAudDspIF.h src/libcm/cmAudDspLocal.h
 cmSRC += src/libcm/cmAudDsp.c src/libcm/cmAudDspIF.c src/libcm/cmAudDspLocal.c

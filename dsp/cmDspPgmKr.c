@@ -167,12 +167,12 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   cmDspTlXform_t c0,c1,c2,c3;
 
   cmDspSysNewPage(h,"Controls-0");
-  _cmDspSys_TlXformChain(h, &c0, preGrpSymId, cmpPreGrpSymId, modp, 0, 0 );
+  _cmDspSys_TlXformChain(h, &c0, preGrpSymId, cmpPreGrpSymId, amp, modp, 0, 0 );
 
   if( useChain1Fl )
   {
     cmDspSysNewPage(h,"Controls-1");
-    _cmDspSys_TlXformChain(h, &c1, preGrpSymId, cmpPreGrpSymId, modp, 1, 1 );
+    _cmDspSys_TlXformChain(h, &c1, preGrpSymId, cmpPreGrpSymId, amp, modp, 1, 1 );
   }
 
   cmDspInst_t* mix0 = NULL;
@@ -181,10 +181,10 @@ cmDspRC_t _cmDspSysPgm_TimeLine(cmDspSysH_t h, void** userPtrPtr )
   if( fragFl )
   {
     cmDspSysNewPage(h,"Ctl-R/P-0");
-    _cmDspSys_TlXformChain(h, &c2, preGrpSymId, cmpPreGrpSymId, modr, 2, 0 );
+    _cmDspSys_TlXformChain(h, &c2, preGrpSymId, cmpPreGrpSymId, amp, modr, 2, 0 );
 
     cmDspSysNewPage(h,"Ctl-R/P-1");
-    _cmDspSys_TlXformChain(h, &c3, preGrpSymId, cmpPreGrpSymId, modr, 3, 1 );
+    _cmDspSys_TlXformChain(h, &c3, preGrpSymId, cmpPreGrpSymId, amp, modr, 3, 1 );
 
     mix0 = cmDspSysAllocInst(h,"AMix",        NULL,   3, 2, 1.0, 1.0 );
     mix1 = cmDspSysAllocInst(h,"AMix",        NULL,   3, 2, 1.0, 1.0 );

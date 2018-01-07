@@ -1649,7 +1649,7 @@ cmDspRC_t _cmDspScModRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* 
   if( p->minInVarId <= evt->dstVarId && evt->dstVarId <= p->maxInVarId )
   {
     double v = cmDspDouble(inst,evt->dstVarId);
-    printf("%s : %i %f\n",__FUNCTION__,evt->dstVarId,v);
+    //printf("%s : %i %f\n",__FUNCTION__,evt->dstVarId,v);
     cmScModulatorSetValue( p->mp, p->inVarIdMap[ evt->dstVarId - p->inVarIdOffs ], v );
   }
   

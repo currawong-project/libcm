@@ -58,8 +58,6 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   if( krLoadRsrc(h,&err,&r) != kOkDspRC )
     return rc;
 
-  
-
   cmDspInst_t* ai0 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 0);
   cmDspInst_t* ai1 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 1);
   //cmDspInst_t* mip = cmDspSysAllocInst(h,"MidiIn",      NULL,  2, "MOTU - Traveler mk3", "MIDI Port");
@@ -83,16 +81,16 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspTlXform_t c0,c1;
 
   cmDspSysNewPage(h,"Controls-0");
-  _cmDspSys_TlXformChain(h, &c0, preGrpSymId, cmpPreGrpSymId, modp, 0, 0 );
+  _cmDspSys_TlXformChain(h, &c0, preGrpSymId, cmpPreGrpSymId, amp, modp, 0, 0 );
 
   cmDspSysNewPage(h,"Controls-1");
-  _cmDspSys_TlXformChain(h, &c1, preGrpSymId, cmpPreGrpSymId, modp, 1, 1 );
+  _cmDspSys_TlXformChain(h, &c1, preGrpSymId, cmpPreGrpSymId, amp, modp, 1, 1 );
 
 
   cmDspInst_t* ao0 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 4 ); // 4 Piano     1 Output
   cmDspInst_t* ao1 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 5 ); // 5          2
-  cmDspInst_t* ao2 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 0 ); // 2 Transform 1 OUtput
-  cmDspInst_t* ao3 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 1 ); // 3          2
+  cmDspInst_t* ao2 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 2 ); // 2 Transform 1 OUtput
+  cmDspInst_t* ao3 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 ); // 3          2
 
   cmDspSysNewPage(h,"Main");
   cmDspInst_t* onb     = cmDspSysAllocInst(h,"Button", "start",   2, kButtonDuiId, 1.0 );
@@ -202,15 +200,14 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   // *****
 
   // active measure loc to xfad channel trigger
- 
+  /*
   cmDspSysInstallCb( h, amp,       "scloc",c0.achan, "trig", NULL );  // See Also: modp.sw ->achan.trig
   cmDspSysInstallCb( h, amp,       "scloc",c1.achan, "trig", NULL );
   cmDspSysInstallCb( h, recallBtn, "sym",  c0.achan, "trig", NULL ); 
   cmDspSysInstallCb( h, recallBtn, "sym",  c1.achan, "trig", NULL );
+  */
   
   cmDspSysInstallCb( h, amp,    "even",   pre,        "in",   NULL );  // active meas output to printers
-  //cmDspSysInstallCb( h, amp,    "even",   c0.even_ctl,  "val",   NULL );  
-  //cmDspSysInstallCb( h, amp,    "even",   c1.even_ctl,  "val",   NULL );
   cmDspSysInstallCb( h, amp,    "even",   modp,       "even", NULL );
 
   cmDspSysInstallCb( h, amp,    "dyn",    prd,        "in",   NULL );
@@ -304,8 +301,8 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, modp, "wgain0",  ogain2, "val",  NULL );
   cmDspSysInstallCb(h, modp, "wgain1",  ogain3, "val",  NULL );
 
-  //cmDspSysInstallCb(h, ogain0, "val", ao0, "gain", NULL );   // output gain control - dry 0
-  //cmDspSysInstallCb(h, ogain1, "val", ao1, "gain", NULL );   //                       dry 1
+  cmDspSysInstallCb(h, ogain0, "val", ao0, "gain", NULL );   // output gain control - dry 0
+  cmDspSysInstallCb(h, ogain1, "val", ao1, "gain", NULL );   //                       dry 1
   cmDspSysInstallCb(h, ogain2, "val", ao2, "gain", NULL );   //                       wet 0
   cmDspSysInstallCb(h, ogain3, "val", ao3, "gain", NULL );   //                       wet 1
 
