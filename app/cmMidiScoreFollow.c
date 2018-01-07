@@ -269,7 +269,7 @@ cmMsfRC_t cmMidiScoreFollowMain(
 
   }
 
-  //_cmMsf_ReportScoreErrors(&sfr, scH );
+  _cmMsf_ReportScoreErrors(&sfr, scH );
 
   //_cmMsf_ReportMidiErrors(&sfr, scH, m, mN);
 

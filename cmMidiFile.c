@@ -4,6 +4,7 @@
 #include "cmErr.h"
 #include "cmCtx.h"
 #include "cmFile.h"
+#include "cmRptFile.h"
 #include "cmMem.h"
 #include "cmMallocDebug.h"
 #include "cmLinkedHeap.h"
@@ -2070,6 +2071,35 @@ cmMfRC_t cmMidiFileGenSvgFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmCha
   
   return rc;
 }
+
+cmMfRC_t  cmMidiFileReport(     cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outTextFn )
+{
+  cmMidiFileH_t mfH = cmMidiFileNullHandle;
+  cmRptFileH_t  rptH = cmRptFileNullHandle;
+  cmMfRC_t rc;
+  
+  if((rc = cmMidiFileOpen(ctx,&mfH,midiFn)) != kOkMfRC )
+  {
+    rc = cmErrMsg(&ctx->err,rc,"Unable to open the MIDI file: %s\n",cmStringNullGuard(midiFn));
+    goto errLabel;
+  }
+
+  if(( rc = cmRptFileCreate(ctx,&rptH, outTextFn, NULL )) != kOkRfRC )
+  {
+    rc = cmErrMsg(&ctx->err,rc,"Unable to open the report file: %s\n",cmStringNullGuard(outTextFn));
+    goto errLabel;
+    
+  }
+
+  cmMidiFilePrintMsgs(mfH, cmRptFileRpt(rptH) );
+
+ errLabel:
+  cmRptFileClose(&rptH);
+  cmMidiFileClose(&mfH);
+
+  return rc;
+}
+
 
 void cmMidiFilePrintControlNumbers( cmCtx_t* ctx, const char* fn )
 {

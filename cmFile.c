@@ -1,4 +1,3 @@
-
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmRpt.h"
@@ -11,7 +10,7 @@
 #include "cmLinkedHeap.h"
 #include "cmText.h"
 #include <sys/stat.h>
-cmFileH_t cmFileNullHandle = { NULL };
+cmFileH_t cmFileNullHandle = cmSTATIC_NULL_HANDLE;
 
 typedef struct 
 {

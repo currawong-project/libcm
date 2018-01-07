@@ -69,7 +69,11 @@ enum
   kNFirstGraceXsFl = 0x08000000,  // (n) grace notes start as soon as possible after first note and add time
   kDeleteXsFl      = 0x10000000,
   kDynBegForkXsFl  = 0x20000000,
-  kDynEndForkXsFl  = 0x40000000
+  kDynEndForkXsFl  = 0x40000000,
+
+  kDynEndXsFl   = 0x100000000,
+  kEvenEndXsFl  = 0x200000000,
+  kTempoEndXsFl = 0x400000000
   
 };
 
@@ -90,7 +94,7 @@ typedef struct cmXsComplexity_str
 typedef struct cmXsNote_str
 {
   unsigned                    uid;      // unique id of this note record
-  unsigned                    flags;    // See k???XsFl
+  unsigned long long          flags;    // See k???XsFl
   unsigned                    pitch;    // midi pitch
   unsigned                    dynamics; // dynamic level 1=pppp 9=fff
   unsigned                    vel;      // score specified MIDI velocity 
@@ -270,12 +274,13 @@ cmXsRC_t _cmXScorePushNote( cmXScore_t* p, cmXsMeas_t* meas, unsigned voiceId, c
 }
 
 
-void _cmXScoreRemoveNote( cmXsNote_t* note )
+cmXsRC_t  _cmXScoreRemoveNote( cmXsNote_t* note )
 {
   cmXsNote_t* n0 = NULL;
   cmXsNote_t* n1 = note->voice->noteL;
-  
+  unsigned    cnt = 0;
   for(; n1!=NULL; n1=n1->mlink)
+  {
     if( n1->uid == note->uid )
     {
       if( n0 == NULL )
@@ -283,12 +288,17 @@ void _cmXScoreRemoveNote( cmXsNote_t* note )
       else
         n0->mlink = n1->mlink;
 
+      cnt = 1;
       break;
     }
 
+    n0 = n1;
+  }
+  
   n0 = NULL;
   n1 = note->meas->noteL;
   for(; n1!=NULL; n1=n1->slink)
+  {
     if( n1->uid == note->uid )
     {
       if( n0 == NULL )
@@ -296,13 +306,20 @@ void _cmXScoreRemoveNote( cmXsNote_t* note )
       else
         n0->slink = n1->slink;
 
+      cnt = 2;
       break;
     }
+    
+    n0 = n1;
+  }
+  return cnt == 2 ? kOkXsRC : kSyntaxErrorXsRC;
  
 }
 
 void _cmXScoreInsertNoteBefore( cmXsNote_t* note, cmXsNote_t* nn )
 {
+  assert( note != NULL );
+  
   // insert the new note into the voice list before 'note'
   cmXsNote_t* n0 = NULL;
   cmXsNote_t* n1 = note->voice->noteL;
@@ -515,33 +532,44 @@ cmXsRC_t  _cmXScoreParseColor( cmXScore_t* p, const cmXmlNode_t* nnp, cmXsNote_t
 
    typedef struct map_str
   {
-    unsigned        value;
+    unsigned long long        value;
     const cmChar_t* label;
   } map_t;
 
   map_t mapV[] =
   {
-    { kEvenXsFl,                         "#0000FF" },  // blue (even)
-    { kTempoXsFl,                        "#00FF00" },  // green (tempo)
-    { kDynXsFl,                          "#FF0000" },  // red   (dynamics)
-    { kTempoXsFl | kEvenXsFl,            "#00FFFF" },  // green + blue (turquoise)
-    { kDynXsFl   | kEvenXsFl,            "#FF00FF" },  // red   + blue
-    { kDynXsFl   | kEvenXsFl,            "#FF0CF7" },  // magenta (even+dyn)
-    { kDynXsFl   | kTempoXsFl,           "#FF7F00" },  // red   + green (brown)
-    { kTempoXsFl | kEvenXsFl | kDynXsFl, "#996633" },  // (purple)
-    { kDynXsFl,                          "#FF6A03" },  //   176 orange  (dynamics)
-    { kEvenXsFl,                         "#2F00E8" },  //  1001 blue (even)
-    { kTempoXsFl,                        "#01CD1F" },  //  1196 green   (tempo)
-    { kEvenXsFl,                         "#3600E8" },  //  1627 blue (even)
-    { kDynXsFl | kTempoXsFl,             "#9E8F15" },  //  8827 brown (dyn + tempo)
-    { kEvenXsFl,                         "#2E00E6" },  //  5393 blue (even)
-    { kEvenXsFl,                         "#2C00DD" },  //  5895 blue (even)
-    { kDynXsFl,                          "#FF5B03" },  //  6498 orange (dyn)
-    { kDynXsFl,                          "#FF6104" },  //  6896 orange
-    { kEvenXsFl,                         "#2A00E6" },  //  7781 blue
-    { kEvenXsFl,                         "#2300DD" },  //  8300 blue (even)
-    { kTempoXsFl,                        "#03CD22" },  // 10820 green (tempo)
-    { kEvenXsFl,                         "#3400DB" },  // 11627 blue (dyn)
+    { kEvenXsFl,                                       "#0000FF" },  // blue (even)
+    { kEvenXsFl  | kEvenEndXsFl,                       "#0000FE" },  // blue (even end)
+    { kEvenXsFl  | kEvenEndXsFl,                       "#0000FD" },  // blue (even end)
+    { kTempoXsFl,                                      "#00FF00" },  // green (tempo)
+    { kTempoXsFl | kTempoEndXsFl,                      "#00FE00" },  // green (tempo end)
+    { kDynXsFl,                                        "#FF0000" },  // red   (dynamics)
+    { kDynXsFl   | kDynEndXsFl,                        "#FE0000" },  // red   (dynamics end)
+    { kDynXsFl   | kDynEndXsFl,                        "#FD0000" },  // red   (dynamics end)
+    { kTempoXsFl | kEvenXsFl,                          "#00FFFF" },  // green + blue (turquoise)
+    { kTempoXsFl | kEvenXsFl | kEvenEndXsFl,           "#00FFFE" },  // green + blue (turquoise) (end)    
+    { kDynXsFl   | kEvenXsFl,                          "#FF00FF" },  // red   + blue
+    { kDynXsFl   | kEvenXsFl | kEvenEndXsFl,           "#FF00FE" },  // red   + blue (end)
+    { kDynXsFl   | kEvenXsFl | kEvenEndXsFl,           "#FF00FD" },  // red   + blue (end)    
+    { kDynXsFl   | kEvenXsFl,                          "#FF0CF7" },  // magenta (even+dyn)
+    { kDynXsFl   | kTempoXsFl,                         "#FF7F00" },  // red   + green (brown)
+    { kDynXsFl   | kTempoXsFl,                         "#FE7F00" },  // red   + green (brown)    (end)
+    { kDynXsFl   | kTempoXsFl,                         "#FD7F00" },  // red   + green (brown)    (end)
+    { kTempoXsFl | kEvenXsFl | kDynXsFl,               "#996633" },  // (purple)
+    { kTempoXsFl | kEvenXsFl | kDynXsFl | kDynEndXsFl, "#996632" },  // (purple)
+    { kDynXsFl,                                        "#FF6A03" },  //   176 orange  (dynamics)
+    { kEvenXsFl,                                       "#2F00E8" },  //  1001 blue (even)
+    { kTempoXsFl,                                      "#01CD1F" },  //  1196 green   (tempo)
+    { kEvenXsFl,                                       "#3600E8" },  //  1627 blue (even)
+    { kDynXsFl | kTempoXsFl,                           "#9E8F15" },  //  8827 brown (dyn + tempo)
+    { kEvenXsFl,                                       "#2E00E6" },  //  5393 blue (even)
+    { kEvenXsFl,                                       "#2C00DD" },  //  5895 blue (even)
+    { kDynXsFl,                                        "#FF5B03" },  //  6498 orange (dyn)
+    { kDynXsFl,                                        "#FF6104" },  //  6896 orange
+    { kEvenXsFl,                                       "#2A00E6" },  //  7781 blue
+    { kEvenXsFl,                                       "#2300DD" },  //  8300 blue (even)
+    { kTempoXsFl,                                      "#03CD22" },  // 10820 green (tempo)
+    { kEvenXsFl,                                       "#3400DB" },  // 11627 blue (dyn)
     { -1, "" }
   };
 
@@ -1785,7 +1813,7 @@ cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p, unsigned nextGraceGroupId )
     // grace note groups must have at least 3 members
     if( gN < 3 )
     {
-      rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"The grace not group (groupid=%i) ending in meas %i has fewer than 3 (%i) members.", gn1p->graceGroupId, gn1p->meas->number, gN );
+      rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"The grace note group (groupid=%i) ending in meas %i has fewer than 3 (%i) members.", gn1p->graceGroupId, gn1p->meas->number, gN );
       break;
     }
     
@@ -2130,7 +2158,8 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
   // remove deleted notes
   for(i=0; i<rN; ++i)
     if( cmIsFlag(rV[i].newFlags,kDeleteXsFl) )
-      _cmXScoreRemoveNote( rV[i].note );
+      if( _cmXScoreRemoveNote( rV[i].note ) != kOkXsRC )
+        return cmErrMsg(&p->err,kSyntaxErrorXsRC,"Event marked to skip was not found in measure: %i",measNumb);
       
   cmXsMeas_t* mp  = rV[0].note->meas;
   cmXsNote_t* n0p = NULL;
@@ -2214,7 +2243,7 @@ cmXsRC_t _cmXScoreReorderMeas( cmXScore_t* p, unsigned measNumb, cmXsReorder_t* 
 
 }
 
-cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lineNumb, unsigned* dynIdxRef, unsigned* flagsRef )
+cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lineNumb, unsigned* dynIdxRef, unsigned* flagsRef, int measNumb )
 {
   cmXsRC_t        rc        = kOkXsRC;
   const cmChar_t* s         = NULL;
@@ -2239,6 +2268,7 @@ cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lin
 
   if( *s == '!')
   {
+    //printf("E %3i %5i %s\n",measNumb,lineNumb,b);
     endForkFl = true;
     ++s;      
   }   
@@ -2251,7 +2281,11 @@ cmXsRC_t _cmXScoreReorderParseDyn(cmXScore_t* p, const cmChar_t* b, unsigned lin
   if( isupper(*s) )
   {
     if( !endForkFl)
+    {
       begForkFl=true;
+      //printf("B %3i %5i %s\n",measNumb,lineNumb,b);
+      
+    }
   }
   else
   {
@@ -2431,7 +2465,11 @@ cmXsRC_t  _cmXScoreReorderParseGrace(cmXScore_t* p, const cmChar_t* b, unsigned 
         continue;
         
       default:
-        { assert(0); }
+        {
+          return cmErrMsg(&p->err,kSyntaxErrorXsRC,"Unexpected grace note reorder character code %c on line %i.",*s,line);
+
+          assert(0);
+        }
     }
     
     break;
@@ -2457,7 +2495,7 @@ cmXsRC_t  _cmXScoreReorderParsePitch(cmXScore_t* p, const cmChar_t* b, unsigned 
   ++s;
 
   j=2;
-  for(i=0; i<j && s[i]; ++i,++s)
+  for(i=0; i<j && *s; ++i,++s)
   {
     buf[i] = *s;
     
@@ -2479,8 +2517,9 @@ cmXsRC_t  _cmXScoreReorderParsePitch(cmXScore_t* p, const cmChar_t* b, unsigned 
   if( pitch<kInvalidMidiByte)
     *pitchRef = pitch;
   else
+  {
     rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"Pitch conversion from '%s' failed on line %i.",buf,line); 
-
+  }
   return rc;  
 }
 
@@ -2563,7 +2602,7 @@ cmXsRC_t _cmXsApplyEditFile( cmXScore_t* p, const cmChar_t* fn )
               goto errLabel;
 
             // parse the dynamic marking following a '!'
-            if((rc = _cmXScoreReorderParseDyn(p,b,ln+1,&r.dynIdx, &r.newFlags)) != kOkXsRC )
+            if((rc = _cmXScoreReorderParseDyn(p,b,ln+1,&r.dynIdx, &r.newFlags, measNumb)) != kOkXsRC )
               goto errLabel;
                         
             // parse the @newtick marker
@@ -3062,12 +3101,13 @@ cmXsRC_t _cmXScoreWriteCsvRow(
   return rc;
 }
 
-cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
+cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, int begMeasNumb, const cmChar_t* csvFn )
 {
   cmXsRC_t        rc           = kOkXsRC;
   cmXScore_t*     p            = _cmXScoreHandleToPtr(h);
   unsigned        rowIdx       = 1;
   const cmChar_t* sectionIdStr = NULL;
+  double          baseSecs     = -1;
 
   if( !cmCsvIsValid(p->csvH) )
     return cmErrMsg(&p->err,kCsvFailXsRC,"The CSV output object is not initialized.");
@@ -3079,12 +3119,22 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
   for(; pp!=NULL; pp=pp->link)
   {
     cmXsMeas_t* mp = pp->measL;
+            
     for(; mp!=NULL; mp=mp->link)
     {
+
+      if( mp->number < begMeasNumb)
+        continue;
+      
       cmXsNote_t* np = mp->noteL;
+
+      if( baseSecs == -1 )
+        baseSecs = np->secs;
+      
       for(; np!=NULL; np=np->slink)
       {
-
+        double thisSecs = np->secs - baseSecs;
+        
         // if this is a section event
         if( cmIsFlag(np->flags,kSectionXsFl) )
           sectionIdStr = np->tvalue;
@@ -3092,7 +3142,7 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
         // if this is a bar event
         if( cmIsFlag(np->flags,kBarXsFl)  )
         {
-          _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,sectionIdStr,"bar",np->dsecs,np->secs,0,0,-1,0,"",np->flags,"","");
+          _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,sectionIdStr,"bar",np->dsecs,thisSecs,0,0,-1,0,"",np->flags,"","");
           sectionIdStr = NULL;
         }
         else
@@ -3102,14 +3152,14 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
           {
             unsigned d0 = cmIsFlag(np->flags,kSostDnXsFl |kSostUpXsFl) ? 66 : 64; // pedal MIDI ctl id
             unsigned d1 = cmIsFlag(np->flags,kDampDnXsFl|kSostDnXsFl) ? 64 : 0;  // pedal-dn: d1>=64 pedal-up:<64
-            _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,sectionIdStr,"ctl",np->dsecs,np->secs,d0,d1,-1,0,"",np->flags,"","");
+            _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,sectionIdStr,"ctl",np->dsecs,thisSecs,d0,d1,-1,0,"",np->flags,"","");
             sectionIdStr = NULL;
             
             if( cmIsFlag(np->flags,kDampUpDnXsFl) )
             {
               rowIdx += 1;
               double millisecond = 0.0;
-              _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,sectionIdStr,"ctl",millisecond,np->secs+millisecond,d0,64,-1,0,"",np->flags,"","");
+              _cmXScoreWriteCsvRow(p,rowIdx,-1,mp->number,sectionIdStr,"ctl",millisecond,thisSecs+millisecond,d0,64,-1,0,"",np->flags,"","");
             }
 
           }
@@ -3123,14 +3173,13 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
               cmChar_t ebuf[ bufN+1]; ebuf[bufN] = 0;
               cmChar_t dbuf[ bufN+1]; dbuf[bufN] = 0;
               cmChar_t tbuf[ bufN+1]; tbuf[bufN] = 0;
-              
-              
+                            
               double          frac  = np->rvalue + (cmIsFlag(np->flags,kDotXsFl) ? (np->rvalue/2) : 0);
               const cmChar_t* dyn   = _cmXScoreTranslateDynamics( p,  np, dbuf, bufN );
               unsigned        vel   = np->vel==0 ? 60 : np->vel;
 
-              //
-              _cmXScoreWriteCsvRow(p,rowIdx,np->uid,mp->number,sectionIdStr,"non",np->dsecs,np->secs,np->pitch,vel,np->pitch,frac,dyn,np->flags,
+              // 
+              _cmXScoreWriteCsvRow(p,rowIdx,np->uid,mp->number,sectionIdStr,"non",np->dsecs,thisSecs,np->pitch,vel,np->pitch,frac,dyn,np->flags,
                 cmXsFormatMeasurementCsvField(np->flags, kEvenXsFl, 'e', np->evenGroupId,  ebuf, bufN ),
                 cmXsFormatMeasurementCsvField(np->flags, kTempoXsFl,'t', np->tempoGroupId, tbuf, bufN ));
               
@@ -3157,6 +3206,30 @@ cmXsRC_t cmXScoreWriteCsv( cmXsH_t h, const cmChar_t* csvFn )
   return rc;
 }
 
+bool  _cmXsIsCsvValid(cmCtx_t* ctx, cmXsH_t h, const cmChar_t* outFn)
+{
+  bool        retFl = true;
+  cmScH_t     scH   = cmScNullHandle;
+  double      srate = 44100.0;
+  cmSymTblH_t stH   = cmSymTblCreate(cmSymTblNullHandle, 0, ctx );
+    
+  if( cmScoreInitialize( ctx, &scH, outFn, srate, NULL, 0, NULL, NULL, stH) != kOkScRC )
+  {
+    cmErrMsg(&ctx->err,kFileFailXsRC,"The generated CSV file (%s) could not be parsed.",cmStringNullGuard(outFn));
+    retFl = false;
+  }
+  else
+  {
+    //cmScorePrintSets(scH,&ctx->rpt);
+    //cmScorePrint(scH,&ctx->rpt);
+      
+    cmScoreFinalize(&scH);
+  }
+
+  cmSymTblDestroy(&stH);
+
+  return retFl;
+}
 
 void _cmXScoreReportTitle( cmRpt_t* rpt )
 {
@@ -3171,9 +3244,6 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note,unsigned index )
   const cmChar_t* G  = cmIsFlag(note->flags,kGraceXsFl)     ? "G" : "-";
   const cmChar_t* D  = cmIsFlag(note->flags,kDotXsFl)       ? "." : "-";
   const cmChar_t* C  = cmIsFlag(note->flags,kChordXsFl)     ? "C" : "-";
-  const cmChar_t* e  = cmIsFlag(note->flags,kEvenXsFl)      ? "e" : "-";
-  const cmChar_t* d  = cmIsFlag(note->flags,kDynXsFl)       ? "d" : "-";
-  const cmChar_t* t  = cmIsFlag(note->flags,kTempoXsFl)     ? "t" : "-";
   const cmChar_t* P  = cmIsFlag(note->flags,kDampDnXsFl)    ? "V" : "-";
   const cmChar_t* s  = cmIsFlag(note->flags,kSostDnXsFl)    ? "{" : "-";
   const cmChar_t* S  = cmIsFlag(note->flags,kSectionXsFl)   ? "S" : "-";
@@ -3181,6 +3251,15 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note,unsigned index )
   const cmChar_t* T0 = cmIsFlag(note->flags,kTieBegXsFl)    ? "T" : "-";
   const cmChar_t* T1 = cmIsFlag(note->flags,kTieEndXsFl)    ? "_" : "-";
   const cmChar_t* O  = cmIsFlag(note->flags,kOnsetXsFl)     ? "*" : "-";
+
+  const cmChar_t* e  = cmIsFlag(note->flags,kEvenXsFl)      ? "e" : "-";
+  const cmChar_t* d  = cmIsFlag(note->flags,kDynXsFl)       ? "d" : "-";
+  const cmChar_t* t  = cmIsFlag(note->flags,kTempoXsFl)     ? "t" : "-";
+
+  if( cmIsFlag(note->flags,kEvenEndXsFl) )  e="E";
+  if( cmIsFlag(note->flags,kDynEndXsFl) )   d="D";
+  if( cmIsFlag(note->flags,kTempoEndXsFl) ) t="T";
+  
   P = cmIsFlag(note->flags,kDampUpXsFl)   ? "^" : P;
   P = cmIsFlag(note->flags,kDampUpDnXsFl) ? "X" : P;
   s = cmIsFlag(note->flags,kSostUpXsFl)    ? "}" : s;
@@ -3226,14 +3305,14 @@ void _cmXScoreReportNote( cmRpt_t* rpt, const cmXsNote_t* note,unsigned index )
 
   if( cmIsFlag(note->flags,kEndGraceXsFl) )
     cmRptPrintf(rpt," E");
-
-
+    
   if( cmIsFlag(note->flags,kDynBegForkXsFl) )
     cmRptPrintf(rpt," B");
 
   if( cmIsFlag(note->flags,kDynEndForkXsFl) )
     cmRptPrintf(rpt," E");
-  */  
+  */
+    
 }
 
 
@@ -3547,7 +3626,7 @@ cmXsRC_t _cmXsMeasComplexity( cmXsH_t h, double wndSecs )
   return rc;
 }
 
-cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cmChar_t* fn )
+cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, int beginMeasNumb, int beginBPM, const cmChar_t* dir, const cmChar_t* fn )
 {
   cmXsRC_t rc = kOkXsRC;
   cmXScore_t* p = _cmXScoreHandleToPtr(h);
@@ -3559,9 +3638,11 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
   unsigned        trkN       = 2;
   unsigned        ticksPerQN = p->partL->measL->divisions;
   const cmChar_t* outFn      = cmFsMakeFn(dir,fn,"mid",NULL);
+  unsigned        baseTick   = -1;
+  unsigned        bpm        = beginBPM==0 ? 60 : beginBPM;
 
-  if( cmMidiFileCreate( ctx, &mfH, trkN, ticksPerQN ) != kOkMfRC )
-    return cmErrMsg(&p->err,kMidiFailXsRC,"Unable to create the MIDI file object.");
+  //if( cmMidiFileCreate( ctx, &mfH, trkN, ticksPerQN ) != kOkMfRC )
+  //  return cmErrMsg(&p->err,kMidiFailXsRC,"Unable to create the MIDI file object.");
   
   cmXsPart_t* pp = p->partL;
 
@@ -3573,7 +3654,32 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
     // for each measure
     for(; mp!=NULL; mp=mp->link)
     {
+
+      // skip all measures until we reach the first measure to output
+      if(mp->number < beginMeasNumb)
+        continue;
+
+      // if the MIDI file has not yet been created 
+      if( !cmMidiFileIsValid(mfH) )
+      {
+        ticksPerQN = mp->divisions;
+
+        // create the MIDI file
+        if( cmMidiFileCreate( ctx, &mfH, trkN, ticksPerQN ) != kOkMfRC )
+        {
+          rc = cmErrMsg(&p->err,kMidiFailXsRC,"Unable to create the MIDI file object.");
+          goto errLabel;
+        }
+
+        // set the starting tempo
+        cmMidFileInsertTrackTempoMsg(mfH, 0, 0, bpm );
+        
+      }
+      
       cmXsNote_t* np = mp->noteL;
+
+      if( baseTick == -1 )
+        baseTick = np->tick;
 
       if( mp->divisions != ticksPerQN )
         cmErrWarnMsg(&p->err,kMidiFailXsRC,"The 'tick per quarter note' (divisions) field in measure %i does not match the value in the first measure (%i).",mp->divisions,ticksPerQN);
@@ -3582,12 +3688,15 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
       // for each note in this measure
       for(; np!=NULL; np=np->slink,++ni)
       {
+        unsigned thisTick = np->tick - baseTick;
+        
         switch( np->flags & (kOnsetXsFl|kMetronomeXsFl|kDampDnXsFl|kDampUpDnXsFl|kSostDnXsFl) )
         {
           case kOnsetXsFl:
+            if( cmMidiFileIsValid(mfH) )
             {
               if( np->tied_dur <= 0 )
-                cmErrWarnMsg(&p->err,kOkXsRC,"A zero length note was encountered bar:%i tick:%i %s",np->meas->number,np->tick,cmMidiToSciPitch(np->pitch,NULL,0));
+                cmErrWarnMsg(&p->err,kOkXsRC,"A zero length note was encountered bar:%i tick:%i (%i) %s",np->meas->number,np->tick,thisTick,cmMidiToSciPitch(np->pitch,NULL,0));
 
               /*
               if( mp->number == 20 )
@@ -3596,9 +3705,12 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
                 cmRptPrintf(ctx->err.rpt,"\n");
               }
               */
-              
-              if( cmMidiFileInsertTrackChMsg(mfH, 1, np->tick,                kNoteOnMdId,  np->pitch, np->vel ) != kOkMfRC
-                ||cmMidiFileInsertTrackChMsg(mfH, 1, np->tick + np->tied_dur, kNoteOffMdId, np->pitch, 0 )       != kOkMfRC )
+
+              if( np->vel == 0 )
+                cmErrWarnMsg(&p->err,kOkXsRC,"A sounding note with zero velocity was encountered at bar:%i tick:%i pitch:%s.",np->meas->number,np->tick,cmMidiToSciPitch(np->pitch,NULL,0));
+                            
+              if( cmMidiFileInsertTrackChMsg(mfH, 1, thisTick,                kNoteOnMdId,  np->pitch, np->vel ) != kOkMfRC
+                ||cmMidiFileInsertTrackChMsg(mfH, 1, thisTick + np->tied_dur, kNoteOffMdId, np->pitch, 0 )       != kOkMfRC )
               {
                 rc = kMidiFailXsRC;
               }
@@ -3608,13 +3720,14 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
           case kDampDnXsFl:
           case kDampUpDnXsFl:
           case kSostDnXsFl:
+            if( cmMidiFileIsValid(mfH) )
             {
               if( np->duration <= 0 )
-                cmErrWarnMsg(&p->err,kOkXsRC,"A zero length pedal event was encountered bar:%i tick:%i",np->meas->number,np->tick);
+                cmErrWarnMsg(&p->err,kOkXsRC,"A zero length pedal event was encountered bar:%i tick:%i (%i)",np->meas->number,np->tick,thisTick);
               
               cmMidiByte_t d0     = cmIsFlag(np->flags,kSostDnXsFl) ? kSostenutoCtlMdId : kSustainCtlMdId;              
-              if( (cmMidiFileInsertTrackChMsg(mfH, 1, np->tick,                kCtlMdId, d0, 127 ) != kOkMfRC )
-                ||(cmMidiFileInsertTrackChMsg(mfH, 1, np->tick + np->duration, kCtlMdId, d0,   0 ) != kOkMfRC ) )
+              if( (cmMidiFileInsertTrackChMsg(mfH, 1, thisTick,                kCtlMdId, d0, 127 ) != kOkMfRC )
+                ||(cmMidiFileInsertTrackChMsg(mfH, 1, thisTick + np->duration, kCtlMdId, d0,   0 ) != kOkMfRC ) )
               {
                 rc = kMidiFailXsRC;
               }
@@ -3622,8 +3735,10 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
             break;
 
           case kMetronomeXsFl:
-            if( cmMidFileInsertTrackTempoMsg(mfH, 0, np->tick, np->duration ) != kOkMfRC )
-              rc = kMidiFailXsRC;            
+            bpm = np->duration;
+            if( cmMidiFileIsValid(mfH) )
+              if( cmMidFileInsertTrackTempoMsg(mfH, 0, thisTick, bpm ) != kOkMfRC )
+                rc = kMidiFailXsRC;            
             break;
             
           case 0:
@@ -3641,12 +3756,13 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
       }
     }
   }
-  
-  if( cmMidiFileWrite(mfH,outFn) != kOkMfRC )
-  {
-    rc = cmErrMsg(&p->err,kMidiFailXsRC,"MIDI file write failed on '%s'.",cmStringNullGuard(outFn));
-    goto errLabel;
-  }
+
+  if( cmMidiFileIsValid(mfH) )
+    if( cmMidiFileWrite(mfH,outFn) != kOkMfRC )
+    {
+      rc = cmErrMsg(&p->err,kMidiFailXsRC,"MIDI file write failed on '%s'.",cmStringNullGuard(outFn));
+      goto errLabel;
+    }
   
  errLabel:
   cmFsFreeFn(outFn);
@@ -3657,6 +3773,23 @@ cmXsRC_t _cmXsWriteMidiFile( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const
   }
   
   return rc;
+}
+
+bool _cmXsIsMidiFileValid( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cmChar_t* fn )
+{
+  const cmChar_t* midiFn = cmFsMakeFn(dir,fn,"mid",NULL);
+  cmMidiFileH_t mfH = cmMidiFileNullHandle;
+  
+  if( cmMidiFileOpen( ctx, &mfH, midiFn ) == kOkMfRC )
+  {
+    cmMidiFileClose(&mfH);
+    return true;
+  }
+
+  cmXScore_t* p = _cmXScoreHandleToPtr(h);
+  cmErrMsg(&p->err,kMidiFailXsRC,"The generated MIDI file '%s' is not valid.", cmStringNullGuard(midiFn));
+  
+  return false;
 }
 
 typedef struct cmXsSvgEvt_str
@@ -3864,7 +3997,7 @@ void _cmXsPushSvgEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsig
   mf->eol = e;
 }
 
-cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cmChar_t* fn )
+cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, int beginMeasNumb, const cmChar_t* dir, const cmChar_t* fn )
 {
   cmXScore_t* p  = _cmXScoreHandleToPtr(h);
   cmXsPart_t* pp = p->partL;
@@ -3877,6 +4010,8 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
     const cmXsMeas_t* meas = pp->measL;
     for(; meas!=NULL; meas=meas->link)
     {
+      if( meas->number < beginMeasNumb )
+        continue;
 
       const cmXsNote_t* note = meas->noteL;
       for(; note!=NULL; note=note->slink)
@@ -3929,11 +4064,14 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, const cmChar_t* dir, const cm
 
 
 cmXsRC_t cmXScoreTest(
-  cmCtx_t* ctx,
+  cmCtx_t*        ctx,
   const cmChar_t* xmlFn,
   const cmChar_t* editFn,
   const cmChar_t* csvOutFn,
-  const cmChar_t* midiOutFn)
+  const cmChar_t* midiOutFn,
+  bool            reportFl,
+  int             beginMeasNumb,
+  int             beginBPM )
 {
   cmXsRC_t rc;
   cmXsH_t h = cmXsNullHandle;
@@ -3952,45 +4090,33 @@ cmXsRC_t cmXScoreTest(
 
   if( csvOutFn != NULL )
   {
-    cmScH_t scH = cmScNullHandle;
-    double srate = 44100.0;
     
-    cmXScoreWriteCsv(h,csvOutFn);
+    cmXScoreWriteCsv(h,beginMeasNumb,csvOutFn);
 
-    cmSymTblH_t stH = cmSymTblCreate(cmSymTblNullHandle, 0, ctx );
-    
-    if( cmScoreInitialize( ctx, &scH, csvOutFn, srate, NULL, 0, NULL, NULL, stH) != kOkScRC )
-      cmErrMsg(&ctx->err,kFileFailXsRC,"The generated CSV file could not be parsed.");
-    else
-    {
-      //cmScorePrintSets(scH,&ctx->rpt);
-      //cmScorePrint(scH,&ctx->rpt);
-      
-      cmScoreFinalize(&scH);
-    }
-
-    cmSymTblDestroy(&stH); 
+    _cmXsIsCsvValid(ctx,h,csvOutFn);
   }
   
   if( midiOutFn != NULL )
   {
-
     // measure the score complexity
     double wndSecs = 1.0;
+    
     _cmXsMeasComplexity(h,wndSecs);
-
     
     cmFileSysPathPart_t* pp = cmFsPathParts(midiOutFn);
 
-    _cmXsWriteMidiFile(ctx, h, pp->dirStr, pp->fnStr );
+    _cmXsWriteMidiFile(ctx, h, beginMeasNumb, beginBPM, pp->dirStr, pp->fnStr );
     
-    _cmXScoreGenSvg( ctx, h, pp->dirStr, pp->fnStr );
+    _cmXsIsMidiFileValid(ctx, h, pp->dirStr, pp->fnStr );
+    
+    _cmXScoreGenSvg( ctx, h, beginMeasNumb, pp->dirStr, pp->fnStr );
 
     cmFsFreePathParts(pp);
     
   }
-  
-  cmXScoreReport(h,&ctx->rpt,true);
+
+  if(reportFl)
+    cmXScoreReport(h,&ctx->rpt,true);
 
   return cmXScoreFinalize(&h);
 
