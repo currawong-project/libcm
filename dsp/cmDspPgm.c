@@ -128,13 +128,18 @@ cmDspRC_t _cmDspSysPgm_MidiFilePlay( cmDspSysH_t h, void** userPtrPtr )
 {
   
   cmDspRC_t rc = kOkDspRC;
+
+
+  //const cmChar_t* deviceName = "Scarlett 18i20 USB";
+  //const cmChar_t* portName   = "Scarlett 18i20 USB MIDI 1";
+  
   const cmChar_t* deviceName = "Fastlane";
   const cmChar_t* portName   = "Fastlane MIDI A";
 
   //const cmChar_t* deviceName = "DKV-M4";
   //const cmChar_t* portName   = "DKV-M4 MIDI 1";
 
-  const char*     fn0   = "media/midi/kriesberg/part2/piano_score_part_2_draft_1_master_m191-195.mid";
+  const char*     fn0   = "media/audio/midi/988-v25.mid";
   const cmChar_t* fn    = cmFsMakeFn(cmFsUserDir(),fn0,NULL,NULL );
   cmDspInst_t* fnp =  cmDspSysAllocInst(h,"Fname",    NULL,  3, false,"MIDI Files (*.mid)\tMIDI Files (*.{mid})",fn);
 
@@ -155,12 +160,16 @@ cmDspRC_t _cmDspSysPgm_MidiFilePlay( cmDspSysH_t h, void** userPtrPtr )
    
   cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 0 );
   cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 1 );
+  cmDspInst_t* ao2p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 2 );
+  cmDspInst_t* ao3p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 3 );
 
   cmDspInst_t* im0p = cmDspSysAllocInst(h,"AMeter","In 0",  0);
   cmDspInst_t* im1p = cmDspSysAllocInst(h,"AMeter","In 1", 0);
 
   cmDspInst_t* om0p = cmDspSysAllocInst(h,"AMeter","Out 0", 0);
   cmDspInst_t* om1p = cmDspSysAllocInst(h,"AMeter","Out 1",0);
+  cmDspInst_t* om2p = cmDspSysAllocInst(h,"AMeter","Out 2", 0);
+  cmDspInst_t* om3p = cmDspSysAllocInst(h,"AMeter","Out 3",0);
 
 
   // check for allocation errors
@@ -199,6 +208,12 @@ cmDspRC_t _cmDspSysPgm_MidiFilePlay( cmDspSysH_t h, void** userPtrPtr )
   cmDspSysConnectAudio(h, ai1p,"out", ao1p, "in" );         // ain1  -> aout1 
   cmDspSysConnectAudio(h, ai1p,"out", om1p, "in" );         // ain1  -> omtr1 
 
+  cmDspSysConnectAudio(h, ai0p,"out", ao2p, "in" );         // ain0  -> aout2 
+  cmDspSysConnectAudio(h, ai0p,"out", om2p, "in" );         // ain0  -> omtr0
+  
+  cmDspSysConnectAudio(h, ai1p,"out", ao3p, "in" );         // ain1  -> aout3 
+  cmDspSysConnectAudio(h, ai1p,"out", om3p, "in" );         // ain0  -> omtr0 
+  
  errLabel:
 
   cmFsFreeFn(fn);
@@ -348,8 +363,8 @@ cmDspRC_t _cmDspSysPgm_Stereo_Through( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* php =  cmDspSysAllocInst(h,"Phasor",   NULL,  0 );
   cmDspInst_t* wtp =  cmDspSysAllocInst(h,"WaveTable",NULL,  2, cmDspSysSampleRate(h), 2 );
 
-  cmDspInst_t* ai0p = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 0 );
-  cmDspInst_t* ai1p = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 1 );
+  cmDspInst_t* ai0p = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 2 );
+  cmDspInst_t* ai1p = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 3 );
    
   // MOTU Traveler: Use channels 2&3 (out plugs:3&4) because 0&1 do not show up on plugs 1&2.
   cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 2 );
@@ -386,6 +401,39 @@ cmDspRC_t _cmDspSysPgm_Stereo_Through( cmDspSysH_t h, void** userPtrPtr )
   cmDspSysConnectAudio(h, ai1p,"out", om1p, "in" );         // ain1  -> omtr1 
   return kOkDspRC;
 }
+
+
+cmDspRC_t _cmDspSysPgm_All_In_And_Out( cmDspSysH_t h, void** userPtrPtr )
+{
+  cmDspInst_t* ignp = cmDspSysAllocInst( h,"Scalar", "In Gain",  5, kNumberDuiId, 0.0,  4.0, 0.01,  1.0);
+
+  const unsigned inN = 18;
+
+  cmDspInst_t* ainA[inN];
+  cmDspInst_t* aoutA[inN];
+  cmDspInst_t* imtrA[inN];
+  
+  int i;
+  for(i=0;i<inN; ++i)
+  {
+    char label[32];
+    snprintf(label,32,"in %i",i);
+    ainA[i]  = cmDspSysAllocInst(h,"AudioIn", NULL,   1, i );
+    imtrA[i] = cmDspSysAllocInst(h,"AMeter",label,  0);
+    aoutA[i]  = cmDspSysAllocInst(h,"AudioOut", NULL,   1, i );
+  }
+
+  for(i=0; i<inN; ++i)
+  {
+    cmDspSysInstallCb(   h, ignp,   "val", ainA[i], "gain", NULL);  // igain -> ain
+    cmDspSysConnectAudio(h, ainA[i],"out", imtrA[i], "in" );         // ain  -> imtr 
+    cmDspSysConnectAudio(h, ainA[i],"out", aoutA[i], "in" );         // ain  -> aout 
+  }
+
+
+  return kOkDspRC;
+}
+
 
 //------------------------------------------------------------------------------
 //)
@@ -463,7 +511,7 @@ cmDspRC_t _cmDspSysPgm_Stereo_Fx( cmDspSysH_t h, void** userPtrPtr )
 //( { label:cmDspPgm_PlaySine file_desc:"Play a sine signal." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_PlaySine( cmDspSysH_t h, void** userPtrPtr )
 {
-  bool useBuiltInFl = true;
+  bool useBuiltInFl = false;
   double frqHz = 440.0;
 
   cmDspInst_t* chp = cmDspSysAllocInst( h,"Scalar", "Channel",  5, kNumberDuiId, 0.0,  100.0, 1.0,  0.0);
@@ -867,8 +915,8 @@ cmDspRC_t _cmDspSysPgm_UiTest(cmDspSysH_t h, void** userPtrPtr )
 cmDspRC_t _cmDspSysPgm_Xfade( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc         = kOkDspRC;
-  unsigned  leftChIdx  = 0;
-  unsigned  rightChIdx = 1;
+  unsigned  leftChIdx  = 2;
+  unsigned  rightChIdx = 3;
   unsigned  chCnt      = 2;
   double    xfadeMs    = 1000;  // cross fade time
   double    sgHz       = 500;
@@ -3208,7 +3256,7 @@ cmDspRC_t _cmDspSysPgm_BinEnc( cmDspSysH_t h, void** userPtrPtr )
 _cmDspSysPgm_t _cmDspSysPgmArray[] = 
 {
   { "reflect",       _cmDspSysPgm_ReflectCalc,  NULL, NULL },
-  { "tksblite",     _cmDspSysPgm_TksbLite,     NULL, NULL }, 
+  { "tksblite",      _cmDspSysPgm_TksbLite,     NULL, NULL }, 
   { "tksb",          _cmDspSysPgm_Tksb,         NULL, NULL },
   { "time_line",     _cmDspSysPgm_TimeLine,     NULL, NULL },
   { "time_line_lite",_cmDspSysPgm_TimeLineLite, NULL, NULL },  
@@ -3244,6 +3292,7 @@ _cmDspSysPgm_t _cmDspSysPgmArray[] =
   { "pedal_test",  _cmDspSysPgm_Test_Pedals,    NULL, NULL },
   { "midi_file",   _cmDspSysPgm_MidiFilePlay,   NULL, NULL },
   { "2_thru",      _cmDspSysPgm_Stereo_Through, NULL, NULL },
+  { "all_in_out",  _cmDspSysPgm_All_In_And_Out, NULL, NULL },
   { "guitar",      _cmDspSysPgmGuitar,          NULL, NULL },
   { "2_fx",        _cmDspSysPgm_Stereo_Fx,      NULL, NULL },
   { "sine",        _cmDspSysPgm_PlaySine,       NULL, NULL },
