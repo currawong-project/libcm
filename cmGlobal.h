@@ -91,6 +91,12 @@ extern "C" {
                                                                //<
                                                                //< If 'b' == 0 then return 'f' with the bits in 'm' cleared.
                                                                //< otherwise return 'f' with the bits in 'm' set.
+  
+// In-place assignment version of the above bit operations
+#define cmSetBits(f,m)   ((f) |= (m))                             // Set 'f' with the bits in 'm' set.
+#define cmClrBits(f,m)   ((f) &= (~(m)))                          // Set 'f' with the bits in 'm' cleared.
+#define cmTogBits(f,m)   ((f)^=(m))                               // Return 'f' with the bits in 'm' toggled.
+#define cmEnaBits(f,m,b) ((b) ? cmSetBits(f,m) : cmClrBits(f,m))  // Set or clear bits in 'f' based on bits in 'm' and the state of 'b'.
 
 
 #define cmMin(v0,v1) ((v0)<(v1) ? (v0) : (v1)) //< Return the minimum arg.
