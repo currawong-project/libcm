@@ -738,10 +738,12 @@ int cmApPortTest( bool runFl, cmRpt_t* rpt, int argc, const char* argv[] )
 
     // setup the buffer for the output device
     cmApBufSetup( r.outDevIdx, r.srate, r.framesPerCycle, r.bufCnt, cmApDeviceChannelCount(r.outDevIdx,true), r.framesPerCycle, cmApDeviceChannelCount(r.outDevIdx,false), r.framesPerCycle );
-
+    
     // setup the buffer for the input device
     if( r.inDevIdx != r.outDevIdx )
       cmApBufSetup( r.inDevIdx, r.srate, r.framesPerCycle, r.bufCnt, cmApDeviceChannelCount(r.inDevIdx,true), r.framesPerCycle, cmApDeviceChannelCount(r.inDevIdx,false), r.framesPerCycle ); 
+
+    cmApBufEnableMeter(  r.inDevIdx, -1, kEnableApFl );
 
     // setup an output device
     if(cmApDeviceSetup(r.outDevIdx,r.srate,r.framesPerCycle,_cmApPortCb2,&r) != kOkApRC )
