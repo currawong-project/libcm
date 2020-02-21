@@ -5565,6 +5565,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cmActiveMeasClassCons,
   cmAmSyncClassCons,
   cmNanoMapClassCons,
+  cmPicadaeClassCons,
   cmRecdPlayClassCons,
   cmGoertzelClassCons,
   cmSyncRecdClassCons,
