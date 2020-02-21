@@ -48,8 +48,11 @@ extern "C" {
 
   typedef cmHandle_t cmSeH_t;
     
-  cmSeH_t cmSeCreate( cmCtx_t* ctx, cmSeH_t* hp, const char* device, unsigned baudRate, unsigned cfgFlags, cmSeCallbackFunc_t cbFunc, void* cbArg, unsigned pollPeriodMs );
-  cmSeRC_t    cmSeDestroy(cmSeH_t* hp );
+  cmSeH_t   cmSeCreate( cmCtx_t* ctx, cmSeH_t* hp, const char* device, unsigned baudRate, unsigned cfgFlags, cmSeCallbackFunc_t cbFunc, void* cbArg, unsigned pollPeriodMs );
+  cmSeRC_t  cmSeDestroy(cmSeH_t* hp );
+
+  cmSeRC_t  cmSeSetCallback( cmSeH_t h, cmSeCallbackFunc_t cbFunc, void* cbArg  );
+  cmSeRC_t  cmSeStart( cmSeH_t h );
 
   bool cmSeIsOpen( cmSeH_t h);
     

@@ -282,12 +282,6 @@ cmSeH_t cmSeCreate( cmCtx_t* ctx, cmSeH_t* hp, const char* deviceStr, unsigned b
     goto errLabel;
   }
 
-  if( cmThreadPause(p->_thH,0) != kOkThRC )
-  {
-    rc = cmErrMsg(&p->_err,kThreadErrSeRC,0,"Thread start failed.");
-    goto errLabel;
-  }
-  
   if( hp != NULL )
     hp->h = p;
   else
@@ -320,6 +314,26 @@ cmSeRC_t cmSeDestroy(cmSeH_t* hp )
   
   return rc;
 }
+
+cmSeRC_t  cmSeSetCallback( cmSeH_t h, cmSeCallbackFunc_t cbFunc, void* cbArg  )
+{
+  cmSerialPort_t* p = _cmSePtrFromHandle(h);
+  p->_cbFunc  = cbFunc;
+  p->_cbArg   = cbArg;
+  return kOkSeRC;
+}
+
+cmSeRC_t  cmSeStart( cmSeH_t h )
+{
+  cmSerialPort_t* p = _cmSePtrFromHandle(h);
+  
+  if( cmThreadPause(p->_thH,0) != kOkThRC )
+    return cmErrMsg(&p->_err,kThreadErrSeRC,0,"Thread start failed.");
+  
+  return kOkSeRC;
+}
+
+
 
 bool cmSeIsOpen( cmSeH_t h)
 {
@@ -541,6 +555,9 @@ cmSeRC_t cmSePortTest(cmCtx_t* ctx)
   h.h = NULL;
   
   h = cmSeCreate(ctx,&h,device,baud,serialCfgFlags,_cmSePortTestCb,NULL,pollPeriodMs);
+
+  if( cmSeIsOpen(h) )
+    cmSeStart(h);
 
   bool quitFl = false;
   printf("q=quit\n");
