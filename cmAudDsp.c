@@ -19,6 +19,7 @@
 #include "cmApBuf.h"
 #include "cmMidi.h"
 #include "cmMidiPort.h"
+#include "cmSerialPort.h"
 #include "dsp/cmDspValue.h"
 #include "cmMsgProtocol.h"
 #include "cmThread.h"
@@ -90,6 +91,12 @@ typedef struct
   unsigned           meterMs;
   unsigned           msgsPerClientPoll;
   const cmChar_t*    dfltProgramLabel;
+
+  char*              serialDeviceStr;
+  unsigned           serialBaud;
+  unsigned           serialCfgFlags;
+  unsigned           serialPollPeriodMs;
+  cmSeH_t            serialPortH;
 
   cmAdAggDev_t*      aggDevArray;
   unsigned           aggDevCnt;
@@ -169,6 +176,7 @@ cmAdRC_t _cmAdParseSysJsonTree( cmAd_t* p )
   cmJsonNode_t*   nrtDevArrNodePtr = NULL;
   cmJsonNode_t*   afpDevArrNodePtr = NULL;
   cmJsonNode_t*   audDspNodePtr    = NULL;
+  cmJsonNode_t*   serialNodePtr    = NULL;
   const cmChar_t* errLabelPtr      = NULL;
   unsigned        i;
   cmJsRC_t      jsRC = kOkJsRC;
@@ -190,10 +198,26 @@ cmAdRC_t _cmAdParseSysJsonTree( cmAd_t* p )
         "aggDevArray",        kArrayTId  | kOptArgJsFl, &aggDevArrNodePtr,
         "nrtDevArray",        kArrayTId  | kOptArgJsFl, &nrtDevArrNodePtr,
         "afpDevArray",        kArrayTId  | kOptArgJsFl, &afpDevArrNodePtr,
+        "serial",             kObjectTId | kOptArgJsFl, &serialNodePtr,
         NULL )) != kOkJsRC )
   {
     rc = _cmAdParseMemberErr(p, jsRC, errLabelPtr, "aud_dsp" );
     goto errLabel;
+  }
+
+  // parse the serial port cfg
+  if( serialNodePtr != NULL )
+  {
+    if(( jsRC      = cmJsonMemberValues( serialNodePtr, &errLabelPtr, 
+          "device",           kStringTId, &p->serialDeviceStr,
+          "baud",             kIntTId,    &p->serialBaud,
+          "flags",            kIntTId,    &p->serialCfgFlags,
+          "pollPeriodMs",     kIntTId,    &p->serialPollPeriodMs,
+          NULL )) != kOkJsRC )
+    {
+      rc = _cmAdParseMemberErr(p, jsRC, errLabelPtr, "serial" );
+      goto errLabel;
+    }
   }
 
   // parse the aggregate device specifications into p->aggDevArray[].
@@ -379,6 +403,22 @@ cmAdRC_t _cmAdSetup( cmAd_t* p )
     }
   }
 
+  return rc;
+}
+
+cmAdRC_t _cmAdCreateSerialPort( cmAd_t* p )
+{
+  cmAdRC_t rc = kOkAdRC;
+  
+  if( p->serialDeviceStr != NULL )
+  {
+    p->serialPortH = cmSeCreate( &p->ctx, &p->serialPortH, p->serialDeviceStr, p->serialBaud, p->serialCfgFlags, NULL, NULL, p->serialPollPeriodMs );
+    
+    if( !cmSeIsOpen(p->serialPortH) )
+    {
+      rc = cmErrMsg(&p->err,kSerialDevCreateFailAdRC,"The serial device '%s' creation failed.",cmStringNullGuard(p->serialDeviceStr));
+    }
+  }
   return rc;
 }
 
@@ -570,6 +610,15 @@ cmAdRC_t _cmAudDspFree( cmAd_t* p )
     goto errLabel;
   }
 
+  if( cmSeIsOpen(p->serialPortH) )
+  {    
+    if( cmSeDestroy(&p->serialPortH) != kOkSeRC )
+    {
+      rc = cmErrMsg(&p->err,kSerialPortFailAdRC,"Serial port finalize failed.");
+      goto errLabel;      
+    }
+  }
+  
   if( cmMpIsInitialized() )
     if( cmMpFinalize() != kOkMpRC )
     {
@@ -695,6 +744,13 @@ cmAdRC_t cmAudDspAlloc( cmCtx_t* ctx, cmAdH_t* hp, cmMsgSendFuncPtr_t cbFunc, vo
     goto errLabel;
   }
 
+  // create the serial port
+  if( _cmAdCreateSerialPort(p) != kOkAdRC )
+  {
+    rc = cmErrMsg(&p->err,kSerialPortFailAdRC,"The MIDI system initialization failed.");
+    goto errLabel;
+  }
+  
   // initialize the MIDI system
   if( cmMpInitialize(ctx,NULL,NULL,p->midiPortBufByteCnt,"app") != kOkMpRC )
   {
@@ -713,7 +769,7 @@ cmAdRC_t cmAudDspAlloc( cmCtx_t* ctx, cmAdH_t* hp, cmMsgSendFuncPtr_t cbFunc, vo
     goto errLabel;
 
   // initialize the DSP system
-  if( cmDspSysInitialize(ctx,&p->dsH,p->netH) )
+  if( cmDspSysInitialize(ctx,&p->dsH,p->netH,p->serialPortH) )
   {
     rc = cmErrMsg(&p->err,kDspSysFailAdRC,"The DSP system initialization failed.");
     goto errLabel;
@@ -1143,7 +1199,7 @@ cmAdRC_t _cmAudDspLoadAudioSys( cmAd_t* p, unsigned asCfgIdx )
       {
         // ... and allocate additional DSP systems when more than one sub-sys is 
         // defined in the audio system configuration
-        if( cmDspSysInitialize(&p->ctx,&dsH,p->netH) != kOkDspRC )
+        if( cmDspSysInitialize(&p->ctx,&dsH,p->netH,p->serialPortH) != kOkDspRC )
         {
           rc = cmErrMsg(&p->err,kDspSysFailAdRC,"Unable to initialize an additional DSP system.");
           goto errLabel;

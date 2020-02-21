@@ -19,6 +19,7 @@
 #include "cmThread.h"
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
+#include "cmSerialPort.h"
 #include "cmAudioSys.h"
 #include "cmProcObj.h"
 #include "cmDspCtx.h"
@@ -165,7 +166,7 @@ cmDspRC_t _cmDspSysFinalize( cmDsp_t* p )
   return rc;
 }
 
-cmDspRC_t cmDspSysInitialize( cmCtx_t* ctx, cmDspSysH_t* hp, cmUdpNetH_t netH )
+cmDspRC_t cmDspSysInitialize( cmCtx_t* ctx, cmDspSysH_t* hp, cmUdpNetH_t netH, cmSeH_t serialPortH )
 {
   unsigned        i;
   cmDspRC_t       rc     = kOkDspRC;
@@ -178,9 +179,10 @@ cmDspRC_t cmDspSysInitialize( cmCtx_t* ctx, cmDspSysH_t* hp, cmUdpNetH_t netH )
 
   cmErrSetup(&p->err,&ctx->rpt,"DSP System");
   //p->ctx.ctx   = asCtx;
-  p->cmCtx     = *ctx;
-  p->netH      = netH;
-  p->pgmIdx    = cmInvalidIdx;
+  p->cmCtx       = *ctx;
+  p->netH        = netH;
+  p->serialPortH = serialPortH;
+  p->pgmIdx      = cmInvalidIdx;
 
   // create the DSP class  linked heap
   if(cmLHeapIsValid( p->lhH = cmLHeapCreate(1024,ctx)) == false)
@@ -1559,6 +1561,13 @@ cmSymTblH_t  cmDspSysSymbolTable( cmDspSysH_t h )
   cmDsp_t* p = _cmDspHandleToPtr(h);
   return p->ctx.stH;  
 }
+
+cmSeH_t      cmDspSysSerialPort( cmDspSysH_t h )
+{
+  cmDsp_t* p = _cmDspHandleToPtr(h);
+  return p->serialPortH;
+}
+
 
 unsigned     cmDspSysRegisterStaticSymbol( cmDspSysH_t h, const cmChar_t* symLabel )
 { return cmSymTblRegisterStaticSymbol( cmDspSysSymbolTable(h), symLabel ); }

@@ -15,6 +15,7 @@
 #include "cmThread.h"
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
+#include "cmSerialPort.h"
 #include "cmAudioSysMsg.h"
 #include "cmAudioSys.h"
 #include "cmMidi.h"
@@ -37,6 +38,7 @@ typedef struct
   cmTsMp1cH_t        htdQueueH; // host-to-dsp thread safe msg queue
   cmThreadMutexH_t   engMutexH; // thread mutex and condition variable
   cmUdpNetH_t        netH;
+  cmSeH_t            serialPortH; 
   bool               enableFl;  // application controlled pause flag
   bool               runFl;     // false during finalization otherwise true
   bool               statusFl;  // true if regular status notifications should be sent
@@ -507,6 +509,13 @@ void _cmAudioSysMidiCallback( const cmMidiPacket_t* pktArray, unsigned pktCnt )
 
 }
 
+void _cmAudioSysSerialPortCallback( void* cbArg, const void* byteA, unsigned byteN )
+{
+  //_cmAsCfg_t* p (_cmAsCfg_t*)cbArg;
+  
+  // TODO: handle serial receive
+}
+
 cmAsRC_t cmAudioSysAllocate( cmAudioSysH_t* hp, cmRpt_t* rpt, const cmAudioSysCfg_t* cfg )
 {
   cmAsRC_t rc;
@@ -832,6 +841,7 @@ cmAsRC_t cmAudioSysInitialize( cmAudioSysH_t h, const cmAudioSysCfg_t* cfg )
     cp->iMeterArray      = cmMemAllocZ( double, cp->status.iMeterCnt );
     cp->oMeterArray      = cmMemAllocZ( double, cp->status.oMeterCnt );
     cp->netH             = cfg->netH;
+    cp->serialPortH      = cfg->serialPortH;
 
     // create the audio System thread
     if((rc = cmThreadCreate( &cp->threadH, _cmAsThreadCallback, cp, ss->args.rpt )) != kOkThRC )
@@ -874,6 +884,16 @@ cmAsRC_t cmAudioSysInitialize( cmAudioSysH_t h, const cmAudioSysCfg_t* cfg )
         goto errLabel;
       }
 
+    // install the serial port 
+    if( cmSeIsOpen(cp->serialPortH) )
+    {
+      if( cmSeSetCallback(cp->serialPortH, _cmAudioSysSerialPortCallback, cp ) != kOkSeRC )
+      {
+        rc = _cmAsError(p,kSerialPortFailAsRC,"Serial port callback installation failed.");
+        goto errLabel;        
+      }
+    }
+
     // setup the sub-system status notification 
     cp->statusUpdateSmpCnt = floor(cmApBufMeterMs() * cp->ss.args.srate / 1000.0 );
     cp->statusUpdateSmpIdx = 0;
@@ -885,6 +905,16 @@ cmAsRC_t cmAudioSysInitialize( cmAudioSysH_t h, const cmAudioSysCfg_t* cfg )
     {
       rc = _cmAsError(p,kThreadErrAsRC,"Thread start failed.");
       goto errLabel;
+    }
+
+    if( cmSeIsOpen(cp->serialPortH) )
+    {
+      if( cmSeStart( cp->serialPortH ) != kOkSeRC )
+      {
+        rc = _cmAsError(p,kSerialPortFailAsRC,"Serial port start failed.");
+        goto errLabel;        
+      }
+      
     }
   }
 
