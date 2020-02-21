@@ -19,6 +19,7 @@
 #include "cmThread.h"
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
+#include "cmSerialPort.h"
 #include "cmTime.h"
 #include "cmAudioSys.h"
 #include "cmProcObj.h"
@@ -61,7 +62,7 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ai0 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 0);
   cmDspInst_t* ai1 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 1);
   //cmDspInst_t* mip = cmDspSysAllocInst(h,"MidiIn",      NULL,  2, "MOTU - Traveler mk3", "MIDI Port");
-  cmDspInst_t* mip = cmDspSysAllocInst(h,"MidiIn",      NULL,  2, "Apple Inc. - IAC Driver", "Bus 1");
+  //cmDspInst_t* mip = cmDspSysAllocInst(h,"MidiIn",      NULL,  2, "Apple Inc. - IAC Driver", "Bus 1");
   
   cmDspInst_t* tlp  = cmDspSysAllocInst(h,"TimeLine",    "tl",  2, r.tlFn, r.tlPrefixPath );
   cmDspInst_t* scp  = cmDspSysAllocInst(h,"Score",       "sc",  1, r.scFn );

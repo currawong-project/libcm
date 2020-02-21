@@ -27,6 +27,7 @@
 #include "cmThread.h"
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
+#include "cmSerialPort.h"
 #include "cmTime.h"
 #include "cmAudioSys.h"
 #include "cmDspSys.h"
