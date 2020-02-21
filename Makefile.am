@@ -33,6 +33,9 @@ cmSRC += src/libcm/cmAudioPort.c src/libcm/cmApBuf.c src/libcm/cmAudioAggDev.c s
 cmHDR += src/libcm/cmMidiFilePlay.h src/libcm/cmMidiPort.h src/libcm/cmMidiFile.h src/libcm/cmMidi.h 
 cmSRC += src/libcm/cmMidiFilePlay.c src/libcm/cmMidiPort.c src/libcm/cmMidiFile.c src/libcm/cmMidi.c 
 
+cmHDR += src/libcm/cmSerialPort.h
+cmSRC += src/libcm/cmSerialPort.c
+
 cmHDR += src/libcm/cmAudioFile.h src/libcm/cmAudioFileMgr.h src/libcm/cmMsgProtocol.h src/libcm/cmAudioSys.h src/libcm/cmAudioPortFile.h src/libcm/cmAudioFileDev.h 
 cmSRC += src/libcm/cmAudioFile.c src/libcm/cmAudioFileMgr.c src/libcm/cmMsgProtocol.c src/libcm/cmAudioSys.c src/libcm/cmAudioPortFile.c src/libcm/cmAudioFileDev.c
 

@@ -23,7 +23,7 @@ extern "C" {
   //  Control Functions
   //
 
-  cmDspRC_t cmDspSysInitialize( cmCtx_t* ctx, cmDspSysH_t* hp, cmUdpNetH_t netH );
+  cmDspRC_t cmDspSysInitialize( cmCtx_t* ctx, cmDspSysH_t* hp, cmUdpNetH_t netH, cmSeH_t serialPortH );
   cmDspRC_t cmDspSysFinalize(  cmDspSysH_t* hp );
   
   bool      cmDspSysIsValid(   cmDspSysH_t h );
@@ -156,6 +156,7 @@ extern "C" {
   double          cmDspSysSampleRate( cmDspSysH_t h );
   cmJsonH_t       cmDspSysPgmRsrcHandle( cmDspSysH_t h );
   cmSymTblH_t     cmDspSysSymbolTable( cmDspSysH_t h );
+  cmSeH_t         cmDspSysSerialPort( cmDspSysH_t h );
 
   unsigned        cmDspSysRegisterStaticSymbol( cmDspSysH_t h, const cmChar_t* symLabel );
   unsigned        cmDspSysRegisterSymbol( cmDspSysH_t h, const cmChar_t* symLabel );

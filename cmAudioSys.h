@@ -73,6 +73,7 @@ extern "C" {
     kBufTooSmallAsRC,
     kNoMsgWaitingAsRC,
     kMidiSysFailAsRC,
+    kSerialPortFailAsRC,
     kMsgSerializeFailAsRC,
     kStateBufFailAsRC,
     kInvalidArgAsRC,
@@ -197,6 +198,7 @@ extern "C" {
     cmTsQueueCb_t         clientCbFunc; // Called by  cmAudioSysReceiveMsg() to deliver internally generated msg's to the host. 
                                         //  Set to NULL if msg's will be directly returned by buffers passed to cmAudioSysReceiveMsg().
     cmUdpNetH_t           netH;
+    cmSeH_t               serialPortH;
   } cmAudioSysCfg_t;
 
   extern cmAudioSysH_t cmAudioSysNullHandle;

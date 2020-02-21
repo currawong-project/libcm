@@ -17,6 +17,7 @@ extern "C" {
   struct cmDspClass_str* cmActiveMeasClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmAmSyncClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmNanoMapClassCons( cmDspCtx_t* ctx );
+  struct cmDspClass_str* cmPicadaeClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmRecdPlayClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmGoertzelClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmSyncRecdClassCons( cmDspCtx_t* ctx );

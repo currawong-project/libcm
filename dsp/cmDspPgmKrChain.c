@@ -18,6 +18,7 @@
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
 #include "cmTime.h"
+#include "cmSerialPort.h"
 #include "cmAudioSys.h"
 #include "cmProcObj.h"
 #include "cmDspCtx.h"

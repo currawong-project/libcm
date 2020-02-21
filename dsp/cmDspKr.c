@@ -18,6 +18,8 @@
 #include "cmThread.h"
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
+#include "cmSerialPort.h"
+
 //( { file_desc:"'snap' audio effects performance analysis units." kw:[snap]}
 
 #include "cmTime.h"
@@ -2799,6 +2801,134 @@ cmDspClass_t* cmNanoMapClassCons( cmDspCtx_t* ctx )
     "Nanosynth Mapper");
 
   return &_cmNanoMapDC;
+}
+
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspPicadae file_desc:"Control a MIDI synth." kw:[sunit] }
+
+enum
+{
+  kPgmPcId,
+  kStatusPcId,
+  kD0PcId,
+  kD1PcId,
+  kThruPcId
+};
+
+cmDspClass_t _cmPicadaeDC;
+
+typedef struct
+{
+  cmDspInst_t inst;
+
+} cmDspPicadae_t;
+
+cmDspRC_t _cmDspPicadaeSend( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned st, unsigned d0, unsigned d1 )
+{
+  cmDspSetUInt(ctx,inst,kD1PcId,d1);
+  cmDspSetUInt(ctx,inst,kD0PcId,d0);
+  cmDspSetUInt(ctx,inst,kStatusPcId,st);
+  return kOkDspRC;
+}
+
+void _cmDspPicadaePgm( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned pgm )
+{
+  //cmDspPicadae_t* p = (cmDspPicadae_t*)inst;
+
+  unsigned i;
+        
+  for(i=0; i<kMidiChCnt; ++i)
+  {
+    _cmDspPicadaeSend(ctx,inst,kCtlMdId+i,121,0); // reset all controllers
+    _cmDspPicadaeSend(ctx,inst,kCtlMdId+i,123,0); // turn all notes off
+    _cmDspPicadaeSend(ctx,inst,kCtlMdId+i,0,0);   // switch to bank 0
+    _cmDspPicadaeSend(ctx,inst,kPgmMdId+i,pgm,0); // send pgm change
+    cmSleepMs(15);
+  }
+  
+}
+
+cmDspInst_t*  _cmDspPicadaeAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  cmDspVarArg_t args[] =
+  {
+    { "pgm",    kPgmPcId,    0,  0,              kInDsvFl | kUIntDsvFl | kOptArgDsvFl, "Reprogram all channels to this pgm." },
+    { "status", kStatusPcId, 0,  0,  kOutDsvFl | kInDsvFl | kUIntDsvFl | kOptArgDsvFl, "MIDI status" },
+    { "d0",     kD0PcId,     0,  0,  kOutDsvFl | kInDsvFl | kUIntDsvFl | kOptArgDsvFl, "MIDI channel message d0" },
+    { "d1",     kD1PcId,     0,  0,  kOutDsvFl | kInDsvFl | kUIntDsvFl | kOptArgDsvFl, "MIDI channel message d1" },
+    { "thru",   kThruPcId,   0,  0,              kInDsvFl | kBoolDsvFl | kOptArgDsvFl, "Enable pass through."},
+    { NULL, 0, 0, 0, 0 }
+  };
+
+  cmDspPicadae_t* p = cmDspInstAlloc(cmDspPicadae_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+  
+  cmDspSetDefaultUInt(ctx,&p->inst, kPgmPcId, 0, 0 );
+
+  return &p->inst;
+}
+
+cmDspRC_t _cmDspPicadaeReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspRC_t      rc = kOkDspRC;
+
+  cmDspApplyAllDefaults(ctx,inst);
+
+  _cmDspPicadaePgm(ctx,inst,cmDspUInt(inst,kPgmPcId));
+
+  return rc;
+} 
+
+cmDspRC_t _cmDspPicadaeRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  //cmDspPicadae_t* p = (cmDspPicadae_t*)inst;
+
+  switch( evt->dstVarId )
+  {
+    case kPgmPcId:
+      cmDspSetEvent(ctx,inst,evt);
+      _cmDspPicadaePgm(ctx,inst,cmDspUInt(inst,kPgmPcId));
+      break;
+
+    case kStatusPcId:
+      {
+        unsigned status = cmDsvGetUInt(evt->valuePtr);        
+        unsigned stat_no_ch = status & 0xf0;
+        if( stat_no_ch == kNoteOnMdId || stat_no_ch == kNoteOffMdId || stat_no_ch == kCtlMdId  )
+        {
+          //unsigned d0 = cmDspUInt(inst,kD0PcId);
+          unsigned ch = 0; //d0 % 8;
+          status = (status & 0xf0) + ch;
+          cmDspSetUInt(ctx,inst,kStatusPcId,status);
+        }
+       
+      }
+      break;
+
+
+    default:
+      cmDspSetEvent(ctx,inst,evt);
+      break;
+  }
+
+
+  return kOkDspRC;
+}
+
+cmDspClass_t* cmPicadaeClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmPicadaeDC,ctx,"Picadae",
+    NULL,
+    _cmDspPicadaeAlloc,
+    NULL,
+    _cmDspPicadaeReset,
+    NULL,
+    _cmDspPicadaeRecv,
+    NULL,
+    NULL,
+    "Picadaesynth Mapper");
+
+  return &_cmPicadaeDC;
 }
 
 //------------------------------------------------------------------------------------------------------------

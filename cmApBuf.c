@@ -815,6 +815,7 @@ void cmApBufInputToOutput( unsigned iDevIdx, unsigned oDevIdx )
 
       unsigned    byteCnt  = ip->dspFrameCnt * sizeof(cmApSample_t);
 
+
       if( oBufPtrArray[i] != NULL )
       {      
         // the input channel is not disabled
@@ -846,18 +847,20 @@ void cmApBufReport( cmRpt_t* rpt )
       unsigned ii = 0;
       unsigned oi = 0;
       unsigned fn  = 0;
+      cmApSample_t mtr = 0;
       for(k=0; k<ip->chCnt; ++k)
       {
         cmApCh* cp = ip->chArray + i;
         ii += cp->ii;
         oi += cp->oi;
         fn += cp->fn;
+        mtr += _cmApMeterValue(cp);
       }
 
-        cmRptPrintf(rpt,"%s - i:%7i o:%7i f:%7i n:%7i err %s:%7i ",
+      cmRptPrintf(rpt,"%s - i:%7i o:%7i f:%7i n:%7i err %s:%7i  mtr:%5.4f ",
         j==0?"IN":"OUT",
-        ii,oi,fn,ip->n, (j==0?"over":"under"), ip->faultCnt);
-
+        ii,oi,fn,ip->n, (j==0?"over":"under"), ip->faultCnt, mtr);
+      
     }
 
     cmRptPrintf(rpt,"\n");

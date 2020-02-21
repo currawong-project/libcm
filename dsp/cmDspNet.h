@@ -72,6 +72,7 @@ extern "C" {
     cmDspPresetMgr_t    pm;
     unsigned            nextInstId;
     unsigned            pgmIdx;
+    cmSeH_t             serialPortH;
 
 
     cmUdpNetH_t           netH;          //

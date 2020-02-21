@@ -15,6 +15,7 @@
 #include "cmThread.h"
 #include "cmUdpPort.h"
 #include "cmUdpNet.h"
+#include "cmSerialPort.h"
 #include "cmTime.h"
 #include "cmAudioSys.h"
 #include "cmProcObj.h"
@@ -128,7 +129,7 @@ void* cmDspInstAllocate(
     }
 
     // determine the space needed for matrices of known size
-    if( cmIsFlag(flags,kMtxDsvFl) && (rn*argV[i].cn) )
+    if( cmIsFlag(flags,kMtxDsvFl) && (rn*argV[i].cn)>0 )
     {
       unsigned n = cmDsvByteCount( flags, rn, argV[i].cn );
       varDataByteCnt += n;
@@ -238,7 +239,7 @@ void* cmDspInstAllocate(
     }
 
     // assign memory to the matrix types of known size
-    if( cmIsFlag(flags,kMtxDsvFl) && (rn*argV[i].cn) )
+    if( cmIsFlag(flags,kMtxDsvFl) && (rn*argV[i].cn)>0 )
     {
       cmDsvSetMtx(  &ip->varArray[i].value, flags, varDataPtr, rn, argV[i].cn );
       unsigned n = cmDsvByteCount( flags, rn, argV[i].cn );
