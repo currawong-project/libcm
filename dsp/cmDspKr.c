@@ -2809,63 +2809,360 @@ cmDspClass_t* cmNanoMapClassCons( cmDspCtx_t* ctx )
 
 enum
 {
-  kPgmPcId,
   kStatusPcId,
   kD0PcId,
   kD1PcId,
-  kThruPcId
 };
 
 cmDspClass_t _cmPicadaeDC;
 
 typedef struct
 {
-  cmDspInst_t inst;
+  unsigned pitch;
+  unsigned velMapA[10];
+} cmDspPicadaeVelMap_t;
 
+// This table is generated from picadae_ac_3/velTableToDataStruct.py 
+
+cmDspPicadaeVelMap_t cmDspPicadaeVelMap[] =
+{
+ { 21,{     0,     0,     0,     0,     0,     0,     0,     0,     0,     0, } },
+ { 22,{     0,     0,     0,     0,     0,     0,     0,     0,     0,     0, } },
+ { 23, { 12800, 12950, 13175, 13500, 13750, 14750, 15375, 17500, 23000, 37000, } },
+ { 24, { 12425, 12800, 13175, 14225, 14750, 15500, 17500, 22500, 32000, 39000, } },
+ { 25, { 14150, 14375, 14975, 14625, 15500, 16500, 20000, 28500, 40000, 40000, } },
+ { 26, { 13000, 13175, 13500, 13700, 13925, 14250, 15000, 16250, 19000, 26500, } },
+ { 27, { 13625, 13925, 14075, 14250, 14500, 14875, 15375, 16500, 18750, 25000, } },
+ { 28, { 12625, 13750, 13775, 14225, 14500, 16500, 18000, 20000, 25500, 34000, } },
+ { 29, { 12125, 12725, 13000, 12950, 14150, 15500, 16250, 17750, 21500, 28000, } },
+ { 30, { 13175, 13325, 13550, 14450, 14875, 15500, 16250, 17750, 21500, 27000, } },
+ { 31, { 13925, 14075, 14450, 14625, 15500, 16250, 16750, 17750, 19500, 23500, } },
+ { 32, { 13250, 14150, 14975, 14750, 15250, 16000, 17500, 21000, 27000, 38000, } },
+ { 33, { 11825, 13025, 14075, 14825, 14375, 14875, 16250, 17500, 22000, 28000, } },
+ { 34, { 13025, 13375, 13325, 13775, 14375, 14500, 15250, 18000, 22000, 27000, } },
+ { 35, { 11375, 12250, 12350, 12725, 14225, 13750, 15375, 17000, 20500, 25000, } },
+ { 36, { 11750, 13875, 14125, 14225, 14675, 14750, 16500, 18500, 22500, 32000, } },
+ { 37, { 12425, 12575, 13000, 13025, 13375, 15000, 16000, 18750, 25500, 35000, } },
+ { 38, { 13750, 13875, 14075, 14600, 14750, 15500, 17750, 21500, 27500, 37000, } },
+ { 39, { 11000, 12500, 12950, 13700, 14875, 15500, 16250, 20000, 26500, 37000, } },
+ { 40, { 11525, 11750, 12125, 12500, 12875, 13500, 14625, 18250, 23500, 29000, } },
+ { 41, { 11675, 11750, 12500, 13000, 13925, 15250, 17000, 20000, 26500, 36000, } },
+ { 42, { 11875, 12000, 11975, 12050, 12275, 13375, 15000, 17250, 22000, 29000, } },
+ { 43, { 11500, 11625, 11750, 11750, 12625, 12250, 13625, 16750, 19500, 25500, } },
+ { 44, { 12425, 12500, 12750, 12650, 13000, 14000, 15250, 16500, 20000, 27000, } },
+ { 45, { 11250, 11600, 11875, 12000, 12250, 13100, 14750, 15500, 18250, 25500, } },
+ { 46, { 11450, 11525, 11600, 11625, 11875, 12250, 14000, 15750, 17750, 21500, } },
+ { 47, { 11900, 11975, 12125, 12375, 13125, 14375, 15750, 18750, 22500, 28500, } },
+ { 48, { 11750, 13100, 13325, 13625, 14300, 14975, 15750, 19000, 24000, 30000, } },
+ { 49, { 11975, 12050, 12500, 12750, 13125, 14000, 17000, 20000, 25500, 40000, } },
+ { 50, { 11625, 11525, 11750, 11825, 12125, 12375, 14750, 16250, 19000, 25500, } },
+ { 51, { 12050, 12125, 12125, 12275, 12350, 12500, 12875, 16250, 18500, 22500, } },
+ { 52, { 12950, 13025, 13125, 13175, 13250, 13500, 13875, 15750, 18000, 22000, } },
+ { 53, { 10600, 10250, 10350, 10450, 10900, 11375, 13025, 14750, 18250, 26500, } },
+ { 54, { 12650, 12625, 12725, 12800, 13000, 13625, 16250, 18500, 23000, 32000, } },
+ { 55, { 11875, 12125, 12250, 12425, 12875, 13175, 13750, 17250, 20000, 26000, } },
+ { 56, { 11625, 11750, 12000, 12200, 12500, 13125, 14375, 17000, 20500, 26500, } },
+ { 57, { 11625, 11750, 12125, 12275, 12750, 14625, 16750, 20000, 25500, 39000, } },
+ { 58, { 12000, 12500, 12750, 12875, 13100, 13375, 15000, 17750, 21000, 28000, } },
+ { 59, { 11625, 11525, 12050, 13375, 13625, 14150, 16500, 21000, 24500, 30000, } },
+ { 60, { 12250, 12250, 12375, 12350, 13000, 13500, 16000, 17750, 22000, 29000, } },
+ { 61, { 11375, 11500, 11625, 11750, 12000, 12200, 12725, 13625, 17500, 21000, } },
+ { 62, { 11600, 11675, 11825, 12125, 12650, 13375, 14375, 18500, 24500, 32000, } },
+ { 63, { 12125, 12200, 12350, 12500, 13025, 13625, 16250, 18750, 24500, 36000, } },
+ { 64, { 10550, 10650, 10850, 11250, 11875, 12250, 14000, 16250, 19500, 26500, } },
+ { 65, { 12750, 12800, 12875, 13175, 13250, 14625, 14975, 17500, 20500, 26000, } },
+ { 66, { 10750, 11000, 11250, 11500, 12000, 12875, 15375, 17000, 20500, 28500, } },
+ { 67, { 10950, 11125, 11250, 11500, 11875, 13875, 15750, 17750, 23000, 37000, } },
+ { 68, { 10150, 10300, 10550, 10800, 11125, 11875, 13000, 16000, 19000, 25000, } },
+ { 69, { 11750, 11875, 12375, 12500, 12750, 13500, 16250, 18250, 23500, 31000, } },
+ { 70, { 10700, 10850, 10950, 11125, 11625, 13875, 14500, 15750, 18750, 24500, } },
+ { 71, { 10200, 10700, 11000, 11250, 11625, 14000, 14875, 16250, 22000, 27000, } },
+ { 72, {  9800, 10100, 10400, 10550, 11000, 11625, 13000, 15500, 17750, 23000, } },
+ { 73, { 10750, 10900, 11125, 11375, 11625, 12750, 14750, 15500, 18500, 23000, } },
+ { 74, { 10300, 10450, 10600, 10850, 11250, 12000, 14250, 15000, 17500, 21000, } },
+ { 75, { 10600, 10750, 10900, 11125, 12500, 14500, 14750, 15000, 21000, 31000, } },
+ { 76, { 10200, 11625, 12375, 12875, 13500, 15750, 19000, 22500, 27500, 39000, } },
+ { 77, { 10500, 10700, 11125, 11375, 11750, 14000, 14875, 16500, 20500, 27000, } },
+ { 78, { 10450, 10800, 11000, 11625, 12000, 13125, 15500, 18250, 22000, 34000, } },
+ { 79, { 12250, 13500, 14125, 14750, 16250, 17500, 19000, 24500, 31000, 40000, } },
+ { 80, { 10400, 10450, 10750, 11125, 12125, 13375, 14750, 17750, 23000, 39000, } },
+ { 81, { 10800, 10950, 11125, 11375, 12625, 13875, 14875, 16000, 19000, 23500, } },
+ { 82, { 12000, 12375, 13750, 13750, 12625, 14000, 17000, 19000, 21000, 24500, } },
+ { 83, { 12250, 12500, 13625, 13875, 14375, 16500, 17750, 20500, 25000, 35000, } },
+ { 84, { 11500, 12000, 12250, 12500, 13125, 14250, 15375, 16750, 19500, 25500, } },
+ { 85, { 10400, 10500, 10600, 11250, 12250, 13375, 15000, 16750, 20000, 26000, } },
+ { 86, { 11500, 11750, 11875, 12000, 12250, 12500, 13500, 15000, 20500, 21000, } },
+ { 87, { 10650, 11500, 13125, 13375, 13750, 14500, 16500, 18000, 20000, 24000, } },
+ { 88, { 11375, 11375, 11500, 12375, 12000, 13375, 14500, 16500, 19000, 23000, } },
+ { 89, {  9200, 10900, 11500, 12125, 22000, 12875, 14125, 16000, 19000, 26500, } },
+ { 90, {     0,     0,     0,     0,     0,     0,     0,     0,     0,     0, } },
+ { 91, {  9450,  9950, 10000, 10150, 10600, 11250, 12125, 13875, 15250, 19000, } },
+ { 92, {  9050,  9500,  9600, 10100, 10900, 11875, 13000, 16000, 20500, 31000, } },
+ { 93, { 11250, 11375, 12000, 12375, 12875, 13625, 14250, 17500, 21500, 39000, } },
+ { 94, { 11125, 11375, 11750, 13500, 14000, 14875, 15750, 17750, 22000, 25500, } },
+ { 95, { 10200, 10350, 11500, 12250, 12500, 13125, 13875, 15250, 19000, 21000, } },
+ { 96, {  9050,  9550, 10100, 13875, 13000, 14000, 18500, 22000, 27000, 39000, } },
+ { 97, { 11000, 12500, 13250, 13000, 13750, 15750, 15000, 18000, 19000, 22500, } },
+ { 98, { 10400, 10850, 12125, 12125, 13250, 13875, 16000, 18750, 26500, 37000, } },
+ { 99, { 11000, 12625, 13125, 14000, 15500, 16750, 19000, 21500, 25000, 36000, } },
+ { 100,{  9650, 10450, 11500, 12375, 12500, 12875, 13500, 15500, 17500, 21500, } },
+ { 101,{ 10950, 11250, 11500, 11875, 12250, 12875, 13500, 14375, 22500, 39000, } },
+ { 102,{     0,     0,     0,     0,     0,     0,     0,     0,     0,     0, } },
+ { 103,{     0,     0,     0,     0,     0,     0,     0,     0,     0,     0, } },
+ { 104,{     0,     0,     0,     0,     0,     0,     0,     0,     0,     0, } },
+ { 105,{     0,     0,     0,     0,     0,     0,     0,     0,     0,     0, } },
+ { 106,{     0,     0,     0,     0,     0,     0,     0,     0,     0,     0, } },
+ { 107,{     0,     0,     0,     0,     0,     0,     0,     0,     0,     0, } },
+ { 108,{     0,     0,     0,     0,     0,     0,     0,     0,     0,     0, } },
+ { 0,  {     0,     0,     0,     0,     0,     0,     0,     0,     0,     0, } }
+};
+
+typedef struct
+{
+  int us;
+  int dutyPct;
+} cmDspPicadaeDutyMap_t;
+
+typedef struct
+{
+  unsigned  pitch;
+  cmDspPicadaeDutyMap_t dutyMapA[5];
+} cmDspPicadaeDuty_t;
+
+// This table is generated from picadae_ac_3/velTableToDataStruct.py 
+
+cmDspPicadaeDuty_t cmDspPicadaeDutyMap[] =
+{
+ 21, {{ -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 22, {{ -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 23, {{ 0, 70 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 24, {{ 0, 75 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 25, {{ 0, 70 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 26, {{ 0, 65 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 27, {{ 0, 70 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 28, {{ 0, 70 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 29, {{ 0, 65 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 30, {{ 0, 65 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 31, {{ 0, 65 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 32, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 33, {{ 0, 65 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 34, {{ 0, 65 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 35, {{ 0, 65 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 36, {{ 0, 65 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 37, {{ 0, 65 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 38, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 39, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 40, {{ 0, 55 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 41, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 42, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 43, {{ 0, 65 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 44, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 45, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 46, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 47, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 48, {{ 0, 70 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 49, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 50, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 51, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 52, {{ 0, 55 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 53, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 54, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 55, {{ 0, 50 }, { 22000, 55 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 56, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 57, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 58, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 59, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 60, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 61, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 62, {{ 0, 55 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 63, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 64, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 65, {{ 0, 50 }, { 17000, 65 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 66, {{ 0, 53 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 67, {{ 0, 55 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 68, {{ 0, 53 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 69, {{ 0, 55 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 70, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 71, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 72, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 73, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 74, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 75, {{ 0, 55 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 76, {{ 0, 70 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 77, {{ 0, 50 }, { 15000, 60 }, { 19000, 70 }, { -1, -1 }, { -1, -1 }, },
+ 78, {{ 0, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 79, {{ 0, 50 }, { 15000, 60 }, { 19000, 70 }, { -1, -1 }, { -1, -1 }, },
+ 80, {{ 0, 45 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 81, {{ 0, 50 }, { 15000, 70 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 82, {{ 0, 50 }, { 12500, 60 }, { 14000, 65 }, { 17000, 70 }, { -1, -1 }, },
+ 83, {{ 0, 50 }, { 15000, 65 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 84, {{ 0, 50 }, { 12500, 60 }, { 14000, 65 }, { 17000, 70 }, { -1, -1 }, },
+ 85, {{ 0, 50 }, { 12500, 60 }, { 14000, 65 }, { 17000, 70 }, { -1, -1 }, },
+ 86, {{ 0, 50 }, { 12500, 60 }, { 14000, 65 }, { 17000, 70 }, { -1, -1 }, },
+ 87, {{ 0, 50 }, { 14000, 60 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 88, {{ 0, 50 }, { 12500, 60 }, { 14000, 65 }, { 17000, 70 }, { -1, -1 }, },
+ 89, {{ 0, 50 }, { 12500, 60 }, { 14000, 65 }, { 17000, 70 }, { -1, -1 }, },
+ 90, {{ -1, -1}, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 91, {{ 0, 40 }, { 12500, 50 }, { 14000, 60 }, { 17000, 65 }, { -1, -1 }, }, 
+ 92, {{ 0, 40 }, { 14000, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 93, {{ 0, 40 }, { 12500, 50 }, { 14000, 60 }, { 17000, 65 }, { -1, -1 }, },
+ 94, {{ 0, 40 }, { 14000, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 95, {{ 0, 40 }, { 12500, 50 }, { 14000, 60 }, { 17000, 65 }, { -1, -1 }, },
+ 96, {{ 0, 40 }, { 12500, 50 }, { 14000, 60 }, { 17000, 65 }, { -1, -1 }, },
+ 97, {{ 0, 40 }, { 14000, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 98, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 99, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 100, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 101, {{ 0, 50 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 102, {{ -1, -1}, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 103, {{ -1, -1}, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 104, {{ -1, -1}, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 105, {{ -1, -1}, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 106, {{ -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 107, {{ -1, -1}, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+ 108, {{ -1, -1}, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+   0, {{ -1, -1}, { -1, -1 }, { -1, -1 }, { -1, -1 }, { -1, -1 }, },
+
+};
+
+typedef struct
+{
+  cmDspInst_t inst;
+  unsigned    curDutyPctA[127];  
 } cmDspPicadae_t;
 
-cmDspRC_t _cmDspPicadaeSend( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned st, unsigned d0, unsigned d1 )
+
+unsigned _cmDspPicadaeVelToMicroseconds( unsigned pitch, unsigned vel )
 {
-  cmDspSetUInt(ctx,inst,kD1PcId,d1);
-  cmDspSetUInt(ctx,inst,kD0PcId,d0);
-  cmDspSetUInt(ctx,inst,kStatusPcId,st);
-  return kOkDspRC;
+  unsigned i;
+
+  unsigned velN = sizeof(cmDspPicadaeVelMap[i].velMapA)/sizeof(cmDspPicadaeVelMap[i].velMapA[0]);
+
+  long velIdx = lround( vel * velN / 127.0  );
+
+  assert( pitch >= cmDspPicadaeVelMap[0].pitch );
+  long pitchIdx = pitch - cmDspPicadaeVelMap[0].pitch;
+
+  return cmDspPicadaeVelMap[pitchIdx].velMapA[velIdx];
 }
 
-void _cmDspPicadaePgm( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned pgm )
+int _cmDspPicadaeVelToDutyCycle( unsigned pitch, unsigned usec )
 {
-  //cmDspPicadae_t* p = (cmDspPicadae_t*)inst;
+  unsigned            i;
+  int                 dutyPct  = -1;
+  long                pitchIdx = pitch - cmDspPicadaeDutyMap[0].pitch;
+  cmDspPicadaeDuty_t* r        = cmDspPicadaeDutyMap + pitchIdx;
 
-  unsigned i;
-        
-  for(i=0; i<kMidiChCnt; ++i)
+  for(i=0; r->dutyMapA[i].us != -1; ++i)
+    if( r->dutyMapA[i].us <= usec )
+      dutyPct = r->dutyMapA[i].dutyPct;
+
+  return dutyPct;
+}
+
+void _cmDspPicadaeSerialXmitNoteOff( cmDspCtx_t* ctx, cmDspInst_t* inst, uint8_t pitch )
+{
+  const uint8_t note_off_op  = 3;
+  uint8_t      serialBuf[]  = { 'w', pitch,  note_off_op, 1, 0 };
+
+  cmSeSend( cmDspSysSerialPort(ctx->dspH), serialBuf, sizeof(serialBuf) );
+}
+
+void _cmDspPicadaeSerialXmitNoteOn( cmDspCtx_t* ctx, cmDspInst_t* inst, uint8_t pitch, uint8_t coarse_tick, uint8_t fine_tick )
+{
+  const uint8_t  note_on_usec_op   = 2;
+  uint8_t serialBuf[] = { 'w', pitch,  note_on_usec_op, 2, coarse_tick, fine_tick };
+
+  cmSeSend( cmDspSysSerialPort(ctx->dspH), serialBuf, sizeof(serialBuf) );
+}
+
+void _cmDspPicadaeSerialXmitDuty( cmDspCtx_t* ctx, cmDspPicadae_t* p, uint8_t pitch, uint8_t dutyPct )
+{
+  if( p->curDutyPctA[ pitch ] != dutyPct )
   {
-    _cmDspPicadaeSend(ctx,inst,kCtlMdId+i,121,0); // reset all controllers
-    _cmDspPicadaeSend(ctx,inst,kCtlMdId+i,123,0); // turn all notes off
-    _cmDspPicadaeSend(ctx,inst,kCtlMdId+i,0,0);   // switch to bank 0
-    _cmDspPicadaeSend(ctx,inst,kPgmMdId+i,pgm,0); // send pgm change
-    cmSleepMs(15);
+    uint8_t       duty_pct_op = 0;
+    unsigned char serialBuf[] = { 'w', pitch,  duty_pct_op, 1, dutyPct };
+  
+    cmSeSend( cmDspSysSerialPort(ctx->dspH), serialBuf, sizeof(serialBuf) );
   }
   
+}
+
+void _cmDspPicadaeSendNote( cmDspCtx_t* ctx, cmDspInst_t* inst )
+{
+  cmDspPicadae_t* p = (cmDspPicadae_t*)inst;
+  unsigned prescaler_usec = 16;
+
+  unsigned status   = cmDspUInt(inst,kStatusPcId);
+  uint8_t  pitch    = (uint8_t)cmDspUInt(inst,kD0PcId);
+  unsigned velocity = cmDspUInt(inst,kD1PcId);
+
+  assert( 21<=pitch && pitch<=108 );
+  
+  // if this is a note-off
+  if( status == kNoteOffMdId || velocity == 0 )
+  {
+    _cmDspPicadaeSerialXmitNoteOff( ctx, inst, pitch );
+    return;
+  }
+  
+  unsigned usec     = _cmDspPicadaeVelToMicroseconds(pitch, velocity );
+
+  // if the pitch is invalid then 'usec' will be set to 0
+  if( usec == 0 )
+    return;
+  
+  unsigned dutyPct    = _cmDspPicadaeVelToDutyCycle( pitch, usec );
+
+  // if the pitch is invalid then dutyPct will be set to -1
+  if( dutyPct == -1 )
+    return;
+
+  unsigned coarse_usec = prescaler_usec*255; // usec's in one coarse tick        
+  uint8_t coarse_ticks = (uint8_t)(usec / coarse_usec);
+  uint8_t fine_ticks   = (uint8_t)((usec - coarse_ticks*coarse_usec) / prescaler_usec);
+
+  
+  _cmDspPicadaeSerialXmitDuty( ctx, p, pitch, dutyPct );
+  
+  _cmDspPicadaeSerialXmitNoteOn( ctx, inst, pitch, coarse_ticks, fine_ticks );
 }
 
 cmDspInst_t*  _cmDspPicadaeAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
   cmDspVarArg_t args[] =
   {
-    { "pgm",    kPgmPcId,    0,  0,              kInDsvFl | kUIntDsvFl | kOptArgDsvFl, "Reprogram all channels to this pgm." },
     { "status", kStatusPcId, 0,  0,  kOutDsvFl | kInDsvFl | kUIntDsvFl | kOptArgDsvFl, "MIDI status" },
     { "d0",     kD0PcId,     0,  0,  kOutDsvFl | kInDsvFl | kUIntDsvFl | kOptArgDsvFl, "MIDI channel message d0" },
     { "d1",     kD1PcId,     0,  0,  kOutDsvFl | kInDsvFl | kUIntDsvFl | kOptArgDsvFl, "MIDI channel message d1" },
-    { "thru",   kThruPcId,   0,  0,              kInDsvFl | kBoolDsvFl | kOptArgDsvFl, "Enable pass through."},
     { NULL, 0, 0, 0, 0 }
   };
 
   cmDspPicadae_t* p = cmDspInstAlloc(cmDspPicadae_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
   
-  cmDspSetDefaultUInt(ctx,&p->inst, kPgmPcId, 0, 0 );
-
   return &p->inst;
+}
+
+void _cmDspPicadaReset( cmDspCtx_t* ctx, cmDspInst_t* inst )
+{
+  cmDspPicadae_t* p = (cmDspPicadae_t*)inst;
+  
+  memset(p->curDutyPctA,0,sizeof(p->curDutyPctA));
+
+  // send note-off messages to all keys 
+  unsigned i = 0;
+  for(i=0; cmDspPicadaeVelMap[i].pitch !=0; ++i)
+    if( cmDspPicadaeVelMap[i].velMapA[0] != 0 )
+    {
+      _cmDspPicadaeSerialXmitNoteOff( ctx, inst, (uint8_t)cmDspPicadaeVelMap[i].pitch );
+      cmSleepMs(10);
+    }
+
+  // send pedal-up message
+  cmDspSetUInt(ctx,inst,kD0PcId, kSustainCtlMdId );
+  cmDspSetUInt(ctx,inst,kD0PcId, 0 );  
+  cmDspSetUInt(ctx,inst,kStatusPcId,kCtlMdId);
+
 }
 
 cmDspRC_t _cmDspPicadaeReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
@@ -2873,8 +3170,10 @@ cmDspRC_t _cmDspPicadaeReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   cmDspRC_t      rc = kOkDspRC;
 
   cmDspApplyAllDefaults(ctx,inst);
+  
 
-  _cmDspPicadaePgm(ctx,inst,cmDspUInt(inst,kPgmPcId));
+  
+
 
   return rc;
 } 
@@ -2885,21 +3184,22 @@ cmDspRC_t _cmDspPicadaeRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
 
   switch( evt->dstVarId )
   {
-    case kPgmPcId:
-      cmDspSetEvent(ctx,inst,evt);
-      _cmDspPicadaePgm(ctx,inst,cmDspUInt(inst,kPgmPcId));
-      break;
 
-    case kStatusPcId:
+    case kStatusPcId:  
       {
-        unsigned status = cmDsvGetUInt(evt->valuePtr);        
+        // note: the status byte arrives last (after d0 and d1)
+        unsigned status     = cmDsvGetUInt(evt->valuePtr);        
         unsigned stat_no_ch = status & 0xf0;
+        
+        // if this is a note-on or channel
         if( stat_no_ch == kNoteOnMdId || stat_no_ch == kNoteOffMdId || stat_no_ch == kCtlMdId  )
         {
-          //unsigned d0 = cmDspUInt(inst,kD0PcId);
-          unsigned ch = 0; //d0 % 8;
-          status = (status & 0xf0) + ch;
-          cmDspSetUInt(ctx,inst,kStatusPcId,status);
+          
+          cmDspSetUInt(ctx,inst,kStatusPcId,stat_no_ch);
+          
+          if( stat_no_ch == kNoteOnMdId || stat_no_ch == kNoteOffMdId )
+            _cmDspPicadaeSendNote( ctx, inst );
+          
         }
        
       }
@@ -2907,6 +3207,7 @@ cmDspRC_t _cmDspPicadaeRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
 
 
     default:
+      // store 
       cmDspSetEvent(ctx,inst,evt);
       break;
   }
