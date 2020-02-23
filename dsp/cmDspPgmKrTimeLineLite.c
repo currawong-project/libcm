@@ -59,8 +59,8 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   if( krLoadRsrc(h,&err,&r) != kOkDspRC )
     return rc;
 
-  cmDspInst_t* ai0 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 0);
-  cmDspInst_t* ai1 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 1);
+  cmDspInst_t* ai0 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 2);
+  cmDspInst_t* ai1 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 3);
   //cmDspInst_t* mip = cmDspSysAllocInst(h,"MidiIn",      NULL,  2, "MOTU - Traveler mk3", "MIDI Port");
   //cmDspInst_t* mip = cmDspSysAllocInst(h,"MidiIn",      NULL,  2, "Apple Inc. - IAC Driver", "Bus 1");
   
@@ -70,8 +70,9 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspInst_t* mfp  = cmDspSysAllocInst(h,"MidiFilePlay",NULL,  0 );
   cmDspInst_t* nmp  = cmDspSysAllocInst(h,"NanoMap",     NULL,  0 );
-  cmDspInst_t* mop  = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, r.midiDevice,r.midiOutPort);
-  cmDspInst_t* mo2p = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, r.midiDevice,r.midiOutPort2);
+  cmDspInst_t* pic  = cmDspSysAllocInst(h,"Picadae",     NULL,  0 );
+  cmDspInst_t* mop  = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "Scarlett 18i20 USB","Scarlett 18i20 USB MIDI 1");
+  cmDspInst_t* mo2p = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "picadae","picadae MIDI 1");
   cmDspInst_t* sfp  = cmDspSysAllocInst(h,"ScFol",       NULL,  5, r.scFn, sfBufCnt, sfMaxWndCnt, sfMinVel, sfEnaMeasFl );
   cmDspInst_t* amp  = cmDspSysAllocInst(h,"ActiveMeas",  NULL,  1, 100 );
   cmDspInst_t* modp = cmDspSysAllocInst(h,"ScMod",       NULL,  2, r.modFn, "m1" );
@@ -276,17 +277,20 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, msrc,   "d1",     sfp,  "d1",    NULL );
   cmDspSysInstallCb(h, msrc,   "d1",     nmp,  "d1",    NULL );
   cmDspSysInstallCb(h, nmp,   "d1",     mop,  "d1",    NULL );
-  //cmDspSysInstallCb(h, nmp,   "d1",     mo2p, "d1",    NULL );
+  cmDspSysInstallCb(h, nmp,   "d1",     pic, "d1",    NULL );
+  cmDspSysInstallCb(h, pic,   "d1",     mo2p, "d1",    NULL );
 
   cmDspSysInstallCb(h, msrc,  "d0",      sfp,  "d0",   NULL );
   cmDspSysInstallCb(h, msrc,  "d0",      nmp,  "d0",   NULL );
   cmDspSysInstallCb(h, nmp,  "d0",      mop,  "d0",   NULL );
-  //cmDspSysInstallCb(h, nmp,  "d0",      mo2p, "d0",   NULL );
+  cmDspSysInstallCb(h, nmp,  "d0",      pic, "d0",   NULL );
+  cmDspSysInstallCb(h, pic,   "d0",     mo2p, "d0",    NULL );
 
   cmDspSysInstallCb(h, msrc,  "status",  sfp,  "status",NULL );
   cmDspSysInstallCb(h, msrc,  "status",  nmp,  "status",NULL );
   cmDspSysInstallCb(h, nmp,  "status",  mop,  "status",NULL );
-  //cmDspSysInstallCb(h, nmp,  "status",  mo2p, "status",NULL );
+  cmDspSysInstallCb(h, nmp,  "status",  pic, "status",NULL );
+  cmDspSysInstallCb(h, pic,   "status",  mo2p, "status",    NULL );
 
 
   // score follower to recd_play,modulator and printers
