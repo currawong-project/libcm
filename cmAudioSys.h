@@ -139,6 +139,7 @@ extern "C" {
     unsigned       dspFramesPerCycle; // (64)  Audio samples per channel per DSP cycle.
     unsigned       audioBufCnt;       // (3)   Audio device buffers.
     double         srate;             // Audio sample rate.
+    int            srateMult;         // Sample rate multiplication factor (negative for divide)
   } cmAudioSysArgs_t;
 
   // Audio sub-system configuration record.

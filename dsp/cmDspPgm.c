@@ -131,11 +131,11 @@ cmDspRC_t _cmDspSysPgm_MidiFilePlay( cmDspSysH_t h, void** userPtrPtr )
   cmDspRC_t rc = kOkDspRC;
 
 
-  //const cmChar_t* deviceName = "Scarlett 18i20 USB";
-  //const cmChar_t* portName   = "Scarlett 18i20 USB MIDI 1";
+  const cmChar_t* deviceName = "Scarlett 18i20 USB";
+  const cmChar_t* portName   = "Scarlett 18i20 USB MIDI 1";
   
-  const cmChar_t* deviceName = "Fastlane";
-  const cmChar_t* portName   = "Fastlane MIDI A";
+  //const cmChar_t* deviceName = "Fastlane";
+  //const cmChar_t* portName   = "Fastlane MIDI A";
 
   //const cmChar_t* deviceName = "DKV-M4";
   //const cmChar_t* portName   = "DKV-M4 MIDI 1";
@@ -150,7 +150,8 @@ cmDspRC_t _cmDspSysPgm_MidiFilePlay( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ai1p = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 3 );
 
   cmDspInst_t* mfp   = cmDspSysAllocInst(h,"MidiFilePlay",NULL,  0 );
-  cmDspInst_t* mop   = cmDspSysAllocInst( h,"MidiOut", NULL,     2, deviceName, portName);
+  cmDspInst_t* pic   = cmDspSysAllocInst(h,"Picadae",     NULL,  0 );
+  cmDspInst_t* mop   = cmDspSysAllocInst( h,"MidiOut",    NULL,  2, deviceName, portName);
 
   cmDspInst_t* start = cmDspSysAllocInst( h,"Button", "start",    2, kButtonDuiId, 0.0 );
   cmDspInst_t* stop  = cmDspSysAllocInst( h,"Button", "stop",     2, kButtonDuiId, 0.0 );
@@ -159,10 +160,10 @@ cmDspRC_t _cmDspSysPgm_MidiFilePlay( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* beg = cmDspSysAllocInst(h,"Scalar", "Beg Samp",    5, kNumberDuiId, 0.0, 1000000000.0, 1.0,   0.0 );  
   cmDspInst_t* end = cmDspSysAllocInst(h,"Scalar", "End Samp",    5, kNumberDuiId, 0.0, 1000000000.0, 1.0,   1000000000.0 );  
    
-  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 0 );
-  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 1 );
-  cmDspInst_t* ao2p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 2 );
-  cmDspInst_t* ao3p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 3 );
+  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 2 );
+  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 3 );
+  cmDspInst_t* ao2p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 4 );
+  cmDspInst_t* ao3p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 5 );
 
   cmDspInst_t* im0p = cmDspSysAllocInst(h,"AMeter","In 0",  0);
   cmDspInst_t* im1p = cmDspSysAllocInst(h,"AMeter","In 1", 0);
@@ -190,11 +191,25 @@ cmDspRC_t _cmDspSysPgm_MidiFilePlay( cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(   h, stop,  "sym",   mfp, "sel",    NULL);
   cmDspSysInstallCb(   h, cont,  "sym",   mfp, "sel",    NULL);
 
+  bool usePicadaeFl = false;
+  
+  if( usePicadaeFl )
+  {
+    cmDspSysInstallCb(   h, mfp,  "d1",     pic, "d1",     NULL);
+    cmDspSysInstallCb(   h, mfp,  "d0",     pic, "d0",     NULL);
+    cmDspSysInstallCb(   h, mfp,  "status", pic, "status", NULL);
 
-  cmDspSysInstallCb(   h, mfp,  "d1",     mop, "d1",     NULL);
-  cmDspSysInstallCb(   h, mfp,  "d0",     mop, "d0",     NULL);
-  cmDspSysInstallCb(   h, mfp,  "status", mop, "status", NULL);
-
+    cmDspSysInstallCb(   h, pic,  "d1",     mop, "d1",     NULL);
+    cmDspSysInstallCb(   h, pic,  "d0",     mop, "d0",     NULL);
+    cmDspSysInstallCb(   h, pic,  "status", mop, "status", NULL);
+  }
+  else
+  {
+    cmDspSysInstallCb(   h, mfp,  "d1",     mop, "d1",     NULL);
+    cmDspSysInstallCb(   h, mfp,  "d0",     mop, "d0",     NULL);
+    cmDspSysInstallCb(   h, mfp,  "status", mop, "status", NULL);
+  }
+  
   //cmDspSysConnectAudio(h, ai0p, "out", ao0p, "in"); 
   //cmDspSysConnectAudio(h, ai1p, "out", ao1p, "in"); 
 
@@ -357,7 +372,7 @@ cmDspRC_t _cmDspSysPgm_Test_Pedals( cmDspSysH_t h, void** userPtrPtr )
 cmDspRC_t _cmDspSysPgm_Stereo_Through( cmDspSysH_t h, void** userPtrPtr )
 {
 
-  cmDspInst_t* ignp = cmDspSysAllocInst( h,"Scalar", "In Gain",  5, kNumberDuiId, 0.0,  4.0, 0.01,  1.0);
+  cmDspInst_t* ignp = cmDspSysAllocInst( h,"Scalar", "In Gain",  5, kNumberDuiId, 0.0,  4.0, 0.01,  0.0);
   //cmDspInst_t* ognp = cmDspSysAllocInst( h,"Scalar", "Out Gain", 5, kNumberDuiId, 0.0,  4.0, 0.01,  1.0);
   cmDspInst_t* hzp  =  cmDspSysAllocInst(h,"Scalar", "Hz",       5, kNumberDuiId, 0.0, 10.0, 0.001, 1.0);
 
@@ -403,7 +418,9 @@ cmDspRC_t _cmDspSysPgm_Stereo_Through( cmDspSysH_t h, void** userPtrPtr )
   return kOkDspRC;
 }
 
-
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspSysPgm_All_In_And_Out file_desc:"Meter all the input channels and pass two channels to the output." kw:[spgm] }
 cmDspRC_t _cmDspSysPgm_All_In_And_Out( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspInst_t* ignp = cmDspSysAllocInst( h,"Scalar", "In Gain",  5, kNumberDuiId, 0.0,  4.0, 0.01,  1.0);

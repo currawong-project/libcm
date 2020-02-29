@@ -514,6 +514,14 @@ void _cmAudioSysSerialPortCallback( void* cbArg, const void* byteA, unsigned byt
   //_cmAsCfg_t* p (_cmAsCfg_t*)cbArg;
   
   // TODO: handle serial receive
+  /*
+  int i;
+  for(i=0; i<byteN; ++i)
+  {
+    printf("%02x ",((const uint8_t*)byteA)[i]);
+    fflush(stdout);
+  }
+  */
 }
 
 cmAsRC_t cmAudioSysAllocate( cmAudioSysH_t* hp, cmRpt_t* rpt, const cmAudioSysCfg_t* cfg )
@@ -800,7 +808,7 @@ cmAsRC_t cmAudioSysInitialize( cmAudioSysH_t h, const cmAudioSysCfg_t* cfg )
 
     // setup the input device buffer
     if( ss->args.inDevIdx != cmInvalidIdx )
-      if((rc = cmApBufSetup( ss->args.inDevIdx, ss->args.srate, ss->args.dspFramesPerCycle, ss->args.audioBufCnt, cmApDeviceChannelCount(ss->args.inDevIdx, true),  ss->args.devFramesPerCycle, cmApDeviceChannelCount(ss->args.inDevIdx, false), ss->args.devFramesPerCycle )) != kOkAsRC )
+      if((rc = cmApBufSetup( ss->args.inDevIdx, ss->args.srate, ss->args.dspFramesPerCycle, ss->args.audioBufCnt, cmApDeviceChannelCount(ss->args.inDevIdx, true),  ss->args.devFramesPerCycle, cmApDeviceChannelCount(ss->args.inDevIdx, false), ss->args.devFramesPerCycle, ss->args.srateMult )) != kOkAsRC )
       {
         rc = _cmAsError(p,kAudioBufSetupErrAsRC,"Audio buffer input  setup failed.");
         goto errLabel;
@@ -815,7 +823,7 @@ cmAsRC_t cmAudioSysInitialize( cmAudioSysH_t h, const cmAudioSysCfg_t* cfg )
 
     // setup the output device buffer
     if( ss->args.outDevIdx != ss->args.inDevIdx )
-      if((rc = cmApBufSetup( ss->args.outDevIdx, ss->args.srate, ss->args.dspFramesPerCycle, ss->args.audioBufCnt, cmApDeviceChannelCount(ss->args.outDevIdx, true), ss->args.devFramesPerCycle, cmApDeviceChannelCount(ss->args.outDevIdx, false), ss->args.devFramesPerCycle )) != kOkAsRC )
+      if((rc = cmApBufSetup( ss->args.outDevIdx, ss->args.srate, ss->args.dspFramesPerCycle, ss->args.audioBufCnt, cmApDeviceChannelCount(ss->args.outDevIdx, true), ss->args.devFramesPerCycle, cmApDeviceChannelCount(ss->args.outDevIdx, false), ss->args.devFramesPerCycle, ss->args.srateMult )) != kOkAsRC )
         return _cmAsError(p,kAudioBufSetupErrAsRC,"Audio buffer ouput device setup failed.");
 
     // setup the output audio buffer ptr array - used to recv output audio from the DSP system in _cmAsDspExecCallback()

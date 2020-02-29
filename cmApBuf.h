@@ -56,13 +56,13 @@ extern "C" {
   cmAbRC_t cmApBufSetup( 
     unsigned devIdx,              //< device to setup
     double   srate,               //< device sample rate (only required for synthesizing the correct test-tone frequency)
-    unsigned dspFrameCnt,         // dspFrameCnt - count of samples in channel buffers returned via cmApBufGet() 
+    unsigned dspFrameCnt,         //< dspFrameCnt - count of samples in channel buffers returned via cmApBufGet() 
     unsigned cycleCnt,            //< number of audio port cycles to store 
     unsigned inChCnt,             //< input channel count on this device
     unsigned inFramesPerCycle,    //< maximum number of incoming sample frames on an audio port cycle
     unsigned outChCnt,            //< output channel count on this device
-    unsigned outFramesPerCycle    //< maximum number of outgoing sample frames in an audio port cycle
-                         );
+    unsigned outFramesPerCycle,   //< maximum number of outgoing sample frames in an audio port cycle
+    int      srateMult );         //< sample rate cvt (positive for upsample, negative for downsample)
 
   // Prime the buffer with 'audioCycleCnt' * outFramesPerCycle samples ready to be played
   cmAbRC_t cmApBufPrimeOutput( unsigned devIdx, unsigned audioCycleCnt );

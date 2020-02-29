@@ -887,7 +887,7 @@ cmRtRC_t cmRtSysCfg( cmRtSysH_t h, const cmRtSysSubSys_t* ss, unsigned rtSubIdx 
 
   // setup the input device buffer
   if( ss->args.inDevIdx != cmInvalidIdx )
-    if((rc = cmApBufSetup( ss->args.inDevIdx, ss->args.srate, ss->args.dspFramesPerCycle, ss->args.audioBufCnt, cmApDeviceChannelCount(ss->args.inDevIdx, true),  ss->args.devFramesPerCycle, cmApDeviceChannelCount(ss->args.inDevIdx, false), ss->args.devFramesPerCycle )) != kOkRtRC )
+    if((rc = cmApBufSetup( ss->args.inDevIdx, ss->args.srate, ss->args.dspFramesPerCycle, ss->args.audioBufCnt, cmApDeviceChannelCount(ss->args.inDevIdx, true),  ss->args.devFramesPerCycle, cmApDeviceChannelCount(ss->args.inDevIdx, false), ss->args.devFramesPerCycle, ss->args.srateMult )) != kOkRtRC )
     {
       rc = _cmRtError(p,kAudioBufSetupErrRtRC,"Audio buffer input  setup failed.");
       goto errLabel;
@@ -902,7 +902,7 @@ cmRtRC_t cmRtSysCfg( cmRtSysH_t h, const cmRtSysSubSys_t* ss, unsigned rtSubIdx 
 
   // setup the output device buffer
   if( ss->args.outDevIdx != ss->args.inDevIdx )
-    if((rc = cmApBufSetup( ss->args.outDevIdx, ss->args.srate, ss->args.dspFramesPerCycle, ss->args.audioBufCnt, cmApDeviceChannelCount(ss->args.outDevIdx, true), ss->args.devFramesPerCycle, cmApDeviceChannelCount(ss->args.outDevIdx, false), ss->args.devFramesPerCycle )) != kOkRtRC )
+    if((rc = cmApBufSetup( ss->args.outDevIdx, ss->args.srate, ss->args.dspFramesPerCycle, ss->args.audioBufCnt, cmApDeviceChannelCount(ss->args.outDevIdx, true), ss->args.devFramesPerCycle, cmApDeviceChannelCount(ss->args.outDevIdx, false), ss->args.devFramesPerCycle, ss->args.srateMult )) != kOkRtRC )
       return _cmRtError(p,kAudioBufSetupErrRtRC,"Audio buffer ouput device setup failed.");
 
   // setup the output audio buffer ptr array - used to recv output audio from the DSP system in _cmRtDspExecCallback()

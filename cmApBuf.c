@@ -40,10 +40,7 @@
   output ch:  client   audio  both
   
   The fn variable however is not thread-safe and therefore care must be taken as
-  to how it is read and updated.
-  
-  
-  
+  to how it is read and updated.  
  */
 
 enum { kInApIdx=0, kOutApIdx=1, kIoApCnt=2 };
@@ -61,21 +58,25 @@ typedef struct
   cmApSample_t* m;    // m[mn] meter sample sum  
   unsigned      mn;   // length of m[]
   unsigned      mi;   // next ele of m[] to rcv sum
+  cmApSample_t  s0;   // buffered sample used for srate conversion
 } cmApCh;
 
 typedef struct
 {
-  unsigned     chCnt;
-  cmApCh*      chArray;
+  unsigned     chCnt;      // Count of channels
+  cmApCh*      chArray;    // chArray[chCnt] channel record array
 
-  unsigned     n;     // length of b[] (multiple of dspFrameCnt)  bufCnt*framesPerCycle
-  double       srate; // device sample rate;
+  unsigned     n;          // Length of b[] (multiple of dspFrameCnt)  bufCnt*framesPerCycle
+  double       srate;      // Device sample rate;
+  int          srateMult;  // Internal sample rate multiplier (negative values for dividing). This srateMult*srate is the sample rate of
+                           // signals held in the chApCh[] input and output buffers. Sample rate conversion to/from this rate
+                           // occurs in cmApBufUpdate() as signals go from/to the audio device.
 
-  unsigned     faultCnt;
-  unsigned     framesPerCycle;
-  unsigned     dspFrameCnt;
-  cmTimeSpec_t timeStamp;    // base (starting) time stamp for this device
-  unsigned     ioFrameCnt;   // count of frames input or output for this device
+  unsigned     faultCnt;       // error count since start
+  unsigned     framesPerCycle; // expected count of frames per channel to/from the audio device on each call to cmApBufUpdate()
+  unsigned     dspFrameCnt;    // number of frames per channel in buffers returned by cmApBufGet().
+  cmTimeSpec_t timeStamp;      // base (starting) time stamp for this device
+  unsigned     ioFrameCnt;     // count of frames input or output for this device
 
 } cmApIO;
 
@@ -93,9 +94,143 @@ typedef struct
 
   cmApSample_t* zeroBuf;    // buffer of zeros 
   unsigned      zeroBufCnt; // max of all dspFrameCnt for all devices.
+
+
+  unsigned     abufIdx;
+  cmApSample_t abuf[ 16384 ];
 } cmApBuf;
 
 cmApBuf _cmApBuf;
+
+
+// Copy the source channel (srcChIdx) to the destination buffer and apply up-sampling.
+// 'src' is an interleaved buffer with 'srcN' samples per channel and 'srcChN' channels (total size in samples = srcN*srcChN)
+// 'dst' is a non-interleaved (single channel) circular buffer of length 'dstN' where 'dstIdx' is the index of the first dst slot to receive a sample..
+// Return the index into dst[] of the next location to receive an incoming sample.
+unsigned  _cmApCopyInUpSample( const cmApSample_t* src, unsigned srcN, unsigned srcChN, unsigned srcChIdx, cmApSample_t* dst, unsigned dstN, unsigned dstIdx, unsigned mult, double gain, cmApSample_t* s0_Ref )
+{
+  cmApSample_t s0 = *s0_Ref;
+  unsigned si,k,di=dstIdx;
+  
+  for(si=0; si<srcN; ++si)
+  {
+    cmApSample_t s1 = src[si*srcChN+srcChIdx];
+    
+    for(k=1; k<mult; ++k)
+    {
+      dst[di] = gain * (s0 + (s1 - s0) * k / mult );
+      di = (di+1) % dstN;
+    }
+
+    dst[di] = gain * s1;
+    di      = (di+1) % dstN;
+    s0     = s1;    
+  }
+  
+  *s0_Ref = s0;
+  
+  return di;
+}
+
+// Copy the source channel (srcChIdx) to the destination buffer and apply down-sampling.
+// 'src' is an interleaved linear buffer with 'srcN' samples per channel and 'srcChN' channels,
+// 'dst' is a non-interleaved circular buffer of length 'dstN' where 'dstIdx' is the index of the first dst slot to receive a sample..
+// Return the index into dst[] of the next location to receive an incoming sample.
+unsigned  _cmApCopyInDnSample( const cmApSample_t* src, unsigned srcN, unsigned srcChN, unsigned srcChIdx, cmApSample_t* dst, unsigned dstN, unsigned dstIdx, unsigned div, double gain )
+{
+  unsigned si,di=dstIdx;
+  
+  for(si=0; si<srcN; si+=div)
+  {
+    dst[di] = gain * src[si*srcChN+srcChIdx];
+    di      = (di+1) % dstN;
+  }
+  return di;
+}
+
+
+// Copy samples from an interleaved src buffer to a non-interleaved dst buffer with sample rate conversion
+unsigned  _cmApCopyInSamples( const cmApSample_t* src, unsigned srcN, unsigned srcChN, unsigned srcChIdx, cmApSample_t* dst, unsigned dstN, unsigned dstIdx, int srateMult, double gain, cmApSample_t* s0_Ref )
+{
+  if( srateMult < 1 )
+    return _cmApCopyInDnSample( src, srcN, srcChN, srcChIdx, dst, dstN, dstIdx, -srateMult, gain );
+
+  return _cmApCopyInUpSample( src, srcN, srcChN, srcChIdx, dst, dstN, dstIdx, srateMult, gain, s0_Ref );
+}
+
+void printBuf( const cmApSample_t* src, unsigned srcN, unsigned bi, unsigned n )
+{
+  unsigned i,j;
+  for(i=bi,j=0; j<n; ++i,++j)
+  {
+    i = i % srcN;
+    printf("(%i,%i,%f),\n",j,i,src[i]);
+  }
+  printf("-----\n");
+}
+
+
+// Copy 
+// 'src' is a non-interleaved circular buf of total length 'srcN', with the first sample coming at 'srcIdx'.
+// 'dst' is an interleaved buffer of length 'dstN' with 'dstChN' channels
+// Return the index of the next src sample.
+unsigned _cmApCopyOutUpSample( const cmApSample_t* src, unsigned srcN, unsigned srcIdx, cmApSample_t* dst, unsigned dstN, unsigned dstChN, unsigned dstChIdx, int mult, double gain, cmApSample_t* s0_Ref )
+{
+  unsigned di,si=srcIdx;
+  cmApSample_t s0 = *s0_Ref;
+  
+  for(di=0; di<dstN; ++di)
+  {
+    cmApSample_t s1 = src[si];
+    unsigned     k;
+    for(k=1; k<mult && di<dstN; ++di,++k)
+    {
+      dst[di*dstChN+dstChIdx] = gain * (s0 + (s1 - s0) * k / mult );      
+    }
+
+    if( di < dstN )
+    {
+      dst[di*dstChN+dstChIdx] = gain * s1;
+      ++di;
+    }
+
+    si = (si + 1) % srcN;
+    
+    s0 = s1;
+  }
+
+  *s0_Ref = s0;
+  return si;
+}
+
+// 'src' is a non-interleaved (single channel) circular buf of total length 'srcN', with the first sample coming at 'srcIdx'.
+// 'dst' is an interleaved buffer of length 'dstN' with 'dstChN' channels
+// Return the index of the next src sample.
+unsigned _cmApCopyOutDnSample( const cmApSample_t* src, unsigned srcN, unsigned srcIdx, cmApSample_t* dst, unsigned dstN, unsigned dstChN, unsigned dstChIdx, int div, double gain )
+{
+  unsigned di,si;
+
+  // The total count of output samples is determined by 'dstN'
+  // Downsampling is acheived by advancing the src index by 'div' samples.
+  
+  for(di=0,si=srcIdx; di<dstN; ++di)
+  {
+    dst[di*dstChN+dstChIdx] = gain * src[si];
+    si = (si + div) % srcN;
+  }
+  
+  return si;  
+}
+
+
+// Copy samples from a non-interleaved src buffer to an interleaved dst buffer with sample rate conversion
+unsigned   _cmApCopyOutSamples( const cmApSample_t* src, unsigned srcN, unsigned srcIdx, cmApSample_t* dst, unsigned dstN, unsigned dstChN, unsigned dstChIdx, int srateMult, double gain, cmApSample_t* s0_Ref )
+{
+  if( srateMult > 0  )
+    return _cmApCopyOutDnSample(src, srcN, srcIdx, dst, dstN, dstChN, dstChIdx, srateMult, gain );
+
+  return _cmApCopyOutUpSample( src, srcN, srcIdx, dst, dstN, dstChN, dstChIdx, -srateMult, gain, s0_Ref );
+}
 
 
 cmApSample_t _cmApMeterValue( const cmApCh* cp )
@@ -108,7 +243,7 @@ cmApSample_t _cmApMeterValue( const cmApCh* cp )
   return cp->mn==0 ? 0 : (cmApSample_t)sqrt(sum/cp->mn);
 }
 
-void _cmApSine( cmApCh* cp, cmApSample_t* b0, unsigned n0, cmApSample_t* b1, unsigned n1, unsigned stride, float srate )
+void _cmApSine0( cmApCh* cp, cmApSample_t* b0, unsigned n0, cmApSample_t* b1, unsigned n1, unsigned stride, float srate )
 {
   unsigned i;
 
@@ -118,6 +253,23 @@ void _cmApSine( cmApCh* cp, cmApSample_t* b0, unsigned n0, cmApSample_t* b1, uns
   for(i=0; i<n1; ++i,++cp->phs)
     b1[i*stride] = (float)(cp->gain * sin( 2.0 * M_PI * cp->hz * cp->phs / srate ));
 }
+
+// Synthesize a sine signal of length sigN*srateMult starting at dst[dstidx]
+// Assume dst[dstN] is a circular buffer
+unsigned  _cmApSine( cmApCh* cp, cmApSample_t* dst, unsigned dstN, unsigned dstIdx,  unsigned dstChCnt, unsigned sigN, unsigned srateMult, float srate, double gain )
+{
+  unsigned i,di;
+  
+  sigN = srateMult < 0 ? sigN/abs(srateMult) : sigN * srateMult;
+  for(i=0, di=dstIdx; i<sigN; ++i,++cp->phs)
+  {
+    dst[di] = (cmApSample_t)(gain * sin( 2.0 * M_PI * cp->hz * cp->phs / srate ));
+    di = (di+dstChCnt) % dstN;
+  }
+
+  return sigN;
+}
+
 
 cmApSample_t _cmApMeter( const cmApSample_t* b, unsigned bn, unsigned stride )
 {
@@ -151,6 +303,7 @@ void _cmApChInitialize( cmApCh* chPtr, unsigned n, unsigned mn )
   chPtr->mn   = mn;
   chPtr->m    = cmMemAllocZ(cmApSample_t,mn);
   chPtr->mi   = 0;
+
 }
 
 void _cmApIoFinalize( cmApIO* ioPtr )
@@ -164,9 +317,12 @@ void _cmApIoFinalize( cmApIO* ioPtr )
   ioPtr->n     = 0;
 }
 
-void _cmApIoInitialize( cmApIO* ioPtr, double srate, unsigned framesPerCycle, unsigned chCnt, unsigned n, unsigned meterBufN, unsigned dspFrameCnt )
+void _cmApIoInitialize( cmApIO* ioPtr, double srate, unsigned framesPerCycle, unsigned chCnt, unsigned n, unsigned meterBufN, unsigned dspFrameCnt, int srateMult )
 {
   unsigned i;
+
+  if( srateMult == 0 )
+    srateMult = 1;
 
   _cmApIoFinalize(ioPtr);
 
@@ -174,17 +330,18 @@ void _cmApIoInitialize( cmApIO* ioPtr, double srate, unsigned framesPerCycle, un
   
   ioPtr->chArray           = chCnt==0 ? NULL : cmMemAllocZ( cmApCh, chCnt );
   ioPtr->chCnt             = chCnt;
-  ioPtr->n                 = n;
+  ioPtr->n                 = srateMult<0 ?  n : n*srateMult;
   ioPtr->faultCnt          = 0;
   ioPtr->framesPerCycle    = framesPerCycle;
   ioPtr->srate             = srate;
+  ioPtr->srateMult         = srateMult;
   ioPtr->dspFrameCnt       = dspFrameCnt;
   ioPtr->timeStamp.tv_sec  = 0;
   ioPtr->timeStamp.tv_nsec = 0;
   ioPtr->ioFrameCnt        = 0;
 
   for(i=0; i<chCnt; ++i )
-    _cmApChInitialize( ioPtr->chArray + i, n, meterBufN );
+    _cmApChInitialize( ioPtr->chArray + i, ioPtr->n, meterBufN );
 
 }
 
@@ -195,7 +352,7 @@ void _cmApDevFinalize( cmApDev* dp )
     _cmApIoFinalize( dp->ioArray+i);
 }
 
-void _cmApDevInitialize( cmApDev* dp, double srate, unsigned iFpC, unsigned iChCnt, unsigned iBufN, unsigned oFpC, unsigned oChCnt, unsigned oBufN, unsigned meterBufN, unsigned dspFrameCnt )
+void _cmApDevInitialize( cmApDev* dp, double srate, unsigned iFpC, unsigned iChCnt, unsigned iBufN, unsigned oFpC, unsigned oChCnt, unsigned oBufN, unsigned meterBufN, unsigned dspFrameCnt, int srateMult )
 {
   unsigned i;
 
@@ -203,10 +360,10 @@ void _cmApDevInitialize( cmApDev* dp, double srate, unsigned iFpC, unsigned iChC
 
   for(i=0; i<kIoApCnt; ++i)
   {
-    unsigned chCnt = i==kInApIdx ? iChCnt : oChCnt;
-    unsigned bufN  = i==kInApIdx ? iBufN  : oBufN;
-    unsigned fpc   = i==kInApIdx ? iFpC   : oFpC;
-    _cmApIoInitialize( dp->ioArray+i, srate, fpc, chCnt, bufN, meterBufN, dspFrameCnt );
+    unsigned chCnt = i==kInApIdx ? iChCnt     : oChCnt;
+    unsigned bufN  = i==kInApIdx ? iBufN      : oBufN;
+    unsigned fpc   = i==kInApIdx ? iFpC       : oFpC;
+    _cmApIoInitialize( dp->ioArray+i, srate, fpc, chCnt, bufN, meterBufN, dspFrameCnt, srateMult );
 
   }
       
@@ -222,6 +379,7 @@ cmAbRC_t cmApBufInitialize( unsigned devCnt, unsigned meterMs )
   _cmApBuf.devArray        = cmMemAllocZ( cmApDev, devCnt );
   _cmApBuf.devCnt          = devCnt;
   cmApBufSetMeterMs(meterMs);
+
   return kOkAbRC;
 }
 
@@ -236,6 +394,22 @@ cmAbRC_t cmApBufFinalize()
   
   _cmApBuf.devCnt          = 0;
 
+  FILE* fp;
+  if(_cmApBuf.abufIdx>0 )
+  {
+    if((fp = fopen("/home/kevin/temp/temp.csv","wt")) != NULL )
+    {
+      int i;
+      for(i=0; i<_cmApBuf.abufIdx; ++i)
+      {
+        fprintf(fp,"%f,\n",_cmApBuf.abuf[i]);
+      }
+      fclose(fp);
+    }
+  }
+  
+
+  
   return kOkAbRC;
 }
 
@@ -247,14 +421,15 @@ cmAbRC_t cmApBufSetup(
   unsigned inChCnt, 
   unsigned inFramesPerCycle,
   unsigned outChCnt, 
-  unsigned outFramesPerCycle)
+  unsigned outFramesPerCycle,
+  int      srateMult)
 {
   cmApDev* devPtr    = _cmApBuf.devArray + devIdx;
   unsigned iBufN     = bufCnt * inFramesPerCycle;
   unsigned oBufN     = bufCnt * outFramesPerCycle;
   unsigned meterBufN = cmMax(1,floor(srate * _cmApBuf.meterMs / (1000.0 * outFramesPerCycle)));
 
-  _cmApDevInitialize( devPtr, srate, inFramesPerCycle, inChCnt, iBufN, outFramesPerCycle, outChCnt, oBufN, meterBufN, dspFrameCnt );
+  _cmApDevInitialize( devPtr, srate, inFramesPerCycle, inChCnt, iBufN, outFramesPerCycle, outChCnt, oBufN, meterBufN, dspFrameCnt, srateMult );
 
   if( inFramesPerCycle > _cmApBuf.zeroBufCnt || outFramesPerCycle > _cmApBuf.zeroBufCnt )
   {
@@ -325,8 +500,6 @@ cmAbRC_t cmApBufUpdate(
       for(j=0; j<pp->chCnt; ++j)
       {
         cmApCh*  cp = ip->chArray + pp->begChIdx +j; // dest ch
-        unsigned n0 = ip->n - cp->ii;                // first dest segment
-        unsigned n1 = 0;                             // second dest segment
 
         assert(pp->begChIdx + j < ip->chCnt );
 
@@ -339,16 +512,12 @@ cmAbRC_t cmApBufUpdate(
 
         // if the incoming samples would go off the end of the buffer then 
         // copy in the samples in two segments (one at the end and another at begin of dest channel)
-        if( n0 < pp->audioFramesCnt )
-          n1 = pp->audioFramesCnt-n0;
-        else
-          n0 = pp->audioFramesCnt;
-
+        
         bool                enaFl = cmIsFlag(cp->fl,kChApFl) && cmIsFlag(cp->fl,kMuteApFl)==false;
         const cmApSample_t* sp    = enaFl ? ((cmApSample_t*)pp->audioBytesPtr) + j : _cmApBuf.zeroBuf;
-        unsigned            ssn   = enaFl ? pp->chCnt : 1;  // stride (packet samples are interleaved)
-        cmApSample_t*       dp    = cp->b + cp->ii;
-        const cmApSample_t* ep    = dp    + n0;
+        //unsigned            ssn   = enaFl ? pp->chCnt : 1;  // stride (packet samples are interleaved)
+        //cmApSample_t*       dp    = cp->b + cp->ii;
+        //const cmApSample_t* ep    = dp    + n0;
 
 
         // update the meter
@@ -358,33 +527,41 @@ cmAbRC_t cmApBufUpdate(
           cp->mi = (cp->mi + 1) % cp->mn;
         }
 
+        unsigned incrSmpN = 0;
+
         // if the test tone is enabled on this input channel
         if( enaFl && cmIsFlag(cp->fl,kToneApFl) )
         {
-          _cmApSine(cp, dp, n0, cp->b, n1, 1, ip->srate );
+          //_cmApSine(cp, dp, n0, cp->b, n1, 1, ip->srate );
+          incrSmpN =  _cmApSine( cp, cp->b, ip->n, cp->ii,  1, pp->audioFramesCnt, ip->srateMult, ip->srate, cp->gain );
+
+          
         }
         else // otherwise copy samples from the packet to the buffer
         {
-          // copy the first segment
-          for(; dp < ep; sp += ssn )
-            *dp++ = cp->gain * *sp;
 
-          // if there is a second segment
-          if( n1 > 0 )
-          {
-            // copy the second segment
-            dp = cp->b;
-            ep = dp + n1;
-            for(; dp<ep; sp += ssn )
-              *dp++ = cp->gain * *sp;
-          }
+          unsigned pi = cp->ii;
+          
+          cp->ii =  _cmApCopyInSamples( (cmApSample_t*)pp->audioBytesPtr, pp->audioFramesCnt, pp->chCnt, j, cp->b, ip->n, cp->ii, ip->srateMult, cp->gain, &cp->s0 );
+
+          if( false )
+            if( j == 2 && _cmApBuf.abufIdx < 16384 )
+            {
+              int ii;
+              for(ii=pi; ii!=cp->ii && _cmApBuf.abufIdx<16384; _cmApBuf.abufIdx++)
+              {
+                _cmApBuf.abuf[ _cmApBuf.abufIdx ] = cp->b[ii];
+                ii = (ii + 1) % ip->n;
+              }
+
+            }
+
+
+          incrSmpN = cp->ii > pi ? cp->ii-pi : (ip->n-pi) + cp->ii;
+                    
         }
 
-        
-        // advance the input channel buffer
-        cp->ii  = n1>0 ? n1 : cp->ii + n0;
-        //cp->fn += pp->audioFramesCnt;
-        cmThUIntIncr(&cp->fn,pp->audioFramesCnt);
+        cmThUIntIncr(&cp->fn,incrSmpN);
       }
     }
   }
@@ -423,7 +600,6 @@ cmAbRC_t cmApBufUpdate(
 
           // ... otherwise decrease the count of returned samples
           pp->audioFramesCnt = fn;
-
         }
 
         // if the outgong segments would go off the end of the buffer then 
@@ -433,19 +609,42 @@ cmAbRC_t cmApBufUpdate(
         else
           n0 = pp->audioFramesCnt;
 
-        cmApSample_t* dp    = ((cmApSample_t*)pp->audioBytesPtr) + j;
+        cmApSample_t* bpp   = ((cmApSample_t*)pp->audioBytesPtr) + j;
+        cmApSample_t* dp    = bpp;
         bool          enaFl = cmIsFlag(cp->fl,kChApFl) && cmIsFlag(cp->fl,kMuteApFl)==false;
 
+        unsigned decrSmpN = 0;
+        
         // if the tone is enabled on this channel
         if( enaFl && cmIsFlag(cp->fl,kToneApFl) )
         {
-          _cmApSine(cp, dp, n0, dp + n0*pp->chCnt, n1, pp->chCnt, op->srate );
+          //_cmApSine(cp, dp, n0, dp + n0*pp->chCnt, n1, pp->chCnt, op->srate );
+          decrSmpN =  _cmApSine( cp, (cmApSample_t*)pp->audioBytesPtr, pp->audioFramesCnt, 0,  pp->chCnt, pp->audioFramesCnt, op->srateMult, op->srate, cp->gain );
+
         }
         else                    // otherwise copy samples from the output buffer to the packet
         {
           const cmApSample_t* sp = enaFl ? cp->b + cp->oi : _cmApBuf.zeroBuf;
           const cmApSample_t* ep = sp + n0;
 
+          unsigned pi = cp->oi;
+          cp->oi = _cmApCopyOutSamples( enaFl ? cp->b : _cmApBuf.zeroBuf, op->n, cp->oi, (cmApSample_t*)pp->audioBytesPtr, pp->audioFramesCnt, pp->chCnt, j, op->srateMult, cp->gain, &cp->s0 );
+
+          decrSmpN = cp->oi>pi ? cp->oi-pi : (op->n-pi) + cp->oi;
+
+          if( true )
+            if( j == 2 && _cmApBuf.abufIdx < 16384 )
+            {
+              int ii;
+              for(ii=pi; ii!=cp->oi && _cmApBuf.abufIdx<16384; _cmApBuf.abufIdx++)
+              {
+                _cmApBuf.abuf[ _cmApBuf.abufIdx ] = cp->b[ii];
+                ii = (ii + 1) % op->n;
+              }
+
+            }
+          
+          /*
           // copy the first segment
           for(; sp < ep; dp += pp->chCnt )
             *dp = cp->gain * *sp++;
@@ -460,6 +659,7 @@ cmAbRC_t cmApBufUpdate(
               *dp = cp->gain * *sp++;
 
           }
+          */
         }
 
         // update the meter
@@ -470,9 +670,13 @@ cmAbRC_t cmApBufUpdate(
         }
 
         // advance the output channel buffer
+        /*
         cp->oi  = n1>0 ? n1 : cp->oi + n0;
-        //cp->fn -= pp->audioFramesCnt;
         cmThUIntDecr(&cp->fn,pp->audioFramesCnt);
+        */
+        
+        //cp->fn -= pp->audioFramesCnt;
+        cmThUIntDecr(&cp->fn,decrSmpN);
       }
     }    
   }
@@ -657,7 +861,6 @@ void cmApBufGet( unsigned devIdx, unsigned flags, cmApSample_t* bufArray[], unsi
   unsigned      idx   = flags & kInApFl ? kInApIdx : kOutApIdx;
   const cmApIO* ioPtr = _cmApBuf.devArray[devIdx].ioArray + idx;
   unsigned      n     = bufChCnt < ioPtr->chCnt ? bufChCnt : ioPtr->chCnt;
-  //unsigned      offs  = flags & kInApFl ? ioPtr->oi : ioPtr->ii; 
   cmApCh*       cp    = ioPtr->chArray;
 
   for(i=0; i<n; ++i,++cp)
@@ -881,7 +1084,8 @@ void cmApBufTest( cmRpt_t* rpt )
   unsigned sigN           = cycleCnt*framesPerCycle*inChCnt;
   double   srate          = 44100.0;
   unsigned meterMs        = 50;
-
+  int      srateMult      = 1;
+  
   unsigned          bufChCnt= inChCnt;
   cmApSample_t*     inBufArray[ bufChCnt ];
   cmApSample_t*     outBufArray[ bufChCnt ];
@@ -910,7 +1114,7 @@ void cmApBufTest( cmRpt_t* rpt )
   cmApBufInitialize(devCnt,meterMs);
 
   // setup the buffer with the specific parameters to by used by the host audio ports
-  cmApBufSetup(devIdx,srate,dspFrameCnt,cycleCnt,inChCnt,framesPerCycle,outChCnt,framesPerCycle);
+  cmApBufSetup(devIdx,srate,dspFrameCnt,cycleCnt,inChCnt,framesPerCycle,outChCnt,framesPerCycle, srateMult);
 
   // simulate cylcing through sigN buffer transactions
   for(i=0; i<sigN; i+=framesPerCycle*inChCnt)

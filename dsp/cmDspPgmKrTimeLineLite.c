@@ -95,6 +95,7 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ao3 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 ); // 3          2
 
   cmDspSysNewPage(h,"Main");
+  cmDspInst_t* notesOffb= cmDspSysAllocInst(h,"Button", "notesOff",   2, kButtonDuiId, 1.0 );
   cmDspInst_t* onb     = cmDspSysAllocInst(h,"Button", "start",   2, kButtonDuiId, 1.0 );
   cmDspInst_t* offb    = cmDspSysAllocInst(h,"Button", "stop",    2, kButtonDuiId, 1.0 );
   cmDspInst_t* mod_sel = cmDspSysAllocMsgList(h, NULL, "mod_sel", 1 );
@@ -233,6 +234,7 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysInstallCb(h, prePath, "out", tlp, "path", NULL );
 
+  cmDspSysInstallCb(h, notesOffb,  "sym",    pic, "alloff",  NULL );
   
   // start connections
   cmDspSysInstallCb(h, onb,  "sym",    tlRt, "s-in",  NULL );

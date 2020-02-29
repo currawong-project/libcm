@@ -1547,7 +1547,7 @@ cmDspRC_t cmDspSysInstallCb1NN1M2( cmDspSysH_t h, cmDspInst_t* srcInstPtr,  cons
 double       cmDspSysSampleRate( cmDspSysH_t h )
 {
   cmDsp_t* p = _cmDspHandleToPtr(h);
-  return p->ctx.ctx->ss->args.srate;
+  return cmDspSampleRate( &p->ctx );
 }
 
 cmJsonH_t    cmDspSysPgmRsrcHandle( cmDspSysH_t h )

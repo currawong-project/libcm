@@ -667,7 +667,7 @@ cmDspRC_t   cmDspVarPresetRdWr(     cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned
 }
 
 double      cmDspSampleRate(      cmDspCtx_t* ctx )
-{ return ctx->ctx->ss->args.srate; }
+{ return ctx->ctx->ss->args.srate * ctx->ctx->ss->args.srateMult; }
 
 unsigned    cmDspSamplesPerCycle( cmDspCtx_t * ctx )
 { return ctx->ctx->ss->args.dspFramesPerCycle; }

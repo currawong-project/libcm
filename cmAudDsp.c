@@ -364,6 +364,7 @@ cmAdRC_t _cmAdParseSysJsonTree( cmAd_t* p )
           "dspFramesPerCycle",  kIntTId,  &asap->dspFramesPerCycle,
           "audioBufCnt",        kIntTId,  &asap->audioBufCnt,
           "srate",              kRealTId, &asap->srate,
+            "srateMult",        kIntTId,  &asap->srateMult,
             NULL )) != kOkJsRC )
       {
         rc = _cmAdParseMemberErr(p, jsRC, errLabelPtr, cmStringNullGuard(p->asCfgArray[i].label));

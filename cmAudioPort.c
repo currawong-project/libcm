@@ -663,7 +663,8 @@ int cmApPortTest( bool runFl, cmRpt_t* rpt, int argc, const char* argv[] )
 {
   cmApPortTestRecd r;
   unsigned         i;
-  int              result = 0;
+  int              result    = 0;
+  int              srateMult = 1;
 
   if( _cmApGetOpt(argc,argv,"-h",0,true) )
     _cmApPrintUsage(rpt);
@@ -697,6 +698,8 @@ int cmApPortTest( bool runFl, cmRpt_t* rpt, int argc, const char* argv[] )
   r.log        = log;
   r.ilog       = ilog;
   r.cbCnt      = 0;
+
+
 
   cmRptPrintf(rpt,"%s in:%i out:%i chidx:%i chs:%i bufs=%i frm=%i rate=%f\n",runFl?"exec":"rpt",r.inDevIdx,r.outDevIdx,r.chIdx,r.chCnt,r.bufCnt,r.framesPerCycle,r.srate);
 
@@ -737,11 +740,11 @@ int cmApPortTest( bool runFl, cmRpt_t* rpt, int argc, const char* argv[] )
     cmApBufInitialize( cmApDeviceCount(), r.meterMs );
 
     // setup the buffer for the output device
-    cmApBufSetup( r.outDevIdx, r.srate, r.framesPerCycle, r.bufCnt, cmApDeviceChannelCount(r.outDevIdx,true), r.framesPerCycle, cmApDeviceChannelCount(r.outDevIdx,false), r.framesPerCycle );
+    cmApBufSetup( r.outDevIdx, r.srate, r.framesPerCycle, r.bufCnt, cmApDeviceChannelCount(r.outDevIdx,true), r.framesPerCycle, cmApDeviceChannelCount(r.outDevIdx,false), r.framesPerCycle, srateMult );
     
     // setup the buffer for the input device
     if( r.inDevIdx != r.outDevIdx )
-      cmApBufSetup( r.inDevIdx, r.srate, r.framesPerCycle, r.bufCnt, cmApDeviceChannelCount(r.inDevIdx,true), r.framesPerCycle, cmApDeviceChannelCount(r.inDevIdx,false), r.framesPerCycle ); 
+      cmApBufSetup( r.inDevIdx, r.srate, r.framesPerCycle, r.bufCnt, cmApDeviceChannelCount(r.inDevIdx,true), r.framesPerCycle, cmApDeviceChannelCount(r.inDevIdx,false), r.framesPerCycle, srateMult ); 
 
     cmApBufEnableMeter(  r.inDevIdx, -1, kEnableApFl );
 
