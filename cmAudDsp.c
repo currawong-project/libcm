@@ -394,7 +394,8 @@ cmAdRC_t _cmAdSetup( cmAd_t* p )
     // BUG BUG BUG - each sub-system should have it's own network 
     // manager, and socket port.
 
-    p->asCfgArray[i].cfg.netH    = p->netH;
+    p->asCfgArray[i].cfg.netH        = p->netH;
+    p->asCfgArray[i].cfg.serialPortH = p->serialPortH;
 
     for(j=0; j<p->asCfgArray[i].cfg.ssCnt; ++j)
     {
@@ -406,6 +407,7 @@ cmAdRC_t _cmAdSetup( cmAd_t* p )
 
   return rc;
 }
+
 
 cmAdRC_t _cmAdCreateSerialPort( cmAd_t* p )
 {
