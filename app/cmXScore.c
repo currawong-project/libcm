@@ -555,6 +555,9 @@ cmXsRC_t  _cmXScoreParseColor( cmXScore_t* p, const cmXmlNode_t* nnp, cmXsNote_t
     { kDynXsFl   | kTempoXsFl,                         "#FF7F00" },  // red   + green (brown)
     { kDynXsFl   | kTempoXsFl,                         "#FE7F00" },  // red   + green (brown)    (end)
     { kDynXsFl   | kTempoXsFl,                         "#FD7F00" },  // red   + green (brown)    (end)
+    { kDynXsFl   | kTempoXsFl | kTempoEndXsFl,         "#FF7E00" },  //
+    { kDynXsFl   | kDynEndXsFl | kEvenXsFl | kEvenEndXsFl, "#FE00FE" }, //
+    { kDynXsFl   | kDynEndXsFl | kEvenXsFl,            "#FE00FF" },
     { kTempoXsFl | kEvenXsFl | kDynXsFl,               "#996633" },  // (purple)
     { kTempoXsFl | kEvenXsFl | kDynXsFl | kDynEndXsFl, "#996632" },  // (purple)
     { kDynXsFl,                                        "#FF6A03" },  //   176 orange  (dynamics)
@@ -2083,13 +2086,14 @@ cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsR
         {
 
 
-          if( 0 /*mp->number==43*/ )
-            printf("voice: %i %i loc:%i %i  tick:%i %i pitch:%i %i idx:%i %i\n",
+          if( 0 /*mp->number==19*/ )
+            printf("voice: %i %i loc:%i %i  tick:%i %i pitch:%i %i rval:%f %f idx:%i %i \n",
               np->voice->id, r->voice, 
               np->locIdx ,  r->locIdx ,
               np->tick ,  r->tick ,
               np->pitch ,  r->midi ,
-              index ,  r->idx );
+              np->rvalue, r->rval,
+              index ,  r->idx);
               
           
           if( np->voice->id == r->voice &&
