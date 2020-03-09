@@ -1248,7 +1248,7 @@ cmSrRC_t _cmSrReadV( cmSrH_t h, unsigned typeId, const void** valPtrPtr, unsigne
   if((rc= _cmSrRead(p,typeId, valPtrPtr, &dataByteCnt, eleCntPtr )) != kOkSrRC )
     return rc;
 
-  assert( dataByteCnt = scalarByteCnt * (*eleCntPtr));
+  assert( dataByteCnt == scalarByteCnt * (*eleCntPtr));
 
   return rc;
 }
