@@ -59,8 +59,11 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   if( krLoadRsrc(h,&err,&r) != kOkDspRC )
     return rc;
 
-  cmDspInst_t* ai0 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 2);
-  cmDspInst_t* ai1 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, 3);
+  int baseAudioInCh =  0; // 2;
+  int baseAudioOutCh = 0;//  2;
+
+  cmDspInst_t* ai0 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, baseAudioInCh + 0);
+  cmDspInst_t* ai1 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, baseAudioInCh + 1);
   //cmDspInst_t* mip = cmDspSysAllocInst(h,"MidiIn",      NULL,  2, "MOTU - Traveler mk3", "MIDI Port");
   //cmDspInst_t* mip = cmDspSysAllocInst(h,"MidiIn",      NULL,  2, "Apple Inc. - IAC Driver", "Bus 1");
   
@@ -71,8 +74,10 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* mfp  = cmDspSysAllocInst(h,"MidiFilePlay",NULL,  0 );
   cmDspInst_t* nmp  = cmDspSysAllocInst(h,"NanoMap",     NULL,  0 );
   cmDspInst_t* pic  = cmDspSysAllocInst(h,"Picadae",     NULL,  0 );
-  cmDspInst_t* mop  = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "Scarlett 18i20 USB","Scarlett 18i20 USB MIDI 1");
-  cmDspInst_t* mo2p = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "picadae","picadae MIDI 1");
+  //cmDspInst_t* mop  = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "Scarlett 18i20 USB","Scarlett 18i20 USB MIDI 1");
+  cmDspInst_t* mop  = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "Fastlane","Fastlane MIDI A" );
+  //cmDspInst_t* mo2p = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "picadae","picadae MIDI 1");
+  cmDspInst_t* mo2p = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "Fastlane","Fastlane MIDI B");
   cmDspInst_t* sfp  = cmDspSysAllocInst(h,"ScFol",       NULL,  5, r.scFn, sfBufCnt, sfMaxWndCnt, sfMinVel, sfEnaMeasFl );
   cmDspInst_t* amp  = cmDspSysAllocInst(h,"ActiveMeas",  NULL,  1, 100 );
   cmDspInst_t* modp = cmDspSysAllocInst(h,"ScMod",       NULL,  2, r.modFn, "m1" );
@@ -89,10 +94,10 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   _cmDspSys_TlXformChain(h, &c1, preGrpSymId, cmpPreGrpSymId, amp, modp, 1, 1 );
 
 
-  cmDspInst_t* ao0 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 4 ); // 4 Piano     1 Output
-  cmDspInst_t* ao1 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 5 ); // 5          2
-  cmDspInst_t* ao2 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 2 ); // 2 Transform 1 OUtput
-  cmDspInst_t* ao3 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, 3 ); // 3          2
+  cmDspInst_t* ao0 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, baseAudioOutCh+2 ); // 4 Piano     1 Output
+  cmDspInst_t* ao1 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, baseAudioOutCh+3 ); // 5          2
+  cmDspInst_t* ao2 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, baseAudioOutCh+0 ); // 2 Transform 1 OUtput
+  cmDspInst_t* ao3 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, baseAudioOutCh+1 ); // 3          2
 
   cmDspSysNewPage(h,"Main");
   cmDspInst_t* notesOffb= cmDspSysAllocInst(h,"Button", "notesOff",   2, kButtonDuiId, 1.0 );
