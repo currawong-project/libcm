@@ -7,6 +7,7 @@ extern "C" {
 
   cmDspRC_t _cmDspSysPgm_TimeLine( cmDspSysH_t h, void** userPtrPtr );
   cmDspRC_t _cmDspSysPgm_TimeLineLite( cmDspSysH_t h, void** userPtrPtr );
+  cmDspRC_t _cmDspSysPgm_TimeLineLiteAf( cmDspSysH_t h, void** userPtrPtr );
   cmDspRC_t _cmDspSysPgm_Tksb(cmDspSysH_t h, void** userPtrPtr );
   cmDspRC_t _cmDspSysPgm_TksbLite(cmDspSysH_t h, void** userPtrPtr );
   
