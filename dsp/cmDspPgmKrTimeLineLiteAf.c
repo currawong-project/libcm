@@ -40,7 +40,7 @@
 
 //( { label:cmDspPgm_TimeLineLite file_desc:"Simplified score vs. the performance and generating related audio transforms." kw:[spgm] }
 
-cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
+cmDspRC_t _cmDspSysPgm_TimeLineLiteAf(cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc                       = kOkDspRC;
   cmCtx_t*  cmCtx                    = cmDspSysPgmCtx(h);
@@ -59,11 +59,11 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   if( krLoadRsrc(h,&err,&r) != kOkDspRC )
     return rc;
 
-  int baseAudioInCh =  0; // 2;
+  //int baseAudioInCh =  0; // 2;
   int baseAudioOutCh = 0;//  2;
 
-  cmDspInst_t* ai0 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, baseAudioInCh + 0);
-  cmDspInst_t* ai1 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, baseAudioInCh + 1);
+  //cmDspInst_t* ai0 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, baseAudioInCh + 0);
+  //cmDspInst_t* ai1 = cmDspSysAllocInst(h,"AudioIn",     NULL,  1, baseAudioInCh + 1);
   //cmDspInst_t* mip = cmDspSysAllocInst(h,"MidiIn",      NULL,  2, "MOTU - Traveler mk3", "MIDI Port");
   //cmDspInst_t* mip = cmDspSysAllocInst(h,"MidiIn",      NULL,  2, "Apple Inc. - IAC Driver", "Bus 1");
   
@@ -71,12 +71,14 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* scp  = cmDspSysAllocInst(h,"Score",       "sc",  1, r.scFn );
   cmDspInst_t* pts  = cmDspSysAllocInst(h,"PortToSym",   NULL,  2, "on", "off" );
 
+  cmDspInst_t* php =  cmDspSysAllocInst(h,"Phasor",   NULL,  0 );
+  cmDspInst_t* wtp =  cmDspSysAllocInst(h,"WaveTable",NULL,  2, ((int)cmDspSysSampleRate(h)), 1 );
+
+  
   cmDspInst_t* mfp  = cmDspSysAllocInst(h,"MidiFilePlay",NULL,  0 );
   cmDspInst_t* nmp  = cmDspSysAllocInst(h,"NanoMap",     NULL,  0 );
-  cmDspInst_t* pic  = cmDspSysAllocInst(h,"Picadae",     NULL,  0 );
-  //cmDspInst_t* mop  = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "Scarlett 18i20 USB","Scarlett 18i20 USB MIDI 1");
+  //cmDspInst_t* pic  = cmDspSysAllocInst(h,"Picadae",     NULL,  0 );
   cmDspInst_t* mop  = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "Fastlane","Fastlane MIDI A" );
-  //cmDspInst_t* mo2p = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "picadae","picadae MIDI 1");
   cmDspInst_t* mo2p = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "Fastlane","Fastlane MIDI B");
   cmDspInst_t* sfp  = cmDspSysAllocInst(h,"ScFol",       NULL,  5, r.scFn, sfBufCnt, sfMaxWndCnt, sfMinVel, sfEnaMeasFl );
   cmDspInst_t* amp  = cmDspSysAllocInst(h,"ActiveMeas",  NULL,  1, 100 );
@@ -116,8 +118,8 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   //cmDspInst_t* amRt  = cmDspSysAllocInst(h,"Router", NULL, 2, 2, 0);
 
   //cmDspSysNewColumn(h,0);
-  cmDspInst_t* igain0 = cmDspSysAllocInst(h,"Scalar", "In Gain-0",    5, kNumberDuiId, 0.0,   100.0,0.01,   1.0 );  
-  cmDspInst_t* igain1 = cmDspSysAllocInst(h,"Scalar", "In Gain-1",    5, kNumberDuiId, 0.0,   100.0,0.01,   1.0 );  
+  //cmDspInst_t* igain0 = cmDspSysAllocInst(h,"Scalar", "In Gain-0",    5, kNumberDuiId, 0.0,   100.0,0.01,   1.0 );  
+  //cmDspInst_t* igain1 = cmDspSysAllocInst(h,"Scalar", "In Gain-1",    5, kNumberDuiId, 0.0,   100.0,0.01,   1.0 );  
 
   //cmDspSysNewColumn(h,0);
   cmDspInst_t* ogain0 = cmDspSysAllocInst(h,"Scalar", "Dry Out Gain-0",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
@@ -171,18 +173,34 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, recdPtS, "out", afop,    "sel",   NULL );
 
   // Audio connections
-  cmDspSysConnectAudio( h, ai0,   "out", ao0,   "in" );  //  dry signal through 
-  cmDspSysConnectAudio( h, ai1,   "out", ao1,   "in" );  //
+
+  cmDspSysConnectAudio(h, php, "out", wtp, "phs" );   // phasor -> wave table
+  cmDspSysConnectAudio(h, wtp, "out", ao0, "in" );    // wave table -> audio out (dry output)
+  cmDspSysConnectAudio(h, wtp, "out", ao1, "in" );    // 
   
-  cmDspSysConnectAudio( h, ai0,   "out", mi0p,   "in" );  //
-  cmDspSysConnectAudio( h, ai0,   "out", c0.kr0, "in" );  // ain -> ch0.kr0
-  cmDspSysConnectAudio( h, ai0,   "out", c0.kr1, "in" );  // ain -> ch0.kr1
+  //cmDspSysConnectAudio( h, ai0,   "out", ao0,   "in" );  //  dry signal through 
+  //cmDspSysConnectAudio( h, ai1,   "out", ao1,   "in" );  //
+  
+  //cmDspSysConnectAudio( h, ai0,   "out", mi0p,   "in" );  //
+  //cmDspSysConnectAudio( h, ai0,   "out", c0.kr0, "in" );  // ain -> ch0.kr0
+  //cmDspSysConnectAudio( h, ai0,   "out", c0.kr1, "in" );  // ain -> ch0.kr1
+
+  cmDspSysConnectAudio( h, wtp,   "out", mi0p,   "in" );  //
+  cmDspSysConnectAudio( h, wtp,   "out", c0.kr0, "in" );  // ain -> ch0.kr0
+  cmDspSysConnectAudio( h, wtp,   "out", c0.kr1, "in" );  // ain -> ch0.kr1
+
+  
   cmDspSysConnectAudio( h, c0.cmp,"out", ao2,    "in" );  // ch0.cmp -> aout
   cmDspSysConnectAudio( h, c0.cmp,"out", afop,   "in0");  // ch0.cmp -> audio_file_out
 
-  cmDspSysConnectAudio( h, ai1,   "out", mi1p,   "in" );  //
-  cmDspSysConnectAudio( h, ai1,   "out", c1.kr0, "in" );  // ain -> ch1.kr0
-  cmDspSysConnectAudio( h, ai1,   "out", c1.kr1, "in" );  // ain -> ch1.kr1
+  //cmDspSysConnectAudio( h, ai1,   "out", mi1p,   "in" );  //
+  //cmDspSysConnectAudio( h, ai1,   "out", c1.kr0, "in" );  // ain -> ch1.kr0
+  //cmDspSysConnectAudio( h, ai1,   "out", c1.kr1, "in" );  // ain -> ch1.kr1
+
+  cmDspSysConnectAudio( h, wtp,   "out", mi1p,   "in" );  //
+  cmDspSysConnectAudio( h, wtp,   "out", c1.kr0, "in" );  // ain -> ch1.kr0
+  cmDspSysConnectAudio( h, wtp,   "out", c1.kr1, "in" );  // ain -> ch1.kr1
+
   cmDspSysConnectAudio( h, c1.cmp,"out", ao3,    "in" );  // ch1.cmp -> aout
   cmDspSysConnectAudio( h, c1.cmp,"out", afop,   "in1");  // ch1.cmp ->audio_file_out
   
@@ -239,7 +257,7 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysInstallCb(h, prePath, "out", tlp, "path", NULL );
 
-  cmDspSysInstallCb(h, notesOffb,  "sym",    pic, "alloff",  NULL );
+  //cmDspSysInstallCb(h, notesOffb,  "sym",    pic, "alloff",  NULL );
   
   // start connections
   cmDspSysInstallCb(h, onb,  "sym",    tlRt, "s-in",  NULL );
@@ -249,6 +267,7 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, mfpRt,"s-out-0",mfp,  "sel",   NULL );
 
   cmDspSysInstallCb(h, onb, "sym",     pts,     "on",     NULL );
+  cmDspSysInstallCb(h, pts, "on",      wtp,     "cmd",    NULL );
   cmDspSysInstallCb(h, pts, "on",      modp,    "cmd",    NULL );
   cmDspSysInstallCb(h, onb, "sym",     amCmd,   "rewind", NULL );
   cmDspSysInstallCb(h, onb, "out",     c0.achan,"reset",  NULL );
@@ -260,6 +279,7 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, tlp,  "mfn", pts, "off",   NULL ); // Prevents WT start on new audio file from TL.
   cmDspSysInstallCb(h, offb, "sym", mfp, "sel",   NULL ); 
   cmDspSysInstallCb(h, offb, "sym", pts, "off",   NULL );
+  cmDspSysInstallCb(h, pts,  "off", wtp, "cmd",   NULL );
   cmDspSysInstallCb(h, pts,  "off", modp,"cmd",   NULL );
   cmDspSysInstallCb(h, offb, "sym", mop, "reset", NULL );
   cmDspSysInstallCb(h, offb, "sym", mo2p,"reset", NULL );
@@ -269,6 +289,12 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, tlp, "mbsi", mfp, "bsi",   NULL );
   cmDspSysInstallCb(h, tlp, "mesi", mfp, "esi",   NULL );
   cmDspSysInstallCb(h, tlp, "mfn",  mfp, "fn",    NULL );
+
+
+  // time-line to Audio file player selection
+  cmDspSysInstallCb(h, tlp, "absi", wtp, "beg",   NULL );
+  cmDspSysInstallCb(h, tlp, "aesi", wtp, "end",   NULL );
+  cmDspSysInstallCb(h, tlp, "afn",  wtp, "fn",    NULL );
   
   // score to score follower - to set initial search location
   cmDspSysInstallCb(h, scp, "sel",    sfp, "index", NULL );
@@ -284,28 +310,28 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, msrc,   "d1",     sfp,  "d1",    NULL );
   cmDspSysInstallCb(h, msrc,   "d1",     nmp,  "d1",    NULL );
   cmDspSysInstallCb(h, nmp,   "d1",     mop,  "d1",    NULL );
-  cmDspSysInstallCb(h, nmp,   "d1",     pic, "d1",    NULL );
-  cmDspSysInstallCb(h, pic,   "d1",     mo2p, "d1",    NULL );
+  //cmDspSysInstallCb(h, nmp,   "d1",     pic, "d1",    NULL );
+  //cmDspSysInstallCb(h, pic,   "d1",     mo2p, "d1",    NULL );
 
   cmDspSysInstallCb(h, msrc,  "d0",      sfp,  "d0",   NULL );
   cmDspSysInstallCb(h, msrc,  "d0",      nmp,  "d0",   NULL );
   cmDspSysInstallCb(h, nmp,  "d0",      mop,  "d0",   NULL );
-  cmDspSysInstallCb(h, nmp,  "d0",      pic, "d0",   NULL );
-  cmDspSysInstallCb(h, pic,   "d0",     mo2p, "d0",    NULL );
+  //cmDspSysInstallCb(h, nmp,  "d0",      pic, "d0",   NULL );
+  //cmDspSysInstallCb(h, pic,   "d0",     mo2p, "d0",    NULL );
 
   cmDspSysInstallCb(h, msrc,  "status",  sfp,  "status",NULL );
   cmDspSysInstallCb(h, msrc,  "status",  nmp,  "status",NULL );
   cmDspSysInstallCb(h, nmp,  "status",  mop,  "status",NULL );
-  cmDspSysInstallCb(h, nmp,  "status",  pic, "status",NULL );
-  cmDspSysInstallCb(h, pic,   "status",  mo2p, "status",    NULL );
+  //cmDspSysInstallCb(h, nmp,  "status",  pic, "status",NULL );
+  //cmDspSysInstallCb(h, pic,   "status",  mo2p, "status",    NULL );
 
 
   // score follower to recd_play,modulator and printers
   cmDspSysInstallCb(h, sfp, "out",     modp,    "index", NULL );
   cmDspSysInstallCb(h, sfp, "recent",  prp,     "in",  NULL );  // report 'recent' but only act on 'max' loc index
 
-  cmDspSysInstallCb(h, igain0, "val", ai0, "gain", NULL );   // input gain control
-  cmDspSysInstallCb(h, igain1, "val", ai1, "gain", NULL );
+  //cmDspSysInstallCb(h, igain0, "val", ai0, "gain", NULL );   // input gain control
+  //cmDspSysInstallCb(h, igain1, "val", ai1, "gain", NULL );
 
 
   cmDspSysInstallCb(h, modp, "dgain0",  ogain0, "val",  NULL );
