@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-  //( { file_desc:"Concatenate multipel overlapping MIDI performances into a single virtual performance based by associating score information with the MIDI events." kw:[seq] }
+  //( { file_desc:"Concatenate multiple overlapping MIDI performances into a single virtual performance by associating score information with the MIDI events." kw:[seq] }
   
   enum
   {
