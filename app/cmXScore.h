@@ -72,7 +72,7 @@ extern "C" {
   // Set reportFl to true to print a report of the score following processing.
   // Set begMeasNumb to the first measure the to be written to the output csv, MIDI and SVG files.
   // Set begBPM to 0 to use the tempo from the score otherwise set it to the tempo at begMeasNumb.
-  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* reorderFn, const cmChar_t* csvOutFn, const cmChar_t* midiOutFn, bool reportFl, int begMeasNumb, int begBPM );
+  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* reorderFn, const cmChar_t* csvOutFn, const cmChar_t* midiOutFn, const cmChar_t* svgOutFn, bool reportFl, int begMeasNumb, int begBPM, bool svgStandAloneFl, bool svgPanZoomFl );
   
 #ifdef __cplusplus
 }

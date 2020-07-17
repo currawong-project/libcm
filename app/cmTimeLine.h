@@ -27,7 +27,8 @@ extern "C" {
     kFinalizeFailTlRC,
     kInvalidSeqIdTlRC,
     kOnsetFailTlRC,
-    kAssertFailTlRC
+    kAssertFailTlRC,
+    kRptFileFailTlRC
   };
 
   typedef enum
@@ -217,6 +218,7 @@ extern "C" {
 
   cmTlRC_t cmTimeLinePrint( cmTlH_t h, cmRpt_t* rpt );
   cmTlRC_t cmTimeLinePrintFn( cmCtx_t* ctx, const cmChar_t* tlFn, const cmChar_t* prefixPath, cmRpt_t* rpt );
+  cmTlRC_t cmTimeLineReport( cmCtx_t* ctx, const cmChar_t* tlFn, const cmChar_t* prefixPath, const cmChar_t* rptFn );
 
   cmTlRC_t cmTimeLineTest( cmCtx_t* ctx, const cmChar_t* tlFn, const cmChar_t* prefixPath  );
 

@@ -3909,7 +3909,7 @@ cmRC_t         cmRecdPlayInsertRecord(cmRecdPlay* p, unsigned labelSymId, const 
       return rc;
     }
 
-    return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'begin record'.",labelSymId);    
+  return  cmCtxRtCondition( &p->obj, cmInvalidArgRC, "The fragment label symbol id '%i' not found for 'begin record'.",labelSymId);    
 }
 
 

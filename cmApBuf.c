@@ -610,7 +610,7 @@ cmAbRC_t cmApBufUpdate(
           n0 = pp->audioFramesCnt;
 
         cmApSample_t* bpp   = ((cmApSample_t*)pp->audioBytesPtr) + j;
-        cmApSample_t* dp    = bpp;
+        //cmApSample_t* dp    = bpp;
         bool          enaFl = cmIsFlag(cp->fl,kChApFl) && cmIsFlag(cp->fl,kMuteApFl)==false;
 
         unsigned decrSmpN = 0;
@@ -625,7 +625,7 @@ cmAbRC_t cmApBufUpdate(
         else                    // otherwise copy samples from the output buffer to the packet
         {
           const cmApSample_t* sp = enaFl ? cp->b + cp->oi : _cmApBuf.zeroBuf;
-          const cmApSample_t* ep = sp + n0;
+          //const cmApSample_t* ep = sp + n0;
 
           unsigned pi = cp->oi;
           cp->oi = _cmApCopyOutSamples( enaFl ? cp->b : _cmApBuf.zeroBuf, op->n, cp->oi, (cmApSample_t*)pp->audioBytesPtr, pp->audioFramesCnt, pp->chCnt, j, op->srateMult, cp->gain, &cp->s0 );
@@ -1061,8 +1061,8 @@ void cmApBufReport( cmRpt_t* rpt )
       }
 
       cmRptPrintf(rpt,"%s - i:%7i o:%7i f:%7i n:%7i err %s:%7i  mtr:%5.4f ",
-        j==0?"IN":"OUT",
-        ii,oi,fn,ip->n, (j==0?"over":"under"), ip->faultCnt, mtr);
+        j==0?"IN ":"OUT",
+        ii,oi,fn,ip->n, (j==0?"over ":"under"), ip->faultCnt, mtr);
       
     }
 

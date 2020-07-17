@@ -339,10 +339,12 @@ typedef struct
 unsigned _cmSpMeasSectCount( _cmSpMeasProc_t* m )
 {
   const _cmSpMeas_t* mp = m->list_beg;
-  unsigned n = 0;
-  for(; mp != NULL; mp=mp->link)
+  unsigned           n  = 0;
+  unsigned           M  = 0;
+  
+  for(; mp != NULL; mp=mp->link,++M)
     n += mp->setPtr->sectCnt;
-
+  
   return n;
 }
 
@@ -359,9 +361,10 @@ cmSpRC_t _cmScWriteMeasFile( cmCtx_t* ctx, cmSp_t* sp, _cmSpMeasProc_t* m, const
   cmFileH_t fH = cmFileNullHandle;
   cmSpRC_t rc = kOkSpRC;
   unsigned i,j,k;
+  unsigned scnt = _cmSpMeasSectCount(m);
+  
   _cmSpMeas_t* mp = m->list_beg;
 
-  unsigned scnt = _cmSpMeasSectCount(m);
   _cmSpMeasSect_t sarray[ scnt ];
   for(i=0,k=0; k<scnt && mp!=NULL; ++i,mp=mp->link)
   {
@@ -375,24 +378,26 @@ cmSpRC_t _cmScWriteMeasFile( cmCtx_t* ctx, cmSp_t* sp, _cmSpMeasProc_t* m, const
         { assert(0); }
     }
 
+
     for(j=0; j<mp->setPtr->sectCnt; ++j,++k)
     {
+      assert(k<scnt);
+        
       _cmSpMeasSect_t* r = sarray + k;
 
-        r->srcSeqId        = mp->markPtr->obj.seqId,
-        r->srcMarkNameStr  = cmStringNullGuard(mp->markPtr->obj.name),
-        r->srcTypeId       = mp->setPtr->varId,
-        r->srcTypeLabelStr = typeLabel,
-        r->dstScLocIdx     = mp->setPtr->sectArray[j]->locPtr->index,
-        r->dstEvtIdx       = mp->setPtr->sectArray[j]->begEvtIndex,
-        r->dstSectLabelStr = cmStringNullGuard(mp->setPtr->sectArray[j]->label),
-        r->value           = mp->value,
-        r->cost            = mp->cost;
-
+      r->srcSeqId        = mp->markPtr->obj.seqId;
+      r->srcMarkNameStr  = cmStringNullGuard(mp->markPtr->obj.name);
+      r->srcTypeId       = mp->setPtr->varId;
+      r->srcTypeLabelStr = typeLabel;
+      r->dstScLocIdx     = mp->setPtr->sectArray[j]->locPtr->index;
+      r->dstEvtIdx       = mp->setPtr->sectArray[j]->begEvtIndex;
+      r->dstSectLabelStr = cmStringNullGuard(mp->setPtr->sectArray[j]->label);
+      r->value           = mp->value;
+      r->cost            = mp->cost;
     }
   }
 
-  assert(mp==NULL && k==scnt);
+  // assert(mp==NULL && k==scnt); if the ending mp->setPtr->sectCnt==0 then this assert will not work correctly even though there would be no data inconsistency
 
   qsort(sarray,scnt,sizeof(sarray[0]),_cmSpMeasSectCompare);
 
@@ -408,39 +413,39 @@ cmSpRC_t _cmScWriteMeasFile( cmCtx_t* ctx, cmSp_t* sp, _cmSpMeasProc_t* m, const
   {
     _cmSpMeasSect_t* r = sarray + i;
 
-      cmFilePrintf(fH,"[  \"%s\"  \"%s\"  %f %f  %i %i %i \"%s\" %i ]\n",
-        r->dstSectLabelStr,
-        r->srcTypeLabelStr,
-        r->value,
-        r->cost,
-        r->dstScLocIdx,
-        r->dstEvtIdx,
-        r->srcSeqId,
-        r->srcMarkNameStr,
-        r->srcTypeId
-                   );
+    cmFilePrintf(fH,"[  \"%s\"  \"%s\"  %f %f  %i %i %i \"%s\" %i ]\n",
+      r->dstSectLabelStr,
+      r->srcTypeLabelStr,
+      r->value,
+      r->cost,
+      r->dstScLocIdx,
+      r->dstEvtIdx,
+      r->srcSeqId,
+      r->srcMarkNameStr,
+      r->srcTypeId
+                 );
 
   }
 
   /*
-  mp = sp->list_beg;
-  for(; mp!=NULL; mp=mp->link)
-  {
+    mp = sp->list_beg;
+    for(; mp!=NULL; mp=mp->link)
+    {
 
     for(i=0; i<mp->setPtr->sectCnt; ++i)
     {
-      cmFilePrintf(fH,"[ %i \"%s\" %i \"%s\" %i %i \"%s\" %f %f ]\n",
-        mp->markPtr->obj.seqId,
-        cmStringNullGuard(mp->markPtr->obj.name),
-        mp->setPtr->varId,
-        typeLabel,
-        mp->setPtr->sectArray[i]->locPtr->index,
-        mp->setPtr->sectArray[i]->begEvtIndex,
-        cmStringNullGuard(mp->setPtr->sectArray[i]->label),
-        mp->value,
-        mp->cost );
+    cmFilePrintf(fH,"[ %i \"%s\" %i \"%s\" %i %i \"%s\" %f %f ]\n",
+    mp->markPtr->obj.seqId,
+    cmStringNullGuard(mp->markPtr->obj.name),
+    mp->setPtr->varId,
+    typeLabel,
+    mp->setPtr->sectArray[i]->locPtr->index,
+    mp->setPtr->sectArray[i]->begEvtIndex,
+    cmStringNullGuard(mp->setPtr->sectArray[i]->label),
+    mp->value,
+    mp->cost );
     } 
-  }
+    }
   */
 
   cmFilePrintf(fH,"\n]\n}\n");
@@ -516,10 +521,10 @@ cmSpRC_t  _cmSpProcMeasCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlObj
 }
 
 
-cmSpRC_t _cmScoreProcGenAllMeasurementsMain(cmCtx_t* ctx)
+cmSpRC_t _cmScoreProcGenAllMeasurementsMain(cmCtx_t* ctx, const cmChar_t* pgmRsrcFn, const cmChar_t* outFn)
 {
-  const cmChar_t*  rsrcFn = "/home/kevin/.kc/time_line.js";
-  const cmChar_t*  outFn  = "/home/kevin/src/cmkc/src/kc/data/meas0.js";
+  //const cmChar_t*  rsrcFn = "/home/kevin/.kc/time_line.js";
+  //const cmChar_t*  outFn  = "/home/kevin/src/cmkc/src/kc/data/meas0.js";
 
   cmSpRC_t         rc = kOkSpRC;
   _cmSpMeasProc_t* m  = cmMemAllocZ(_cmSpMeasProc_t,1);
@@ -531,7 +536,7 @@ cmSpRC_t _cmScoreProcGenAllMeasurementsMain(cmCtx_t* ctx)
   cmRptPrintf(&ctx->rpt,"Score Performance Evaluation Start\n");
 
   // initialize the score processor
-  if((rc = _cmScoreProcInit(ctx,sp,rsrcFn,_cmSpProcMeasCb,_cmSpMatchMeasCb,m)) != kOkSpRC )
+  if((rc = _cmScoreProcInit(ctx,sp,pgmRsrcFn,_cmSpProcMeasCb,_cmSpMatchMeasCb,m)) != kOkSpRC )
     goto errLabel;
 
   // allocate the performance evaluation measurement object
@@ -719,10 +724,10 @@ cmSpRC_t  _cmSpProcAssocCb( void* arg, cmSp_t* sp, cmScoreProcSelId_t id, cmTlOb
   return rc;
 }
 
-cmSpRC_t _cmScoreProcGenAssocMain(cmCtx_t* ctx)
+cmSpRC_t _cmScoreProcGenAssocMain(cmCtx_t* ctx, const cmChar_t* pgmRsrcFn, const cmChar_t* outFn )
 {
-  const cmChar_t*  rsrcFn = "/home/kevin/.kc/time_line.js";
-  const cmChar_t*  outFn  = "/home/kevin/src/cmkc/src/kc/data/takeSeqBldr0.js";
+  //const cmChar_t*  pgmRsrcFn = "/home/kevin/.kc/time_line.js";
+  //const cmChar_t*  outFn  = "/home/kevin/src/cmkc/src/kc/data/takeSeqBldr0.js";
   cmSpRC_t         rc     = kOkSpRC;
   cmSpAssocProc_t* m      = cmMemAllocZ(cmSpAssocProc_t,1);
   cmSp_t           s;
@@ -749,7 +754,7 @@ cmSpRC_t _cmScoreProcGenAssocMain(cmCtx_t* ctx)
   }
 
   // initialize the score processor
-  if((rc = _cmScoreProcInit(ctx,sp,rsrcFn,_cmSpProcAssocCb,_cmSpMatchAssocCb, m)) != kOkSpRC )
+  if((rc = _cmScoreProcInit(ctx,sp,pgmRsrcFn,_cmSpProcAssocCb,_cmSpMatchAssocCb, m)) != kOkSpRC )
     goto errLabel;
 
   m->sp = sp;
@@ -804,12 +809,17 @@ cmSpRC_t _cmScoreProcGenAssocMain(cmCtx_t* ctx)
 
 //==================================================================================================
 
-cmSpRC_t cmScoreProc(cmCtx_t* ctx)
+cmSpRC_t cmScoreProc(cmCtx_t* ctx, const cmChar_t* sel, const cmChar_t* pgmRsrcFn, const cmChar_t* outFn)
 {
   cmSpRC_t rc = kOkSpRC;
 
-  //_cmScoreProcGenAllMeasurementsMain(ctx);
-  _cmScoreProcGenAssocMain(ctx);
+  if( strcmp(sel,"meas") == 0 )
+    _cmScoreProcGenAllMeasurementsMain(ctx,pgmRsrcFn,outFn);
+  else
+    if( strcmp(sel,"assoc") == 0 )
+      _cmScoreProcGenAssocMain(ctx,pgmRsrcFn,outFn);
+    else
+      cmErrMsg(&ctx->err,kSelectorFailSpRC,"Unknown selector %s.", cmStringNullGuard(sel));
 
   return rc;
   

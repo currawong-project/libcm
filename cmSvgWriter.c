@@ -185,16 +185,7 @@ void _cmSvgWriterFlipY( cmSvg_t* p, unsigned height )
   }
 }
 
-/*
-   "<script type=\"text/javascript\" src=\"svg-pan-zoom.min.js\"></script>\n"
-    "<script>\n"
-    " var panZoom = null;\n"
-    "  function doOnLoad() { panZoom = svgPanZoom(document.querySelector('#mysvg'), { controlIconsEnabled:true } ) }\n"
-    "</script>\n"
- 
- */
-
-cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* outFn )
+cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* outFn, bool standAloneFl, bool panZoomFl )
 {
   cmSvgRC_t   rc        = kOkSvgRC;
   cmSvg_t*    p         = _cmSvgHandleToPtr(h);
@@ -205,29 +196,36 @@ cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* 
   cmChar_t*   s0        = NULL;
   cmChar_t*   s1        = NULL;
 
-  cmChar_t hdr[] =
+  cmChar_t panZoomHdr[] = 
+    "<script type=\"text/javascript\" src=\"svg-pan-zoom/dist/svg-pan-zoom.js\"></script>\n"
+    "<script>\n"
+    " var panZoom = null;\n"
+    "  function doOnLoad() { panZoom = svgPanZoom(document.querySelector('#mysvg'), { controlIconsEnabled:true } ) }\n"
+    "</script>\n";
+
+  
+  cmChar_t standAloneFmt[] =
     "<!DOCTYPE html>\n"
     "<html>\n"
     "<head>\n"
     "<meta charset=\"utf-8\">\n"    
     "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">\n"
+    "%s\n"
     "</head>\n"
-    "<body onload=\"doOnLoad()\">\n"
-    "<svg id=\"mysvg\" width=\"%f\" height=\"%f\">\n";
+    "<body onload=\"doOnLoad()\">\n";
 
- 
-  
+  cmChar_t svgFmt[] = "<svg id=\"mysvg\" width=\"%f\" height=\"%f\">\n";
+
   _cmSvgSize(p, &svgWidth, &svgHeight );
 
   _cmSvgWriterFlipY( p, svgHeight );
 
-  // print the file header
-  if( (s0 = cmTsPrintfP(s0,hdr,cssFn,svgWidth,svgHeight)) == NULL )
-  {
-    rc = cmErrMsg(&p->err,kPrintFailSvgRC,"File prefix write failed.");
-    goto errLabel;
-  }
+  s0 = cmTsPrintfP(s0, standAloneFmt, cssFn, panZoomFl ? panZoomHdr : "");
+  
+  s1 = cmTsPrintfP(s1,"%s%s", standAloneFl ? s0 : "", svgFmt);
 
+  s0 = cmTsPrintfP(s0,s1,svgWidth,svgHeight);
+  
   for(; e!=NULL; e=e->link)
   {
     switch( e->id )
@@ -262,12 +260,15 @@ cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* 
     
   }
   
-  if( (s1 = cmTsPrintfP(s1,"</svg>\n</body>\n</html>\n")) == NULL )
+  if( (s1 = cmTsPrintfP(s1,"</svg>\n")) == NULL )
   {
     rc = cmErrMsg(&p->err,kPrintFailSvgRC,"File suffix write failed.");
     goto errLabel;
   }
-
+  
+  if( standAloneFl )
+    s1 = cmTextAppendSS(s1,"</body>\n</html>\n");
+  
   if( cmFileOpen(&fH,outFn,kWriteFileFl,p->err.rpt) != kOkFileRC )
   {
     rc = cmErrMsg(&p->err,kFileFailSvgRC,"SVG file create failed for '%s'.",cmStringNullGuard(outFn));
@@ -279,6 +280,7 @@ cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h,  const cmChar_t* cssFn, const cmChar_t* 
     rc = cmErrMsg(&p->err,kFileFailSvgRC,"File write failed.");
     goto errLabel;
   }
+
 
  errLabel:
   cmFileClose(&fH);

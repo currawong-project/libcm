@@ -15,6 +15,7 @@
 #include "cmFileSys.h"
 #include "cmTimeLine.h"
 #include "cmOnset.h"
+#include "cmRptFile.h"
 
 // id's used to track the type of a serialized object
 enum
@@ -1800,6 +1801,25 @@ cmTlRC_t cmTimeLinePrintFn( cmCtx_t* ctx, const cmChar_t* fn, const cmChar_t* pr
   cmTimeLinePrint(h,rpt);
 
   return cmTimeLineFinalize(&h);
+}
+
+cmTlRC_t cmTimeLineReport( cmCtx_t* ctx, const cmChar_t* tlFn, const cmChar_t* tlPrefixPath, const cmChar_t* rptFn )
+{
+  cmTlRC_t rc;
+  cmRptFileH_t  rptH = cmRptFileNullHandle;
+  
+  if(( rc = cmRptFileCreate(ctx, &rptH, rptFn, NULL )) != kOkRfRC )
+  {
+    rc = cmErrMsg(&ctx->err,kRptFileFailTlRC,"Unable to open the report file: %s\n",cmStringNullGuard(rptFn));
+    goto errLabel;    
+  }
+
+  rc = cmTimeLinePrintFn(ctx, tlFn, tlPrefixPath, cmRptFileRpt(rptH) );
+
+ errLabel:
+  cmRptFileClose(&rptH);
+
+  return rc;  
 }
 
 

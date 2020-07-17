@@ -229,7 +229,7 @@ extern "C" {
   // Generate a piano-roll plot description file which can be displayed with cmXScore.m
   cmMfRC_t             cmMidiFileGenPlotFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outFn );
 
-  cmMfRC_t             cmMidiFileGenSvgFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outSvgFn, const cmChar_t* cssFn );
+  cmMfRC_t             cmMidiFileGenSvgFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outSvgFn, const cmChar_t* cssFn, bool standAloneFl, bool panZoomFl );
 
   // Generate a text file reportusing cmMIdiFilePrintMsgs()
   cmMfRC_t             cmMidiFileReport(     cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outTextFn );

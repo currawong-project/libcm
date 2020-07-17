@@ -17,12 +17,13 @@ extern "C" {
     kTimeLineFailSpRC,
     kScoreMatchFailSpRC,
     kFileFailSpRC,
-    kProcFailSpRC
+    kProcFailSpRC,
+    kSelectorFailSpRC
   };
 
 
-  cmSpRC_t  cmScoreProc(cmCtx_t* ctx );
-
+  cmSpRC_t  cmScoreProc(cmCtx_t* ctx, const cmChar_t* sel, const cmChar_t* pgmRsrcFn, const cmChar_t* outFn);
+  
   //)
   
 #ifdef __cplusplus

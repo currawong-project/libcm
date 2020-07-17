@@ -36,6 +36,7 @@ extern "C" {
     kInvalidFileModeAfRC,
     kInvalidHandleAfRC,
     kInvalidChCountAfRC,
+    kRptFileFailAfRC,
     kUnknownErrAfRC
   };
 
@@ -270,6 +271,8 @@ extern "C" {
   
   // Print the cmAudioFileInfo_t to a file.
   void       cmAudioFilePrintInfo( const cmAudioFileInfo_t* infoPtr, cmRpt_t* );
+
+  cmRC_t     cmAudioFileReportInfo( cmCtx_t* ctx, const cmChar_t* audioFn, const cmChar_t* rptFn );
 
   // Print the file header information and frmCnt sample values beginning at frame index frmIdx.
   cmRC_t     cmAudioFileReport(   cmAudioFileH_t h,  cmRpt_t* rpt, unsigned frmIdx, unsigned frmCnt );

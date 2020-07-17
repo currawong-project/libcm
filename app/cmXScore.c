@@ -3856,19 +3856,19 @@ void _cmXsWriteMidiSvgLinePoint( cmSvgH_t svgH, double x0, double y0, double x1,
 
 }
 
-cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, const cmChar_t* dir, const cmChar_t* fn )
+cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, const cmChar_t* svgFn, bool standAloneFl, bool panZoomFl )
 {
   cmXsRC_t        rc         = kOkXsRC;
   cmSvgH_t        svgH       = cmSvgNullHandle;
   cmXsSvgEvt_t*   e          = mf->elist;
   unsigned        noteHeight = 10;
-  cmChar_t*       fn0        = cmMemAllocStr( fn );  
-  const cmChar_t* svgFn      = cmFsMakeFn(dir,fn0 = cmTextAppendSS(fn0,"_midi_svg"),"html",NULL);
+  //cmChar_t*       fn0        = cmMemAllocStr( fn );  
+  //const cmChar_t* svgFn      = cmFsMakeFn(dir,fn0 = cmTextAppendSS(fn0,"_midi_svg"),"html",NULL);
   const cmChar_t* cssFn      = cmFsMakeFn(NULL,"score_midi_svg","css",NULL);
   cmChar_t*       t0         = NULL;  // temporary dynamic string
   unsigned        i          = 0;
   const cmXsSvgEvt_t* e0 = NULL;
-  cmMemFree(fn0);
+  //cmMemFree(fn0);
   
   // create the SVG writer
   if( cmSvgWriterAlloc(ctx,&svgH) != kOkSvgRC )
@@ -3960,12 +3960,12 @@ cmXsRC_t _cmXsWriteMidiSvg( cmCtx_t* ctx, cmXScore_t* p, cmXsMidiFile_t* mf, con
     cmErrMsg(&p->err,kSvgFailXsRC,"SVG element insert failed.");
 
   if( rc == kOkXsRC )
-    if( cmSvgWriterWrite(svgH,cssFn,svgFn) != kOkSvgRC )
+    if( cmSvgWriterWrite(svgH,cssFn,svgFn,standAloneFl, panZoomFl) != kOkSvgRC )
       rc = cmErrMsg(&p->err,kSvgFailXsRC,"SVG file write to '%s' failed.",cmStringNullGuard(svgFn));
   
  errLabel:
   cmSvgWriterFree(&svgH);
-  cmFsFreeFn(svgFn);
+  //cmFsFreeFn(svgFn);
   cmFsFreeFn(cssFn);
   cmMemFree(t0);
   
@@ -4001,7 +4001,7 @@ void _cmXsPushSvgEvent( cmXScore_t* p, cmXsMidiFile_t* mf, unsigned flags, unsig
   mf->eol = e;
 }
 
-cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, int beginMeasNumb, const cmChar_t* dir, const cmChar_t* fn )
+cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, int beginMeasNumb, const cmChar_t* svgFn, bool standAloneFl, bool panZoomFl )
 {
   cmXScore_t* p  = _cmXScoreHandleToPtr(h);
   cmXsPart_t* pp = p->partL;
@@ -4058,12 +4058,11 @@ cmXsRC_t _cmXScoreGenSvg( cmCtx_t* ctx, cmXsH_t h, int beginMeasNumb, const cmCh
           _cmXsPushSvgEvent(p,&mf,note->flags,note->tick,note->duration,0,d0,127,NULL);
           continue;
         }
-        
       }
     }
   }
   
-  return _cmXsWriteMidiSvg( ctx, p, &mf, dir, fn );
+  return _cmXsWriteMidiSvg( ctx, p, &mf, svgFn, standAloneFl, panZoomFl );
 }
 
 
@@ -4073,9 +4072,12 @@ cmXsRC_t cmXScoreTest(
   const cmChar_t* editFn,
   const cmChar_t* csvOutFn,
   const cmChar_t* midiOutFn,
+  const cmChar_t* svgOutFn,
   bool            reportFl,
   int             beginMeasNumb,
-  int             beginBPM )
+  int             beginBPM,
+  bool            standAloneFl,
+  bool            panZoomFl )
 {
   cmXsRC_t rc;
   cmXsH_t h = cmXsNullHandle;
@@ -4113,11 +4115,12 @@ cmXsRC_t cmXScoreTest(
     
     _cmXsIsMidiFileValid(ctx, h, pp->dirStr, pp->fnStr );
     
-    _cmXScoreGenSvg( ctx, h, beginMeasNumb, pp->dirStr, pp->fnStr );
-
     cmFsFreePathParts(pp);
     
   }
+
+  if( svgOutFn != NULL )
+    _cmXScoreGenSvg( ctx, h, beginMeasNumb, svgOutFn, standAloneFl, panZoomFl );
 
   if(reportFl)
     cmXScoreReport(h,&ctx->rpt,true);

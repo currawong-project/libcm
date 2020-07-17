@@ -9,6 +9,7 @@
 #include "cmAudioFile.h"
 #include "cmMath.h"
 #include "cmFileSys.h"
+#include "cmRptFile.h"
 
 
 // #define _24to32_aif( p ) ((int)( ((p[0]>127?255:0) << 24) + (((int)p[0]) << 16) +  (((int)p[1]) <<8) + p[2]))  // no-swap equivalent
@@ -1803,6 +1804,37 @@ cmRC_t     cmAudioFileReportFn( const cmChar_t* fn, unsigned frmIdx, unsigned fr
 
   return cmAudioFileDelete(&h);
 }
+
+cmRC_t       cmAudioFileReportInfo( cmCtx_t* ctx, const cmChar_t* audioFn, const cmChar_t* rptFn )
+{
+  cmRC_t            rc   = kOkAfRC;
+  cmRptFileH_t      rptH = cmRptFileNullHandle;
+  cmAudioFileInfo_t afInfo;
+  memset(&afInfo,0,sizeof(afInfo));
+  cmAudioFileH_t    afH  = cmAudioFileNewOpen( audioFn, &afInfo, &rc, &ctx->rpt );
+
+  
+  if( rc != kOkAfRC )
+  {
+    rc = cmErrMsg(&ctx->err,rc,"Audio file '%s' open failed.",cmStringNullGuard(audioFn));
+    goto errLabel;
+  }
+  
+  if(( rc = cmRptFileCreate(ctx, &rptH, rptFn, NULL )) != kOkRfRC )
+  {
+    rc = cmErrMsg(&ctx->err,kRptFileFailAfRC,"Unable to open the report file: %s\n",cmStringNullGuard(rptFn));
+    goto errLabel;    
+  }
+  
+  cmAudioFilePrintInfo(&afInfo,cmRptFileRpt(rptH));
+  
+ errLabel:
+  cmRptFileClose(&rptH);
+  cmAudioFileDelete(&afH);
+
+ return rc;
+}
+
 
 cmRC_t     cmAudioFileSetSrate( const cmChar_t* fn, unsigned srate )
 {

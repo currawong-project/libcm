@@ -19,6 +19,7 @@
 #include "cmFile.h"
 #include "cmScore.h"
 #include "cmVectOpsTemplateMain.h"
+#include "cmRptFile.h"
 
 cmScH_t cmScNullHandle  = cmSTATIC_NULL_HANDLE;
 
@@ -2441,7 +2442,7 @@ void _cmScorePrintHdr( cmRpt_t* rpt )
 
 void _cmScorePrintEvent( cmSc_t* p, const cmScoreEvt_t* r, unsigned i, cmRpt_t* rpt )
 {
-  bool eolFl = true;
+  //bool eolFl = true;
   switch(r->type)
   {
     case kBarEvtScId:
@@ -2469,7 +2470,7 @@ void _cmScorePrintEvent( cmSc_t* p, const cmScoreEvt_t* r, unsigned i, cmRpt_t* 
       break;
 
     default:
-      eolFl = false;
+      //eolFl = false;
       break;
   }
 
@@ -2741,15 +2742,27 @@ cmScRC_t      cmScoreFileFromMidi( cmCtx_t* ctx, const cmChar_t* midiFn, const c
 }
 
 
-void cmScoreReport( cmCtx_t* ctx, const cmChar_t* fn )
+void cmScoreReport( cmCtx_t* ctx, const cmChar_t* fn, const cmChar_t* outFn )
 {
-  cmScH_t h = cmScNullHandle;
+  cmScH_t      h   = cmScNullHandle;
+  cmRptFileH_t fH  = cmRptFileNullHandle;
+  cmRpt_t*     rpt = &ctx->rpt;
+  
+  if( outFn != NULL )
+    if( cmRptFileCreate( ctx, &fH, outFn, NULL ) == kOkRfRC )
+      rpt =   cmRptFileRpt( fH );
+
+  
   if( cmScoreInitialize(ctx,&h,fn,0,NULL,0,NULL,NULL, cmSymTblNullHandle ) != kOkScRC )
     return;
 
-  cmScorePrint(h,&ctx->rpt);
+  cmScorePrint(h,rpt);
 
   cmScoreFinalize(&h);
+
+  if( cmRptFileIsValid( fH ) )
+    cmRptFileClose( &fH );
+
 }
 
 void cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn )

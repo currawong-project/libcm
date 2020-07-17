@@ -242,13 +242,14 @@ _cmPoOpt_t* _cmPgmOptWordIdToOptRecd( _cmPo_t* p, const cmChar_t* wordId )
 
 
 cmPoRC_t _cmPgmOptInstall( _cmPo_t* p, unsigned numId, const cmChar_t charId, const cmChar_t* wordId, unsigned cflags, unsigned sflags, unsigned enumId, unsigned cnt, const cmChar_t* helpStr, _cmPoOpt_t** rpp )
-{
+{  
   // validate the num. id
-  if( cmIsNotFlag(sflags,kEnumPoFl) && _cmPgmOptNumIdToOptRecd(p,numId) != NULL )
+  if( cmIsNotFlag(sflags,kEnumPoFl) &&  _cmPgmOptNumIdToOptRecd(p,numId) != NULL )
     return cmErrMsg(&p->err,kDuplicateIdPoRC,"The numeric id '%i' was already used by another parameter.",numId);
 
+  
   // validate the char. id
-  if( _cmPgmOptCharIdToOptRecd(p,charId) != NULL )
+  if(_cmPgmOptCharIdToOptRecd(p,charId) != NULL )
     return cmErrMsg(&p->err,kDuplicateIdPoRC,"The character id -'%c' was already used by another parameter.",charId);
 
   // validate the word. id

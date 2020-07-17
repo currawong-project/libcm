@@ -282,7 +282,7 @@ extern "C" {
 
   // Print open the score file 'fn' and report the contents.  This function
   // simply wraps calls to cmScoreInitialize() and cmScorePrint().
-  void          cmScoreReport( cmCtx_t* ctx, const cmChar_t* fn );
+  void          cmScoreReport( cmCtx_t* ctx, const cmChar_t* fn, const cmChar_t* outFn );
 
   void          cmScoreTest( cmCtx_t* ctx, const cmChar_t* fn );
     

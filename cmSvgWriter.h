@@ -30,7 +30,7 @@ enum
   // and the Javascript file svg-pan-zoom.min.js from https://github.com/ariutta/svg-pan-zoom.
   // Both the CSS file and svg-pan-zoom.min.js should therefore be in the same directory
   // as the output HTML file.
-  cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h, const cmChar_t* cssFn, const cmChar_t* outFn );
+  cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h, const cmChar_t* cssFn, const cmChar_t* outFn, bool standaloneFl, bool panZoomFl );
   
 #ifdef __cplusplus
 }

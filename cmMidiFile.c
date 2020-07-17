@@ -1848,7 +1848,22 @@ void _cmMidiFilePrintMsg( cmRpt_t* rpt, const cmMidiTrackMsg_t* tmp )
 
   if( tmp->status == kMetaStId )
   {
-    cmRptPrintf(rpt,"%s ", cmMidiMetaStatusToLabel(tmp->metaId));
+
+    switch( tmp->metaId )
+    {
+      case kTempoMdId:
+        cmRptPrintf(rpt,"%s bpm %i", cmMidiMetaStatusToLabel(tmp->metaId),60000000 / tmp->u.iVal);        
+        break;
+
+      case kTimeSigMdId:
+        cmRptPrintf(rpt,"%s %i %i", cmMidiMetaStatusToLabel(tmp->metaId), tmp->u.timeSigPtr->num,tmp->u.timeSigPtr->den);        
+        break;
+        
+        
+      default:
+        cmRptPrintf(rpt,"%s ", cmMidiMetaStatusToLabel(tmp->metaId));
+
+    }
   }
   else
   {
@@ -1923,9 +1938,11 @@ cmMidiFileDensity_t* cmMidiFileNoteDensity( cmMidiFileH_t h, unsigned* cntRef )
     {
       dV[k].uid    = msgs[i]->uid;
       dV[k].amicro = msgs[i]->amicro;
-      
+
+      // count the number of notes occuring in the time window
+      // between this note and one second prior to this note.
       for(j=i; j>=0; --j)
-      {
+      {        
         if( msgs[i]->amicro - msgs[j]->amicro > 1000000 )
           break;
 
@@ -1979,7 +1996,7 @@ cmMfRC_t cmMidiFileGenPlotFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmCh
   return rc;
 }
 
-cmMfRC_t cmMidiFileGenSvgFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outSvgFn, const cmChar_t* cssFn )
+cmMfRC_t cmMidiFileGenSvgFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmChar_t* outSvgFn, const cmChar_t* cssFn, bool standAloneFl, bool panZoomFl )
 {
   cmMfRC_t                 rc   = kOkMfRC;
   cmSvgH_t                 svgH = cmSvgNullHandle;
@@ -2061,7 +2078,7 @@ cmMfRC_t cmMidiFileGenSvgFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmCha
   cmMemFree(tx);
   
   if( rc == kOkMfRC )
-    if( cmSvgWriterWrite(svgH,cssFn,outSvgFn) != kOkSvgRC )
+    if( cmSvgWriterWrite(svgH,cssFn,outSvgFn, standAloneFl, panZoomFl) != kOkSvgRC )
       rc = cmErrMsg(&ctx->err,kSvgFailMfRC,"SVG file write to '%s' failed.",cmStringNullGuard(outSvgFn));
 
 
