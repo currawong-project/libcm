@@ -212,13 +212,13 @@ unsigned _cmApCopyOutDnSample( const cmApSample_t* src, unsigned srcN, unsigned 
 
   // The total count of output samples is determined by 'dstN'
   // Downsampling is acheived by advancing the src index by 'div' samples.
-  
+
   for(di=0,si=srcIdx; di<dstN; ++di)
   {
     dst[di*dstChN+dstChIdx] = gain * src[si];
     si = (si + div) % srcN;
   }
-  
+
   return si;  
 }
 
@@ -267,6 +267,7 @@ unsigned  _cmApSine( cmApCh* cp, cmApSample_t* dst, unsigned dstN, unsigned dstI
     di = (di+dstChCnt) % dstN;
   }
 
+  
   return sigN;
 }
 
@@ -298,8 +299,8 @@ void _cmApChInitialize( cmApCh* chPtr, unsigned n, unsigned mn )
   chPtr->oi   = 0;
   chPtr->fn   = 0;
   chPtr->fl   = (n!=0 ? kChApFl : 0);
-  chPtr->hz   = 1000;
-  chPtr->gain = 1.0;
+  chPtr->hz   = 440;
+  chPtr->gain = 0.8; // use reduced gain to prevent clipping
   chPtr->mn   = mn;
   chPtr->m    = cmMemAllocZ(cmApSample_t,mn);
   chPtr->mi   = 0;
@@ -582,8 +583,8 @@ cmAbRC_t cmApBufUpdate(
       for(j=0; j<pp->chCnt; ++j)
       {
         cmApCh*  cp = op->chArray + pp->begChIdx + j; // dest ch
-        unsigned n0 = op->n - cp->oi;                 // first src segment
-        unsigned n1 = 0;                              // second src segment
+        //unsigned n0 = op->n - cp->oi;                 // first src segment
+        //unsigned n1 = 0;                              // second src segment
         volatile unsigned fn = cp->fn; // store fn because it may be changed by the client thread
 
         // if the outgoing samples  will underflow the buffer 
@@ -602,29 +603,28 @@ cmAbRC_t cmApBufUpdate(
           pp->audioFramesCnt = fn;
         }
 
+        
         // if the outgong segments would go off the end of the buffer then 
-        // arrange to wrap to the begining of the buffer
-        if( n0 < pp->audioFramesCnt )
-          n1 = pp->audioFramesCnt-n0;
-        else
-          n0 = pp->audioFramesCnt;
+        //// arrange to wrap to the begining of the buffer
+        //if( n0 < pp->audioFramesCnt )
+        //  n1 = pp->audioFramesCnt-n0;
+        //else
+        //  n0 = pp->audioFramesCnt;
 
-        cmApSample_t* bpp   = ((cmApSample_t*)pp->audioBytesPtr) + j;
-        //cmApSample_t* dp    = bpp;
-        bool          enaFl = cmIsFlag(cp->fl,kChApFl) && cmIsFlag(cp->fl,kMuteApFl)==false;
-
-        unsigned decrSmpN = 0;
+        //cmApSample_t* bpp      = ((cmApSample_t*)pp->audioBytesPtr) + j;
+        //cmApSample_t* dp     = bpp;
+        bool          enaFl    = cmIsFlag(cp->fl,kChApFl) && cmIsFlag(cp->fl,kMuteApFl)==false;
+        unsigned      decrSmpN = 0;
         
         // if the tone is enabled on this channel
         if( enaFl && cmIsFlag(cp->fl,kToneApFl) )
         {
           //_cmApSine(cp, dp, n0, dp + n0*pp->chCnt, n1, pp->chCnt, op->srate );
-          decrSmpN =  _cmApSine( cp, (cmApSample_t*)pp->audioBytesPtr, pp->audioFramesCnt, 0,  pp->chCnt, pp->audioFramesCnt, op->srateMult, op->srate, cp->gain );
-
+          decrSmpN =  _cmApSine( cp, (cmApSample_t*)pp->audioBytesPtr, pp->audioFramesCnt * pp->chCnt, j,  pp->chCnt, pp->audioFramesCnt, op->srateMult, op->srate, cp->gain );
         }
-        else                    // otherwise copy samples from the output buffer to the packet
+        else    // otherwise copy samples from the output buffer to the packet
         {
-          const cmApSample_t* sp = enaFl ? cp->b + cp->oi : _cmApBuf.zeroBuf;
+          //const cmApSample_t* sp = enaFl ? cp->b + cp->oi : _cmApBuf.zeroBuf;
           //const cmApSample_t* ep = sp + n0;
 
           unsigned pi = cp->oi;
@@ -632,7 +632,8 @@ cmAbRC_t cmApBufUpdate(
 
           decrSmpN = cp->oi>pi ? cp->oi-pi : (op->n-pi) + cp->oi;
 
-          if( true )
+          /*
+          if( false )
             if( j == 2 && _cmApBuf.abufIdx < 16384 )
             {
               int ii;
@@ -643,7 +644,7 @@ cmAbRC_t cmApBufUpdate(
               }
 
             }
-          
+          */
           /*
           // copy the first segment
           for(; sp < ep; dp += pp->chCnt )
@@ -678,7 +679,7 @@ cmAbRC_t cmApBufUpdate(
         //cp->fn -= pp->audioFramesCnt;
         cmThUIntDecr(&cp->fn,decrSmpN);
       }
-    }    
+    }
   }
   return kOkAbRC;
 }
