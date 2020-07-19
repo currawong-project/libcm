@@ -312,7 +312,19 @@ cmXmlRC_t  _cmXmlParseAttr( cmXml_t* p, cmChar_t endChar,  cmXmlNode_t* np )
 
   // advance past the next '='
   if( _cmXmlAdvancePast(p,"=") == NULL )
+  {
+    if( endChar=='?')
+    {
+      if((v1 = _cmXmlAdvanceToNext(p,"?")) != NULL )
+      {
+        v0 = l1+1;
+        goto allocLabel;
+      }
+      
+    }
+    
     return _cmXmlSyntaxError(p);
+  }
   
   // advance to the next non-white character
   if((v0 = _cmXmlAdvanceToNextNonWhite(p)) == NULL )
@@ -341,6 +353,7 @@ cmXmlRC_t  _cmXmlParseAttr( cmXml_t* p, cmChar_t endChar,  cmXmlNode_t* np )
     if( _cmXmlAdvanceOne(p) == NULL )
       return _cmXmlSyntaxError(p);
 
+ allocLabel:
   _cmXmlAttrAlloc(p, np, l0, l1-l0, v0, v1-v0 );
   
 
