@@ -340,15 +340,16 @@ const char* _cmApPcmStateToString( snd_pcm_state_t state )
 {
   switch( state )
   {
-  case SND_PCM_STATE_OPEN:         return "open";
-  case SND_PCM_STATE_SETUP:        return "setup";
-  case SND_PCM_STATE_PREPARED:     return "prepared";
-  case SND_PCM_STATE_RUNNING:      return "running";
-  case SND_PCM_STATE_XRUN:         return "xrun";
-  case SND_PCM_STATE_DRAINING:     return "draining";
-  case SND_PCM_STATE_PAUSED:       return "paused";
-  case SND_PCM_STATE_SUSPENDED:    return "suspended";
-  case SND_PCM_STATE_DISCONNECTED: return "disconnected";
+    case SND_PCM_STATE_OPEN:         return "open";
+    case SND_PCM_STATE_SETUP:        return "setup";
+    case SND_PCM_STATE_PREPARED:     return "prepared";
+    case SND_PCM_STATE_RUNNING:      return "running";
+    case SND_PCM_STATE_XRUN:         return "xrun";
+    case SND_PCM_STATE_DRAINING:     return "draining";
+    case SND_PCM_STATE_PAUSED:       return "paused";
+    case SND_PCM_STATE_SUSPENDED:    return "suspended";
+    case SND_PCM_STATE_DISCONNECTED: return "disconnected";
+    case SND_PCM_STATE_PRIVATE1:   return "private1";
 
   }
   return "<invalid>";
@@ -680,6 +681,7 @@ void _cmApStateRecover( snd_pcm_t* pcmH, cmApDevRecd_t* drp, bool inputFl  )
     case SND_PCM_STATE_DRAINING:
     case SND_PCM_STATE_PAUSED:
     case SND_PCM_STATE_DISCONNECTED:
+    case SND_PCM_STATE_PRIVATE1:
       //case SND_PCM_STATE_LAST:
       break;
   }
@@ -722,7 +724,7 @@ int _cmApWriteBuf( cmApDevRecd_t* drp, snd_pcm_t* pcmH, const cmApSample_t* sp, 
   unsigned            byteCnt     = bytesPerSmp * smpCnt;
   const cmApSample_t* ep          = sp + smpCnt;
   char                obuf[ byteCnt ];
-
+  
   // if no output was given then fill the device buffer with zeros
   if( sp == NULL )
     memset(obuf,0,byteCnt);
@@ -743,7 +745,11 @@ int _cmApWriteBuf( cmApDevRecd_t* drp, snd_pcm_t* pcmH, const cmApSample_t* sp, 
         {
           short* dp = (short*)obuf;
           while( sp < ep )
-            *dp++ = (short)(*sp++ * 0x7fff);        
+          {
+            *dp++ = (short)(*sp++ * 0x7fff);
+            
+          }
+            
         }
         break;
 
@@ -764,7 +770,8 @@ int _cmApWriteBuf( cmApDevRecd_t* drp, snd_pcm_t* pcmH, const cmApSample_t* sp, 
           int* dp = (int*)obuf;
 
           while( sp < ep )
-            *dp++ = (int)(*sp++ * 0x7fffffff);        
+            *dp++ = (int)(*sp++ * 0x7fffffff);
+
 
 #ifdef IMPLUSE_FN
           int* tmp = (int*)obuf;
@@ -1049,6 +1056,7 @@ bool _cmApThreadFunc(void* param)
             case SND_PCM_STATE_DRAINING:
             case SND_PCM_STATE_PAUSED:
             case SND_PCM_STATE_DISCONNECTED:
+            case SND_PCM_STATE_PRIVATE1:
               continue;
 
             case SND_PCM_STATE_RUNNING:
