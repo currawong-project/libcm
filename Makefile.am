@@ -3,111 +3,153 @@
 cmHDR = 
 cmSRC = 
 
-cmHDR += src/libcm/cmErr.h src/libcm/cmCtx.h src/libcm/cmRpt.h src/libcm/cmRptFile.h src/libcm/cmGlobal.h src/libcm/cmComplexTypes.h src/libcm/cmFloatTypes.h src/libcm/cmPrefix.h
-cmSRC += src/libcm/cmErr.c src/libcm/cmCtx.c src/libcm/cmRpt.c src/libcm/cmRptFile.c src/libcm/cmGlobal.c src/libcm/cmComplexTypes.c
+cmHDR += src/cmErr.h src/cmCtx.h src/cmRpt.h src/cmRptFile.h src/cmGlobal.h src/cmComplexTypes.h src/cmFloatTypes.h src/cmPrefix.h
+cmSRC += src/cmErr.c src/cmCtx.c src/cmRpt.c src/cmRptFile.c src/cmGlobal.c src/cmComplexTypes.c
 
-cmHDR += src/libcm/cmSerialize.h src/libcm/cmSymTbl.h src/libcm/cmHashTbl.h src/libcm/cmFileSys.h src/libcm/cmFile.h 
-cmSRC += src/libcm/cmSerialize.c src/libcm/cmSymTbl.c src/libcm/cmHashTbl.c src/libcm/cmFileSys.c src/libcm/cmFile.c 
+cmHDR += src/cmSerialize.h src/cmSymTbl.h src/cmHashTbl.h src/cmFileSys.h src/cmFile.h 
+cmSRC += src/cmSerialize.c src/cmSymTbl.c src/cmHashTbl.c src/cmFileSys.c src/cmFile.c 
 
-cmHDR += src/libcm/cmMem.h src/libcm/cmTime.h src/libcm/cmExec.h src/libcm/cmPgmOpts.h
-cmSRC += src/libcm/cmMem.c src/libcm/cmTime.c src/libcm/cmExec.c src/libcm/cmPgmOpts.c
+cmHDR += src/cmMem.h src/cmTime.h src/cmExec.h src/cmPgmOpts.h
+cmSRC += src/cmMem.c src/cmTime.c src/cmExec.c src/cmPgmOpts.c
 
-cmHDR += src/libcm/cmData.h src/libcm/cmLib.h src/libcm/cmText.h src/libcm/cmTextTemplate.h
-cmSRC += src/libcm/cmData.c src/libcm/cmLib.c src/libcm/cmText.c src/libcm/cmTextTemplate.c
+cmHDR += src/cmData.h src/cmLib.h src/cmText.h src/cmTextTemplate.h
+cmSRC += src/cmData.c src/cmLib.c src/cmText.c src/cmTextTemplate.c
 
-cmHDR += src/libcm/cmMath.h src/libcm/cmGnuPlot.h src/libcm/cmKeyboard.h  src/libcm/cmStrStream.h
-cmSRC += src/libcm/cmMath.c src/libcm/cmGnuPlot.c src/libcm/cmKeyboard.c  src/libcm/cmStrStream.c
+cmHDR += src/cmMath.h src/cmGnuPlot.h src/cmKeyboard.h  src/cmStrStream.h
+cmSRC += src/cmMath.c src/cmGnuPlot.c src/cmKeyboard.c  src/cmStrStream.c
 
-cmHDR += src/libcm/cmLinkedHeap.h src/libcm/cmMallocDebug.h src/libcm/cmLex.h src/libcm/cmJson.h src/libcm/cmXml.h 
-cmSRC += src/libcm/cmLinkedHeap.c src/libcm/cmMallocDebug.c src/libcm/cmLex.c src/libcm/cmJson.c src/libcm/cmXml.c 
+cmHDR += src/cmLinkedHeap.h src/cmMallocDebug.h src/cmLex.h src/cmJson.h src/cmXml.h 
+cmSRC += src/cmLinkedHeap.c src/cmMallocDebug.c src/cmLex.c src/cmJson.c src/cmXml.c 
 
-cmHDR += src/libcm/cmPrefs.h src/libcm/cmStack.h src/libcm/cmArray.h src/libcm/cmSvgWriter.h
-cmSRC += src/libcm/cmPrefs.c src/libcm/cmStack.c src/libcm/cmArray.c src/libcm/cmSvgWriter.c
+cmHDR += src/cmPrefs.h src/cmStack.h src/cmArray.h src/cmSvgWriter.h
+cmSRC += src/cmPrefs.c src/cmStack.c src/cmArray.c src/cmSvgWriter.c
 
-cmHDR += src/libcm/cmUdpPort.h src/libcm/cmUdpNet.h src/libcm/cmVirtNet.h
-cmSRC += src/libcm/cmUdpPort.c src/libcm/cmUdpNet.c src/libcm/cmVirtNet.c
+cmHDR += src/cmUdpPort.h src/cmUdpNet.h src/cmVirtNet.h
+cmSRC += src/cmUdpPort.c src/cmUdpNet.c src/cmVirtNet.c
 
-cmHDR += src/libcm/cmAudioPort.h src/libcm/cmApBuf.h src/libcm/cmAudioAggDev.h src/libcm/cmAudioNrtDev.h src/libcm/cmThread.h	
-cmSRC += src/libcm/cmAudioPort.c src/libcm/cmApBuf.c src/libcm/cmAudioAggDev.c src/libcm/cmAudioNrtDev.c src/libcm/cmThread.c
+cmHDR += src/cmAudioPort.h src/cmApBuf.h src/cmAudioAggDev.h src/cmAudioNrtDev.h src/cmThread.h	
+cmSRC += src/cmAudioPort.c src/cmApBuf.c src/cmAudioAggDev.c src/cmAudioNrtDev.c src/cmThread.c
 
-cmHDR += src/libcm/cmMidiFilePlay.h src/libcm/cmMidiPort.h src/libcm/cmMidiFile.h src/libcm/cmMidi.h 
-cmSRC += src/libcm/cmMidiFilePlay.c src/libcm/cmMidiPort.c src/libcm/cmMidiFile.c src/libcm/cmMidi.c 
+cmHDR += src/cmMidiFilePlay.h src/cmMidiPort.h src/cmMidiFile.h src/cmMidi.h 
+cmSRC += src/cmMidiFilePlay.c src/cmMidiPort.c src/cmMidiFile.c src/cmMidi.c 
 
-cmHDR += src/libcm/cmSerialPort.h
-cmSRC += src/libcm/cmSerialPort.c
+cmHDR += src/cmSerialPort.h
+cmSRC += src/cmSerialPort.c
 
-cmHDR += src/libcm/cmAudioFile.h src/libcm/cmAudioFileMgr.h src/libcm/cmMsgProtocol.h src/libcm/cmAudioSys.h src/libcm/cmAudioPortFile.h src/libcm/cmAudioFileDev.h 
-cmSRC += src/libcm/cmAudioFile.c src/libcm/cmAudioFileMgr.c src/libcm/cmMsgProtocol.c src/libcm/cmAudioSys.c src/libcm/cmAudioPortFile.c src/libcm/cmAudioFileDev.c
+cmHDR += src/cmAudioFile.h src/cmAudioFileMgr.h src/cmMsgProtocol.h src/cmAudioSys.h src/cmAudioSysMsg.h src/cmAudioPortFile.h src/cmAudioFileDev.h 
+cmSRC += src/cmAudioFile.c src/cmAudioFileMgr.c src/cmMsgProtocol.c src/cmAudioSys.c src/cmAudioPortFile.c src/cmAudioFileDev.c
 
-cmHDR += src/libcm/cmRtSys.h src/libcm/cmRtNet.h src/libcm/cmUiRtSysMstr.h src/libcm/cmRtSysMsg.h 
-cmSRC += src/libcm/cmRtSys.c src/libcm/cmRtNet.c src/libcm/cmUiRtSysMstr.c
+cmHDR += src/cmRtSys.h src/cmRtNet.h src/cmUiRtSysMstr.h src/cmRtSysMsg.h 
+cmSRC += src/cmRtSys.c src/cmRtNet.c src/cmUiRtSysMstr.c
 
-cmHDR += src/libcm/cmDevCfg.h src/libcm/cmUi.h src/libcm/cmUiDrvr.h 
-cmSRC += src/libcm/cmDevCfg.c src/libcm/cmUi.c src/libcm/cmUiDrvr.c
+cmHDR += src/cmDevCfg.h src/cmUi.h src/cmUiDrvr.h 
+cmSRC += src/cmDevCfg.c src/cmUi.c src/cmUiDrvr.c
 
-cmHDR += src/libcm/cmFrameFile.h src/libcm/cmFeatFile.h src/libcm/cmCsv.h src/libcm/cmAudLabelFile.h src/libcm/cmTagFile.h
-cmSRC += src/libcm/cmFrameFile.c src/libcm/cmFeatFile.c src/libcm/cmCsv.c src/libcm/cmAudLabelFile.c src/libcm/cmTagFile.c
+cmHDR += src/cmFrameFile.h src/cmFeatFile.h src/cmCsv.h src/cmAudLabelFile.h src/cmTagFile.h
+cmSRC += src/cmFrameFile.c src/cmFeatFile.c src/cmCsv.c src/cmAudLabelFile.c src/cmTagFile.c
 
-cmSRC += src/libcm/cmGr.c src/libcm/cmGrDevCtx.c src/libcm/cmGrPage.c src/libcm/cmGrPlot.c src/libcm/cmGrPlotAudio.c
-cmHDR += src/libcm/cmGr.h src/libcm/cmGrDevCtx.h src/libcm/cmGrPage.h src/libcm/cmGrPlot.h src/libcm/cmGrPlotAudio.h
+cmSRC += src/cmGr.c src/cmGrDevCtx.c src/cmGrPage.c src/cmGrPlot.c src/cmGrPlotAudio.c
+cmHDR += src/cmGr.h src/cmGrDevCtx.h src/cmGrPage.h src/cmGrPlot.h src/cmGrPlotAudio.h
 
-cmHDR +=  src/libcm/dsp/cmDspSys.h src/libcm/dsp/cmDspClass.h src/libcm/dsp/cmDspValue.h src/libcm/dsp/cmDspUi.h src/libcm/dsp/cmDspPreset.h src/libcm/dsp/cmDspNet.h
-cmSRC +=  src/libcm/dsp/cmDspSys.c src/libcm/dsp/cmDspClass.c src/libcm/dsp/cmDspValue.c src/libcm/dsp/cmDspUi.c src/libcm/dsp/cmDspPreset.c src/libcm/dsp/cmDspNet.c
+cmHDR +=  src/dsp/cmDspSys.h src/dsp/cmDspClass.h src/dsp/cmDspValue.h src/dsp/cmDspUi.h src/dsp/cmDspPreset.h src/dsp/cmDspNet.h
+cmSRC +=  src/dsp/cmDspSys.c src/dsp/cmDspClass.c src/dsp/cmDspValue.c src/dsp/cmDspUi.c src/dsp/cmDspPreset.c src/dsp/cmDspNet.c
 
-cmHDR += src/libcm/dsp/cmDspStore.h src/libcm/dsp/cmDspBuiltIn.h  src/libcm/dsp/cmDspFx.h 
-cmSRC += src/libcm/dsp/cmDspStore.c src/libcm/dsp/cmDspBuiltIn.c  src/libcm/dsp/cmDspFx.c 
+cmHDR += src/dsp/cmDspStore.h src/dsp/cmDspBuiltIn.h  src/dsp/cmDspFx.h 
+cmSRC += src/dsp/cmDspStore.c src/dsp/cmDspBuiltIn.c  src/dsp/cmDspFx.c 
 
-cmHDR += src/libcm/dsp/cmDspPgm.h src/libcm/dsp/cmDspPgmPP.h src/libcm/dsp/cmDspPgmPPMain.h
-cmSRC += src/libcm/dsp/cmDspPgm.c src/libcm/dsp/cmDspPgmPP.c src/libcm/dsp/cmDspPgmPPMain.c
+cmHDR += src/dsp/cmDspPgm.h src/dsp/cmDspPgmPP.h src/dsp/cmDspPgmPPMain.h
+cmSRC += src/dsp/cmDspPgm.c src/dsp/cmDspPgmPP.c src/dsp/cmDspPgmPPMain.c
 
-cmHDR +=  src/libcm/dsp/cmDspKr.h src/libcm/dsp/cmDspPgmKr.h  src/libcm/dsp/cmDspPgmKrChain.h  
-cmSRC +=  src/libcm/dsp/cmDspKr.c src/libcm/dsp/cmDspPgmKr.c  src/libcm/dsp/cmDspPgmKrChain2.c src/libcm/dsp/cmDspPgmKrTksb.c src/libcm/dsp/cmDspPgmKrTimeLineLite.c src/libcm/dsp/cmDspPgmKrTimeLineLiteAf.c
+cmHDR +=  src/dsp/cmDspKr.h src/dsp/cmDspPgmKr.h  src/dsp/cmDspPgmKrChain.h  
+cmSRC +=  src/dsp/cmDspKr.c src/dsp/cmDspPgmKr.c  src/dsp/cmDspPgmKrChain2.c src/dsp/cmDspPgmKrTksb.c src/dsp/cmDspPgmKrTimeLineLite.c src/dsp/cmDspPgmKrTimeLineLiteAf.c
 
-cmHDR += src/libcm/cmAudDsp.h src/libcm/cmAudDspIF.h src/libcm/cmAudDspLocal.h
-cmSRC += src/libcm/cmAudDsp.c src/libcm/cmAudDspIF.c src/libcm/cmAudDspLocal.c
+cmHDR += src/cmAudDsp.h src/cmAudDspIF.h src/cmAudDspLocal.h
+cmSRC += src/cmAudDsp.c src/cmAudDspIF.c src/cmAudDspLocal.c
 
-cmHDR += src/libcm/vop/cmVectOpsTemplateUndef.h src/libcm/vop/cmVectOpsTemplateHdr.h src/libcm/vop/cmVectOpsTemplateCode.h src/libcm/vop/cmVectOpsTemplateMain.h
-cmHDR += src/libcm/vop/cmVectOpsRIHdr.h src/libcm/vop/cmVectOpsRICode.h 
-cmHDR += src/libcm/vop/cmProcTemplateUndef.h src/libcm/vop/cmProcTemplateHdr.h src/libcm/vop/cmProcTemplateCode.h src/libcm/vop/cmProcTemplateMain.h
-cmHDR += src/libcm/vop/cmVectOps.h src/libcm/vop/cmProcTemplate.h
+cmHDR += src/vop/cmVectOpsTemplateUndef.h src/vop/cmVectOpsTemplateHdr.h src/vop/cmVectOpsTemplateCode.h src/vop/cmVectOpsTemplateMain.h
+cmHDR += src/vop/cmVectOpsRIHdr.h src/vop/cmVectOpsRICode.h 
+cmHDR += src/vop/cmProcTemplateUndef.h src/vop/cmProcTemplateHdr.h src/vop/cmProcTemplateCode.h src/vop/cmProcTemplateMain.h
+cmHDR += src/vop/cmVectOps.h src/vop/cmProcTemplate.h
 
-cmSRC += src/libcm/vop/cmVectOps.c src/libcm/vop/cmProcTemplate.c
+cmSRC += src/vop/cmVectOps.c src/vop/cmProcTemplate.c
 
-cmSRC += src/libcm/cmDList.c
-cmHDR += src/libcm/cmDList.h src/libcm/cmDListTpl.h
+cmSRC += src/cmDList.c
+cmHDR += src/cmDList.h src/cmDListTpl.h
 
-cmHDR += src/libcm/cmProcObj.h src/libcm/cmProc.h src/libcm/cmProc2.h src/libcm/cmProc3.h src/libcm/cmProc4.h src/libcm/cmProc5.h src/libcm/cmProcTest.h
-cmSRC += src/libcm/cmProcObj.c src/libcm/cmProc.c src/libcm/cmProc2.c src/libcm/cmProc3.c src/libcm/cmProc4.c src/libcm/cmProc5.c src/libcm/cmProcTest.c
+cmHDR += src/cmProcObj.h src/cmProc.h src/cmProc2.h src/cmProc3.h src/cmProc4.h src/cmProc5.h src/cmProcTest.h
+cmSRC += src/cmProcObj.c src/cmProc.c src/cmProc2.c src/cmProc3.c src/cmProc4.c src/cmProc5.c src/cmProcTest.c
 
 
-cmHDR += src/libcm/app/cmOnset.h src/libcm/app/cmTimeLine.h src/libcm/app/cmScore.h src/libcm/app/cmScoreProc.h src/libcm/app/cmXScore.h src/libcm/app/cmScoreMatchGraphic.h
-cmSRC += src/libcm/app/cmOnset.c src/libcm/app/cmTimeLine.c src/libcm/app/cmScore.c src/libcm/app/cmScoreProc.c src/libcm/app/cmXScore.c src/libcm/app/cmScoreMatchGraphic.c
+cmHDR += src/app/cmOnset.h src/app/cmTimeLine.h src/app/cmScore.h src/app/cmScoreProc.h src/app/cmXScore.h src/app/cmScoreMatchGraphic.h
+cmSRC += src/app/cmOnset.c src/app/cmTimeLine.c src/app/cmScore.c src/app/cmScoreProc.c src/app/cmXScore.c src/app/cmScoreMatchGraphic.c
 
-cmHDR += src/libcm/app/cmMidiScoreFollow.h
-cmSRC += src/libcm/app/cmMidiScoreFollow.c
+cmHDR += src/app/cmMidiScoreFollow.h
+cmSRC += src/app/cmMidiScoreFollow.c
 
-cmHDR += src/libcm/app/cmSdb.h  src/libcm/app/cmTakeSeqBldr.h  src/libcm/app/cmDspPgmJsonToDot.h
-cmSRC += src/libcm/app/cmSdb.c  src/libcm/app/cmTakeSeqBldr.c  src/libcm/app/cmDspPgmJsonToDot.c
+cmHDR += src/app/cmSdb.h  src/app/cmTakeSeqBldr.h  src/app/cmDspPgmJsonToDot.h
+cmSRC += src/app/cmSdb.c  src/app/cmTakeSeqBldr.c  src/app/cmDspPgmJsonToDot.c
 
-cmHDR += src/libcm/app/cmPickup.h src/libcm/cmRbm.h src/libcm/cmTaskMgr.h  src/libcm/cmSyncRecd.h
-cmSRC += src/libcm/app/cmPickup.c src/libcm/cmRbm.c src/libcm/cmTaskMgr.c  src/libcm/cmSyncRecd.c
+cmHDR += src/app/cmPickup.h src/cmRbm.h src/cmTaskMgr.h  src/cmSyncRecd.h
+cmSRC += src/app/cmPickup.c src/cmRbm.c src/cmTaskMgr.c  src/cmSyncRecd.c
 
-cmHDR += src/libcm/sa/cmSaProc.h 
-cmSRC += src/libcm/sa/cmSaProc.c
+cmHDR += src/sa/cmSaProc.h 
+cmSRC += src/sa/cmSaProc.c
 
 if INC_SONICART
-  cmSRC += src/libcm/sa/ss0/surroundstereo.c src/libcm/sa/ss1/surroundstereo_1.c
+  cmSRC += src/sa/ss0/surroundstereo.c src/sa/ss1/surroundstereo_1.c
 endif
 
 if OS_LINUX
- cmSRC += src/libcm/linux/cmFileSysLinux.c  src/libcm/linux/cmAudioPortAlsa.c src/libcm/linux/cmMidiAlsa.c
- cmHDR += src/libcm/linux/cmFileSysLinux.h  src/libcm/linux/cmAudioPortAlsa.h
+ cmSRC += src/linux/cmFileSysLinux.c  src/linux/cmAudioPortAlsa.c src/linux/cmMidiAlsa.c
+ cmHDR += src/linux/cmFileSysLinux.h  src/linux/cmAudioPortAlsa.h
 endif
 
 if OS_OSX
-  cmSRC += src/libcm/osx/cmMidiOsx.c src/libcm/osx/cmAudioPortOsx.c src/libcm/osx/cmFileSysOsx.c
+  cmSRC += src/osx/cmMidiOsx.c src/osx/cmAudioPortOsx.c src/osx/cmFileSysOsx.c
 endif
 
 
+lib_LTLIBRARIES=
+include_HEADERS=
 
 
+AM_CPPFLAGS = -D _GNU_SOURCE  -I.. -I$(srcdir)/src  -I$(srcdir)/src/dsp  -I$(srcdir)/src/vop  -I$(srcdir)/src/app
+AM_CFLAGS   = -Wno-multichar 
+AM_CXXFLAGS = 
+
+# debug/release switches
+if DEBUG
+  AM_CFLAGS   += -g 
+  AM_CXXFLAGS += -g
+else
+  AM_CFLAGS   += -O3
+  AM_CXXFLAGS += -O3
+endif
+
+# Linux specific compiler flags
+if OS_LINUX
+if OS_64
+  AM_CFLAGS  += -m64
+endif	
+endif
+
+# OSX specific compiler flags
+if OS_OSX
+ AM_CPPFLAGS +=  -I/opt/local/include	# Search macports directory for fftw headers
+endif
+
+# include src/Makefile.am
+src_libcm_la_SOURCES   = $(cmSRC) $(cmHDR)
+include_HEADERS += $(cmHDR)
+lib_LTLIBRARIES += src/libcm.la
+
+
+# distclean-local sets the source tree back to it's minimal, pre-configure, state.
+distclean-local:
+	rm -rf ${exec_prefix}/src        
+	rm -rf ${srcdir}/autom4te.cache
+	rm -rf ${srcdir}/build-aux
+	rm -f  ${srcdir}/m4/libtool.m4   ${srcdir}/m4/lt~obsolete.m4 ${srcdir}/m4/ltsugar.m4
+	rm -f  ${srcdir}/m4/ltversion.m4 ${srcdir}/m4/ltoptions.m4
+	rm -f  ${srcdir}/aclocal.m4      ${srcdir}/config.h.in ${srcdir}/config.h.in~
+	rm -f  ${srcdir}/Makefile.in     ${srcdir}/configure
