@@ -27,7 +27,8 @@ extern "C" {
     kAggDevCreateFailAdRC,
     kNrtDevSysFailAdRC,
     kAfpDevSysFailAdRC,
-    kNetSysFailAdRC
+    kNetSysFailAdRC,
+    kInvalidAudioDevIdxAdRC
   };
 
 

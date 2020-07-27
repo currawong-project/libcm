@@ -189,6 +189,10 @@ cmApRC_t cmApNrtAllocate( cmRpt_t* rpt )
 cmApRC_t cmApNrtFree()
 {
   cmApRC_t rc = kOkApRC;
+  
+  if( _cmNrt == NULL )
+    return rc;
+  
   cmApNrtDev_t* dp = _cmNrt->devs;
   while( dp != NULL )
   {

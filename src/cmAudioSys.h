@@ -130,16 +130,18 @@ extern "C" {
   // Audio device sub-sytem configuration record 
   typedef struct cmAudioSysArgs_str
   {
-    cmRpt_t*       rpt;               // system console object
-    unsigned       inDevIdx;          // input audio device
-    unsigned       outDevIdx;         // output audio device
-    bool           syncInputFl;       // true/false sync the DSP update callbacks with audio input/output
-    unsigned       msgQueueByteCnt;   // Size of the internal msg queue used to buffer msgs arriving via cmAudioSysDeliverMsg().
-    unsigned       devFramesPerCycle; // (512) Audio device samples per channel per device update buffer.
-    unsigned       dspFramesPerCycle; // (64)  Audio samples per channel per DSP cycle.
-    unsigned       audioBufCnt;       // (3)   Audio device buffers.
-    double         srate;             // Audio sample rate.
-    int            srateMult;         // Sample rate multiplication factor (negative for divide)
+    cmRpt_t*        rpt;               // system console object
+    const cmChar_t* inDevLabel;        // input audio device text label
+    const cmChar_t* outDevLabel;       // output audio device text label
+    unsigned        inDevIdx;          // input audio device index
+    unsigned        outDevIdx;         // output audio device index 
+    bool            syncInputFl;       // true/false sync the DSP update callbacks with audio input/output
+    unsigned        msgQueueByteCnt;   // Size of the internal msg queue used to buffer msgs arriving via cmAudioSysDeliverMsg().
+    unsigned        devFramesPerCycle; // (512) Audio device samples per channel per device update buffer.
+    unsigned        dspFramesPerCycle; // (64)  Audio samples per channel per DSP cycle.
+    unsigned        audioBufCnt;       // (3)   Audio device buffers.
+    double          srate;             // Audio sample rate.
+    int             srateMult;         // Sample rate multiplication factor (negative for divide)
   } cmAudioSysArgs_t;
 
   // Audio sub-system configuration record.
