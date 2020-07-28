@@ -2909,32 +2909,32 @@ cmDspRC_t _cmDspSysPgm_IntToSym( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc = kOkDspRC;
 
-  inst_t* btn0  = button( "Btn0", 0.0 );
-  inst_t* btn1  = button( "Btn1", 1.0 );
-  inst_t* btn2  = button( "Btn2", 2.0 );  
+  inst_t* sel0   = scalar( "Sel0", 0.0, 10.0, 1.0, 1.0 );
+  inst_t* sel1   = scalar( "Sel1", 0.0, 10.0, 1.0, 1.0 );
+  inst_t* sel2   = scalar( "Sel2", 0.0, 10.0, 1.0, 1.0 );
+  inst_t* val    = scalar( "Val",  0.0, 10.0, 1.0, 1.0 );
 
-  inst_t* pts   = inst( "IntToSym", NULL, 1, "one", 2, "two", 3, "three");
+  inst_t* pts   = inst( "IntToSym", NULL, 0, "one", 0, "two", 0, "three");
 
-  inst_t* pr0  = inst( "Printer", NULL,  "btn:" );
+  inst_t* pr0  = inst( "Printer", NULL,  "val:" );
   inst_t* pr1  = inst( "Printer", NULL,  "sym:" );
   inst_t* pr2  = inst( "Printer", NULL,  "out:" );
 
   // check for allocation errors
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
     goto errLabel;
-  
-  event( btn0, out, pts, one );
-  event( btn1, out, pts, two );
-  event( btn2, out, pts, three );
 
-  event( btn0, out, pr0, in );
-  event( btn1, out, pr0, in );
-  event( btn2, out, pr0, in );
+  event( sel0, val, pts, one-int );
+  event( sel1, val, pts, two-int );
+  event( sel2, val, pts, three-int );
+  
+  event( val, val, pts, in );
+  event( val, val, pr0, in );
 
   event( pts,  one,   pr1, in );
   event( pts,  two,   pr1, in );
   event( pts,  three, pr1, in );
-
+  
   event( pts, out, pr2, in );
   
  errLabel:

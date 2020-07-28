@@ -5772,19 +5772,19 @@ cmDspRC_t _cmDspIntToSym_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
 { 
   cmDspRC_t    rc = kOkDspRC;
   cmDspIntToSym_t* p = (cmDspIntToSym_t*)inst;
-  unsigned idx = cmInvalidIdx;
 
   // if an integer arrived at 'in'
   if( evt->dstVarId == kInItsId )
   {
+    cmDspSetEvent(ctx,inst,evt);
+
     unsigned i;
     int      intVal = cmDspInt(inst,kInItsId);
     
     for(i=0; i<p->symIdCnt; ++i)
       if( intVal == p->intArray[i] )
       {
-        rc = _cmDspIntToSymSendOut( ctx, inst, idx );
-        idx = i;
+        rc = _cmDspIntToSymSendOut( ctx, inst, i );
         break;
       } 
   }
@@ -5802,9 +5802,7 @@ cmDspRC_t _cmDspIntToSym_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
       {
         cmDspSetEvent(ctx,inst,evt);
 
-        int x = cmDspInt( inst, evt->dstVarId );
-        printf("%i %i\n", x, p->symIdArray[evt->dstVarId - p->baseIntItsId] );
-        p->intArray[ evt->dstVarId - p->baseIntItsId ] = x;
+        p->intArray[ evt->dstVarId - p->baseIntItsId ] = cmDspInt( inst, evt->dstVarId );
       }
   }
 
