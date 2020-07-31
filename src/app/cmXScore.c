@@ -2836,7 +2836,7 @@ cmXsRC_t _cmXScoreWriteCsvHdr( cmXScore_t* p )
   {
     "id","trk","evt","opcode","dticks","micros","status",
     "meta","ch","d0","d1","arg0","arg1","bar","skip",
-    "even","grace","tempo","t frac","dyn","section","play_recd","remark",NULL
+    "even","grace","tempo","t_frac","dyn","section","play_recd","remark",NULL
   };
 
   cmCsvCell_t* lcp = NULL;
