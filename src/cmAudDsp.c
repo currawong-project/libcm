@@ -354,10 +354,15 @@ cmAdRC_t _cmAdParseSysJsonTree( cmAd_t* p )
     {
       cmAudioSysArgs_t*   asap        = &p->asCfgArray[i].cfg.ssArray[j].args;
       const cmJsonNode_t* argsNodePtr = cmJsonArrayElementC(ssArrayNodePtr,j);
+      
+      asap->inDevIdx    = cmInvalidIdx;
+      asap->outDevIdx   = cmInvalidIdx;
+      asap->inDevLabel  = NULL;
+      asap->outDevLabel = NULL;
 
       if((jsRC = cmJsonMemberValues( argsNodePtr, &errLabelPtr,
-          "inDevIdx",           kIntTId,  &asap->inDevIdx,
-          "outDevIdx",          kIntTId,  &asap->outDevIdx,
+          "inDevLabel",         kStringTId,  &asap->inDevLabel,
+          "outDevLabel",        kStringTId,  &asap->outDevLabel,
           "syncToInputFl",      kTrueTId, &asap->syncInputFl,
           "msgQueueByteCnt",    kIntTId,  &asap->msgQueueByteCnt,
           "devFramesPerCycle",  kIntTId,  &asap->devFramesPerCycle,
@@ -440,6 +445,35 @@ cmAdRC_t _cmAdCreateAggDevices( cmAd_t* p )
       rc = cmErrMsg(&p->err,kAggDevCreateFailAdRC,"The aggregate device '%s' creation failed.",cmStringNullGuard(adp->label));
   }
   
+  return rc;
+}
+
+cmAdRC_t _cmAdResolveDeviceLabels( cmAd_t* p )
+{
+  cmAdRC_t rc = kOkAdRC;
+  unsigned i,j;
+  
+  // for each cmAsAudioSysCfg record in audioSysCfgArray[]
+  for(i=0; i<p->asCfgCnt; ++i)
+  {
+    // for each audio system sub-subsystem 
+    for(j=0; j<p->asCfgArray[i].cfg.ssCnt; ++j)
+    {
+      cmAudioSysArgs_t*   asap        = &p->asCfgArray[i].cfg.ssArray[j].args;
+      if((asap->inDevIdx = cmApDeviceLabelToIndex( asap->inDevLabel )) == cmInvalidId )
+      {
+        rc = cmErrMsg(&p->err,kInvalidAudioDevIdxAdRC,"The audio input device '%s' could not be found.", cmStringNullGuard(asap->inDevLabel));
+        goto errLabel;
+      }
+      
+      if((asap->outDevIdx = cmApDeviceLabelToIndex( asap->outDevLabel )) == cmInvalidId )
+      {
+        rc = cmErrMsg(&p->err,kInvalidAudioDevIdxAdRC,"The audio input device '%s' could not be found.", cmStringNullGuard(asap->inDevLabel));
+        goto errLabel;
+      }
+    }
+  }
+ errLabel:
   return rc;
 }
 
@@ -721,10 +755,11 @@ cmAdRC_t cmAudDspAlloc( cmCtx_t* ctx, cmAdH_t* hp, cmMsgSendFuncPtr_t cbFunc, vo
   if((rc = _cmAdParseSysJsonTree(p)) != kOkAdRC )
     goto errLabel;
 
+ 
   // create the aggregate device
   if( _cmAdCreateAggDevices(p) != kOkAdRC )
     goto errLabel;
-
+  
   // create the non-real-time devices
   if( _cmAdCreateNrtDevices(p) != kOkAdRC )
     goto errLabel;
@@ -737,6 +772,12 @@ cmAdRC_t cmAudDspAlloc( cmCtx_t* ctx, cmAdH_t* hp, cmMsgSendFuncPtr_t cbFunc, vo
   if( cmApInitialize(&ctx->rpt) != kOkApRC )
   {
     rc = cmErrMsg(&p->err,kAudioPortFailAdRC,"Audio port intialization failed.");
+    goto errLabel;
+  }
+
+  if( _cmAdResolveDeviceLabels(p) != kOkApRC )
+  {
+    rc = cmErrMsg(&p->err,kAudioPortFailAdRC,"Audio device labels could not be resolved..");
     goto errLabel;
   }
 
