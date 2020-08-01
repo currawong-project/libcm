@@ -4084,7 +4084,7 @@ cmXsRC_t cmXScoreTest(
 
   if( editFn!=NULL && !cmFsIsFile(editFn) )
   {
-    cmRptPrintf(&ctx->rpt,"The edit file %s does not exist. A new edit file will be created.",editFn);
+    cmRptPrintf(&ctx->rpt,"The edit file %s does not exist. A new edit file will be created.\n",editFn);
     cmXScoreGenEditFile(ctx,xmlFn,editFn);
     editFn = NULL;
   }
@@ -4101,14 +4101,14 @@ cmXsRC_t cmXScoreTest(
 
     _cmXsIsCsvValid(ctx,h,csvOutFn);
   }
+
+  // measure the score complexity
+  double wndSecs = 1.0;
+    
+  _cmXsMeasComplexity(h,wndSecs);
   
   if( midiOutFn != NULL )
-  {
-    // measure the score complexity
-    double wndSecs = 1.0;
-    
-    _cmXsMeasComplexity(h,wndSecs);
-    
+  {  
     cmFileSysPathPart_t* pp = cmFsPathParts(midiOutFn);
 
     _cmXsWriteMidiFile(ctx, h, beginMeasNumb, beginBPM, pp->dirStr, pp->fnStr );

@@ -960,7 +960,7 @@ cmTsbRC_t cmTakeSeqBldrLoadTake( cmTakeSeqBldrH_t h, unsigned tlMarkUid, bool ov
   //cmMidiFileTickToSamples( mfH, cmTimeLineSampleRate(p->tlH), false );
   
   // calculate MIDI note and pedal durations (see cmMidiChMsg_t.durTicks)
-  cmMidiFileCalcNoteDurations( mfH );
+  cmMidiFileCalcNoteDurations( mfH, 0 );
   
   unsigned                 i     = 0;
   unsigned                 n     = cmMidiFileMsgCount(mfH);

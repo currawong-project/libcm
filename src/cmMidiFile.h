@@ -63,11 +63,16 @@ extern "C" {
     struct cmMidiTrackMsg_str* end; // note-off or pedal-up message
   } cmMidiChMsg_t;
 
+  enum
+  {
+   kDropTrkMsgFl = 0x01
+  };
 
   typedef struct cmMidiTrackMsg_str
   {
+    unsigned                   flags;   // see k???TrkMsgFl
     unsigned                   uid;     // uid's are unique among all msg's in the file
-    unsigned                   dtick;   // delta ticks between events on this track
+    unsigned                   dtick;   // delta ticks between events on this track (ticks between this event and the previous event on this track)
     unsigned long long         atick;   // global (all tracks interleaved) accumulated ticks
     unsigned long long         amicro;  // global (all tracks interleaved) accumulated microseconds adjusted for tempo changes
     cmMidiByte_t               status;  // ch msg's have the channel value removed (it is stored in u.chMsgPtr->ch)
@@ -91,9 +96,12 @@ extern "C" {
     } u;
   } cmMidiTrackMsg_t;
 
-#define cmMidiFileIsNoteOn(m)         (cmMidiIsNoteOn((m)->status) && (m)->u.chMsgPtr->d1>0)
+#define cmMidiFileIsNoteOn(m)         (cmMidiIsNoteOn((m)->status) && ((m)->u.chMsgPtr->d1>0))
 #define cmMidiFileIsNoteOff(m)        (cmMidiIsNoteOff((m)->status,(m)->u.chMsgPtr->d1))
-  
+
+#define cmMidiFileIsPedalUp(m)        (cmMidiIsPedalUp(    (m)->status, (m)->u.chMsgPtr->d0, (m)->u.chMsgPtr->d1) )
+#define cmMidiFileIsPedalDown(m)      (cmMidiIsPedalDown(  (m)->status, (m)->u.chMsgPtr->d0, (m)->u.chMsgPtr->d1) )
+
 #define cmMidiFileIsSustainPedalUp(m)     (cmMidiIsSustainPedalUp(    (m)->status,(m)->u.chMsgPtr->d0,(m)->u.chMsgPtr->d1))
 #define cmMidiFileIsSustainPedalDown(m)   (cmMidiIsSustainPedalDown(  (m)->status,(m)->u.chMsgPtr->d0,(m)->u.chMsgPtr->d1))
   
@@ -118,7 +126,9 @@ extern "C" {
     kUidNotFoundMfRC,    // 13
     kUidNotANoteMsgMfRC, // 14
     kInvalidTrkIndexMfRC,// 15
-    kSvgFailMfRC         // 16
+    kSvgFailMfRC,        // 16
+    kMsgNotFoundMfRC,     // 17
+    kEventTerminationMfRC // 18
   };
 
   extern cmMidiFileH_t cmMidiFileNullHandle;
@@ -172,6 +182,7 @@ extern "C" {
   // Set the velocity of a note-on/off msg identified by 'uid'.
   cmMfRC_t             cmMidiFileSetVelocity( cmMidiFileH_t h, unsigned uid, cmMidiByte_t vel );
 
+  
   // Insert a MIDI message relative to the reference msg identified by 'uid'.
   // If dtick is positive/negative then the new msg is inserted after/before the reference msg.  
   cmMfRC_t             cmMidiFileInsertMsg( cmMidiFileH_t h, unsigned uid, int dtick, cmMidiByte_t ch, cmMidiByte_t status, cmMidiByte_t d0, cmMidiByte_t d1 );
@@ -199,8 +210,9 @@ extern "C" {
 
   double                cmMidiFileDurSecs( cmMidiFileH_t h );
 
-  // Calculate Note Duration 
-  void                  cmMidiFileCalcNoteDurations( cmMidiFileH_t h );
+  // Calculate Note Duration
+  enum { kWarningsMfFl=0x01, kDropReattacksMfFl=0x02 };
+  void                  cmMidiFileCalcNoteDurations( cmMidiFileH_t h, unsigned flags );
 
   // Set the delay prior to the first non-zero msg.
   void                  cmMidiFileSetDelay( cmMidiFileH_t h, unsigned ticks );
@@ -218,8 +230,7 @@ extern "C" {
   {
     unsigned           uid;
     unsigned long long amicro;
-    unsigned           density;
-    
+    unsigned           density; 
   } cmMidiFileDensity_t;
 
   // Generate the note onset density measure for each note in the MIDI file.

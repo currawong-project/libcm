@@ -149,6 +149,7 @@ unsigned _cmMsf_WriteMatchFileLine( cmFileH_t fH, cmScH_t scH, const cmScMatcher
   return scUid;
 }
 
+// This is the score follower callback function 
 void _cmMsf_ScoreFollowCb( struct cmScMatcher_str* p, void* arg, cmScMatcherResult_t* rp )
 {
   _cmMsf_ScoreFollow_t* r = (_cmMsf_ScoreFollow_t*)arg;
@@ -193,7 +194,7 @@ cmMsfRC_t cmMidiScoreFollowMain(
     goto errLabel;
   }
 
-  // setup the callback record
+  // setup the callback record with an array that has twice as many records as there are score events
   if((sfr.rAllocN  = cmScoreEvtCount( scH )*2) == 0)
   {
     rc = cmErrMsg(&err,kFailMsfRC,"The score %s appears to be empty.",cmStringNullGuard(scoreCsvFn));
