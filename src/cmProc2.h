@@ -1318,15 +1318,16 @@ extern "C" {
 
   typedef struct
   {
-    cmObj    obj;
-    double   srate;
-    unsigned wndSmpCnt;
-    unsigned hopFcmt;
-    unsigned hopSmpCnt;
-    unsigned procSmpCnt;
-    
-    cmPvAnl* pva;
-    cmPvSyn* pvs;
+    cmObj       obj;
+    double      srate;
+    unsigned    wndSmpCnt;
+    unsigned    hopFcmt;
+    unsigned    hopSmpCnt;
+    unsigned    procSmpCnt;
+    double      igain;
+    cmSample_t* igainV;
+    cmPvAnl*    pva;
+    cmPvSyn*    pvs;
 
     double   ceiling;
     double   expo;    
