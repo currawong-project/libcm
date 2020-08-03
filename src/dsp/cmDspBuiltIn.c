@@ -1702,7 +1702,8 @@ cmDspClass_t*  cmMeterClassCons( cmDspCtx_t* ctx )
 enum
 {
   kInLbId,
-  kAlignLbId
+  kAlignLbId,
+  kTextLbId
 };
 
 cmDspClass_t _cmLabelDC;
@@ -1710,25 +1711,66 @@ cmDspClass_t _cmLabelDC;
 typedef struct
 {
   cmDspInst_t inst;
+  cmChar_t* label;
 } cmDspLabel_t;
 
 cmDspInst_t*  _cmDspLabelAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
-  cmDspVarArg_t args[] =
+  const unsigned  argCnt = 3;
+  cmDspVarArg_t   args[argCnt+1];
+  cmChar_t*       label  = NULL;
+  unsigned        align  = kLeftAlignDuiId;
+  va_list         vl1;
+  
+  va_copy(vl1,vl);
+
+  if( va_cnt < 1 )
   {
-    { "in",   kInLbId,    0, 0,  kInDsvFl | kStrzDsvFl  | kReqArgDsvFl,  "LabelText" },
-    { "align",kAlignLbId, 0, 0,  kInDsvFl | kUIntDsvFl  | kOptArgDsvFl,  "Alignment 0=right 1=left 2=center" },
-    { NULL, 0, 0, 0, 0 }
-  };
+    va_end(vl1);
+    cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'label' constructor argument list must contain at least one argument.");
+    return NULL;
+  }
 
-  cmDspLabel_t* p = cmDspInstAlloc(cmDspLabel_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+  // get the default label
+  const char* clabel = va_arg(vl,const char*);
+  if( clabel != NULL && strlen(clabel) > 0 )
+  {
+    label = cmLhAllocStr(ctx->lhH,clabel);
+    printf("%s\n",label);
+  }
 
-  cmDspSetDefaultDouble(ctx, &p->inst, kAlignLbId,  0.0, kLeftAlignDuiId);
+  // if an alignment id was provided
+  if( va_cnt > 1 )
+    align = va_arg(vl,double);
 
+  // setup the arg. config. array.
+  cmDspArgSetup(ctx,args+0,"in",   cmInvalidId, kInLbId,    0,0, kInDsvFl | kTypeDsvMask, "Input to set label" );
+  cmDspArgSetup(ctx,args+1,"align",cmInvalidId, kAlignLbId, 0,0, kInDsvFl | kUIntDsvFl,   "Justification: 0=right 1=center 2=left" );
+  cmDspArgSetup(ctx,args+2,"text", cmInvalidId, kTextLbId,  0,0, kInDsvFl | kStrzDsvFl,   "Label text");
+  cmDspArgSetupNull(args + argCnt);
+
+  // create the instance
+  cmDspLabel_t* p = cmDspInstAlloc(cmDspLabel_t,ctx,classPtr,args,instSymId,id,storeSymId,0,vl1);
+
+  p->label = label;
+
+  // set the default variable values
+  cmDspSetDefaultDouble(ctx, &p->inst, kAlignLbId,  0.0, align);
+  cmDspSetDefaultStrcz( ctx, &p->inst, kTextLbId,  NULL, label==NULL ? "" : label );
+  
   // create the UI control
-  cmDspUiLabelCreate(ctx,&p->inst,kInLbId,kAlignLbId);
+  cmDspUiLabelCreate(ctx,&p->inst,kTextLbId,kAlignLbId);
 
+  va_end(vl1);
+  
   return &p->inst;
+}
+
+cmDspRC_t _cmDspLabelFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspLabel_t* p = (cmDspLabel_t*)inst;
+  cmLhFree(ctx->lhH,p->label);
+  return kOkDspRC;
 }
 
 cmDspRC_t _cmDspLabelReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
@@ -1739,6 +1781,21 @@ cmDspRC_t _cmDspLabelReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 
 cmDspRC_t _cmDspLabelRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
+  const unsigned bN = 128;
+  cmChar_t b[ bN+1 ];
+
+  // if this event is arriving on the 'in' port ...
+  if( evt->dstVarId == kInLbId )
+  {
+    cmDspLabel_t* p = (cmDspLabel_t*)inst;
+    // ... then convert it to a string
+    cmDsvToString( evt->valuePtr, p->label, b, bN );
+
+    // and set the 'label' variable 
+    return cmDspSetStrcz(ctx, inst, kTextLbId, b );
+  }
+
+  
   return cmDspSetEvent(ctx,inst,evt);
 }
 
@@ -1747,7 +1804,7 @@ cmDspClass_t*  cmLabelClassCons( cmDspCtx_t* ctx )
   cmDspClassSetup(&_cmLabelDC,ctx,"Label",
     NULL,
     _cmDspLabelAlloc,
-    NULL,
+    _cmDspLabelFree,
     _cmDspLabelReset,
     NULL,
     _cmDspLabelRecv,

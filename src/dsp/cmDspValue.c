@@ -1527,3 +1527,76 @@ void cmDsvPrint( const cmDspValue_t* vp, const cmChar_t* label, cmRpt_t* rpt )
     }
   }
 }
+
+void cmDsvToString( const cmDspValue_t* vp, const cmChar_t* label, cmChar_t* s, unsigned sN )
+{
+  vp = _vcptr(vp); 
+
+  const char* noLbl="";
+  const char* lbl  = label==NULL? noLbl : label;
+
+  if( cmDsvIsMtx(vp) )
+  {
+    unsigned i,j;
+    unsigned rn = cmDsvCols(vp);
+    unsigned cn = cmDsvRows(vp);
+    for(i=0; i<rn; ++i)
+    {
+      for(j=0; j<cn && sN>2; ++j)
+      {
+        switch( cmDsvBasicType(vp) )
+        {
+          case kCharDsvFl:   snprintf(s,sN,"%s%c ",lbl,vp->u.m.u.cp[  (j*rn) + i ]); break;
+          case kUCharDsvFl:  snprintf(s,sN,"%s%c ",lbl,vp->u.m.u.ucp[ (j*rn) + i ]); break;
+          case kShortDsvFl:  snprintf(s,sN,"%s%i ",lbl,vp->u.m.u.sp[  (j*rn) + i ]); break;
+          case kUShortDsvFl: snprintf(s,sN,"%s%i ",lbl,vp->u.m.u.usp[ (j*rn) + i ]); break;
+          case kLongDsvFl:   snprintf(s,sN,"%s%li ",lbl,vp->u.m.u.lp[  (j*rn) + i ]); break;
+          case kULongDsvFl:  snprintf(s,sN,"%s%li ",lbl,vp->u.m.u.ulp[ (j*rn) + i ]); break;
+          case kIntDsvFl:    snprintf(s,sN,"%s%i ",lbl,vp->u.m.u.ip[  (j*rn) + i ]); break;
+          case kUIntDsvFl:   snprintf(s,sN,"%s%i ",lbl,vp->u.m.u.up[  (j*rn) + i ]); break;
+          case kFloatDsvFl:  snprintf(s,sN,"%s%f ",lbl,vp->u.m.u.fp[  (j*rn) + i ]); break;
+          case kDoubleDsvFl: snprintf(s,sN,"%s%f ",lbl,vp->u.m.u.dp[  (j*rn) + i ]); break;
+          case kSampleDsvFl: snprintf(s,sN,"%s%f ",lbl,vp->u.m.u.ap[  (j*rn) + i ]); break;
+          case kRealDsvFl:   snprintf(s,sN,"%s%f ",lbl,vp->u.m.u.rp[  (j*rn) + i ]); break;
+          case kStrzDsvFl:   snprintf(s,sN,"%s%s ",lbl,vp->u.m.u.zp[  (j*rn) + i ]); break;
+          case kJsonDsvFl:   cmJsonLeafToString(vp->u.m.u.jp[ (j*rn) + i ],s,sN);   break;    
+          default:
+            { assert(0); }
+        }
+
+        unsigned n = strlen(s);
+        sN -= n;
+        s  += n;
+        
+        
+      }
+      if( sN > 2 )
+        snprintf(s,sN,"\n");
+    }
+  }
+  else
+  {
+    switch( cmDsvBasicType(vp) )
+    {
+      case kBoolDsvFl:   snprintf(s,sN,"%s%s ",lbl,vp->u.b ? "true" : "false"); break;
+      case kCharDsvFl:   snprintf(s,sN,"%s%c ",lbl,vp->u.c);  break;
+      case kUCharDsvFl:  snprintf(s,sN,"%s%c ",lbl,vp->u.uc); break;
+      case kShortDsvFl:  snprintf(s,sN,"%s%i ",lbl,vp->u.s);  break;
+      case kUShortDsvFl: snprintf(s,sN,"%s%i ",lbl,vp->u.us); break;
+      case kLongDsvFl:   snprintf(s,sN,"%s%li ",lbl,vp->u.l);  break;
+      case kULongDsvFl:  snprintf(s,sN,"%s%li ",lbl,vp->u.ul); break;
+      case kIntDsvFl:    snprintf(s,sN,"%s%i ",lbl,vp->u.i);  break;
+      case kUIntDsvFl:   snprintf(s,sN,"%s%i ",lbl,vp->u.u);  break;
+      case kFloatDsvFl:  snprintf(s,sN,"%s%f ",lbl,vp->u.f);  break;
+      case kDoubleDsvFl: snprintf(s,sN,"%s%f ",lbl,vp->u.d);  break;
+      case kSampleDsvFl: snprintf(s,sN,"%s%f ",lbl,vp->u.a);  break;
+      case kRealDsvFl:   snprintf(s,sN,"%s%f ",lbl,vp->u.r);  break;
+      case kPtrDsvFl:    snprintf(s,sN,"%s%p ",lbl,vp->u.vp); break;
+      case kStrzDsvFl:   snprintf(s,sN,"%s%s ",lbl,vp->u.z);  break;
+      case kSymDsvFl:    snprintf(s,sN,"%s%i ",lbl,vp->u.u); break;
+      case kJsonDsvFl:   cmJsonLeafToString(vp->u.j,s,sN);   break;    
+      default:
+        { assert(0); }
+    }
+  }
+}
