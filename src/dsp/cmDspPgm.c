@@ -898,7 +898,7 @@ cmDspRC_t _cmDspSysPgm_UiTest(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* prp = cmDspSysAllocInst(h,"Printer", NULL,   1, ">" );
   cmDspInst_t* mtp = cmDspSysAllocInst(h,"Meter", "meter",  3, 0.0,  0.0, 4.0);
   cmDspInst_t* ctp = cmDspSysAllocInst(h,"Counter", NULL,   3, 0.0, 10.0, 1.0 );
-                     cmDspSysAllocInst(h,"Label",  "label1", 1, "label2");
+  cmDspInst_t* lbl = cmDspSysAllocInst(h,"Label",  "label1", 1, "label2");
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
     return rc;
 
@@ -923,6 +923,8 @@ cmDspRC_t _cmDspSysPgm_UiTest(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysInstallCb(h, chb, "out", prp, "in", NULL );
   cmDspSysInstallCb(h, chb, "sym", prp, "in", NULL );
+
+  cmDspSysInstallCb(h, mdp, "val", lbl, "in", NULL );
 
   return rc;
 
@@ -2055,8 +2057,8 @@ cmDspRC_t _cmDspSysPgm_ScalarOp( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
 
-  cmDspInst_t* add   = cmDspSysAllocInst(   h, "ScalarOp", NULL,  6, 2, "+", "in-0", 0.0, "in-1", 0.0 );
-  cmDspInst_t* mul0  = cmDspSysAllocInst(   h, "ScalarOp", NULL,  6, 2, "*", "in-0", 0.0, "in-1", 0.0 );
+  cmDspInst_t* add   = cmDspSysAllocInst(   h, "ScalarOp", NULL,  6, 2, "+",  "in-0", 0.0, "in-1", 0.0 );
+  cmDspInst_t* mul0  = cmDspSysAllocInst(   h, "ScalarOp", NULL,  6, 2, "*$", "in-0", 0.0, "in-1", 0.0 );
   cmDspInst_t* mul1  = cmDspSysAllocInst(   h, "ScalarOp", NULL,  6, 2, "*", "in-0", 0.0, "in-1", 0.0 );
   cmDspInst_t* in    = cmDspSysAllocScalar( h, "Input",      0.0, 10.0, 0.001, 0.0);
   cmDspInst_t* in_m  = cmDspSysAllocScalar( h, "Input_M",    0.0, 10.0, 0.001, 0.0);
@@ -2068,6 +2070,18 @@ cmDspRC_t _cmDspSysPgm_ScalarOp( cmDspSysH_t h, void** userPtrPtr )
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
     goto errLabel;
 
+  // Notice that changing 'in' or 'in_m' causes 'out' to be recomputed, but other
+  // changes are cached prior to 'add'.  This prevents the program from going into
+  // an infinite loop.
+  //
+  //     in   -> mult0
+  //     in_m -> mult0--+
+  // +-->fb   -> mult1  +----> add
+  // |   fb_m -> mult1-------> add --------+------> out
+  // |                                     |
+  // +-------------------------------------+
+  //
+  
   cmDspSysInstallCb( h, in,    "val", mul0, "in-0", NULL );
   cmDspSysInstallCb( h, in_m,  "val", mul0, "in-1", NULL );
   cmDspSysInstallCb( h, fb,    "val", mul1, "in-0", NULL );

@@ -2909,6 +2909,7 @@ typedef struct cmDspScalar_str
   cmDspInst_t          inst;
   _cmDspScalarOpFunc_t func;
   unsigned             inPortCnt;
+  bool                 allActiveFl;                  
 } cmDspScalarOp_t;
 
 cmDspRC_t _cmDspScalarOpFuncMult(cmDspCtx_t* ctx, cmDspInst_t* inst )
@@ -2966,6 +2967,7 @@ cmDspInst_t*  _cmDspScalarOpAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   double             dfltVal[ inPortCnt ];
   unsigned           i;
   _cmDspScalarOpFunc_t fp = NULL;
+  bool allActiveFl = false;
 
   // validate the count of input ports
   if( inPortCnt == 0 )
@@ -2974,12 +2976,26 @@ cmDspInst_t*  _cmDspScalarOpAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
     goto errLabel;
   }
 
-  // locate the operation function
-  if( strcmp(opIdStr,"*") == 0 )
-    fp = _cmDspScalarOpFuncMult;
-  else
-    if( strcmp(opIdStr,"+") == 0 )
-      fp = _cmDspScalarOpFuncAdd;
+  if( opIdStr != NULL )
+  {
+    switch( opIdStr[0] )
+    {
+      case '*':
+        fp = _cmDspScalarOpFuncMult;
+        break;
+      case '+':
+        fp = _cmDspScalarOpFuncAdd;
+        break;      
+    }
+
+    // if the second character of the operator string is '$' then all input ports trigger an output
+    if( strlen( opIdStr ) > 0 && opIdStr[1]=='$' )
+      allActiveFl = true;
+    
+    
+  }
+  
+  
 
   // validate the operation function
   if( fp == NULL )
@@ -3012,7 +3028,7 @@ cmDspInst_t*  _cmDspScalarOpAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
 
   p->inPortCnt = inPortCnt;
   p->func      = fp;
-  
+  p->allActiveFl = allActiveFl;
   va_end(vl1);
 
   return &p->inst;
@@ -3039,7 +3055,7 @@ cmDspRC_t _cmDspScalarOpRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
   if((rc = cmDspSetEvent(ctx,inst,evt)) == kOkDspRC )
   {
-    if( evt->dstVarId == kBaseOpdSoId )
+    if( evt->dstVarId == kBaseOpdSoId || p->allActiveFl )
       p->func(ctx,inst);
   }
 
