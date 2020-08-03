@@ -83,6 +83,9 @@ cmDspRC_t _cmDspSysPgm_TimeLineLiteAf(cmDspSysH_t h, void** userPtrPtr )
   unsigned   cmpPreGrpSymId  = cmDspSysPresetRegisterGroup(h,"tl_cmp"); 
 
   cmDspTlXform_t c0,c1;
+  memset(&c0,0,sizeof(c0));
+  memset(&c1,0,sizeof(c1));
+    
 
   cmDspSysNewPage(h,"Controls-0");
   _cmDspSys_TlXformChain(h, &c0, preGrpSymId, cmpPreGrpSymId, amp, modp, 0, 0 );
@@ -121,10 +124,10 @@ cmDspRC_t _cmDspSysPgm_TimeLineLiteAf(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ogainW = cmDspSysAllocInst(h,"Scalar", "Wet Master",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
   cmDspInst_t* ogainD = cmDspSysAllocInst(h,"Scalar", "Dry Master",   5, kNumberDuiId, 0.0,   10.0,0.01,   1.0 );  
 
-  cmDspInst_t* gmult0  = cmDspSysAllocInst(h,"ScalarOp", NULL, 6, 2, "*", "in-0", 1.0, "in-1", 1.0 );
-  cmDspInst_t* gmult1  = cmDspSysAllocInst(h,"ScalarOp", NULL, 6, 2, "*", "in-0", 1.0, "in-1", 1.0 );
-  cmDspInst_t* gmult2  = cmDspSysAllocInst(h,"ScalarOp", NULL, 6, 2, "*", "in-0", 1.0, "in-1", 1.0 );
-  cmDspInst_t* gmult3  = cmDspSysAllocInst(h,"ScalarOp", NULL, 6, 2, "*", "in-0", 1.0, "in-1", 1.0 );
+  cmDspInst_t* gmult0  = cmDspSysAllocInst(h,"ScalarOp", NULL, 6, 2, "*$", "in-0", 1.0, "in-1", 1.0 );
+  cmDspInst_t* gmult1  = cmDspSysAllocInst(h,"ScalarOp", NULL, 6, 2, "*$", "in-0", 1.0, "in-1", 1.0 );
+  cmDspInst_t* gmult2  = cmDspSysAllocInst(h,"ScalarOp", NULL, 6, 2, "*$", "in-0", 1.0, "in-1", 1.0 );
+  cmDspInst_t* gmult3  = cmDspSysAllocInst(h,"ScalarOp", NULL, 6, 2, "*$", "in-0", 1.0, "in-1", 1.0 );
   
  
   
@@ -136,8 +139,10 @@ cmDspRC_t _cmDspSysPgm_TimeLineLiteAf(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* mi0p    = cmDspSysAllocInst(h,"AMeter","In 0",  0);
   cmDspInst_t* mi1p    = cmDspSysAllocInst(h,"AMeter","In 1",  0);
 
-  cmDspInst_t* meas     = cmDspSysAllocInst(h,"Scalar", "Begin Meas", 5, kNumberDuiId, 1.0, 1000.0, 1.0, 1.0 );  
-  cmDspInst_t* emeas    = cmDspSysAllocInst(h,"Scalar", "End   Meas", 5, kNumberDuiId, 1.0, 1000.0, 1.0, 1.0 );  
+  cmDspInst_t* meas    = cmDspSysAllocInst(h,"Scalar", "Begin Meas", 5, kNumberDuiId, 1.0, 1000.0, 1.0, 1.0 );  
+  cmDspInst_t* eloc    = cmDspSysAllocInst(h,"Scalar", "End   Loc",  5, kNumberDuiId, 1.0, 1000.0, 1.0, 1.0 );
+  cmDspInst_t* sfp_loc = cmDspSysAllocInst(h,"Label",  NULL, 1, "sf loc:");
+
   cmDspSysInstallCb( h, meas, "val", scp, "meas", NULL);
   cmDspSysInstallCb( h, meas, "val", tlp, "meas", NULL);
   
@@ -323,36 +328,36 @@ cmDspRC_t _cmDspSysPgm_TimeLineLiteAf(cmDspSysH_t h, void** userPtrPtr )
 
   // score follower to recd_play,modulator and printers
   cmDspSysInstallCb(h, sfp, "out",     modp,    "index", NULL );
-  cmDspSysInstallCb(h, sfp, "recent",  prp,     "in",  NULL );  // report 'recent' but only act on 'max' loc index
+  cmDspSysInstallCb(h, sfp, "recent",  sfp_loc,   "in",  NULL );  // report 'recent' but only act on 'max' loc index
 
-  cmDspSysInstallCb( h, emeas, "val", its,  "off-int", NULL);
+  cmDspSysInstallCb( h, eloc , "val", its,  "off-int", NULL);
   cmDspSysInstallCb( h, sfp,   "out", its,  "in",  NULL);
   cmDspSysInstallCb( h, its,   "out", offb, "in",  NULL);
   cmDspSysInstallCb( h, its,   "out", prp, "in",  NULL);
   
 
-  cmDspSysInstallCb(h, modp, "dgain0",  ogain0, "val",  NULL );
+  cmDspSysInstallCb(h, modp, "dgain0",  ogain0, "val",  NULL ); // mod -> ogain
   cmDspSysInstallCb(h, modp, "dgain1",  ogain1, "val",  NULL );
   cmDspSysInstallCb(h, modp, "wgain0",  ogain2, "val",  NULL );
   cmDspSysInstallCb(h, modp, "wgain1",  ogain3, "val",  NULL );
 
 
-  cmDspSysInstallCb(h, ogain0,  "val", gmult0, "in-0", NULL );
-  cmDspSysInstallCb(h, ogainD,  "val", gmult0, "in-1", NULL );
-  
+  cmDspSysInstallCb(h, ogain0,  "val", gmult0, "in-0", NULL ); // ogain scalars -> gmult 0
   cmDspSysInstallCb(h, ogain1,  "val", gmult1, "in-0", NULL );
-  cmDspSysInstallCb(h, ogainD,  "val", gmult1, "in-1", NULL );
-  
   cmDspSysInstallCb(h, ogain2,  "val", gmult2, "in-0", NULL );
-  cmDspSysInstallCb(h, ogainW,  "val", gmult2, "in-1", NULL );
   cmDspSysInstallCb(h, ogain3,  "val", gmult3, "in-0", NULL );
+  
+  cmDspSysInstallCb(h, ogainD,  "val", gmult0, "in-1", NULL ); // master scalars -> gmult 1
+  cmDspSysInstallCb(h, ogainD,  "val", gmult1, "in-1", NULL );
+  cmDspSysInstallCb(h, ogainW,  "val", gmult2, "in-1", NULL );
   cmDspSysInstallCb(h, ogainW,  "val", gmult3, "in-1", NULL );
   
-  cmDspSysInstallCb(h, gmult0, "out", lmix, "gain-0", NULL );   // output gain control - dry 0
-  cmDspSysInstallCb(h, gmult1, "out", rmix, "gain-0", NULL );   //                       dry 1
-  cmDspSysInstallCb(h, gmult2, "out", lmix, "gain-1", NULL );   //                       wet 0
-  cmDspSysInstallCb(h, gmult3, "out", rmix, "gain-1", NULL );   //                       wet 1
+  cmDspSysInstallCb(h, gmult0, "out", lmix, "gain-0", NULL );   // gmult -> wdmix - l dry 
+  cmDspSysInstallCb(h, gmult1, "out", rmix, "gain-0", NULL );   //                  r dry
+  cmDspSysInstallCb(h, gmult2, "out", lmix, "gain-1", NULL );   //                  l wet
+  cmDspSysInstallCb(h, gmult3, "out", rmix, "gain-1", NULL );   //                  r wet
 
+  //cmDspSysInstallCb(h, gmult2, "out", prp, "in", NULL );
 
   return rc;
 }
