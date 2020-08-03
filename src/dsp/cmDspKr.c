@@ -302,6 +302,8 @@ enum
   kMixKr2Id,
 
   kWetKr2Id,
+  kIgainKr2Id,
+  
   kAudioInKr2Id,
   kAudioOutKr2Id
 };
@@ -320,7 +322,7 @@ cmDspInst_t*  _cmDspKr2Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned s
 {
   cmDspVarArg_t args[] =
   {
-    { "wndn",    kWndSmpCntKr2Id,   0, 0,   kInDsvFl  | kUIntDsvFl   | kReqArgDsvFl,   "Window sample count"   },
+    { "wndn",    kWndSmpCntKr2Id,   0, 0,   kInDsvFl  | kUIntDsvFl   | kReqArgDsvFl,   "Window sample count" },
     { "hopf",    kHopFactKr2Id,     0, 0,   kInDsvFl  | kUIntDsvFl   | kOptArgDsvFl,   "Hop factor" },
     
     { "ceil",    kCeilKr2Id,     0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl,   "Ceiling" },
@@ -333,6 +335,8 @@ cmDspInst_t*  _cmDspKr2Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned s
     { "mix",     kMixKr2Id,         0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl,   "Mix"},
     
     { "wet",     kWetKr2Id,         0, 0,   kInDsvFl  | kSampleDsvFl,                  "Wet mix level."},
+    { "igain",   kIgainKr2Id,       0, 0,   kInDsvFl  | kDoubleDsvFl | kOptArgDsvFl,   "Input gain."},
+    
     { "in",      kAudioInKr2Id,     0, 0,   kInDsvFl  | kAudioBufDsvFl, "Audio Input" },
     { "out",     kAudioOutKr2Id,    0, 1,   kOutDsvFl | kAudioBufDsvFl, "Audio Output" },
     { NULL, 0, 0, 0, 0 }
@@ -355,7 +359,10 @@ cmDspInst_t*  _cmDspKr2Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned s
   cmDspSetDefaultDouble( ctx,&p->inst, kMixKr2Id,      0, 0.0 );
   
   cmDspSetDefaultSample( ctx,&p->inst, kWetKr2Id,      0, 1.0);
+  
+  cmDspSetDefaultDouble( ctx,&p->inst, kIgainKr2Id,    0, 0.0 );
 
+  
   //_cmDspKr2CmInit(ctx,p); // initialize the cm library
 
   p->ctx = cmCtxAlloc(NULL,ctx->rpt,ctx->lhH,ctx->stH);
@@ -504,11 +511,15 @@ cmDspRC_t _cmDspKr2Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* ev
     case kWetKr2Id:
       break;
 
+    case kIgainKr2Id:
+      p->sdp->igain = cmDspDouble(inst,kIgainKr2Id);
+      break;
+
     default:
       { assert(0); }
   }
 
-  cmSpecDist2Report(p->sdp);
+  //cmSpecDist2Report(p->sdp);
   
   return rc;
 }
