@@ -681,12 +681,13 @@ cmXsRC_t _cmXScoreParseNote(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* 
   return _cmXScorePushNote(p, meas, voiceId, note );
 }
 
-cmXsRC_t _cmXScorePushNonNote( cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* noteXmlNode, unsigned tick, unsigned duration, double rvalue, const cmChar_t* tvalue, unsigned flags )
+cmXsRC_t _cmXScorePushNonNote( cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNode_t* noteXmlNode, unsigned tick, unsigned duration, unsigned staff, double rvalue, const cmChar_t* tvalue, unsigned flags )
 {
   cmXsNote_t* note    = cmLhAllocZ(p->lhH,cmXsNote_t,1);
   unsigned    voiceId = 0;    // non-note's are always assigned to voiceId=0;
 
   note->tick     = tick;
+  note->staff    = staff;
   note->flags    = flags;
   note->rvalue   = rvalue;
   note->tvalue   = tvalue;
@@ -822,7 +823,7 @@ cmXsRC_t  _cmXScoreParseDirection(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNo
   }
 
   if( pushFl )
-   rc = _cmXScorePushNonNote(p,meas,dnp,tick+offset,duration,rvalue,tvalue,flags);
+    rc = _cmXScorePushNonNote(p,meas,dnp,tick+offset,duration,staff,rvalue,tvalue,flags);
 
   return rc;
 }
@@ -868,7 +869,7 @@ cmXsRC_t _cmXScoreParseMeasure(cmXScore_t* p, cmXsPart_t* pp, const cmXmlNode_t*
   }
 
   // store the bar line
-  if((rc = _cmXScorePushNonNote(p,meas,mnp,tick,0,0,NULL,kBarXsFl)) != kOkXsRC )
+  if((rc = _cmXScorePushNonNote(p,meas,mnp,tick,0,0,0,NULL,kBarXsFl)) != kOkXsRC )
     return rc;
 
   np = mnp->children;
@@ -1562,7 +1563,7 @@ void _cmXScoreFixBarLines( cmXScore_t* p )
 }
 
 // Assign pedal down durations to pedal down events.
-cmXsRC_t _cmXScoreProcessPedals( cmXScore_t* p )
+cmXsRC_t _cmXScoreProcessPedals( cmXScore_t* p, bool reportFl )
 {
   cmXsRC_t    rc = kOkXsRC;
   cmXsPart_t* pp = p->partL;
@@ -1584,11 +1585,14 @@ cmXsRC_t _cmXScoreProcessPedals( cmXScore_t* p )
           case 0:
             break;
             
-          case kDampDnXsFl:
+          case kDampDnXsFl:            
             if( dnp != NULL )
               cmErrWarnMsg(&p->err,kPedalStateErrorXsRc,"Damper down not preceded by damper up in measure:%i.",mp->number);
             else
               dnp = np;
+
+            if( reportFl )
+              cmRptPrintf(p->err.rpt,"Damp Down : staff:%i meas:%i tick:%i\n", np->staff, mp->number, np->tick);
             break;
             
           case kDampUpXsFl:
@@ -1599,6 +1603,10 @@ cmXsRC_t _cmXScoreProcessPedals( cmXScore_t* p )
               dnp->duration = np->tick - dnp->tick;
               dnp = NULL;
             }
+            
+            if( reportFl )
+              cmRptPrintf(p->err.rpt,"Damp Up   : staff:%i meas:%i tick:%i\n", np->staff, mp->number, np->tick);
+            
             break;
             
           case kDampUpDnXsFl:
@@ -1609,13 +1617,19 @@ cmXsRC_t _cmXScoreProcessPedals( cmXScore_t* p )
               dnp->duration = np->tick - dnp->tick;
               dnp = np;
             }
+            
+            if( reportFl )
+              cmRptPrintf(p->err.rpt,"Damp UpDn : staff:%i meas:%i tick:%i\n", np->staff, mp->number, np->tick);
             break;
             
           case kSostDnXsFl:
             if( snp != NULL )
               cmErrWarnMsg(&p->err,kPedalStateErrorXsRc,"Sostenuto down not preceded by sostenuto up in measure:%i.",mp->number);
             else
-              snp = np;            
+              snp = np;
+            
+            if( reportFl )
+              cmRptPrintf(p->err.rpt,"Sost Down : staff:%i meas:%i tick:%i\n", np->staff, mp->number, np->tick);
             break;
             
           case kSostUpXsFl:
@@ -1626,6 +1640,8 @@ cmXsRC_t _cmXScoreProcessPedals( cmXScore_t* p )
               snp->duration = np->tick - snp->tick;
               snp = NULL;
             }
+            if( reportFl )
+              cmRptPrintf(p->err.rpt,"Sost Up   : staff:%i meas:%i tick:%i\n", np->staff, mp->number, np->tick);
             break;
             
           default:
@@ -2706,7 +2722,7 @@ cmXsRC_t _cmXsApplyEditFile( cmXScore_t* p, const cmChar_t* fn )
 
 
 
-cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* editFn )
+cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* editFn, bool damperRptFl )
 {
   cmXsRC_t rc = kOkXsRC;
 
@@ -2771,7 +2787,7 @@ cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, c
   }
 
   // assign durations to pedal down events
-  _cmXScoreProcessPedals(p);
+  _cmXScoreProcessPedals(p,damperRptFl);
 
   // remove some notes which share a pitch and are overlapped or embedded within another note.
   _cmXScoreProcessOverlappingNotes(p);
@@ -3408,7 +3424,7 @@ void _cmXScoreGenEditFileWrite( void* arg, const cmChar_t* text )
   }
 }
 
-cmXsRC_t cmXScoreGenEditFile( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* outFn )
+cmXsRC_t cmXScoreGenEditFile( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* outFn, bool damperRptFl )
 {
   cmXsH_t   xsH = cmXsNullHandle;
   cmFileH_t fH  = cmFileNullHandle;
@@ -3419,7 +3435,7 @@ cmXsRC_t cmXScoreGenEditFile( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_
   cmErrSetup(&err,&ctx->rpt,"cmXScoreGenEditFile");
   cmRptSetup(&rpt,_cmXScoreGenEditFileWrite,_cmXScoreGenEditFileWrite,&fH);
 
-  if((rc = cmXScoreInitialize(ctx,&xsH,xmlFn,NULL)) != kOkXsRC )
+  if((rc = cmXScoreInitialize(ctx,&xsH,xmlFn,NULL,damperRptFl)) != kOkXsRC )
     return rc;
 
   if( cmFileOpen(&fH,outFn,kWriteFileFl,&ctx->rpt) != kOkFileRC )
@@ -4077,7 +4093,8 @@ cmXsRC_t cmXScoreTest(
   int             beginMeasNumb,
   int             beginBPM,
   bool            standAloneFl,
-  bool            panZoomFl )
+  bool            panZoomFl,
+  bool            damperRptFl)
 {
   cmXsRC_t rc;
   cmXsH_t h = cmXsNullHandle;
@@ -4085,13 +4102,13 @@ cmXsRC_t cmXScoreTest(
   if( editFn!=NULL && !cmFsIsFile(editFn) )
   {
     cmRptPrintf(&ctx->rpt,"The edit file %s does not exist. A new edit file will be created.\n",editFn);
-    cmXScoreGenEditFile(ctx,xmlFn,editFn);
+    cmXScoreGenEditFile(ctx,xmlFn,editFn,damperRptFl);
     editFn = NULL;
   }
   
 
   // Parse the XML file and apply the changes in editFn.
-  if((rc = cmXScoreInitialize( ctx, &h, xmlFn,editFn)) != kOkXsRC )
+  if((rc = cmXScoreInitialize( ctx, &h, xmlFn,editFn, damperRptFl )) != kOkXsRC )
     return cmErrMsg(&ctx->err,rc,"XScore alloc failed.");
 
   if( csvOutFn != NULL )

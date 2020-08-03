@@ -47,7 +47,7 @@ extern "C" {
   // Initialize an cmXScore object from a Sibelius generated MusicXML file.
   // 'editFn' is used to add additional information to the score.
   // See cmXScoreGenEditFile()
-  cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* editFn );
+  cmXsRC_t cmXScoreInitialize( cmCtx_t* ctx, cmXsH_t* hp, const cmChar_t* xmlFn, const cmChar_t* editFn, bool damperRptFl );
   cmXsRC_t cmXScoreFinalize( cmXsH_t* hp );
 
   
@@ -60,7 +60,7 @@ extern "C" {
   // Generate a template 'edit file'. This file can be edited by hand to included additional
   // information in the score. See the 'editFn' argument to cmXScoreInitialize() for where
   // this file is used.
-  cmXsRC_t cmXScoreGenEditFile( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* outFn );
+  cmXsRC_t cmXScoreGenEditFile( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* outFn, bool damperRptFl );
 
   // Generate the CSV file suitable for use by cmScore.
   //
@@ -72,7 +72,7 @@ extern "C" {
   // Set reportFl to true to print a report of the score following processing.
   // Set begMeasNumb to the first measure the to be written to the output csv, MIDI and SVG files.
   // Set begBPM to 0 to use the tempo from the score otherwise set it to the tempo at begMeasNumb.
-  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* reorderFn, const cmChar_t* csvOutFn, const cmChar_t* midiOutFn, const cmChar_t* svgOutFn, bool reportFl, int begMeasNumb, int begBPM, bool svgStandAloneFl, bool svgPanZoomFl );
+  cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* reorderFn, const cmChar_t* csvOutFn, const cmChar_t* midiOutFn, const cmChar_t* svgOutFn, bool reportFl, int begMeasNumb, int begBPM, bool svgStandAloneFl, bool svgPanZoomFl, bool damperRptFl );
   
 #ifdef __cplusplus
 }
