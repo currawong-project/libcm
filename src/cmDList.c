@@ -150,7 +150,7 @@ void _cmDListIndexFree( cmDList_t* p, cmDListIndex_t* x )
       // x is the first index
       if( x0 == NULL )
       {
-        assert( x1 = p->indexes );
+        assert( x1 == p->indexes );
         p->indexes = x->link;
       }
       else

@@ -423,6 +423,34 @@ cmMfRC_t _cmMidiFileReadHdr( _cmMidiFile_t* mfp )
   return rc;
 }
 
+void _cmMidiFileDrop( _cmMidiFile_t* p )
+{
+  unsigned i;
+  unsigned n = 0;
+  for(i=0; i<p->trkN; ++i)
+  {
+    _cmMidiTrack_t*   trk = p->trkV + i;
+    cmMidiTrackMsg_t* m0  = NULL;
+    cmMidiTrackMsg_t* m   = trk->base;
+    
+    for(; m!=NULL; m=m->link)
+    {
+      if( cmIsFlag(m->flags,kDropTrkMsgFl) )
+      {
+        ++n;
+        if( m0 == NULL )
+          trk->base = m->link;
+        else
+          m0->link = m->link;
+      }
+      else
+      {
+        m0 = m;
+      }      
+    }
+  }
+}
+
 int _cmMidiFileSortFunc( const void *p0, const void* p1 )
 {  
   if( (*(cmMidiTrackMsg_t**)p0)->atick == (*(cmMidiTrackMsg_t**)p1)->atick )
@@ -1369,7 +1397,6 @@ cmMfRC_t cmMidiFileInsertMsg( cmMidiFileH_t h, unsigned uid, int dtick, cmMidiBy
   mfp->msgVDirtyFl = true;
 
   return kOkMfRC;
-
 }
 
 cmMfRC_t  cmMidiFileInsertTrackMsg( cmMidiFileH_t h, unsigned trkIdx, const cmMidiTrackMsg_t* msg )
@@ -1532,6 +1559,38 @@ unsigned  cmMidiFileSeekUsecs( cmMidiFileH_t h, unsigned long long offsUSecs, un
   return mi;
 }
 
+/*
+1.Move closest previous tempo msg to begin.
+2.The first msg in each track must be the first msg >= begin.time
+3.Remove all msgs > end.time - except the 'endMsg' for each note/pedal that is active at end time.
+
+
+ */
+
+unsigned _cmMidiFileIsEndMsg( cmMidiTrackMsg_t* m, cmMidiTrackMsg_t** endMsgArray, unsigned n )
+{
+  unsigned i = 0;
+  for(; i<n; ++i)
+    if( endMsgArray[i] == m )
+      return i;
+
+  return cmInvalidIdx;
+}
+
+bool _cmMidiFileAllEndMsgFound( cmMidiTrackMsg_t** noteMsgArray, unsigned n0, cmMidiTrackMsg_t** pedalMsgArray, unsigned n1 )
+{
+  unsigned i=0;
+  for(; i<n0; ++i)
+    if( noteMsgArray[i] != NULL )
+      return false;
+
+  for(i=0; i<n1; ++i)
+    if( pedalMsgArray[i] != NULL )
+      return false;
+
+  return true;
+}
+
 double  cmMidiFileDurSecs( cmMidiFileH_t h )
 {
   _cmMidiFile_t* mfp = _cmMidiFileHandleToPtr(h);
@@ -1543,14 +1602,6 @@ double  cmMidiFileDurSecs( cmMidiFileH_t h )
   
   return msgV[ mfp->msgN-1 ]->amicro / 1000000.0;
 }
-
-typedef struct _cmMidiVoice_str
-{
-  const  cmMidiTrackMsg_t*  mp;
-  unsigned                  durMicros;
-  bool                      sustainFl;
-  struct _cmMidiVoice_str*  link;
-} _cmMidiVoice_t;
 
 
 void _cmMidiFileSetDur( cmMidiTrackMsg_t* m0, cmMidiTrackMsg_t* m1 )
@@ -1574,10 +1625,11 @@ bool _cmMidiFileCalcNoteDur( cmMidiTrackMsg_t* m0, cmMidiTrackMsg_t* m1, int not
   return true;
 }
 
-void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
+void cmMidiFileCalcNoteDurations( cmMidiFileH_t h, unsigned flags )
 {
   _cmMidiFile_t* p;
-
+  bool warningFl = cmIsFlag(flags,kWarningsMfFl);
+  
   if((p = _cmMidiFileHandleToPtr(h)) == NULL )
     return;
 
@@ -1586,13 +1638,14 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
 
   unsigned          mi = cmInvalidId;
   cmMidiTrackMsg_t* noteM[     kMidiNoteCnt * kMidiChCnt ];  // ptr to note-on or NULL if the note is not sounding
-  cmMidiTrackMsg_t* sustV[                    kMidiChCnt ];
-  cmMidiTrackMsg_t* sostV[                    kMidiChCnt ];
+  cmMidiTrackMsg_t* sustV[                    kMidiChCnt ];  // ptr to last sustain pedal down msg or NULL if susteain pedal is not down
+  cmMidiTrackMsg_t* sostV[                    kMidiChCnt ];  // ptr to last sost. pedal down msg or NULL if sost. pedal is not down
   int               noteGateM[ kMidiNoteCnt * kMidiChCnt ];  // true if the associated note key is depressed
   bool              sostGateM[ kMidiNoteCnt * kMidiChCnt ];  // true if the associated note was active when the sost. pedal went down
   int               sustGateV[ kMidiChCnt];                  // true if the associated sustain pedal is down
   int               sostGateV[ kMidiChCnt];                  // true if the associated sostenuto pedal is down
   unsigned          i,j;
+  unsigned          n = 0;
   
   const cmMidiTrackMsg_t** msgV = _cmMidiFileMsgArray(p);
   
@@ -1634,12 +1687,22 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
       unsigned  k = ch*kMidiNoteCnt + d0;
 
       // there should be no existing sounding note instance for this pitch
-      //if( noteGateM[k] == 0 && noteM[k] != NULL )
-      //  cmErrWarnMsg(&p->err,kMissingNoteOffMfRC,"%i : Missing note-off instance for note on:%s",m->uid,cmMidiToSciPitch(d0,NULL,0));
+      if( noteGateM[k] == 0 && noteM[k] != NULL )
+      {
+        if( warningFl )
+          cmErrWarnMsg(&p->err,kMissingNoteOffMfRC,"%i : Missing note-off instance for note on:%s",m->uid,cmMidiToSciPitch(d0,NULL,0));
 
+        if( cmIsFlag(flags,kDropReattacksMfFl) )
+        {
+          m->flags |= kDropTrkMsgFl;
+          n += 1;
+        }
+          
+      }
+      // if this is a re-attack 
       if( noteM[k] != NULL )
         noteGateM[k] += 1;
-      else
+      else // this is a new attack
       {
         noteM[k]     = m;
         noteGateM[k] = 1;
@@ -1676,8 +1739,8 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
         if( cmMidiFileIsSustainPedalDown(m) )
         {
           // if the sustain channel is already down
-          //if( sustGateV[ch] )
-          //  cmErrWarnMsg(&p->err,kSustainPedalMfRC,"%i : The sustain pedal went down twice with no intervening release.",m->uid);
+          if( warningFl && sustGateV[ch] )
+            cmErrWarnMsg(&p->err,kSustainPedalMfRC,"%i : The sustain pedal went down twice with no intervening release.",m->uid);
 
           sustGateV[ch] += 1;
 
@@ -1722,8 +1785,8 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
             if( cmMidiFileIsSostenutoPedalDown(m) )
             {
               // if the sustain channel is already down
-              //if( sostGateV[ch] )
-              //  cmErrWarnMsg(&p->err,kSostenutoPedalMfRC,"%i : The sostenuto pedal went down twice with no intervening release.",m->uid);
+              if( warningFl && sostGateV[ch] )
+                cmErrWarnMsg(&p->err,kSostenutoPedalMfRC,"%i : The sostenuto pedal went down twice with no intervening release.",m->uid);
 
               // record the notes that are active when the sostenuto pedal went down
               unsigned k = ch * kMidiNoteCnt;
@@ -1770,6 +1833,46 @@ void cmMidiFileCalcNoteDurations( cmMidiFileH_t h )
               }
     
   } // for each midi file event
+
+
+  if( warningFl )
+  {
+    unsigned sustChN   = 0; // count of channels where the sustain pedal was left on at the end of the file
+    unsigned sostChN   = 0; //                             sostenuto
+    unsigned sustInstN = 0; // count of sustain   on with no previous sustain off
+    unsigned sostInstN = 0; //          sostenuto on   
+    unsigned noteN     = 0; // count of notes left on at the end of the file
+    unsigned noteInstN = 0; // count of reattacks
+    
+    // initialize the state tracking variables
+    for(i=0; i<kMidiChCnt; ++i)
+    {
+      if( sustV[i]!=NULL )
+        sustChN += 1;
+      
+      sustInstN += sustGateV[i]; 
+      
+        if( sostV[i] != NULL )
+          sostChN += 1;
+      
+      sostInstN += sostGateV[i] = 0;
+      
+      for(j=0; j<kMidiNoteCnt; ++j)
+      {
+        noteN     += noteM[ i*kMidiNoteCnt + j ] != NULL;
+        noteInstN += noteGateM[ i*kMidiNoteCnt + j ];
+      }
+    }
+
+    cmErrWarnMsg(&p->err,kEventTerminationMfRC,"note:%i inst:%i sustain: %i inst: %i sost: %i inst: %i",noteN,noteInstN,sustChN,sustInstN,sostChN,sostInstN);
+  }
+
+  // drop 
+  if( cmIsFlag(flags,kDropReattacksMfFl) )
+    _cmMidiFileDrop(p);
+  
+
+
 }
 
 void cmMidiFileSetDelay( cmMidiFileH_t h, unsigned ticks )
@@ -1833,15 +1936,16 @@ void _cmMidiFilePrintHdr( const _cmMidiFile_t* mfp, cmRpt_t* rpt )
 
   cmRptPrintf(rpt,"fmt:%i ticksPerQN:%i tracks:%i\n",mfp->fmtId,mfp->ticksPerQN,mfp->trkN);
 
-  cmRptPrintf(rpt," UID     dtick     atick      amicro     type  ch  D0  D1\n");
-  cmRptPrintf(rpt,"----- ---------- ---------- ---------- : ---- --- --- ---\n");
+  cmRptPrintf(rpt," UID  trk    dtick     atick      amicro     type  ch  D0  D1\n");
+  cmRptPrintf(rpt,"----- --- ---------- ---------- ---------- : ---- --- --- ---\n");
   
 }
 
 void _cmMidiFilePrintMsg( cmRpt_t* rpt, const cmMidiTrackMsg_t* tmp )
 {
-  cmRptPrintf(rpt,"%5i %10u %10llu %10llu : ",
+  cmRptPrintf(rpt,"%5i %3i %10u %10llu %10llu : ",
     tmp->uid,
+    tmp->trkIdx,
     tmp->dtick,
     tmp->atick,
     tmp->amicro );
@@ -1980,7 +2084,7 @@ cmMfRC_t cmMidiFileGenPlotFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmCh
     goto errLabel;
   }
   
-  cmMidiFileCalcNoteDurations( mfH );
+  cmMidiFileCalcNoteDurations( mfH, 0 );
   
   if( cmFileOpen(&fH,outFn,kWriteFileFl,p->err.rpt) != kOkFileRC )
     return cmErrMsg(&p->err,kFileFailMfRC,"Unable to create the file '%s'.",cmStringNullGuard(outFn));
@@ -2013,7 +2117,7 @@ cmMfRC_t cmMidiFileGenSvgFile( cmCtx_t* ctx, const cmChar_t* midiFn, const cmCha
     goto errLabel;
   }
 
- cmMidiFileCalcNoteDurations( mfH );
+  cmMidiFileCalcNoteDurations( mfH, 0 );
 
   msgN = cmMidiFileMsgCount(mfH);
   msgs = cmMidiFileMsgArray(mfH);
@@ -2159,7 +2263,7 @@ void cmMidiFileTest( const char* fn, cmCtx_t* ctx )
     return;
   }
 
-  cmMidiFileCalcNoteDurations(  h );
+  cmMidiFileCalcNoteDurations(  h, 0 );
 
   if( 1 )
   {
