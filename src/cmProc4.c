@@ -3342,6 +3342,8 @@ cmRC_t  _cmScModActivateGroup( cmScModulator* p, cmScModEntry_t* ep )
     {
       unsigned idx = 0;
 
+      printf("Activating:%s\n",cmSymTblLabel(p->stH,ep->beg.symId));
+        
       return  _cmScModActivateEntries( p, g->earray, &idx, g->en, ep->beg.symId );
     }
 
