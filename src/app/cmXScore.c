@@ -1368,7 +1368,10 @@ void  _cmXScoreProcessOverlappingNotes( cmXScore_t* p )
               fnp->tied_dur -= d;
 
             // move the second note just past it
-            np->tick       = fnp->tick + fnp->tied_dur + 1;
+            np->tick       = fnp->tick + fnp->tied_dur;
+
+            cmErrWarnMsg(&p->err,kOverlapWarnXsRC,"A shorten/shift operation was done to reconcile two overlapped %s (ticks:%i %i) notes in measure %i.",cmMidiToSciPitch(np->pitch,NULL,0),fnp->tick,np->tick,np->meas->number);
+
           }
         }
     }
@@ -1587,7 +1590,7 @@ cmXsRC_t _cmXScoreProcessPedals( cmXScore_t* p, bool reportFl )
             
           case kDampDnXsFl:            
             if( dnp != NULL )
-              cmErrWarnMsg(&p->err,kPedalStateErrorXsRc,"Damper down not preceded by damper up in measure:%i.",mp->number);
+              cmErrWarnMsg(&p->err,kPedalStateErrorXsRc,"Damper down not preceded by damper up in measure:%i tick:%i.",mp->number,np->tick);
             else
               dnp = np;
 
@@ -1597,7 +1600,7 @@ cmXsRC_t _cmXScoreProcessPedals( cmXScore_t* p, bool reportFl )
             
           case kDampUpXsFl:
             if( dnp == NULL )
-              cmErrWarnMsg(&p->err,kPedalStateErrorXsRc,"Damper up not preceded by damper down in measure:%i.",mp->number);
+              cmErrWarnMsg(&p->err,kPedalStateErrorXsRc,"Damper up not preceded by damper down in measure:%i tick:%i.",mp->number,np->tick);
             else
             {
               dnp->duration = np->tick - dnp->tick;
@@ -1611,7 +1614,7 @@ cmXsRC_t _cmXScoreProcessPedals( cmXScore_t* p, bool reportFl )
             
           case kDampUpDnXsFl:
             if( dnp == NULL )
-              cmErrWarnMsg(&p->err,kPedalStateErrorXsRc,"Damper up/down not preceded by damper down in measure:%i.",mp->number);
+              cmErrWarnMsg(&p->err,kPedalStateErrorXsRc,"Damper up/down not preceded by damper down in measure:%i tick:%i.",mp->number,np->tick);
             else
             {            
               dnp->duration = np->tick - dnp->tick;
@@ -1624,7 +1627,7 @@ cmXsRC_t _cmXScoreProcessPedals( cmXScore_t* p, bool reportFl )
             
           case kSostDnXsFl:
             if( snp != NULL )
-              cmErrWarnMsg(&p->err,kPedalStateErrorXsRc,"Sostenuto down not preceded by sostenuto up in measure:%i.",mp->number);
+              cmErrWarnMsg(&p->err,kPedalStateErrorXsRc,"Sostenuto down not preceded by sostenuto up in measure:%i tick:%i.",mp->number, np->tick);
             else
               snp = np;
             
@@ -1634,7 +1637,7 @@ cmXsRC_t _cmXScoreProcessPedals( cmXScore_t* p, bool reportFl )
             
           case kSostUpXsFl:
             if( snp == NULL )
-              cmErrWarnMsg(&p->err,kPedalStateErrorXsRc,"Sostenuto up not preceded by sostenuto down in measure:%i.",mp->number);
+              cmErrWarnMsg(&p->err,kPedalStateErrorXsRc,"Sostenuto up not preceded by sostenuto down in measure:%i tick:%i.",mp->number,np->tick);
             else
             {
               snp->duration = np->tick - snp->tick;
@@ -2102,7 +2105,7 @@ cmXsNote_t*  _cmXsReorderFindNote( cmXScore_t* p, unsigned measNumb, const cmXsR
         {
 
 
-          if( 0 /*mp->number==19*/ )
+          if( 0 /*mp->number==27*/ )
             printf("voice: %i %i loc:%i %i  tick:%i %i pitch:%i %i rval:%f %f idx:%i %i \n",
               np->voice->id, r->voice, 
               np->locIdx ,  r->locIdx ,
