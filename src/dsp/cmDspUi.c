@@ -188,6 +188,9 @@ cmDspRC_t _cmDspUiUseInstSymbolAsLabel( cmDspCtx_t* ctx, cmDspInst_t* inst, unsi
 cmDspRC_t  cmDspSendValueToAudioSys( cmDspCtx_t* ctx, unsigned msgTypeId, unsigned selId, unsigned valId, const cmDspValue_t* valPtr )
 { return _cmDspUiMsg(ctx, msgTypeId, selId, 0, NULL, valId, valPtr ); }
 
+cmDspRC_t cmDspProgramIsDone( cmDspCtx_t* ctx )
+{ return _cmDspUiMsg(ctx, kUiSelAsId, kPgmDoneDuiId, 0, NULL, cmInvalidId, NULL ); }
+
 cmDspRC_t   cmDspUiConsolePrint( cmDspCtx_t* ctx, cmChar_t* text )
 {
   cmDspValue_t v;
@@ -514,3 +517,4 @@ cmDspRC_t  cmDspUiNewPage(          cmDspCtx_t* ctx, const cmChar_t* title )
 
   return rc;
 }
+
