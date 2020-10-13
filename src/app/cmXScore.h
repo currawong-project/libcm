@@ -20,7 +20,8 @@ extern "C" {
     kFileFailXsRC,
     kSvgFailXsRC,
     kOverlapWarnXsRC,
-    kZeroLengthEventXsRC
+    kZeroLengthEventXsRC,
+    kEventNotFoundXsRC
   };
 
   typedef cmRC_t     cmXsRC_t;
@@ -73,6 +74,8 @@ extern "C" {
   // Set begMeasNumb to the first measure the to be written to the output csv, MIDI and SVG files.
   // Set begBPM to 0 to use the tempo from the score otherwise set it to the tempo at begMeasNumb.
   cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* reorderFn, const cmChar_t* csvOutFn, const cmChar_t* midiOutFn, const cmChar_t* svgOutFn, bool reportFl, int begMeasNumb, int begBPM, bool svgStandAloneFl, bool svgPanZoomFl, bool damperRptFl );
+
+  cmXsRC_t cmXScoreMergeEditFiles( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* refEditFn,  unsigned refBegMeasNumb, const cmChar_t* editFn, unsigned keyMeasNumb, const cmChar_t* outFn );
   
 #ifdef __cplusplus
 }
