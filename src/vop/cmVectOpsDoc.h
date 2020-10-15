@@ -5,8 +5,9 @@
 // is generated using the gcc preprocessor.
 // switches: -E : Stop after preprocess
 //           -C : Do not strip comments.
-//           -P : Do not generate line markers 
-// gcc -E -C -P -o cmVectOpsDocOut.h cmVectOpsDoc.h
+//           -P : Do not generate line markers
+//           -traditional-cpp : preserve white space
+// gcc -E -C -P -traditional-cpp -o cmVectOpsDocOut.h cmVectOpsDoc.h
 
 
 #include "cmVectOpsTemplateUndef.h"
@@ -17,11 +18,9 @@
 #define VECT_OP_MIN        FLT_MIN
 #define VECT_OP_LAP_FUNC(F)        s##F
 #define VECT_OP_BLAS_FUNC(F) cblas_s##F
-
-//{
-//[
+//end_cut
+//( { file_desc:"Math vector operations." kw:[vop math] }
+//)
 #include "cmVectOpsTemplateHdr.h"
 #include "cmVectOpsRIHdr.h"
-//]
-//}
 

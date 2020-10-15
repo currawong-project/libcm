@@ -5,8 +5,9 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Global prefix header for the 'cm' library. Currently empty." kw:[base] }
 
-
+  //)
 
 #ifdef __cplusplus
 }

@@ -4,6 +4,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+  
+  //( { file_desc:"Generate time-alignment data between an audio and MIDI file. See cmDspSyncRecd_t." kw[proc] }
 
   enum
   {
@@ -27,7 +29,8 @@ extern "C" {
   
 
   cmSyRC_t cmSyncRecdTest( cmCtx_t* ctx );
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

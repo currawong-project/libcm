@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-  //( { file_desc:"Query and get keypresses directly from the console." kw:[system] }
+  //( { file_desc:"Query and get keypresses directly from the console." kw:[system devices] }
   
   enum
   {

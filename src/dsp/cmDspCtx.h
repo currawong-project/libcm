@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Dataflow global context interface." kw:[snap] }
+
   typedef cmHandle_t cmDspSysH_t;
   typedef cmHandle_t cmDspStoreH_t;
   
@@ -34,6 +36,8 @@ extern "C" {
     unsigned execDurUsecs;
   } cmDspCtx_t;
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

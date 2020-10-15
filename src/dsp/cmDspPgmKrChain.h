@@ -6,6 +6,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Signal processing chain implementation for 'GUTIM'." kw:[snap gutim] }
+
 typedef struct
 {
   const cmChar_t* tlFn;
@@ -44,6 +46,7 @@ void _cmDspSys_TlXformChain(
   unsigned        ach,
   unsigned        mch );
 
+  //)
 
 #ifdef __cplusplus
 }

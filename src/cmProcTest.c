@@ -28,7 +28,6 @@
 #include <time.h> // time()
 
 
-
 void cmTestPrint( cmRpt_t* rpt, const char* fmt, ... )
 {
   va_list vl;

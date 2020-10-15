@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Dataflow program instance interface." kw:[snap] }
+  
   typedef cmDspRC_t (*cmDspPgmFunc_t)( cmDspSysH_t h, void** userPtrPtr );
 
   typedef struct
@@ -20,7 +22,7 @@ extern "C" {
 
   _cmDspSysPgm_t* _cmDspSysPgmArrayBase();
   
-
+  //)
 
 #ifdef __cplusplus
 }

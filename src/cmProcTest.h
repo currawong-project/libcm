@@ -5,10 +5,14 @@
 extern "C" {
 #endif
 
+  //( { file_desc: "Some obsolete test stub functions. See the cmtools project for a complete set of test and example functions." kw:[proc]}
+  
   void cmProcTestNoInit( cmCtx_t* ctx );
   void cmProcTestGnuPlot( cmCtx_t* ctx );
   void cmProcTest( cmCtx_t* ctx );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

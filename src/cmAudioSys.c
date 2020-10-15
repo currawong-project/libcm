@@ -1157,11 +1157,16 @@ unsigned cmAudioSysSubSystemCount( cmAudioSysH_t h )
 
 //===========================================================================================================================
 //
-//  cmAsTest()
+//  cmAudioSysTest()
 //
 
-/// [cmAudioSysTest]
+//{ { label:cmAudioSysTest }
+//(
+// cmAudioSysTest() demonstrates the audio system usage.
+//)
 
+//(
+ 
 typedef struct 
 {
   double   hz;       // current synth frq
@@ -1463,4 +1468,5 @@ void cmAudioSysTest( cmRpt_t* rpt, int argc, const char* argv[] )
 
 }
 
-/// [cmAudioSysTest]
+//)
+//}

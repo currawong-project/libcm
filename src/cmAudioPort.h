@@ -1,4 +1,4 @@
-//( { file_desc: "Cross platform audio device interface." kw:[audio rt] }
+//( { file_desc: "Cross platform audio device interface." kw:[audio rt devices] }
 //
 // This interface provides data declarations for platform dependent 
 // audio I/O functions. The implementation for the functions are

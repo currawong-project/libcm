@@ -1071,7 +1071,12 @@ void cmApBufReport( cmRpt_t* rpt )
   }
 }
 
-/// [cmApBufExample]
+//{ { label:cmApBufExample }
+//(
+// cmApBufTest() demonstrates the audio buffer usage.
+//)
+
+//(
 
 void cmApBufTest( cmRpt_t* rpt )
 {
@@ -1172,6 +1177,7 @@ void cmApBufTest( cmRpt_t* rpt )
   cmApBufFinalize();
 }
 
-/// [cmApBufExample]
+//)
+//}
 
 

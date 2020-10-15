@@ -5,6 +5,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"XML file reader." kw[file] }
+
   enum
   {
     kOkXmlRC = cmOkRC,
@@ -101,6 +103,8 @@ extern "C" {
   
   
   cmXmlRC_t cmXmlTest( cmCtx_t* ctx, const cmChar_t* fn );
+
+  //)
   
 #ifdef __cpluspus
 }

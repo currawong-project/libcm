@@ -1,5 +1,38 @@
 #ifdef cmVectOpsTemplateCode_h
 
+VECT_OP_TYPE* VECT_OP_FUNC(CumSum)(VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp)
+{
+  VECT_OP_TYPE* dep = dbp + dn;
+  VECT_OP_TYPE*  rp = dbp;
+  VECT_OP_TYPE sum = 0;
+  while( dbp < dep )
+  {
+    sum += *sbp++;
+    *dbp++ = sum;
+
+  }
+  return rp;
+}
+
+bool          VECT_OP_FUNC(Equal)(    const VECT_OP_TYPE* s0p, const VECT_OP_TYPE* s1p, unsigned sn )
+{
+  const VECT_OP_TYPE* ep = s0p + sn;
+  while( s0p < ep )
+    if( *s0p++ != *s1p++ )
+      return false;
+  return true;
+}
+
+VECT_OP_TYPE*  VECT_OP_FUNC(LinSpace)( VECT_OP_TYPE* dbp, unsigned dn, VECT_OP_TYPE base, VECT_OP_TYPE limit )
+{
+  unsigned i = 0;
+  for(; i<dn; ++i)
+    dbp[i] = base + i*(limit-base)/(dn-1);
+  return dbp;
+}
+
+
+
 void          VECT_OP_FUNC(VPrint)( cmRpt_t* rpt, const char* fmt, ... )
 {
   va_list vl;
@@ -189,30 +222,42 @@ VECT_OP_TYPE* VECT_OP_FUNC(StandardizeCols)( VECT_OP_TYPE* dbp, unsigned drn, un
   return dbp;
 }
 
-
-VECT_OP_TYPE* VECT_OP_FUNC(HalfWaveRectify)(VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sp )
+unsigned  VECT_OP_FUNC(NormToMax)(    VECT_OP_TYPE* dp, unsigned dn )
 {
-  VECT_OP_TYPE* dp = dbp;
-  VECT_OP_TYPE* ep = dbp + dn;
-  for(; dp < ep; ++dp,++sp )
-    *dp = *sp < 0 ? 0 : *sp;
+  unsigned i = VECT_OP_FUNC(MaxIndex)(dp,dn,1);
 
-  return dbp;
-}
-
-VECT_OP_TYPE* VECT_OP_FUNC(CumSum)(VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp)
-{
-  VECT_OP_TYPE* dep = dbp + dn;
-  VECT_OP_TYPE*  rp = dbp;
-  VECT_OP_TYPE sum = 0;
-  while( dbp < dep )
-  {
-    sum += *sbp++;
-    *dbp++ = sum;
-
+  if( i != cmInvalidIdx )
+  {  
+    VECT_OP_TYPE v = dp[i];
+    VECT_OP_FUNC(DivVS)(dp,dn,v);
   }
-  return rp;
+
+  return i;
 }
+
+unsigned VECT_OP_FUNC(NormToAbsMax)(   VECT_OP_TYPE* dp, unsigned dn, VECT_OP_TYPE fact )
+{
+  if( dn == 0 )
+    return cmInvalidIdx;
+
+  unsigned     i  = 0;
+  unsigned     mi = 0;
+  VECT_OP_TYPE mx = cmAbs(dp[0]);
+
+  for(i=1; i<dn; ++i)
+    if( cmAbs(dp[i])>mx )
+    {
+      mi = i;
+      mx = cmAbs(dp[i]);
+    }
+
+  VECT_OP_FUNC(MultVS)(dp,dn,fact/mx);
+  
+  return mi;
+  
+}
+
+
 
 VECT_OP_TYPE  VECT_OP_FUNC(Mean)( const VECT_OP_TYPE* bp, unsigned n )
 {  return VECT_OP_FUNC(Sum)(bp,n)/n; }
@@ -312,52 +357,6 @@ VECT_OP_TYPE*  VECT_OP_FUNC(VarianceM)(VECT_OP_TYPE* dp,  const VECT_OP_TYPE* sp
   return dp;  
 }
 
-unsigned  VECT_OP_FUNC(NormToMax)(    VECT_OP_TYPE* dp, unsigned dn )
-{
-  unsigned i = VECT_OP_FUNC(MaxIndex)(dp,dn,1);
-
-  if( i != cmInvalidIdx )
-  {  
-    VECT_OP_TYPE v = dp[i];
-    VECT_OP_FUNC(DivVS)(dp,dn,v);
-  }
-
-  return i;
-}
-
-unsigned VECT_OP_FUNC(NormToAbsMax)(   VECT_OP_TYPE* dp, unsigned dn, VECT_OP_TYPE fact )
-{
-  if( dn == 0 )
-    return cmInvalidIdx;
-
-  unsigned     i  = 0;
-  unsigned     mi = 0;
-  VECT_OP_TYPE mx = cmAbs(dp[0]);
-
-  for(i=1; i<dn; ++i)
-    if( cmAbs(dp[i])>mx )
-    {
-      mi = i;
-      mx = cmAbs(dp[i]);
-    }
-
-  VECT_OP_FUNC(MultVS)(dp,dn,fact/mx);
-  
-  return mi;
-  
-}
-
-
-VECT_OP_TYPE  VECT_OP_FUNC(AlphaNorm)(const VECT_OP_TYPE* sp, unsigned sn, VECT_OP_TYPE alpha )
-{
-  double sum = 0;
-  const VECT_OP_TYPE* bp = sp;
-  const VECT_OP_TYPE* ep = sp + sn;
-  while( bp < ep )
-    sum += pow(fabs(*bp++),alpha);
-
-  return (VECT_OP_TYPE)pow(sum/sn,1.0/alpha);
-}
 
 void  VECT_OP_FUNC(GaussCovariance)(VECT_OP_TYPE* yM, unsigned D, const VECT_OP_TYPE* xM, unsigned xN, const VECT_OP_TYPE* uV, const unsigned* selIdxV, unsigned selKey )
 {
@@ -468,14 +467,6 @@ void  VECT_OP_FUNC(GaussCovariance2)(VECT_OP_TYPE* yM, unsigned D, const VECT_OP
 }
 
 
-bool          VECT_OP_FUNC(Equal)(    const VECT_OP_TYPE* s0p, const VECT_OP_TYPE* s1p, unsigned sn )
-{
-  const VECT_OP_TYPE* ep = s0p + sn;
-  while( s0p < ep )
-    if( *s0p++ != *s1p++ )
-      return false;
-  return true;
-}
 
 bool          VECT_OP_FUNC(IsNormal)( const VECT_OP_TYPE* sp, unsigned sn )
 {
@@ -583,6 +574,19 @@ VECT_OP_TYPE* VECT_OP_FUNC(RmsV)( VECT_OP_TYPE* dp, unsigned dn, const VECT_OP_T
 
 VECT_OP_TYPE  VECT_OP_FUNC(EuclidNorm)( const VECT_OP_TYPE* sp, unsigned sn )
 { return (VECT_OP_TYPE)sqrt( VECT_OP_FUNC(MultSumVV)(sp,sp,sn)); }
+
+
+VECT_OP_TYPE  VECT_OP_FUNC(AlphaNorm)(const VECT_OP_TYPE* sp, unsigned sn, VECT_OP_TYPE alpha )
+{
+  double sum = 0;
+  const VECT_OP_TYPE* bp = sp;
+  const VECT_OP_TYPE* ep = sp + sn;
+  while( bp < ep )
+    sum += pow(fabs(*bp++),alpha);
+
+  return (VECT_OP_TYPE)pow(sum/sn,1.0/alpha);
+}
+
 
 /*
 From:http://www.ee.ic.ac.uk/hp/staff/dmb/voicebox/doc/voicebox/distitpf.html
@@ -1150,47 +1154,6 @@ VECT_OP_TYPE* VECT_OP_FUNC(LogV)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_
   return dbp;
 }
 
-VECT_OP_TYPE* VECT_OP_FUNC(AmplToDbVV)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp, VECT_OP_TYPE minDb )
-{
-  VECT_OP_TYPE  minVal = pow(10.0,minDb/20.0);
-  VECT_OP_TYPE* dp     = dbp;
-  VECT_OP_TYPE* ep     = dp + dn;
-
-  for(; dp<ep; ++dp,++sbp)
-    *dp = *sbp<minVal ? minDb : 20.0 * log10(*sbp);
-  return dbp;
-}
-
-VECT_OP_TYPE* VECT_OP_FUNC(DbToAmplVV)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp)
-{
-  VECT_OP_TYPE* dp = dbp;
-  VECT_OP_TYPE* ep = dp + dn;
-  for(; dp<ep; ++dp,++sbp)
-    *dp = pow(10.0,*sbp/20.0);
-  return dbp;
-}
-
-VECT_OP_TYPE* VECT_OP_FUNC(PowToDbVV)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp, VECT_OP_TYPE minDb )
-{
-  VECT_OP_TYPE  minVal = pow(10.0,minDb/10.0);
-  VECT_OP_TYPE* dp     = dbp;
-  VECT_OP_TYPE* ep     = dp + dn;
-
-  for(; dp<ep; ++dp,++sbp)
-    *dp = *sbp<minVal ? minDb : 10.0 * log10(*sbp);
-  return dbp;
-}
-
-VECT_OP_TYPE* VECT_OP_FUNC(DbToPowVV)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp)
-{
-  VECT_OP_TYPE* dp = dbp;
-  VECT_OP_TYPE* ep = dp + dn;
-  for(; dp<ep; ++dp,++sbp)
-    *dp = pow(10.0,*sbp/10.0);
-  return dbp;
-}
-
-
 VECT_OP_TYPE* VECT_OP_FUNC(RandSymPosDef)( VECT_OP_TYPE* dbp, unsigned dn, VECT_OP_TYPE* t )
 {
   unsigned i,j;
@@ -1419,6 +1382,43 @@ VECT_OP_TYPE* VECT_OP_FUNC(CholZ)(VECT_OP_TYPE* A, unsigned an )
 
   return A;
 }
+
+void VECT_OP_FUNC(Lsq1)(const VECT_OP_TYPE* x, const VECT_OP_TYPE* y, unsigned n, VECT_OP_TYPE* b0, VECT_OP_TYPE* b1 )
+{
+  VECT_OP_TYPE sx = 0;
+  VECT_OP_TYPE sy = 0;
+  VECT_OP_TYPE sx_2 = 0;
+  VECT_OP_TYPE sxy  = 0;
+  unsigned i;  
+
+  if( x == NULL )
+  {
+    for(i=0; i<n; ++i)
+    {
+      VECT_OP_TYPE xx = i;
+      sx   += xx;
+      sx_2 += xx * xx;
+      sxy  += xx * y[i];
+      sy   += y[i];
+    }
+  }
+  else
+  {
+    for(i=0; i<n; ++i)
+    {
+      sx   += x[i];
+      sx_2 += x[i] * x[i];
+      sxy  += x[i] * y[i];
+      sy   += y[i];
+    }
+  }
+
+  *b1 = (sxy * n - sx * sy) / (sx_2 * n - sx*sx);
+  *b0 = (sy - (*b1) * sx) / n;      
+
+}
+
+
 
 VECT_OP_TYPE VECT_OP_FUNC(FracAvg)( double bi, double ei, const VECT_OP_TYPE* sbp, unsigned sn )
 {
@@ -1739,19 +1739,135 @@ VECT_OP_TYPE* VECT_OP_FUNC(RandomGaussMM)( VECT_OP_TYPE* dbp, unsigned drn, unsi
   return dbp;
 }
 
-VECT_OP_TYPE* VECT_OP_FUNC(CircleCoords)( VECT_OP_TYPE* dbp, unsigned dn, VECT_OP_TYPE x, VECT_OP_TYPE y, VECT_OP_TYPE varX, VECT_OP_TYPE varY  )
+VECT_OP_TYPE* VECT_OP_FUNC(GaussPDF)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp, VECT_OP_TYPE mean, VECT_OP_TYPE stdDev )
+{
+  VECT_OP_TYPE*       rp    = dbp;
+  const VECT_OP_TYPE* dep   = dbp + dn;
+  VECT_OP_TYPE        var   = stdDev * stdDev;
+  VECT_OP_TYPE        fact0 = 1.0/sqrt(2*M_PI*var);
+  VECT_OP_TYPE        fact1 = 2.0 * var;
+
+  for(; dbp < dep; ++sbp )
+    *dbp++ = fact0 * exp( -((*sbp-mean)*(*sbp-mean))/ fact1 );
+
+  return rp;
+}
+
+/// Evaluate a multivariate normal distribution defined by meanV[D] and covarM[D,D]
+/// at the data points held in the columns of xM[D,N]. Return the evaluation
+/// results in the vector yV[N]. 
+bool VECT_OP_FUNC(MultVarGaussPDF)( VECT_OP_TYPE* yV, const VECT_OP_TYPE* xM, const VECT_OP_TYPE* meanV,  const VECT_OP_TYPE* covarM, unsigned D, unsigned N, bool diagFl )
+{
+  VECT_OP_TYPE det0;
+
+  // calc the determinant of the covariance matrix
+  if( diagFl )
+    // kpl 1/16/11 det0  = VECT_OP_FUNC(LogDetDiagM)(covarM,D);
+    det0  = VECT_OP_FUNC(DetDiagM)(covarM,D);
+  else
+    // kpl 1/16/11 det0 = VECT_OP_FUNC(LogDetM)(covarM,D);
+    det0 = VECT_OP_FUNC(DetM)(covarM,D);
+
+  assert(det0 != 0 );
+
+  if( det0 == 0 )
+    return false;
+
+  // calc the inverse of the covariance matrix
+  VECT_OP_TYPE icM[D*D];
+  VECT_OP_FUNC(Copy)(icM,D*D,covarM);
+  
+  VECT_OP_TYPE* r;
+  if( diagFl )
+    r = VECT_OP_FUNC(InvDiagM)(icM,D);
+  else
+    r = VECT_OP_FUNC(InvM)(icM,D);
+
+  if( r == NULL )
+      return false;
+  
+  VECT_OP_FUNC(MultVarGaussPDF2)( yV, xM, meanV, icM, det0, D, N, diagFl );
+
+  return true;
+}
+
+VECT_OP_TYPE* VECT_OP_FUNC(MultVarGaussPDF2)( VECT_OP_TYPE* yV, const VECT_OP_TYPE* xM, const VECT_OP_TYPE* meanV, const VECT_OP_TYPE* icM, VECT_OP_TYPE logDet, unsigned D, unsigned N, bool diagFl )
 {
   unsigned i;
-  for(i=0; i<dn; ++i)
-  {
-    double a = 2.0*M_PI*i/(dn-1);
 
-    dbp[ i ]    = (VECT_OP_TYPE)(varX * cos(a) + x);
-    dbp[ i+dn ] = (VECT_OP_TYPE)(varY * sin(a) + y);
+  double fact = (-(cmReal_t)D/2) * log(2.0*M_PI) - 0.5*logDet;
+
+  for(i=0; i<N; ++i)
+  {
+    VECT_OP_TYPE dx[D];
+    VECT_OP_TYPE t[D];
+
+    // dx[] difference between mean and ith data point
+    VECT_OP_FUNC(SubVVV)(dx,D, xM + (i*D), meanV);
+
+    // t[] = dx[] * inv(covarM);
+    if( diagFl )
+      VECT_OP_FUNC(MultDiagVMV)(t,D,icM,D,dx);
+    else
+      VECT_OP_FUNC(MultVMV)(t,D,icM,D,dx);
+
+    // dist = sum(dx[] * t[])
+    cmReal_t dist = VECT_OP_FUNC(MultSumVV)(t,dx,D);
+
+    yV[i] = exp( fact - (0.5*dist) );
+
   }
 
-  return dbp;
+  return yV;
 }
+
+
+VECT_OP_TYPE* VECT_OP_FUNC(MultVarGaussPDF3)( 
+  VECT_OP_TYPE*       yV, 
+  const VECT_OP_TYPE* (*srcFunc)(void* funcDataPtr, unsigned frmIdx ),
+  void*               funcDataPtr,
+  const VECT_OP_TYPE* meanV, 
+  const VECT_OP_TYPE* icM, 
+  VECT_OP_TYPE        logDet, 
+  unsigned            D, 
+  unsigned            N, 
+  bool                diagFl )
+{
+  unsigned i;
+
+  double fact = (-(cmReal_t)D/2) * log(2.0*M_PI) - 0.5*logDet;
+
+  for(i=0; i<N; ++i)
+  {
+    VECT_OP_TYPE dx[D];
+    VECT_OP_TYPE t[D];
+
+    const VECT_OP_TYPE* xV = srcFunc( funcDataPtr, i );
+
+    if( xV == NULL )
+      yV[i] = 0;
+    else
+    {
+      // dx[] difference between mean and ith data point
+      VECT_OP_FUNC(SubVVV)(dx, D, xV, meanV);
+
+      // t[] = dx[] * inv(covarM);
+      if( diagFl )
+        VECT_OP_FUNC(MultDiagVMV)(t,D,icM,D,dx);
+      else
+        VECT_OP_FUNC(MultVMV)(t,D,icM,D,dx);
+
+      // dist = sum(dx[] * t[])
+      cmReal_t dist = VECT_OP_FUNC(MultSumVV)(t,dx,D);
+
+      yV[i] = exp( fact - (0.5*dist) );
+    }
+  }
+
+  return yV;
+}
+
+
 
 
 unsigned      VECT_OP_FUNC(SynthSine)(      VECT_OP_TYPE* dbp, unsigned dn, unsigned phase, double srate, double hz )
@@ -1929,13 +2045,46 @@ VECT_OP_TYPE VECT_OP_FUNC(SynthPinkNoise)( VECT_OP_TYPE* dbp, unsigned n, VECT_O
   return *sp;
 }
 
-VECT_OP_TYPE*  VECT_OP_FUNC(LinSpace)( VECT_OP_TYPE* dbp, unsigned dn, VECT_OP_TYPE base, VECT_OP_TYPE limit )
+VECT_OP_TYPE* VECT_OP_FUNC(AmplToDbVV)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp, VECT_OP_TYPE minDb )
 {
-  unsigned i = 0;
-  for(; i<dn; ++i)
-    dbp[i] = base + i*(limit-base)/(dn-1);
+  VECT_OP_TYPE  minVal = pow(10.0,minDb/20.0);
+  VECT_OP_TYPE* dp     = dbp;
+  VECT_OP_TYPE* ep     = dp + dn;
+
+  for(; dp<ep; ++dp,++sbp)
+    *dp = *sbp<minVal ? minDb : 20.0 * log10(*sbp);
   return dbp;
 }
+
+VECT_OP_TYPE* VECT_OP_FUNC(DbToAmplVV)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp)
+{
+  VECT_OP_TYPE* dp = dbp;
+  VECT_OP_TYPE* ep = dp + dn;
+  for(; dp<ep; ++dp,++sbp)
+    *dp = pow(10.0,*sbp/20.0);
+  return dbp;
+}
+
+VECT_OP_TYPE* VECT_OP_FUNC(PowToDbVV)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp, VECT_OP_TYPE minDb )
+{
+  VECT_OP_TYPE  minVal = pow(10.0,minDb/10.0);
+  VECT_OP_TYPE* dp     = dbp;
+  VECT_OP_TYPE* ep     = dp + dn;
+
+  for(; dp<ep; ++dp,++sbp)
+    *dp = *sbp<minVal ? minDb : 10.0 * log10(*sbp);
+  return dbp;
+}
+
+VECT_OP_TYPE* VECT_OP_FUNC(DbToPowVV)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp)
+{
+  VECT_OP_TYPE* dp = dbp;
+  VECT_OP_TYPE* ep = dp + dn;
+  for(; dp<ep; ++dp,++sbp)
+    *dp = pow(10.0,*sbp/10.0);
+  return dbp;
+}
+
 
 
 VECT_OP_TYPE* VECT_OP_FUNC(LinearToDb)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sp, VECT_OP_TYPE mult )
@@ -2371,41 +2520,6 @@ VECT_OP_TYPE* VECT_OP_FUNC(LP_Sinc)(VECT_OP_TYPE* dp, unsigned dn, const VECT_OP
   return rp;
 }
 
-VECT_OP_TYPE  VECT_OP_FUNC(ComplexDetect)(const VECT_OP_TYPE* mag0V, const VECT_OP_TYPE* mag1V, const VECT_OP_TYPE* phs0V, const VECT_OP_TYPE* phs1V, const VECT_OP_TYPE* phs2V, unsigned binCnt )
-{
-  double              sum  = 0;
-  const VECT_OP_TYPE*  ep  = mag0V + binCnt;
-
-  unsigned i = 0;
-
-  for(;  mag0V < ep; ++i )
-  {
-    // calc phase deviation from expected
-    double dev_rads    = *phs0V++ - (2 * *phs1V++) + *phs2V++;   
-
-    // map deviation into range: -pi to pi
-    //double dev_rads1    = mod(dev_rads0 + M_PI, -2*M_PI ) + M_PI;            
-
-    while( dev_rads > M_PI)
-      dev_rads -= 2*M_PI;
-
-    while( dev_rads < -M_PI)
-      dev_rads += 2*M_PI;    
-
-    // convert into rect coord's
-    double m1r =  *mag1V++;
-    double m0r =  *mag0V   * cos(dev_rads);
-    double m0i =  *mag0V++ * sin(dev_rads);
-
-    // calc the combined amplitude and phase deviation 
-    // sum += hypot( m1 - (m0 * e^(-1*dev_rads)));
-
-    sum += hypot( m1r-m0r, -m0i );
-
-  }
-
-  return (VECT_OP_TYPE)sum; 
-}
 
 VECT_OP_TYPE* VECT_OP_FUNC(MelMask)( VECT_OP_TYPE* maskMtx, unsigned filterCnt, unsigned binCnt, double srate, unsigned flags )
 {
@@ -2613,68 +2727,6 @@ VECT_OP_TYPE* VECT_OP_FUNC(ShroederSpreadingFunc)(VECT_OP_TYPE* m, unsigned band
 
   return m;
 }
-
-
-VECT_OP_TYPE* VECT_OP_FUNC(DctMatrix)( VECT_OP_TYPE* dp, unsigned coeffCnt, unsigned filtCnt )
-{
-  VECT_OP_TYPE* dbp = dp;
-
-  double c0 = 1.0/sqrt(filtCnt/2); // row 1-coeffCnt factor
-  double c1 = c0 * sqrt(2)/2;      // row 0 factor
-
-  unsigned i,j;
-
-  // for each column
-  for(i=0; i<filtCnt; ++i)
-    // for each row
-    for(j=0; j<coeffCnt; ++j)
-      *dp++ = (j==0 ? c1 : c0) * cos( (0.5 + i) * M_PI * j / filtCnt);
-
-  return dbp;
-}
-
-unsigned VECT_OP_FUNC(PeakIndexes)( unsigned* dbp, unsigned dn, const VECT_OP_TYPE* sbp, unsigned sn, VECT_OP_TYPE threshold )
-{
-  unsigned pkCnt = 0;
-  const unsigned*     dep = dbp + dn;
-  const VECT_OP_TYPE* sep = sbp + sn;
-  const VECT_OP_TYPE* s2p = sbp;
-  const VECT_OP_TYPE* s0p = s2p++;
-  const VECT_OP_TYPE* s1p = s2p++;
-
-
-  while( dbp < dep && s2p < sep )
-  {
-    if( (*s0p < *s1p) && (*s1p > *s2p) && (*s1p >= threshold) )
-    {
-      *dbp++ = s1p - sbp;
-      s0p    = s2p++;
-      s1p    = s2p++;
-      ++pkCnt;
-    }
-    else
-    {
-      s0p = s1p;
-      s1p = s2p++;     
-    }
-  }
-  
-  return pkCnt;
-}
-
-unsigned VECT_OP_FUNC(BinIndex)( const VECT_OP_TYPE* sbp, unsigned sn, VECT_OP_TYPE v )
-{
-  const VECT_OP_TYPE* sep = sbp + sn;
-  const VECT_OP_TYPE* bp = sbp;
-  sep--;
-  for(; sbp < sep; ++sbp  )
-    if( *sbp <= v && v < *(sbp+1) )
-      return sbp - bp;
-      
-  return cmInvalidIdx;
-}
-
-
 
 unsigned VECT_OP_FUNC(Kmeans)( 
   unsigned*           classIdxV,         // classIdxV[scn] - data point class assignments
@@ -2913,136 +2965,6 @@ unsigned VECT_OP_FUNC(Kmeans2)(
   return iterCnt;
 }
 
-
-VECT_OP_TYPE* VECT_OP_FUNC(GaussPDF)( VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp, VECT_OP_TYPE mean, VECT_OP_TYPE stdDev )
-{
-  VECT_OP_TYPE*       rp    = dbp;
-  const VECT_OP_TYPE* dep   = dbp + dn;
-  VECT_OP_TYPE        var   = stdDev * stdDev;
-  VECT_OP_TYPE        fact0 = 1.0/sqrt(2*M_PI*var);
-  VECT_OP_TYPE        fact1 = 2.0 * var;
-
-  for(; dbp < dep; ++sbp )
-    *dbp++ = fact0 * exp( -((*sbp-mean)*(*sbp-mean))/ fact1 );
-
-  return rp;
-}
-
-/// Evaluate a multivariate normal distribution defined by meanV[D] and covarM[D,D]
-/// at the data points held in the columns of xM[D,N]. Return the evaluation
-/// results in the vector yV[N]. 
-bool VECT_OP_FUNC(MultVarGaussPDF)( VECT_OP_TYPE* yV, const VECT_OP_TYPE* xM, const VECT_OP_TYPE* meanV,  const VECT_OP_TYPE* covarM, unsigned D, unsigned N, bool diagFl )
-{
-  VECT_OP_TYPE det0;
-
-  // calc the determinant of the covariance matrix
-  if( diagFl )
-    // kpl 1/16/11 det0  = VECT_OP_FUNC(LogDetDiagM)(covarM,D);
-    det0  = VECT_OP_FUNC(DetDiagM)(covarM,D);
-  else
-    // kpl 1/16/11 det0 = VECT_OP_FUNC(LogDetM)(covarM,D);
-    det0 = VECT_OP_FUNC(DetM)(covarM,D);
-
-  assert(det0 != 0 );
-
-  if( det0 == 0 )
-    return false;
-
-  // calc the inverse of the covariance matrix
-  VECT_OP_TYPE icM[D*D];
-  VECT_OP_FUNC(Copy)(icM,D*D,covarM);
-  
-  VECT_OP_TYPE* r;
-  if( diagFl )
-    r = VECT_OP_FUNC(InvDiagM)(icM,D);
-  else
-    r = VECT_OP_FUNC(InvM)(icM,D);
-
-  if( r == NULL )
-      return false;
-  
-  VECT_OP_FUNC(MultVarGaussPDF2)( yV, xM, meanV, icM, det0, D, N, diagFl );
-
-  return true;
-}
-
-VECT_OP_TYPE* VECT_OP_FUNC(MultVarGaussPDF2)( VECT_OP_TYPE* yV, const VECT_OP_TYPE* xM, const VECT_OP_TYPE* meanV, const VECT_OP_TYPE* icM, VECT_OP_TYPE logDet, unsigned D, unsigned N, bool diagFl )
-{
-  unsigned i;
-
-  double fact = (-(cmReal_t)D/2) * log(2.0*M_PI) - 0.5*logDet;
-
-  for(i=0; i<N; ++i)
-  {
-    VECT_OP_TYPE dx[D];
-    VECT_OP_TYPE t[D];
-
-    // dx[] difference between mean and ith data point
-    VECT_OP_FUNC(SubVVV)(dx,D, xM + (i*D), meanV);
-
-    // t[] = dx[] * inv(covarM);
-    if( diagFl )
-      VECT_OP_FUNC(MultDiagVMV)(t,D,icM,D,dx);
-    else
-      VECT_OP_FUNC(MultVMV)(t,D,icM,D,dx);
-
-    // dist = sum(dx[] * t[])
-    cmReal_t dist = VECT_OP_FUNC(MultSumVV)(t,dx,D);
-
-    yV[i] = exp( fact - (0.5*dist) );
-
-  }
-
-  return yV;
-}
-
-
-VECT_OP_TYPE* VECT_OP_FUNC(MultVarGaussPDF3)( 
-  VECT_OP_TYPE*       yV, 
-  const VECT_OP_TYPE* (*srcFunc)(void* funcDataPtr, unsigned frmIdx ),
-  void*               funcDataPtr,
-  const VECT_OP_TYPE* meanV, 
-  const VECT_OP_TYPE* icM, 
-  VECT_OP_TYPE        logDet, 
-  unsigned            D, 
-  unsigned            N, 
-  bool                diagFl )
-{
-  unsigned i;
-
-  double fact = (-(cmReal_t)D/2) * log(2.0*M_PI) - 0.5*logDet;
-
-  for(i=0; i<N; ++i)
-  {
-    VECT_OP_TYPE dx[D];
-    VECT_OP_TYPE t[D];
-
-    const VECT_OP_TYPE* xV = srcFunc( funcDataPtr, i );
-
-    if( xV == NULL )
-      yV[i] = 0;
-    else
-    {
-      // dx[] difference between mean and ith data point
-      VECT_OP_FUNC(SubVVV)(dx, D, xV, meanV);
-
-      // t[] = dx[] * inv(covarM);
-      if( diagFl )
-        VECT_OP_FUNC(MultDiagVMV)(t,D,icM,D,dx);
-      else
-        VECT_OP_FUNC(MultVMV)(t,D,icM,D,dx);
-
-      // dist = sum(dx[] * t[])
-      cmReal_t dist = VECT_OP_FUNC(MultSumVV)(t,dx,D);
-
-      yV[i] = exp( fact - (0.5*dist) );
-    }
-  }
-
-  return yV;
-}
-
-
 /// stateV[timeN]
 /// a[stateN,stateN], 
 /// b[stateN,timeN]
@@ -3116,6 +3038,22 @@ void VECT_OP_FUNC(DiscreteViterbi)(unsigned* stateV, unsigned tN, unsigned sN, c
   cmMemPtrFree( &psiM   );
   cmMemPtrFree( &dV );
 }
+
+
+VECT_OP_TYPE* VECT_OP_FUNC(CircleCoords)( VECT_OP_TYPE* dbp, unsigned dn, VECT_OP_TYPE x, VECT_OP_TYPE y, VECT_OP_TYPE varX, VECT_OP_TYPE varY  )
+{
+  unsigned i;
+  for(i=0; i<dn; ++i)
+  {
+    double a = 2.0*M_PI*i/(dn-1);
+
+    dbp[ i ]    = (VECT_OP_TYPE)(varX * cos(a) + x);
+    dbp[ i+dn ] = (VECT_OP_TYPE)(varY * sin(a) + y);
+  }
+
+  return dbp;
+}
+
 
 bool VECT_OP_FUNC(ClipLine2)( VECT_OP_TYPE x0, VECT_OP_TYPE y0, VECT_OP_TYPE x1, VECT_OP_TYPE y1, VECT_OP_TYPE xMin, VECT_OP_TYPE yMin, VECT_OP_TYPE xMax, VECT_OP_TYPE yMax, VECT_OP_TYPE* t0, VECT_OP_TYPE* t1 )
 {
@@ -3226,40 +3164,103 @@ VECT_OP_TYPE VECT_OP_FUNC(PtToLineDistance)( VECT_OP_TYPE x0, VECT_OP_TYPE y0, V
   return (VECT_OP_TYPE)fabs((px - x0) * (y1 - y0) - (py - y0) * (x1 - x0)) / normalLength;
 }                              
 
-void VECT_OP_FUNC(Lsq1)(const VECT_OP_TYPE* x, const VECT_OP_TYPE* y, unsigned n, VECT_OP_TYPE* b0, VECT_OP_TYPE* b1 )
+
+VECT_OP_TYPE  VECT_OP_FUNC(ComplexDetect)(const VECT_OP_TYPE* mag0V, const VECT_OP_TYPE* mag1V, const VECT_OP_TYPE* phs0V, const VECT_OP_TYPE* phs1V, const VECT_OP_TYPE* phs2V, unsigned binCnt )
 {
-  VECT_OP_TYPE sx = 0;
-  VECT_OP_TYPE sy = 0;
-  VECT_OP_TYPE sx_2 = 0;
-  VECT_OP_TYPE sxy  = 0;
-  unsigned i;  
+  double              sum  = 0;
+  const VECT_OP_TYPE*  ep  = mag0V + binCnt;
 
-  if( x == NULL )
+  unsigned i = 0;
+
+  for(;  mag0V < ep; ++i )
   {
-    for(i=0; i<n; ++i)
-    {
-      VECT_OP_TYPE xx = i;
-      sx   += xx;
-      sx_2 += xx * xx;
-      sxy  += xx * y[i];
-      sy   += y[i];
-    }
-  }
-  else
-  {
-    for(i=0; i<n; ++i)
-    {
-      sx   += x[i];
-      sx_2 += x[i] * x[i];
-      sxy  += x[i] * y[i];
-      sy   += y[i];
-    }
+    // calc phase deviation from expected
+    double dev_rads    = *phs0V++ - (2 * *phs1V++) + *phs2V++;   
+
+    // map deviation into range: -pi to pi
+    //double dev_rads1    = mod(dev_rads0 + M_PI, -2*M_PI ) + M_PI;            
+
+    while( dev_rads > M_PI)
+      dev_rads -= 2*M_PI;
+
+    while( dev_rads < -M_PI)
+      dev_rads += 2*M_PI;    
+
+    // convert into rect coord's
+    double m1r =  *mag1V++;
+    double m0r =  *mag0V   * cos(dev_rads);
+    double m0i =  *mag0V++ * sin(dev_rads);
+
+    // calc the combined amplitude and phase deviation 
+    // sum += hypot( m1 - (m0 * e^(-1*dev_rads)));
+
+    sum += hypot( m1r-m0r, -m0i );
+
   }
 
-  *b1 = (sxy * n - sx * sy) / (sx_2 * n - sx*sx);
-  *b0 = (sy - (*b1) * sx) / n;      
-
+  return (VECT_OP_TYPE)sum; 
 }
+
+VECT_OP_TYPE* VECT_OP_FUNC(DctMatrix)( VECT_OP_TYPE* dp, unsigned coeffCnt, unsigned filtCnt )
+{
+  VECT_OP_TYPE* dbp = dp;
+
+  double c0 = 1.0/sqrt(filtCnt/2); // row 1-coeffCnt factor
+  double c1 = c0 * sqrt(2)/2;      // row 0 factor
+
+  unsigned i,j;
+
+  // for each column
+  for(i=0; i<filtCnt; ++i)
+    // for each row
+    for(j=0; j<coeffCnt; ++j)
+      *dp++ = (j==0 ? c1 : c0) * cos( (0.5 + i) * M_PI * j / filtCnt);
+
+  return dbp;
+}
+
+
+unsigned VECT_OP_FUNC(PeakIndexes)( unsigned* dbp, unsigned dn, const VECT_OP_TYPE* sbp, unsigned sn, VECT_OP_TYPE threshold )
+{
+  unsigned pkCnt = 0;
+  const unsigned*     dep = dbp + dn;
+  const VECT_OP_TYPE* sep = sbp + sn;
+  const VECT_OP_TYPE* s2p = sbp;
+  const VECT_OP_TYPE* s0p = s2p++;
+  const VECT_OP_TYPE* s1p = s2p++;
+
+
+  while( dbp < dep && s2p < sep )
+  {
+    if( (*s0p < *s1p) && (*s1p > *s2p) && (*s1p >= threshold) )
+    {
+      *dbp++ = s1p - sbp;
+      s0p    = s2p++;
+      s1p    = s2p++;
+      ++pkCnt;
+    }
+    else
+    {
+      s0p = s1p;
+      s1p = s2p++;     
+    }
+  }
+  
+  return pkCnt;
+}
+
+unsigned VECT_OP_FUNC(BinIndex)( const VECT_OP_TYPE* sbp, unsigned sn, VECT_OP_TYPE v )
+{
+  const VECT_OP_TYPE* sep = sbp + sn;
+  const VECT_OP_TYPE* bp = sbp;
+  sep--;
+  for(; sbp < sep; ++sbp  )
+    if( *sbp <= v && v < *(sbp+1) )
+      return sbp - bp;
+      
+  return cmInvalidIdx;
+}
+
 
 
 

@@ -4,6 +4,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+  
+  //( { file_desc: "The cmRptFile provides a cmRpt class which outputs to a file." kw:[base]}
 
   enum
   {
@@ -23,6 +25,8 @@ extern "C" {
     
   cmRpt_t* cmRptFileRpt( cmRptFileH_t h );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

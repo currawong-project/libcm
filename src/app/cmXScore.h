@@ -5,6 +5,17 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Process a Music XML score in a variety of ways." kw[score] }
+
+  //$
+  // cmScoreTest() performs a the following functions:
+  // - Parses Music XML files into a text (edit) file.
+  // - The 'edit' file can then be manually edited to modify and add information to the score.
+  // - The modified 'edit' file can then be used to generate a CSV file
+  // suitable for use with cmScore(), a MIDI file which can render the modified score,
+  // and a SVG file which will display the score as a piano roll.
+  //
+  
   enum
   {
     kOkXsRC = cmOkRC,
@@ -73,6 +84,8 @@ extern "C" {
   // Set begMeasNumb to the first measure the to be written to the output csv, MIDI and SVG files.
   // Set begBPM to 0 to use the tempo from the score otherwise set it to the tempo at begMeasNumb.
   cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* reorderFn, const cmChar_t* csvOutFn, const cmChar_t* midiOutFn, const cmChar_t* svgOutFn, bool reportFl, int begMeasNumb, int begBPM, bool svgStandAloneFl, bool svgPanZoomFl, bool damperRptFl );
+
+  //)
   
 #ifdef __cplusplus
 }

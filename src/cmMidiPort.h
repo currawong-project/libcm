@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-  //(  { file_desc:"Device independent MIDI port related code." kw:[midi]}
+  //(  { file_desc:"Device independent MIDI port related code." kw:[midi devices]}
 
   typedef unsigned cmMpRC_t;
 
