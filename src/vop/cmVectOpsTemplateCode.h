@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifdef cmVectOpsTemplateCode_h
 
 VECT_OP_TYPE* VECT_OP_FUNC(CumSum)(VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sbp)
