@@ -722,7 +722,10 @@ cmPoRC_t cmPgmOptParse( cmPgmOptH_t h, unsigned argCnt,  char* argArray[] )
     cmPgmOptInstallBool(h, kVersionPoId,   'v', "version", 0, false, NULL,0,"Print version information." );
 
   if( _cmPgmOptNumIdToOptRecd(p,kPrintParmsPoId) == NULL )
-    cmPgmOptInstallBool(h, kPrintParmsPoId,'p', "parms",   0, false, NULL,0,"Print the arguments."); 
+    cmPgmOptInstallBool(h, kPrintParmsPoId,'p', "parms",   0, false, NULL,0,"Print the arguments.");
+
+  if((rc = cmErrLastRC(&p->err)) != kOkPoRC )    
+    return rc;
 
   
   while(i<argCnt)
@@ -1247,7 +1250,7 @@ void cmPgmOptPrintHelp( cmPgmOptH_t h, cmRpt_t* rpt )
     if( _cmPoOptUsesValue(r) ) 
       valueTypeLabel = _cmPoTypeFlagToLabel(r->sflags & kTypeMaskPoFl,r->cflags);
 
-    if( cmIsNotFlag(r->sflags,kEnumPoFl)  && cmIsFlag(r->sflags,kReqPoFl) )
+    if( cmIsNotFlag(r->sflags,kEnumPoFl)  && cmIsFlag(r->cflags,kReqPoFl) )
       reqLabel = reqStr;
 
     if( mstr != NULL )
