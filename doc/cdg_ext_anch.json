@@ -1,0 +1,6 @@
+{
+  anchors: 
+  [
+    { label: "Pandoc"  anchor:"http://johnmacfarlane.net/pandoc/README.html" }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  cfg :
+  {
+    // All paths and file names that do not begin with a '/'
+    // are prepended with the directory of this configuration
+    // file.
+    //  
+    // If the last char in an 'in_dir' or 'excl_dir' path is NOT a '/' 
+    // then the path represents all paths rooted on the given path.
+    // If the last char is a '/' then only the explicit path is 
+    // used.
+
+    // Note:if the last char in an input director path is a '/' then do not recurse
+    in_dir:    [  "../src/" "../src/app" "../src/dsp" ]
+    excl_dir:  [  ]
+
+    edoc_fn:   [ "libcm.pd" ]
+    html_prefix: "cdg_code_prefix.html"
+    html_suffix: "cdg_code_suffix.html"
+    anchor_fn:   "cdg_ext_anch.json"
+    out_dir:     "html"
+
+    vc_prefix: [
+      ["/home/kevin/src/libcm/doc/../src","https://gitea.currawongproject.org/cml/libcm/src/branch/master/src"]
+    ]
+    
+    
+    pandoc_exec: "/home/kevin/.local/bin/pandoc"
+
+    // Only files with these extenstions will be processed.
+    file_ext: [ "h","c" ]
+
+    // Exclude the following labels as anchor candidates.  
+    anchor_excl: [ "foo", "label", "anchor" ]
+    
+    // Set 'true' to report comments that are not attached to
+    // structural elements.
+    rptFloatCmmtFl: false
+
+    // Report if a 'ctag' generated tag could not be found.
+    rptMissingTagsFl: false
+
+    // Report processed files
+    rptProcFilesFl: false
+
+    // Report missing H files
+    rptMissingHFilesFl: true
+
+    // Report missing C files
+    rptMissingCFilesFl: false
+    
+    // Report duplicate anchors.
+    rptDuplAnchorsFl: false
+
+    // Maximum character count of output HTML lines
+    htmlMaxLineLength: 200
+
+    // Wrap Long Functions
+    wrapFunctionsFl: false
+
+    // Preserve space
+    preserveSpaceFl: true
+
+    // Link to field names
+    linkToFieldNamesFl: false
+
+    // Use the external anchor files from ./cdg
+    usePrefExtAnchorFl: false
+
+    // Run the edoc files through pandoc
+    runFinalPandocFl: true
+
+    // Treat all selected files which do not have block
+    // markers as though they are wrapped in block markers.
+    promiscuousModeFl: false
+
+    keyword_index:
+    [
+      [ base      "Foundation classes and API's"]
+      [ real_time "Real-time system classes and API's"]
+    ]
+
+    pandoc_args:
+    [
+      "-fmarkdown"
+      "-thtml5"
+      "--css"
+      "cdg_div_cod.css"
+      "--css"
+      "cdg_edoc.css"
+      "--css"
+      "style.css"
+      "--toc"
+      "--standalone"
+      "--number-sections"
+    ]
+
+    copy_files:
+    [
+      "cdg_div_cod.css"
+      "cdg_edoc.css"
+      "cdg_code.css"
+      "style.css"
+    ]  
+
+  }
+}

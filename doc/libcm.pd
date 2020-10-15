@@ -1,0 +1,102 @@
+% _libcm_ Reference Documentation
+%
+
+Prerequisites:
+==============
+
+Fedora:
+`sudo dnf install fftw fftw-devel atlas atlas-devel alsa-lib alsa-lib-devel`
+
+
+
+_cm_ Classes And API's
+======================
+
+### Foundation classes used throughout the _cm_ library.
+
+{$cdg_kw_list_cdg base}
+
+### Audio related classes.
+
+{$cdg_kw_list_cdg audio}
+
+### MIDI related classes.
+
+{$cdg_kw_list_cdg midi}
+
+### File readers and writers.
+{$cdg_kw_list_cdg file}
+
+### Text processing related classes.
+{$cdg_kw_list_cdg text}
+
+### Container related classes.
+{$cdg_kw_list_cdg container}
+
+### Math related classes.
+{$cdg_kw_list_cdg math}
+
+### Vector operations
+{$cdg_kw_list_cdg vop}
+
+### Multi-threading and parallel processing.
+{$cdg_kw_list_cdg parallel}
+
+### Data network related classes.
+{$cdg_kw_list_cdg network}
+
+### Operating system interface classes.
+{$cdg_kw_list_cdg system}
+
+### Clock and time related classes.
+{$cdg_kw_list_cdg time}
+
+### Real-time processing related classes
+{$cdg_kw_list_cdg rt}
+
+### Signal analysis related classes
+{$cdg_kw_list_cdg analysis}
+
+### Plotting related classes.
+{$cdg_kw_list_cdg plot}
+
+### Demo functions.
+{$cdg_kw_list_cdg demo}
+
+### 'proc' library modules.
+{$cdg_kw_list_cdg proclib}
+
+### 'proc' classes.
+{$cdg_kw_list_cdg proc}
+
+### Modeling related classes.
+{$cdg_kw_list_cdg model}
+
+### Improved real-time system.
+{$cdg_kw_list_cdg rtsys}
+
+### _fluxo_ related classes.
+{$cdg_kw_list_cdg fluxo}
+
+### _GUTIM_ related classes.
+{$cdg_kw_list_cdg gutim}
+
+### Musical score related classes
+{$cdg_kw_list_cdg score}
+
+### Sequencer related classes
+{$cdg_kw_list_cdg seq}
+
+### Dataflow system classes.
+{$cdg_kw_list_cdg snap}
+
+### Dataflow processesing units.
+{$cdg_kw_list_cdg sunit}
+
+### Dataflow built-in programs
+{$cdg_kw_list_cdg spgm}
+
+File List
+=========
+
+{$cdg_file_list_cdg}

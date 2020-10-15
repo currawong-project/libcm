@@ -1,0 +1,30 @@
+
+td.linenos { background-color: #fffff0; padding-right: 10px; }
+span.lineno { background-color: #fffff0; padding: 0 5px 0 5px; }
+pre { line-height: 135%; }
+body .hll { background-color: #ffffff; }
+body  { background: #f8f8f8; }
+body .c { color: firebrick; font-style: italic; } /* Comment */
+body .k { color: #008000; font-weight: normal; } /* Keyword.Reserved */
+body .p { color: #666666; } /* Operator */
+body .f { color: #0000ff; font-weight: normal; } /* Function */
+body .e { color: #0000ff; font-weight: normal; } /* enum */
+body .m { color: #008000; font-weight: normal; } /* macro */
+body .t { color: #008000; font-weight: normal; } /* typedef */
+body .i { color: #0000ff; font-weight: normal; } /* ident */
+body .l { color: #660066; } /* Literal */
+body .u { color: #000000; }
+body .a {
+    border: 1px dotted gray;
+    background-color: #ececec;
+    color: #1111111;
+    padding: 0.5em;
+}
+
+#hr1 { height: 1;  color:#000000; background-color: #ff0000; }
+#hr2 { height: 4;  color:#000000; background-color: #ff0000; }
+
+.blk_title {
+    font-wieght: bold;
+    font-size: 120%;
+}
