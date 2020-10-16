@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmRpt.h"
@@ -1571,13 +1573,10 @@ const bool*         cmSrRdBoolCV( cmSrH_t h, unsigned* eleCntPtr)
   return cmSrReadBoolCV(h,&valPtr,eleCntPtr) == kOkSrRC ? valPtr : NULL;
 }
 
-//{ { label:cmSerialEx }
-//(
-// cmSrTest() is a serializer example function.
-//)
 
-//[
-    
+//
+// cmSrTest() is a serializer example function.
+//
 cmSrRC_t cmSrTest( cmCtx_t* ctx )
 {
   unsigned i,j,k;
@@ -1721,5 +1720,4 @@ cmSrRC_t cmSrTest( cmCtx_t* ctx )
   return rc;
 }
 
-//]
-//}
+

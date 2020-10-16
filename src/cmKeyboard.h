@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifndef cmKeyboard_h
 #define cmKeyboard_h
 
@@ -5,7 +7,7 @@
 extern "C" {
 #endif
 
-  //( { file_desc:"Query and get keypresses directly from the console." kw:[system] }
+  //( { file_desc:"Query and get keypresses directly from the console." kw:[system devices] }
   
   enum
   {

@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmFloatTypes.h"
@@ -3990,12 +3992,11 @@ void _cmJsonTestPrint( void* userPtr, const cmChar_t* text )
 }
 
 
-//{ { label:cmJsonEx }
-//(
+//( { label:cmJsonEx }
+//
 // cmJsonTest() demonstrates some JSON tree operations.
-//)
-//[
-cmJsRC_t cmJsonTest( const char* fn, cmCtx_t* ctx )
+//
+JsRC_t cmJsonTest( const char* fn, cmCtx_t* ctx )
 {
   cmJsRC_t      rc  = kOkJsRC;
   cmJsRC_t      rc1 = kOkJsRC;
@@ -4076,5 +4077,4 @@ cmJsRC_t cmJsonTest( const char* fn, cmCtx_t* ctx )
 
   return rc == kOkJsRC ? rc1 : rc;
 }
-//]
-//}
+//)

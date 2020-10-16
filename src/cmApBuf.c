@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmRpt.h"
@@ -1071,7 +1073,12 @@ void cmApBufReport( cmRpt_t* rpt )
   }
 }
 
-/// [cmApBufExample]
+//{ { label:cmApBufExample }
+//(
+// cmApBufTest() demonstrates the audio buffer usage.
+//)
+
+//(
 
 void cmApBufTest( cmRpt_t* rpt )
 {
@@ -1172,6 +1179,7 @@ void cmApBufTest( cmRpt_t* rpt )
   cmApBufFinalize();
 }
 
-/// [cmApBufExample]
+//)
+//}
 
 

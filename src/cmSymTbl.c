@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmRpt.h"
@@ -350,12 +352,11 @@ void        cmSymTblReport(               cmSymTblH_t h )
 
 }
 
-//{ { label:cmSymTblEx }
-//(
+//( { label:cmSymTblEx }
+//
 //  cmSymTblTest() gives a usage example for the symbol table component.
-//)
+//
 
-//[
 void cmSymTblTest( cmCtx_t* ctx )
 {
   unsigned    baseSymId = 100;
@@ -403,5 +404,4 @@ void cmSymTblTest( cmCtx_t* ctx )
 
   return;
 }
-//]
-//}
+//)

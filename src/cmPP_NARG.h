@@ -1,7 +1,10 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifndef cmPP_NARG_H
 #define cmPP_NARG_H
 
-
+//( { file_desc:"Var-args argument counter. " kw:[base] }
+//
 // Taken from here:
 // https://groups.google.com/forum/#!topic/comp.std.c/d-6Mj5Lko_s
 // and here:
@@ -43,3 +46,5 @@
          9,8,7,6,5,4,3,2,1,0
 
 #endif
+
+//)

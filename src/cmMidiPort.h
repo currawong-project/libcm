@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifndef cmMidiPort_h
 #define cmMidiPort_h
 
@@ -5,7 +7,7 @@
 extern "C" {
 #endif
 
-  //(  { file_desc:"Device independent MIDI port related code." kw:[midi]}
+  //(  { file_desc:"Device independent MIDI port related code." kw:[midi devices]}
 
   typedef unsigned cmMpRC_t;
 

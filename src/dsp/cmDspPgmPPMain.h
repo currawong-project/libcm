@@ -1,6 +1,9 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifndef cmDspPgmPPMain_h
 #define cmDspPgmPPMain_h
 
+//( { file_desc:"'fluxo' implementation header." kw:[fluxo] }
 
 cmDspInst_t*  _cmDspSys_PresetMgmt( cmDspSysH_t h, const cmChar_t* preLbl, unsigned presetGroupSymId );
 
@@ -43,6 +46,8 @@ const _cmDspPP_CircDesc_t* _cmDspPP_CircuitDesc( unsigned idx );
 
 cmDspRC_t _cmDspPP_CircuitSwitchAlloc( cmDspSysH_t h, _cmDspPP_Ctx_t* ctx, cmDspPP_CircuitSwitch_t* p, cmDspInst_t* reset, cmDspInst_t** csel, cmDspInst_t** ain, cmDspInst_t** ef );
 cmDspRC_t _cmDspPP_CircuitSwitchFree(  cmDspSysH_t h, cmDspPP_CircuitSwitch_t* p);
+
+//)
 
 #ifdef __cplusplus
 extern "C" {

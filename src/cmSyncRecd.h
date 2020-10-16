@@ -1,9 +1,13 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifndef cmSyncRecd_h
 #define cmSyncRecd_h
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+  
+  //( { file_desc:"Generate time-alignment data between an audio and MIDI file. See cmDspSyncRecd_t." kw[proc] }
 
   enum
   {
@@ -27,7 +31,8 @@ extern "C" {
   
 
   cmSyRC_t cmSyncRecdTest( cmCtx_t* ctx );
-
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

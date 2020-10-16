@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifndef cmDspPgm_h
 #define cmDspPgm_h
 
@@ -5,6 +7,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Dataflow program instance interface." kw:[snap] }
+  
   typedef cmDspRC_t (*cmDspPgmFunc_t)( cmDspSysH_t h, void** userPtrPtr );
 
   typedef struct
@@ -20,7 +24,7 @@ extern "C" {
 
   _cmDspSysPgm_t* _cmDspSysPgmArrayBase();
   
-
+  //)
 
 #ifdef __cplusplus
 }

@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmRpt.h"
@@ -907,12 +909,10 @@ const cmChar_t* cmLexRcToMsg( unsigned rc )
 }
 
 
-//{ { label:cmLexEx }
-//(
+//( { label:cmLexEx }
+//
 // cmLexTest() gives a simple cmLex example.
-//)
-
-//(
+//
 void cmLexTest( cmRpt_t* rpt)
 {
   cmChar_t buf[] =
@@ -981,4 +981,3 @@ void cmLexTest( cmRpt_t* rpt)
 }
 
 //)
-//}

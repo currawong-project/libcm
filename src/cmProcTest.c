@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmFloatTypes.h"
@@ -26,7 +28,6 @@
 #include "cmRbm.h"
 
 #include <time.h> // time()
-
 
 
 void cmTestPrint( cmRpt_t* rpt, const char* fmt, ... )

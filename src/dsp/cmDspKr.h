@@ -1,9 +1,13 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifndef cmDspKr_h
 #define cmDspKr_h
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+  //( { file_desc:"Dataflow process interface developed for GUTIM." kw:[snap gutim] }
 
   struct cmDspClass_str* cmKrClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmKr2ClassCons( cmDspCtx_t* ctx );
@@ -25,7 +29,9 @@ extern "C" {
   struct cmDspClass_str* cmTakeSeqRendClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmReflectCalcClassCons( cmDspCtx_t* ctx );
   struct cmDspClass_str* cmEchoCancelClassCons( cmDspCtx_t* ctx );
-
+  
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

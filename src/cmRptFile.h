@@ -1,9 +1,13 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifndef cmRptFile_h
 #define cmRptFile_h
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+  
+  //( { file_desc: "The cmRptFile provides a cmRpt class which outputs to a file." kw:[base]}
 
   enum
   {
@@ -23,6 +27,8 @@ extern "C" {
     
   cmRpt_t* cmRptFileRpt( cmRptFileH_t h );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif

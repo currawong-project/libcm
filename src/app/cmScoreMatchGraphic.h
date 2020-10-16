@@ -1,9 +1,13 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifndef cmScoreMatchGraphic_h
 #define cmScoreMatchGraphic_h
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+  //( { file_desc:"Implements the functionality of cmMidiScoreFollowMain()." kw[score] }
 
   enum
   {
@@ -34,6 +38,8 @@ extern "C" {
   // from from score into MIDI file and then write the updated MIDI
   // file to 'newMidiFn'.
   cmSmgRC_t cmScoreMatchGraphicUpdateMidiFromScore( cmCtx_t* ctx, cmSmgH_t h, const cmChar_t* newMidiFn );
+
+  //)
   
 #ifdef __cplusplus
 }

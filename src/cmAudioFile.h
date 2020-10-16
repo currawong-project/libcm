@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 //( { file_desc: "Read and write AIFF and WAV audio files." kw:[file audio] }
 //
 // This class supports reading uncompressed AIFF and WAV files and writing uncompressed AIFF files.

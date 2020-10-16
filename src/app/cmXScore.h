@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifndef cmXScore_h
 #define cmXScore_h
 
@@ -5,6 +7,17 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Process a Music XML score in a variety of ways." kw[score] }
+
+  //$
+  // cmScoreTest() performs a the following functions:
+  // - Parses Music XML files into a text (edit) file.
+  // - The 'edit' file can then be manually edited to modify and add information to the score.
+  // - The modified 'edit' file can then be used to generate a CSV file
+  // suitable for use with cmScore(), a MIDI file which can render the modified score,
+  // and a SVG file which will display the score as a piano roll.
+  //
+  
   enum
   {
     kOkXsRC = cmOkRC,
@@ -76,6 +89,8 @@ extern "C" {
   cmXsRC_t cmXScoreTest( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* reorderFn, const cmChar_t* csvOutFn, const cmChar_t* midiOutFn, const cmChar_t* svgOutFn, bool reportFl, int begMeasNumb, int begBPM, bool svgStandAloneFl, bool svgPanZoomFl, bool damperRptFl );
 
   cmXsRC_t cmXScoreMergeEditFiles( cmCtx_t* ctx, const cmChar_t* xmlFn, const cmChar_t* refEditFn,  unsigned refBegMeasNumb, const cmChar_t* editFn, unsigned keyMeasNumb, const cmChar_t* outFn );
+  
+  //)
   
 #ifdef __cplusplus
 }

@@ -1,9 +1,13 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifndef cmXml_h
 #define cmXml_h
 
 #ifdef __cpluspus
 extern "C" {
 #endif
+
+  //( { file_desc:"XML file reader." kw[file] }
 
   enum
   {
@@ -101,6 +105,8 @@ extern "C" {
   
   
   cmXmlRC_t cmXmlTest( cmCtx_t* ctx, const cmChar_t* fn );
+
+  //)
   
 #ifdef __cpluspus
 }

@@ -1,9 +1,14 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifndef cmSvgWriter_h
 #define cmSvgWriter_h
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+  //( { file_desc:"SVG file writer." kw[file plot] }
+  
 
 enum
 {
@@ -31,6 +36,8 @@ enum
   // Both the CSS file and svg-pan-zoom.min.js should therefore be in the same directory
   // as the output HTML file.
   cmSvgRC_t cmSvgWriterWrite( cmSvgH_t h, const cmChar_t* cssFn, const cmChar_t* outFn, bool standaloneFl, bool panZoomFl );
+
+  //)
   
 #ifdef __cplusplus
 }

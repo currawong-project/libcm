@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifdef cmVectOpsRICode_h
 
 VECT_OP_TYPE* VECT_OP_FUNC(Col)( VECT_OP_TYPE* m, unsigned ci, unsigned rn, unsigned cn )
@@ -45,6 +47,57 @@ const VECT_OP_TYPE* VECT_OP_FUNC(CElePtr)( const VECT_OP_TYPE* m, unsigned ri, u
 VECT_OP_TYPE VECT_OP_FUNC(CEle)( const VECT_OP_TYPE* m, unsigned ri, unsigned ci, unsigned rn, unsigned cn )
 { return *VECT_OP_FUNC(CElePtr)(m,ri,ci,rn,cn); }
 
+
+VECT_OP_TYPE* VECT_OP_FUNC(Diag)( VECT_OP_TYPE* dbp, unsigned n, const VECT_OP_TYPE* sbp )
+{
+  unsigned i,j;
+  for(i=0,j=0; i<n && j<n; ++i,++j)
+    dbp[ (i*n) + j ] = sbp[i];
+
+  return dbp;  
+}
+
+
+VECT_OP_TYPE* VECT_OP_FUNC(DiagZ)(VECT_OP_TYPE* dbp, unsigned n, const VECT_OP_TYPE* sbp )
+{
+  VECT_OP_FUNC(Fill)(dbp,n*n,0);
+  return VECT_OP_FUNC(Diag)(dbp,n,sbp);
+}
+
+
+VECT_OP_TYPE* VECT_OP_FUNC(Identity)( VECT_OP_TYPE* dbp, unsigned rn, unsigned cn )
+{
+  unsigned i,j;
+  for(i=0,j=0; i<cn && j<rn; ++i,++j)
+      dbp[ (i*rn) + j ] = 1;
+
+  return dbp;
+}
+
+
+VECT_OP_TYPE* VECT_OP_FUNC(IdentityZ)( VECT_OP_TYPE* dbp, unsigned rn, unsigned cn )
+{
+  VECT_OP_FUNC(Fill)(dbp,rn*cn,0);
+  return VECT_OP_FUNC(Identity)(dbp,rn,cn);
+}
+
+
+VECT_OP_TYPE* VECT_OP_FUNC(Transpose)( VECT_OP_TYPE* dbp, const VECT_OP_TYPE* sp, unsigned srn, unsigned scn )
+{
+  VECT_OP_TYPE*       dp  = dbp;
+  const VECT_OP_TYPE* dep = dbp + (srn*scn);
+
+  while( dbp < dep )
+  {
+    const VECT_OP_TYPE* sbp = sp++;
+    const VECT_OP_TYPE* sep = sbp + (srn*scn);
+
+    for(; sbp < sep; sbp+=srn )
+      *dbp++ = *sbp;
+  }
+
+  return dp;
+}
 
 
 
@@ -364,6 +417,17 @@ VECT_OP_TYPE* VECT_OP_FUNC(Flip)(  VECT_OP_TYPE* dbp, unsigned dn)
   return dbp;
 }
 
+VECT_OP_TYPE VECT_OP_FUNC(Seq)( VECT_OP_TYPE* dbp, unsigned dn, VECT_OP_TYPE beg, VECT_OP_TYPE incr )
+{
+  const VECT_OP_TYPE* dep = dbp + dn;
+  unsigned i = 0;
+  for(; dbp<dep; ++i)
+    *dbp++ = beg + (incr*i);
+  return beg + (incr*i);
+}
+
+
+
 
 VECT_OP_TYPE* VECT_OP_FUNC(SubVS)( VECT_OP_TYPE* bp, unsigned n, VECT_OP_TYPE v )
 {
@@ -660,15 +724,6 @@ VECT_OP_TYPE*  VECT_OP_FUNC(SumMN)(const VECT_OP_TYPE* sp, unsigned srn, unsigne
   return dp;
 }
 
-VECT_OP_TYPE*   VECT_OP_FUNC(Abs)(   VECT_OP_TYPE* dbp, unsigned dn )
-{
-  unsigned i;
-  for(i=0; i<dn; ++i)
-    if( dbp[i]<0 )     
-      dbp[i] = -dbp[i];
-
-  return dbp;  
-}
 
 // mi is a target value - it holds the number of elements in ap[an] which must be be less than the median value.
 // If the initial array contains an even number of values then the median value is formed by averaging the two center values.
@@ -880,27 +935,6 @@ unsigned*  VECT_OP_FUNC(MaxIndexM)( unsigned* dp, const VECT_OP_TYPE* sp, unsign
   return dp;
 }
 
-bool VECT_OP_FUNC(IsEqual)( const VECT_OP_TYPE* s0p, const VECT_OP_TYPE* s1p, unsigned sn )
-{
-  const VECT_OP_TYPE* ep = s0p + sn;
-  for(; s0p < ep; ++s0p,++s1p )
-    if( *s0p != *s1p )
-      return false;
-  return true;
-}
-
-bool VECT_OP_FUNC(IsClose)( const VECT_OP_TYPE* s0p, const VECT_OP_TYPE* s1p, unsigned sn, double eps )
-{
-  const VECT_OP_TYPE* ep = s0p + sn;
-  for(; s0p < ep; ++s0p,++s1p )
-  {
-    if( !cmIsClose(*s0p,*s1p,eps) )
-      return false;
-  }
-  return true;
-}
-
-
 VECT_OP_TYPE  VECT_OP_FUNC(Mode)( const VECT_OP_TYPE* sp, unsigned sn )
 {
   unsigned     n[sn];
@@ -965,6 +999,49 @@ VECT_OP_TYPE  VECT_OP_FUNC(Mode)( const VECT_OP_TYPE* sp, unsigned sn )
   return v[j];
 }
 
+VECT_OP_TYPE*   VECT_OP_FUNC(Abs)(   VECT_OP_TYPE* dbp, unsigned dn )
+{
+  unsigned i;
+  for(i=0; i<dn; ++i)
+    if( dbp[i]<0 )     
+      dbp[i] = -dbp[i];
+
+  return dbp;  
+}
+
+VECT_OP_TYPE* VECT_OP_FUNC(HalfWaveRectify)(VECT_OP_TYPE* dbp, unsigned dn, const VECT_OP_TYPE* sp )
+{
+  VECT_OP_TYPE* dp = dbp;
+  VECT_OP_TYPE* ep = dbp + dn;
+  for(; dp < ep; ++dp,++sp )
+    *dp = *sp < 0 ? 0 : *sp;
+
+  return dbp;
+}
+
+
+
+bool VECT_OP_FUNC(IsEqual)( const VECT_OP_TYPE* s0p, const VECT_OP_TYPE* s1p, unsigned sn )
+{
+  const VECT_OP_TYPE* ep = s0p + sn;
+  for(; s0p < ep; ++s0p,++s1p )
+    if( *s0p != *s1p )
+      return false;
+  return true;
+}
+
+bool VECT_OP_FUNC(IsClose)( const VECT_OP_TYPE* s0p, const VECT_OP_TYPE* s1p, unsigned sn, double eps )
+{
+  const VECT_OP_TYPE* ep = s0p + sn;
+  for(; s0p < ep; ++s0p,++s1p )
+  {
+    if( !cmIsClose(*s0p,*s1p,eps) )
+      return false;
+  }
+  return true;
+}
+
+
 unsigned VECT_OP_FUNC(Find)( const VECT_OP_TYPE* sp, unsigned sn, VECT_OP_TYPE key )
 {
   const VECT_OP_TYPE* sbp = sp;
@@ -1002,67 +1079,6 @@ VECT_OP_TYPE* VECT_OP_FUNC(ReplaceLte)( VECT_OP_TYPE* dp, unsigned dn, const VEC
 
   return rp;
 }
-
-VECT_OP_TYPE* VECT_OP_FUNC(Diag)( VECT_OP_TYPE* dbp, unsigned n, const VECT_OP_TYPE* sbp )
-{
-  unsigned i,j;
-  for(i=0,j=0; i<n && j<n; ++i,++j)
-    dbp[ (i*n) + j ] = sbp[i];
-
-  return dbp;  
-}
-
-
-VECT_OP_TYPE* VECT_OP_FUNC(DiagZ)(VECT_OP_TYPE* dbp, unsigned n, const VECT_OP_TYPE* sbp )
-{
-  VECT_OP_FUNC(Fill)(dbp,n*n,0);
-  return VECT_OP_FUNC(Diag)(dbp,n,sbp);
-}
-
-
-VECT_OP_TYPE* VECT_OP_FUNC(Identity)( VECT_OP_TYPE* dbp, unsigned rn, unsigned cn )
-{
-  unsigned i,j;
-  for(i=0,j=0; i<cn && j<rn; ++i,++j)
-      dbp[ (i*rn) + j ] = 1;
-
-  return dbp;
-}
-
-
-VECT_OP_TYPE* VECT_OP_FUNC(IdentityZ)( VECT_OP_TYPE* dbp, unsigned rn, unsigned cn )
-{
-  VECT_OP_FUNC(Fill)(dbp,rn*cn,0);
-  return VECT_OP_FUNC(Identity)(dbp,rn,cn);
-}
-
-
-VECT_OP_TYPE* VECT_OP_FUNC(Transpose)( VECT_OP_TYPE* dbp, const VECT_OP_TYPE* sp, unsigned srn, unsigned scn )
-{
-  VECT_OP_TYPE*       dp  = dbp;
-  const VECT_OP_TYPE* dep = dbp + (srn*scn);
-
-  while( dbp < dep )
-  {
-    const VECT_OP_TYPE* sbp = sp++;
-    const VECT_OP_TYPE* sep = sbp + (srn*scn);
-
-    for(; sbp < sep; sbp+=srn )
-      *dbp++ = *sbp;
-  }
-
-  return dp;
-}
-
-VECT_OP_TYPE VECT_OP_FUNC(Seq)( VECT_OP_TYPE* dbp, unsigned dn, VECT_OP_TYPE beg, VECT_OP_TYPE incr )
-{
-  const VECT_OP_TYPE* dep = dbp + dn;
-  unsigned i = 0;
-  for(; dbp<dep; ++i)
-    *dbp++ = beg + (incr*i);
-  return beg + (incr*i);
-}
-
 
 void VECT_OP_FUNC(FnThresh)( const VECT_OP_TYPE* xV, unsigned xN, unsigned wndN, VECT_OP_TYPE* yV, unsigned yStride, VECT_OP_TYPE (*fnPtr)(const VECT_OP_TYPE*, unsigned) )
 {

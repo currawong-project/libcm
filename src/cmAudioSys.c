@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #include "cmPrefix.h"
 #include "cmGlobal.h"
 #include "cmFloatTypes.h"
@@ -1157,11 +1159,16 @@ unsigned cmAudioSysSubSystemCount( cmAudioSysH_t h )
 
 //===========================================================================================================================
 //
-//  cmAsTest()
+//  cmAudioSysTest()
 //
 
-/// [cmAudioSysTest]
+//{ { label:cmAudioSysTest }
+//(
+// cmAudioSysTest() demonstrates the audio system usage.
+//)
 
+//(
+ 
 typedef struct 
 {
   double   hz;       // current synth frq
@@ -1463,4 +1470,5 @@ void cmAudioSysTest( cmRpt_t* rpt, int argc, const char* argv[] )
 
 }
 
-/// [cmAudioSysTest]
+//)
+//}

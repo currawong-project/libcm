@@ -1,3 +1,5 @@
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 #ifndef cmDspFx_h
 #define cmDspFx_h
 
@@ -5,6 +7,8 @@
 extern "C" {
 #endif
 
+  //( { file_desc:"Large collection of real-time audio processing dataflow class descriptions originally developed for 'fluxo'." kw:[snap fluxo] }
+  
   struct cmDspClass_str* cmDelayClassCons(      cmDspCtx_t* ctx );
   struct cmDspClass_str* cmPShiftClassCons(     cmDspCtx_t* ctx );
   struct cmDspClass_str* cmLoopRecdClassCons(   cmDspCtx_t* ctx );
@@ -43,6 +47,8 @@ extern "C" {
   struct cmDspClass_str* cmBcastSymClassCons(   cmDspCtx_t* ctx );
   struct cmDspClass_str* cmSegLineClassCons(    cmDspCtx_t* ctx );
 
+  //)
+  
 #ifdef __cplusplus
 }
 #endif
