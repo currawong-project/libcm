@@ -41,6 +41,7 @@ extern "C" {
     kDeviceDuiId,          // ui<--eng device label
     kProgramDuiId,         // ui<--eng program label
     kProgramDfltDuiId,     // ui<--eng dflt program label
+    kPgmDoneDuiId,         // ui<--end the program is done 
     
     // The following selId's are used by cmAudDsp to indicate various commands.
     kSetAudioCfgDuiId,     // 1) select an audio system setup
@@ -54,7 +55,7 @@ extern "C" {
     kSendMsgDuiId,         // forward msg to the audio system
     kDevReportDuiId,       // print a device report
     kPrintPgmDuiId,        // write the currently loaded pgm as a JSON file
-
+    
     kRightAlignDuiId = 0,  // label alignment id used by kLabelDuiId 
     kLeftAlignDuiId,  
     kCenterAlignDuiId

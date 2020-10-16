@@ -390,6 +390,9 @@ extern "C" {
   // Used to transmit messages to the audio system.
   cmDspRC_t  cmDspSendValueToAudioSys( cmDspCtx_t* ctx, unsigned msgTypeId, unsigned selId, unsigned valId, const cmDspValue_t* valPtr ); 
 
+  // Notify the system that the program is done and can be shutdown
+  cmDspRC_t cmDspProgramIsDone( cmDspCtx_t* ctx );
+  
   // The following functions are used to send message to the UI and are 
   // implemented in cmDspUi.c.  They are declared here because they are 
   // visible to the cmDspInst functions which use them but are not available
@@ -417,7 +420,7 @@ extern "C" {
   cmDspRC_t   cmDspUiFnameCreate(  cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned valVarId, unsigned patVarId, unsigned dirVarId );
   cmDspRC_t   cmDspUiMsgListCreate(cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned height, unsigned listVarId, unsigned selVarId );
 
- 
+  
   //)
   
 #ifdef __cplusplus
