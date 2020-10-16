@@ -1,7 +1,7 @@
-//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
-//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 //( { file_desc:"Math vector operations." kw:[vop math] }
 //)
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 //( { label:misc desc:"Miscellaneous vector operations." kw:[vop] }
 
 // Compute the cummulative sum of sbp[dn]. Equivalent to Matlab cumsum().
@@ -719,6 +719,8 @@ void cmVOT_Interp1(T_t* y1, const T_t* x1, unsigned xy1N, const T_t* x0, const T
  
 //======================================================================================================================
 //)
+//| Copyright: (C) 2009-2020 Kevin Larke <contact AT larke DOT org> 
+//| License: GNU GPL version 3.0 or above. See the accompanying LICENSE file.
 
 
 //( { label:"Matrix ops" desc:"Common 2D matrix operations and accessors." kw:[vop] }

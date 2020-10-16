@@ -1,9 +1,10 @@
 
-td.linenos { background-color: #fffff0; padding-right: 10px; }
-span.lineno { background-color: #fffff0; padding: 0 5px 0 5px; }
 pre { line-height: 135%; }
-body .hll { background-color: #ffffff; }
-body  { background: #f8f8f8; }
+body  {
+    background: #f0f0f0;
+    margin-left:2%;
+}
+
 body .c { color: firebrick; font-style: italic; } /* Comment */
 body .k { color: #008000; font-weight: normal; } /* Keyword.Reserved */
 body .p { color: #666666; } /* Operator */
@@ -27,4 +28,37 @@ body .a {
 .blk_title {
     font-wieght: bold;
     font-size: 120%;
+}
+
+.license {
+    color: #909090;
+    font-size:90%;
+
+    padding:2%;
+    border: 1px solid #909090;
+}
+
+
+.cod pre { background: #f8f8f8; }
+.cod pre .c { color: firebrick; font-weight: normal; } /* Comment */
+.cod pre .k { color: #008000; font-weight: normal; } /* Keyword.Reserved */
+.cod pre .p { color: #666666 } /* Operator */
+.cod pre .f { color: #000000; font-weight: normal; } /* Function */
+.cod pre .e { color: #000000; font-weight: normal; } /* enum */
+.cod pre .m { color: #008000; font-weight: normal; } /* macro */
+.cod pre .t { color: #008000; font-weight: normal; } /* typedef */
+.cod pre .i { color: #000000; font-weight: normal; } /* ident */
+.cod pre .l { color: #660066 } /* Literal */
+.cod pre .u { color: #000000 }
+
+.cod pre a:link {text-decoration:none; font-weight:500;  } 
+.cod pre a:visited {text-decoration:none; font-weight:500;  } 
+.cod pre a:hover {text-decoration:none; font-weight:700;  } 
+
+/* embedded pandoc comments */
+.cod pre .a {
+    border: 1px dotted gray;
+    background-color: #ececec;
+    color: #1111111;
+    padding: 0.5em;
 }

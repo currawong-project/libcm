@@ -53,7 +53,8 @@
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspKr file_desc:"Spectral non-linear distortion effect." kw:[sunit] }
+
+//( { label:cmDspKr file_desc:"Spectral non-linear distortion effect." kw:[sunit gutim] }
 
 enum
 {
@@ -287,7 +288,7 @@ cmDspClass_t* cmKrClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspKr2 file_desc:"Spectral non-linear distortion effect." kw:[sunit] }
+//( { label:cmDspKr2 file_desc:"Spectral non-linear distortion effect." kw:[sunit gutim] }
 
 enum
 {
@@ -544,7 +545,7 @@ cmDspClass_t* cmKr2ClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspTimeLine file_desc:"Time line user interface unit." kw:[sunit] }
+//( { label:cmDspTimeLine file_desc:"Time line user interface unit." kw:[sunit gutim] }
 
 enum
 {
@@ -734,7 +735,7 @@ cmDspClass_t* cmTimeLineClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspScore file_desc:"Musical score user interface unit." kw:[sunit] }
+//( { label:cmDspScore file_desc:"Musical score user interface unit." kw:[sunit gutim] }
 
 enum
 {
@@ -931,7 +932,7 @@ cmDspClass_t* cmScoreClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspMidiFilePlay file_desc:"MIDI file player." kw:[sunit] }
+//( { label:cmDspMidiFilePlay file_desc:"MIDI file player." kw:[sunit gutim] }
 
 enum
 {
@@ -1173,7 +1174,7 @@ cmDspClass_t* cmMidiFilePlayClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspScFol file_desc:"MIDI performance score follower." kw:[sunit] }
+//( { label:cmDspScFol file_desc:"MIDI performance score follower." kw:[sunit gutim] }
 
 enum
 {
@@ -1491,7 +1492,7 @@ cmDspClass_t* cmScFolClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspScMod file_desc:"Score driven parameter automation." kw:[sunit] }
+//( { label:cmDspScMod file_desc:"Score driven parameter automation." kw:[sunit gutim] }
 
 enum
 {
@@ -1721,7 +1722,7 @@ cmDspClass_t* cmScModClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspGSwitch file_desc:"Route all inputs to one of a group of outputs." kw:[sunit] }
+//( { label:cmDspGSwitch file_desc:"Route all inputs to one of a group of outputs." kw:[sunit gutim] }
 
 enum
 {
@@ -1922,7 +1923,7 @@ cmDspClass_t* cmGSwitchClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspScaleRange file_desc:"Offset and scale a scalar value." kw:[sunit] }
+//( { label:cmDspScaleRange file_desc:"Offset and scale a scalar value." kw:[sunit gutim] }
 
 enum
 {
@@ -2025,7 +2026,7 @@ cmDspClass_t* cmScaleRangeClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspActiveMeas file_desc:"Issue stored parameter values at specified score locations." kw:[sunit] }
+//( { label:cmDspActiveMeas file_desc:"Issue stored parameter values at specified score locations." kw:[sunit gutim] }
 
 enum
 {
@@ -2412,7 +2413,7 @@ cmDspClass_t* cmActiveMeasClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspAmSync  file_desc:"Calculate MIDI to Audio latency offsets." kw:[sunit] }
+//( { label:cmDspAmSync  file_desc:"Calculate MIDI to Audio latency offsets." kw:[sunit gutim] }
 //
 //
 // Usage:
@@ -2690,7 +2691,7 @@ cmDspClass_t* cmAmSyncClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspNanoMap file_desc:"Control a MIDI synth." kw:[sunit] }
+//( { label:cmDspNanoMap file_desc:"Control a MIDI synth." kw:[sunit gutim] }
 
 enum
 {
@@ -2818,7 +2819,7 @@ cmDspClass_t* cmNanoMapClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspPicadae file_desc:"Control a MIDI synth." kw:[sunit] }
+//( { label:cmDspPicadae file_desc:"Control the Picadae piano mechanism." kw:[sunit gutim] }
 
 enum
 {
@@ -3253,7 +3254,7 @@ cmDspClass_t* cmPicadaeClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspRecdPlay file_desc:"Record audio segments from a live perfromance and play them back at a later time" kw:[sunit] }
+//( { label:cmDspRecdPlay file_desc:"Record audio segments from a live perfromance and play them back at a later time" kw:[sunit gutim] }
 
 enum
 {
@@ -3632,7 +3633,7 @@ cmDspClass_t* cmRecdPlayClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspGoertzel file_desc:"Goertzel tone detection filter" kw:[sunit] }
+//( { label:cmDspGoertzel file_desc:"Goertzel tone detection filter" kw:[sunit gutim] }
 enum
 {
   kHopFactGrId,
@@ -3809,7 +3810,7 @@ cmDspClass_t* cmGoertzelClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspSyncRecd file_desc:"Time align a MIDI and associated audio recording" kw:[sunit] }
+//( { label:cmDspSyncRecd file_desc:"Time align a MIDI and associated audio recording" kw:[sunit gutim] }
 
 enum
 {
@@ -4014,7 +4015,7 @@ cmDspClass_t* cmSyncRecdClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspTakeSeqBldr file_desc:"User interface unit for creating a single sequence from multiple, score aligned, MIDI fragments." kw:[sunit] }
+//( { label:cmDspTakeSeqBldr file_desc:"User interface unit for creating a single sequence from multiple, score aligned, MIDI fragments." kw:[sunit gutim] }
 
 enum
 {
@@ -4148,7 +4149,7 @@ cmDspClass_t* cmTakeSeqBldrClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspTakeSeqRend file_desc:"User interface unit for graphically rendering the MIDI sequences created by cmDspTakeSeqBldr." kw:[sunit] }
+//( { label:cmDspTakeSeqRend file_desc:"User interface unit for graphically rendering the MIDI sequences created by cmDspTakeSeqBldr." kw:[sunit gutim] }
 enum
 {
   kBldrTsrId,
@@ -4369,7 +4370,7 @@ cmDspClass_t* cmTakeSeqRendClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspReflectCalc file_desc:"Estimate the time-of-flight of from an acoustic signal from a speaker to a microphone." kw:[sunit] }
+//( { label:cmDspReflectCalc file_desc:"Estimate the time-of-flight of from an acoustic signal from a speaker to a microphone." kw:[sunit gutim] }
 enum
 {
   kLfsrN_RcId,
@@ -4527,7 +4528,7 @@ cmDspClass_t* cmReflectCalcClassCons( cmDspCtx_t* ctx )
 
 //------------------------------------------------------------------------------------------------------------
 //)
-//( { label:cmDspEchoCancel file_desc:"Normalized least mean squares echo canceller." kw:[sunit] }
+//( { label:cmDspEchoCancel file_desc:"Normalized least mean squares echo canceller." kw:[sunit gutim] }
 enum
 {
   kMuEcId,

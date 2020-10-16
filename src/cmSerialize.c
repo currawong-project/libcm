@@ -1573,13 +1573,10 @@ const bool*         cmSrRdBoolCV( cmSrH_t h, unsigned* eleCntPtr)
   return cmSrReadBoolCV(h,&valPtr,eleCntPtr) == kOkSrRC ? valPtr : NULL;
 }
 
-//{ { label:cmSerialEx }
-//(
-// cmSrTest() is a serializer example function.
-//)
 
-//[
-    
+//
+// cmSrTest() is a serializer example function.
+//
 cmSrRC_t cmSrTest( cmCtx_t* ctx )
 {
   unsigned i,j,k;
@@ -1723,5 +1720,4 @@ cmSrRC_t cmSrTest( cmCtx_t* ctx )
   return rc;
 }
 
-//]
-//}
+

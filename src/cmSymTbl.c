@@ -352,12 +352,11 @@ void        cmSymTblReport(               cmSymTblH_t h )
 
 }
 
-//{ { label:cmSymTblEx }
-//(
+//( { label:cmSymTblEx }
+//
 //  cmSymTblTest() gives a usage example for the symbol table component.
-//)
+//
 
-//[
 void cmSymTblTest( cmCtx_t* ctx )
 {
   unsigned    baseSymId = 100;
@@ -405,5 +404,4 @@ void cmSymTblTest( cmCtx_t* ctx )
 
   return;
 }
-//]
-//}
+//)

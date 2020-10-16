@@ -909,12 +909,10 @@ const cmChar_t* cmLexRcToMsg( unsigned rc )
 }
 
 
-//{ { label:cmLexEx }
-//(
+//( { label:cmLexEx }
+//
 // cmLexTest() gives a simple cmLex example.
-//)
-
-//(
+//
 void cmLexTest( cmRpt_t* rpt)
 {
   cmChar_t buf[] =
@@ -983,4 +981,3 @@ void cmLexTest( cmRpt_t* rpt)
 }
 
 //)
-//}

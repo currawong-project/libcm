@@ -85,7 +85,7 @@
       "-fmarkdown"
       "-thtml5"
       "--css"
-      "cdg_div_cod.css"
+      "cdg_cod.css"
       "--css"
       "cdg_edoc.css"
       "--css"
@@ -97,7 +97,6 @@
 
     copy_files:
     [
-      "cdg_div_cod.css"
       "cdg_edoc.css"
       "cdg_code.css"
       "style.css"

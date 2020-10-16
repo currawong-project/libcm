@@ -3992,13 +3992,11 @@ void _cmJsonTestPrint( void* userPtr, const cmChar_t* text )
 }
 
 
-//{ { label:cmJsonEx }
-//(
+//( { label:cmJsonEx }
+//
 // cmJsonTest() demonstrates some JSON tree operations.
-//)
-
-//(
-cmJsRC_t cmJsonTest( const char* fn, cmCtx_t* ctx )
+//
+JsRC_t cmJsonTest( const char* fn, cmCtx_t* ctx )
 {
   cmJsRC_t      rc  = kOkJsRC;
   cmJsRC_t      rc1 = kOkJsRC;
@@ -4080,4 +4078,3 @@ cmJsRC_t cmJsonTest( const char* fn, cmCtx_t* ctx )
   return rc == kOkJsRC ? rc1 : rc;
 }
 //)
-//}
