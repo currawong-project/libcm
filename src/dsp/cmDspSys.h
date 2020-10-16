@@ -109,8 +109,7 @@ extern "C" {
   cmDspRC_t    cmDspSysInsertHorzBorder( cmDspSysH_t h );
 
   cmDspRC_t    cmDspSysNewPage( cmDspSysH_t h, const cmChar_t* title );
-
-
+  
   //----------------------------------------------------------------------------------------------------
   // Connection Functions.
   //
@@ -278,6 +277,18 @@ extern "C" {
 
   //)
 
+  typedef cmDspInst_t inst_t;
+  
+#define inst( classLabel, instLabel, ... )       cmDspSysAllocInst( h, classLabel, instLabel, PP_NARG(__VA_ARGS__), __VA_ARGS__ )
+#define button( label, real_val )                cmDspSysAllocButton(  h, label, real_val )
+#define scalar( label, rmin, rmax, rstep, rval ) cmDspSysAllocScalar(  h, label, rmin, rmax, rstep, rval )
+
+  
+#define audio( src, sarg, dst, darg )      cmDspSysConnectAudio( h, src, #sarg, dst, #darg )
+#define event( src, sarg, dst, darg )      cmDspSysInstallCb( h, src, #sarg, dst, #darg, NULL )
+
+  
+  
 #ifdef __cplusplus
   }
 #endif

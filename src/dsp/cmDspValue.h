@@ -331,6 +331,7 @@ extern "C" {
   cmDsvRC_t cmDsvDeserializeJson(     cmDspValue_t* vp, cmJsonH_t jsH );
 
   void     cmDsvPrint( const cmDspValue_t* vp, const cmChar_t* label,  cmRpt_t* rpt );
+  void     cmDsvToString( const cmDspValue_t* vp, const cmChar_t* label,  cmChar_t* s, unsigned sN );
 
   //)
   

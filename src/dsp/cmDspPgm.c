@@ -21,6 +21,7 @@
 #include "cmTime.h"
 #include "cmAudioSys.h"
 #include "cmProcObj.h"
+#include "cmPP_NARG.h"
 #include "cmDspCtx.h"
 #include "cmDspClass.h"
 #include "cmDspSys.h"
@@ -897,7 +898,7 @@ cmDspRC_t _cmDspSysPgm_UiTest(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* prp = cmDspSysAllocInst(h,"Printer", NULL,   1, ">" );
   cmDspInst_t* mtp = cmDspSysAllocInst(h,"Meter", "meter",  3, 0.0,  0.0, 4.0);
   cmDspInst_t* ctp = cmDspSysAllocInst(h,"Counter", NULL,   3, 0.0, 10.0, 1.0 );
-                     cmDspSysAllocInst(h,"Label",  "label1", 1, "label2");
+  cmDspInst_t* lbl = cmDspSysAllocInst(h,"Label",  "label1", 1, "label2");
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
     return rc;
 
@@ -922,6 +923,8 @@ cmDspRC_t _cmDspSysPgm_UiTest(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysInstallCb(h, chb, "out", prp, "in", NULL );
   cmDspSysInstallCb(h, chb, "sym", prp, "in", NULL );
+
+  cmDspSysInstallCb(h, mdp, "val", lbl, "in", NULL );
 
   return rc;
 
@@ -2054,8 +2057,8 @@ cmDspRC_t _cmDspSysPgm_ScalarOp( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc;
 
-  cmDspInst_t* add   = cmDspSysAllocInst(   h, "ScalarOp", NULL,  6, 2, "+", "in-0", 0.0, "in-1", 0.0 );
-  cmDspInst_t* mul0  = cmDspSysAllocInst(   h, "ScalarOp", NULL,  6, 2, "*", "in-0", 0.0, "in-1", 0.0 );
+  cmDspInst_t* add   = cmDspSysAllocInst(   h, "ScalarOp", NULL,  6, 2, "+",  "in-0", 0.0, "in-1", 0.0 );
+  cmDspInst_t* mul0  = cmDspSysAllocInst(   h, "ScalarOp", NULL,  6, 2, "*$", "in-0", 0.0, "in-1", 0.0 );
   cmDspInst_t* mul1  = cmDspSysAllocInst(   h, "ScalarOp", NULL,  6, 2, "*", "in-0", 0.0, "in-1", 0.0 );
   cmDspInst_t* in    = cmDspSysAllocScalar( h, "Input",      0.0, 10.0, 0.001, 0.0);
   cmDspInst_t* in_m  = cmDspSysAllocScalar( h, "Input_M",    0.0, 10.0, 0.001, 0.0);
@@ -2067,6 +2070,18 @@ cmDspRC_t _cmDspSysPgm_ScalarOp( cmDspSysH_t h, void** userPtrPtr )
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
     goto errLabel;
 
+  // Notice that changing 'in' or 'in_m' causes 'out' to be recomputed, but other
+  // changes are cached prior to 'add'.  This prevents the program from going into
+  // an infinite loop.
+  //
+  //     in   -> mult0
+  //     in_m -> mult0--+
+  // +-->fb   -> mult1  +----> add
+  // |   fb_m -> mult1-------> add --------+------> out
+  // |                                     |
+  // +-------------------------------------+
+  //
+  
   cmDspSysInstallCb( h, in,    "val", mul0, "in-0", NULL );
   cmDspSysInstallCb( h, in_m,  "val", mul0, "in-1", NULL );
   cmDspSysInstallCb( h, fb,    "val", mul1, "in-0", NULL );
@@ -2870,35 +2885,76 @@ cmDspRC_t _cmDspSysPgm_PortToSym( cmDspSysH_t h, void** userPtrPtr )
 {
   cmDspRC_t rc = kOkDspRC;
 
-  cmDspInst_t* btn0  = cmDspSysAllocButton( h, "Btn0", 0.0 );
-  cmDspInst_t* btn1  = cmDspSysAllocButton( h, "Btn1", 0.0 );
-  cmDspInst_t* btn2  = cmDspSysAllocButton( h, "Btn2", 0.0 );  
+  inst_t* btn0  = button( "Btn0", 0.0 );
+  inst_t* btn1  = button( "Btn1", 0.0 );
+  inst_t* btn2  = button( "Btn2", 0.0 );  
 
-  cmDspInst_t* pts   = cmDspSysAllocInst( h, "PortToSym", NULL, 3, "one", "two", "three");
+  inst_t* pts   = inst( "PortToSym", NULL, "one", "two", "three");
 
-  cmDspInst_t* pr0  = cmDspSysAllocInst( h, "Printer", NULL, 1, "0:" );
-  cmDspInst_t* pr1  = cmDspSysAllocInst( h, "Printer", NULL, 1, "1:" );
+  inst_t* pr0  = inst( "Printer", NULL,  "sym:" );
+  inst_t* pr1  = inst( "Printer", NULL,  "btn:" );
+  inst_t* pr2  = inst( "Printer", NULL,  "out:" );
 
   // check for allocation errors
   if((rc = cmDspSysLastRC(h)) != kOkDspRC )
     goto errLabel;
   
-  cmDspSysInstallCb(   h, btn0, "out", pts, "one",NULL);
-  cmDspSysInstallCb(   h, btn1, "out", pts, "two",NULL);
-  cmDspSysInstallCb(   h, btn2, "out", pts, "three",NULL);
+  event( btn0, out, pts, one );
+  event( btn1, out, pts, two );
+  event( btn2, out, pts, three );
 
-  cmDspSysInstallCb(   h, btn0, "out", pr1, "in",NULL);
-  cmDspSysInstallCb(   h, btn1, "out", pr1, "in",NULL);
-  cmDspSysInstallCb(   h, btn2, "out", pr1, "in",NULL);
+  event( btn0, out, pr1, in );
+  event( btn1, out, pr1, in );
+  event( btn2, out, pr1, in );
 
-  cmDspSysInstallCb(   h, pts,  "one",   pr0, "in", NULL );
-  cmDspSysInstallCb(   h, pts,  "two",   pr0, "in", NULL );
-  cmDspSysInstallCb(   h, pts,  "three", pr0, "in", NULL );
-
+  event( pts,  one,   pr0, in );
+  event( pts,  two,   pr0, in );
+  event( pts,  three, pr0, in );
+  event( pts,  out,   pr2, in );
 
  errLabel:
   return rc;
 }
+
+//------------------------------------------------------------------------------
+//)
+//( { label:cmDspPgm_IntToSym file_desc:"IntToSym example program." kw:[spgm] }
+cmDspRC_t _cmDspSysPgm_IntToSym( cmDspSysH_t h, void** userPtrPtr )
+{
+  cmDspRC_t rc = kOkDspRC;
+
+  inst_t* sel0   = scalar( "Sel0", 0.0, 10.0, 1.0, 1.0 );
+  inst_t* sel1   = scalar( "Sel1", 0.0, 10.0, 1.0, 1.0 );
+  inst_t* sel2   = scalar( "Sel2", 0.0, 10.0, 1.0, 1.0 );
+  inst_t* val    = scalar( "Val",  0.0, 10.0, 1.0, 1.0 );
+
+  inst_t* pts   = inst( "IntToSym", NULL, 0, "one", 0, "two", 0, "three");
+
+  inst_t* pr0  = inst( "Printer", NULL,  "val:" );
+  inst_t* pr1  = inst( "Printer", NULL,  "sym:" );
+  inst_t* pr2  = inst( "Printer", NULL,  "out:" );
+
+  // check for allocation errors
+  if((rc = cmDspSysLastRC(h)) != kOkDspRC )
+    goto errLabel;
+
+  event( sel0, val, pts, one-int );
+  event( sel1, val, pts, two-int );
+  event( sel2, val, pts, three-int );
+  
+  event( val, val, pts, in );
+  event( val, val, pr0, in );
+
+  event( pts,  one,   pr1, in );
+  event( pts,  two,   pr1, in );
+  event( pts,  three, pr1, in );
+  
+  event( pts, out, pr2, in );
+  
+ errLabel:
+  return rc;
+}
+
 
 //------------------------------------------------------------------------------
 //)
@@ -3288,6 +3344,7 @@ _cmDspSysPgm_t _cmDspSysPgmArray[] =
   { "line",              _cmDspSysPgm_Line,           NULL, NULL },
   { "1Up",               _cmDspSysPgm_1Up,            NULL, NULL },
   { "PortToSym",         _cmDspSysPgm_PortToSym,      NULL, NULL },
+  { "IntToSym",          _cmDspSysPgm_IntToSym,       NULL, NULL },
   { "preset",            _cmDspSysPgm_Preset,         NULL, NULL },
   { "rsrcWr",            _cmDspSysPgm_RsrcWr,         NULL, NULL },
   { "router",            _cmDspSysPgm_Router,         NULL, NULL },

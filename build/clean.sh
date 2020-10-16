@@ -14,9 +14,9 @@ function clean_dir {
     
     rm -f  $1/bin/kc.app/Contents/MacOS/kc
     
-    rm -rf $1/include
-    rm -rf $1/lib
-    rm -rf $1/bin
+    #rm -rf $1/include
+    #rm -rf $1/lib
+    #rm -rf $1/bin
     rm -rf $1/.deps
     
 }
@@ -30,11 +30,12 @@ clean_dir osx/release
 
 rm -rf osx/debug/a.out.dSYM
 
-
-#rm -rf ../octave/results
-
-# remove all of emacs backup files (files ending width '~')
-# find ../ -name "*~" -exec rm {} \; 
+# delete everything created by 'autoreconf'.
+rm -rf ../build-aux
+rm -rf ../autom4te.cache
+rm -f  ../config.h.in ../config.h.in~ ../configure ../libtool.m4
+rm -f  ../Makefile.in ../aclocal.m4
+rm -f  ../m4/libtool.m4 ../m4/ltoptions.m4 ../m4/ltsugar.m4 ../m4/ltversion.m4 ../m4/lt~obsolete.m4
 
 
 

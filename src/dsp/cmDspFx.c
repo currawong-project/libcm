@@ -2909,6 +2909,7 @@ typedef struct cmDspScalar_str
   cmDspInst_t          inst;
   _cmDspScalarOpFunc_t func;
   unsigned             inPortCnt;
+  bool                 allActiveFl;                  
 } cmDspScalarOp_t;
 
 cmDspRC_t _cmDspScalarOpFuncMult(cmDspCtx_t* ctx, cmDspInst_t* inst )
@@ -2966,6 +2967,7 @@ cmDspInst_t*  _cmDspScalarOpAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
   double             dfltVal[ inPortCnt ];
   unsigned           i;
   _cmDspScalarOpFunc_t fp = NULL;
+  bool allActiveFl = false;
 
   // validate the count of input ports
   if( inPortCnt == 0 )
@@ -2974,12 +2976,26 @@ cmDspInst_t*  _cmDspScalarOpAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
     goto errLabel;
   }
 
-  // locate the operation function
-  if( strcmp(opIdStr,"*") == 0 )
-    fp = _cmDspScalarOpFuncMult;
-  else
-    if( strcmp(opIdStr,"+") == 0 )
-      fp = _cmDspScalarOpFuncAdd;
+  if( opIdStr != NULL )
+  {
+    switch( opIdStr[0] )
+    {
+      case '*':
+        fp = _cmDspScalarOpFuncMult;
+        break;
+      case '+':
+        fp = _cmDspScalarOpFuncAdd;
+        break;      
+    }
+
+    // if the second character of the operator string is '$' then all input ports trigger an output
+    if( strlen( opIdStr ) > 0 && opIdStr[1]=='$' )
+      allActiveFl = true;
+    
+    
+  }
+  
+  
 
   // validate the operation function
   if( fp == NULL )
@@ -3012,7 +3028,7 @@ cmDspInst_t*  _cmDspScalarOpAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsig
 
   p->inPortCnt = inPortCnt;
   p->func      = fp;
-  
+  p->allActiveFl = allActiveFl;
   va_end(vl1);
 
   return &p->inst;
@@ -3039,7 +3055,7 @@ cmDspRC_t _cmDspScalarOpRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
 
   if((rc = cmDspSetEvent(ctx,inst,evt)) == kOkDspRC )
   {
-    if( evt->dstVarId == kBaseOpdSoId )
+    if( evt->dstVarId == kBaseOpdSoId || p->allActiveFl )
       p->func(ctx,inst);
   }
 
@@ -5587,6 +5603,7 @@ cmDspInst_t*  _cmDspPortToSym_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, uns
     // register the symbol
     symIdArray[i] = cmSymTblRegisterSymbol(ctx->stH,symLabel);
 
+    // input port - any msg in this port will generate an output from 'out' as well as the associated output port
     cmDspArgSetup(ctx, args+kBaseInPtsId+i, symLabel, cmInvalidId, kBaseInPtsId+i, 0, 0, kInDsvFl  | kTypeDsvMask, cmTsPrintfH(ctx->lhH,"%s Input.",symLabel) );
 
     cmDspArgSetup(ctx, args+baseOutPtsId+i, symLabel, cmInvalidId, baseOutPtsId+i, 0, 0, kOutDsvFl | kSymDsvFl,    cmTsPrintfH(ctx->lhH,"%s Output.",symLabel) );
@@ -5631,7 +5648,7 @@ cmDspRC_t _cmDspPortToSym_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
     unsigned idx = evt->dstVarId - kBaseInPtsId;
     assert( idx < p->symIdCnt );
     cmDspSetSymbol(ctx,inst,p->baseOutPtsId + idx, p->symIdArray[idx]);
-    return cmDspSetSymbol(ctx,inst,kOutPtsId,p->symIdArray[ evt->dstVarId - kBaseInPtsId ]);
+    return cmDspSetSymbol(ctx,inst,kOutPtsId,      p->symIdArray[idx]);
   }
 
   return rc;
@@ -5650,6 +5667,178 @@ cmDspClass_t* cmPortToSymClassCons( cmDspCtx_t* ctx )
     "If a message of any kind is received on a port then send the symbol associated with the port.");
 
   return &_cmPortToSym_DC;
+}
+
+//------------------------------------------------------------------------------------------------------------
+//)
+//( { label:cmDspIntToSym file_desc:"Send a pre-defined symbol every time a message arrives a given input port." kw:[sunit] }
+enum
+{
+ kInItsId,
+ kOutItsId,
+ kBaseInItsId
+};
+
+cmDspClass_t _cmIntToSym_DC;
+
+typedef struct
+{
+  cmDspInst_t inst;
+  int*        intArray;
+  unsigned*   symIdArray;
+  unsigned    symIdCnt;
+  unsigned    baseIntItsId;
+  unsigned    baseOutItsId;
+  
+} cmDspIntToSym_t;
+
+cmDspInst_t*  _cmDspIntToSym_Alloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
+{
+  va_list       vl1;
+  va_copy(vl1,vl);
+
+  if( va_cnt < 2 || va_cnt % 2 !=0  )
+  {
+    va_end(vl1);
+    cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'IntToSym' constructor argument list must contain at least one int/symbol pair and all pairs must be complete.");
+    return NULL;
+  }
+
+  unsigned      symCnt    = va_cnt/2;
+  unsigned      argCnt    = 2 + 3*symCnt;
+  cmDspVarArg_t args[argCnt+1];
+
+  unsigned* symIdArray   = cmMemAllocZ(unsigned,symCnt);
+  int*      intArray     = cmMemAllocZ(int,symCnt);
+  unsigned  baseIntItsId = kBaseInItsId + symCnt;  
+  unsigned  baseOutItsId = baseIntItsId + symCnt;
+
+  // setup the integer input and symbol output port arg recd
+  cmDspArgSetup(ctx,args,  "in",  cmInvalidId, kInItsId,  0, 0, kInDsvFl  | kIntDsvFl, "Integer input" );
+  cmDspArgSetup(ctx,args+1,"out", cmInvalidId, kOutItsId, 0, 0, kOutDsvFl | kSymDsvFl, "Output" );
+
+  unsigned i;
+
+  for(i=0; i<symCnt; ++i)
+  {
+    // get the integer value
+    intArray[i] = va_arg(vl,int);
+    
+    // get the symbol label
+    const cmChar_t* symLabel = va_arg(vl,const char*);
+    assert( symLabel != NULL );
+
+    unsigned intLabelN = (symLabel==NULL ? 0 : strlen(symLabel)) + 5;
+    cmChar_t intLabel[ intLabelN ];
+    snprintf(intLabel,intLabelN,"%s%s", symLabel==NULL ? "" : symLabel, "-int" );
+
+    // register the symbol
+    symIdArray[i] = cmSymTblRegisterSymbol(ctx->stH,symLabel);
+
+    // trigger port associated with this symbol (any msg on this port will trigger an output)
+    cmDspArgSetup(ctx, args+kBaseInItsId+i, symLabel, cmInvalidId, kBaseInItsId+i, 0, 0, kInDsvFl  | kTypeDsvMask, cmTsPrintfH(ctx->lhH,"%s Input.",symLabel) );
+
+    // this port is used to set the integer value associated with this symbol
+    cmDspArgSetup(ctx, args+baseIntItsId+i, intLabel, cmInvalidId, baseIntItsId+i, 0, 0, kInDsvFl  | kIntDsvFl,  cmTsPrintfH(ctx->lhH,"Set the integer value associated with %s.",symLabel) );
+    
+    // symbol output port - when ever this symbol is sent out it will go out this port as well as the 'out' port
+    cmDspArgSetup(ctx, args+baseOutItsId+i, symLabel, cmInvalidId, baseOutItsId+i, 0, 0, kOutDsvFl | kSymDsvFl,    cmTsPrintfH(ctx->lhH,"%s Output.",symLabel) );
+
+    
+  }
+
+  cmDspArgSetupNull(args + argCnt);
+
+  cmDspIntToSym_t* p = cmDspInstAlloc(cmDspIntToSym_t,ctx,classPtr,args,instSymId,id,storeSymId,0,vl1);
+
+  p->symIdCnt     = symCnt;
+  p->intArray     = intArray;
+  p->symIdArray   = symIdArray;
+  p->baseOutItsId = baseOutItsId;
+  p->baseIntItsId = baseIntItsId;
+
+  cmDspSetDefaultSymbol(ctx,&p->inst,kOutItsId,cmInvalidId);
+
+  va_end(vl1);
+
+  return &p->inst;
+}
+cmDspRC_t _cmDspIntToSym_Free(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspIntToSym_t* p = (cmDspIntToSym_t*)inst;
+  cmMemFree(p->symIdArray);
+  return kOkDspRC;
+}
+
+cmDspRC_t _cmDspIntToSym_Reset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  return cmDspApplyAllDefaults(ctx,inst);
+}
+
+cmDspRC_t _cmDspIntToSymSendOut( cmDspCtx_t* ctx, cmDspInst_t* inst, unsigned idx )
+{
+  cmDspIntToSym_t* p = (cmDspIntToSym_t*)inst;
+  assert( idx < p->symIdCnt );
+  cmDspSetSymbol(ctx,inst,p->baseOutItsId + idx, p->symIdArray[idx]);
+  return cmDspSetSymbol(ctx, inst, kOutItsId, p->symIdArray[ idx ]);
+}
+
+
+cmDspRC_t _cmDspIntToSym_Recv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{ 
+  cmDspRC_t    rc = kOkDspRC;
+  cmDspIntToSym_t* p = (cmDspIntToSym_t*)inst;
+
+  // if an integer arrived at 'in'
+  if( evt->dstVarId == kInItsId )
+  {
+    cmDspSetEvent(ctx,inst,evt);
+
+    unsigned i;
+    int      intVal = cmDspInt(inst,kInItsId);
+    
+    for(i=0; i<p->symIdCnt; ++i)
+      if( intVal == p->intArray[i] )
+      {
+        rc = _cmDspIntToSymSendOut( ctx, inst, i );
+        break;
+      } 
+  }
+  else
+  {  
+    // if a msg of any type is recieved on an input port - send out the associated symbol
+    if( kBaseInItsId <= evt->dstVarId && evt->dstVarId < kBaseInItsId + p->symIdCnt )
+    {
+      _cmDspIntToSymSendOut( ctx, inst, evt->dstVarId - kBaseInItsId );
+    }
+    else
+      
+      // if this is a new interger value for this symbol
+      if( p->baseIntItsId <= evt->dstVarId && evt->dstVarId < p->baseIntItsId + p->symIdCnt )
+      {
+        cmDspSetEvent(ctx,inst,evt);
+
+        p->intArray[ evt->dstVarId - p->baseIntItsId ] = cmDspInt( inst, evt->dstVarId );
+      }
+  }
+
+  
+  return rc;
+}
+
+cmDspClass_t* cmIntToSymClassCons( cmDspCtx_t* ctx )
+{
+  cmDspClassSetup(&_cmIntToSym_DC,ctx,"IntToSym",
+    NULL,
+    _cmDspIntToSym_Alloc,
+    _cmDspIntToSym_Free,
+    _cmDspIntToSym_Reset,
+    NULL,
+    _cmDspIntToSym_Recv,
+    NULL,NULL,
+    "If a message of any kind is received on a port then send the symbol associated with the port.");
+
+  return &_cmIntToSym_DC;
 }
 
 //------------------------------------------------------------------------------------------------------------

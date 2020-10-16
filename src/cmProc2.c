@@ -6501,7 +6501,8 @@ cmRC_t cmSpecDist2Init( cmSpecDist2_t* p, unsigned procSmpCnt, double srate, uns
   p->wndSmpCnt    = wndSmpCnt;
   p->hopSmpCnt    = (unsigned)floor(wndSmpCnt/hopFcmt);
   p->procSmpCnt   = procSmpCnt;
-
+  p->igain        = 1.0;
+  
   p->ceiling      = 30;
   p->expo         = 2.0;
     
@@ -6511,8 +6512,9 @@ cmRC_t cmSpecDist2Init( cmSpecDist2_t* p, unsigned procSmpCnt, double srate, uns
 
   p->mix          = 0.0;
 
-  p->pva = cmPvAnlAlloc(  p->obj.ctx, NULL, procSmpCnt, srate, wndSmpCnt, p->hopSmpCnt, flags );
-  p->pvs = cmPvSynAlloc(  p->obj.ctx, NULL, procSmpCnt, srate, wndSmpCnt, p->hopSmpCnt, olaWndTypeId );
+  p->igainV = cmMemResizeZ( cmSample_t, p->igainV, procSmpCnt );
+  p->pva    = cmPvAnlAlloc(  p->obj.ctx, NULL, procSmpCnt, srate, wndSmpCnt, p->hopSmpCnt, flags );
+  p->pvs    = cmPvSynAlloc(  p->obj.ctx, NULL, procSmpCnt, srate, wndSmpCnt, p->hopSmpCnt, olaWndTypeId );
 
 
   return rc;
@@ -6522,7 +6524,7 @@ cmRC_t cmSpecDist2Final(cmSpecDist2_t* p )
 {
   cmRC_t rc = cmOkRC;
 
-  
+  cmMemFree(p->igainV);
   cmPvAnlFree(&p->pva);
   cmPvSynFree(&p->pvs);
   return rc;
@@ -6585,8 +6587,12 @@ cmRC_t  cmSpecDist2Exec( cmSpecDist2_t* p, const cmSample_t* sp, unsigned sn )
 
   unsigned binN = p->pva->binCnt;
 
+  cmVOS_MultVVS( p->igainV, sn, sp, p->igain );
+
+  //printf("%f\n",p->igainV[0]);
+
   // cmPvAnlExec() returns true when it calc's a new spectral output frame
-  if( cmPvAnlExec( p->pva, sp, sn ) )
+  if( cmPvAnlExec( p->pva, p->igainV, sn ) )
   {
     cmReal_t X0m[binN];
     cmReal_t X1m[binN]; 
@@ -6652,7 +6658,7 @@ const cmSample_t* cmSpecDist2Out(  cmSpecDist2_t* p )
 
 void  cmSpecDist2Report( cmSpecDist2_t* p )
 {
-  printf("ceil:%f expo:%f mix:%f thresh:%f upr:%f lwr:%f\n", p->ceiling,p->expo,p->mix,p->thresh,p->lwrSlope,p->uprSlope);
+  printf("igain:%f ceil:%f expo:%f mix:%f thresh:%f upr:%f lwr:%f\n", p->igain, p->ceiling,p->expo,p->mix,p->thresh,p->lwrSlope,p->uprSlope);
 }
 
 

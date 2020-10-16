@@ -111,10 +111,10 @@ endif
 
 lib_LTLIBRARIES=
 include_HEADERS=
-
+AM_LDFLAGS=
 
 AM_CPPFLAGS = -D _GNU_SOURCE  -I.. -I$(srcdir)/src  -I$(srcdir)/src/dsp  -I$(srcdir)/src/vop  -I$(srcdir)/src/app
-AM_CFLAGS   = -Wno-multichar 
+AM_CFLAGS   = -Wall -Wno-multichar 
 AM_CXXFLAGS = 
 
 # debug/release switches
@@ -128,6 +128,7 @@ endif
 
 # Linux specific compiler flags
 if OS_LINUX
+  AM_LDFLAGS += -lasound  # why add this link flag? here's why: https://stackoverflow.com/questions/35480928/alsa-unexpected-results-when-called-from-shared-library
 if OS_64
   AM_CFLAGS  += -m64
 endif	
@@ -143,13 +144,15 @@ src_libcm_la_SOURCES   = $(cmSRC) $(cmHDR)
 include_HEADERS += $(cmHDR)
 lib_LTLIBRARIES += src/libcm.la
 
-
-# distclean-local sets the source tree back to it's minimal, pre-configure, state.
+# See: https://www.gnu.org/savannah-checkouts/gnu/automake/manual/html_node/Clean.html#Clean
+# 'distclean-local' is used by automake 'distclean' to perform customized local actions
+# ${exec_prefix} is the install prefix given to 'configure' by the user.
+# ${srcdir} is the directory of this Makefile and is set by autoconf.
 distclean-local:
 	rm -rf ${exec_prefix}/src        
-	rm -rf ${srcdir}/autom4te.cache
-	rm -rf ${srcdir}/build-aux
-	rm -f  ${srcdir}/m4/libtool.m4   ${srcdir}/m4/lt~obsolete.m4 ${srcdir}/m4/ltsugar.m4
-	rm -f  ${srcdir}/m4/ltversion.m4 ${srcdir}/m4/ltoptions.m4
-	rm -f  ${srcdir}/aclocal.m4      ${srcdir}/config.h.in ${srcdir}/config.h.in~
-	rm -f  ${srcdir}/Makefile.in     ${srcdir}/configure
+	rm -rf ${exec_prefix}/lib        
+	rm -rf ${exec_prefix}/include
+
+maintainer-clean-local:
+	${srcdir}/config.h.in~
+

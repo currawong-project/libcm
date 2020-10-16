@@ -1067,6 +1067,7 @@ enum
 {
   kChAoId,
   kGainAoId,
+  kEnableAoId,
   kInAoId
 };
 
@@ -1075,23 +1076,30 @@ cmDspClass_t _cmAudioOutDC;
 typedef struct
 {
   cmDspInst_t inst;
+  unsigned    onSymId;
+  unsigned    offSymId;  
 } cmDspAudioOut_t;
 
 cmDspInst_t*  _cmDspAudioOutAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
   cmDspVarArg_t args[] =
   {
-    { "ch",  kChAoId,  0,      0, kInDsvFl | kUIntDsvFl   | kReqArgDsvFl, "Audio output channel index"},
-    { "gain",kGainAoId,0,      0, kInDsvFl | kDoubleDsvFl | kOptArgDsvFl, "Output gain multiplier"},  
-    { "in",  kInAoId,  0,      1, kInDsvFl | kAudioBufDsvFl, "Audio input" },
+    { "ch",    kChAoId,    0,      0, kInDsvFl | kUIntDsvFl   | kReqArgDsvFl, "Audio output channel index"},
+    { "gain",  kGainAoId,  0,      0, kInDsvFl | kDoubleDsvFl | kOptArgDsvFl, "Output gain multiplier"},
+    { "enable",kEnableAoId,0,      0, kInDsvFl | kSymDsvFl    | kOptArgDsvFl, "Enable: on off"},
+    { "in",    kInAoId,    0,      1, kInDsvFl | kAudioBufDsvFl, "Audio input" },
     { NULL, 0, 0, 0, 0 }
   };
 
   cmDspAudioOut_t* p = cmDspInstAlloc(cmDspAudioOut_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
 
+  p->offSymId = cmSymTblRegisterStaticSymbol(ctx->stH,"off");
+  p->onSymId  = cmSymTblRegisterStaticSymbol(ctx->stH,"on");
+
 
   cmDspSetDefaultUInt(   ctx, &p->inst, kChAoId,   0,   0);
   cmDspSetDefaultDouble( ctx, &p->inst, kGainAoId, 0, 1.0);
+  cmDspSetDefaultSymbol( ctx, &p->inst, kEnableAoId, p->onSymId );
 
   return &p->inst;
 }
@@ -1106,10 +1114,12 @@ cmDspRC_t _cmDspAudioOutReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
 
 cmDspRC_t _cmDspAudioOutExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
-  cmDspRC_t         rc     = kOkDspRC;
-  unsigned          chIdx  = cmDspUInt(inst,kChAoId);
-  unsigned          oChCnt = ctx->ctx->oChCnt;
-  double            gain   = cmDspDouble(inst,kGainAoId);
+  cmDspRC_t        rc       = kOkDspRC;
+  cmDspAudioOut_t* p        = (cmDspAudioOut_t*)inst;
+  unsigned         chIdx    = cmDspUInt(inst,kChAoId);
+  bool             enableFl = cmDspSymbol(inst,kEnableAoId) == p->onSymId;
+  unsigned         oChCnt   = ctx->ctx->oChCnt;
+  double           gain     = cmDspDouble(inst,kGainAoId);
 
   if( chIdx >= oChCnt )
   {
@@ -1118,7 +1128,7 @@ cmDspRC_t _cmDspAudioOutExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
     return rc;
   }
 
-  const cmSample_t* sp     = cmDspAudioBuf(ctx,inst,kInAoId,0);
+  const cmSample_t* sp = cmDspAudioBuf(ctx,inst,kInAoId,0);
 
   if( sp == NULL )
   {
@@ -1132,7 +1142,7 @@ cmDspRC_t _cmDspAudioOutExec(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
   
   // if this channel is disabled or set to pass-through then chArray[chIdx] will be NULL
   if( ctx->ctx->oChArray[chIdx] != NULL )
-    cmVOS_MultVVS(ctx->ctx->oChArray[chIdx],n,sp,(cmSample_t)gain);
+    cmVOS_MultVVS(ctx->ctx->oChArray[chIdx],n,sp, (cmSample_t)(enableFl ? gain : 0));
 
   return kOkDspRC;
 }
@@ -1154,6 +1164,11 @@ cmDspRC_t _cmDspAudioOutRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_
     case kGainAoId:
       cmDspSetEvent(ctx,inst,evt);
       break;
+      
+    case kEnableAoId:
+      cmDspSetEvent(ctx,inst,evt);
+      break;
+
   }
   return rc;
 }
@@ -1687,7 +1702,8 @@ cmDspClass_t*  cmMeterClassCons( cmDspCtx_t* ctx )
 enum
 {
   kInLbId,
-  kAlignLbId
+  kAlignLbId,
+  kTextLbId
 };
 
 cmDspClass_t _cmLabelDC;
@@ -1695,25 +1711,66 @@ cmDspClass_t _cmLabelDC;
 typedef struct
 {
   cmDspInst_t inst;
+  cmChar_t* label;
 } cmDspLabel_t;
 
 cmDspInst_t*  _cmDspLabelAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsigned storeSymId, unsigned instSymId, unsigned id, unsigned va_cnt, va_list vl )
 {
-  cmDspVarArg_t args[] =
+  const unsigned  argCnt = 3;
+  cmDspVarArg_t   args[argCnt+1];
+  cmChar_t*       label  = NULL;
+  unsigned        align  = kLeftAlignDuiId;
+  va_list         vl1;
+  
+  va_copy(vl1,vl);
+
+  if( va_cnt < 1 )
   {
-    { "in",   kInLbId,    0, 0,  kInDsvFl | kStrzDsvFl  | kReqArgDsvFl,  "LabelText" },
-    { "align",kAlignLbId, 0, 0,  kInDsvFl | kUIntDsvFl  | kOptArgDsvFl,  "Alignment 0=right 1=left 2=center" },
-    { NULL, 0, 0, 0, 0 }
-  };
+    va_end(vl1);
+    cmDspClassErr(ctx,classPtr,kVarArgParseFailDspRC,"The 'label' constructor argument list must contain at least one argument.");
+    return NULL;
+  }
 
-  cmDspLabel_t* p = cmDspInstAlloc(cmDspLabel_t,ctx,classPtr,args,instSymId,id,storeSymId,va_cnt,vl);
+  // get the default label
+  const char* clabel = va_arg(vl,const char*);
+  if( clabel != NULL && strlen(clabel) > 0 )
+  {
+    label = cmLhAllocStr(ctx->lhH,clabel);
+    printf("%s\n",label);
+  }
 
-  cmDspSetDefaultDouble(ctx, &p->inst, kAlignLbId,  0.0, kLeftAlignDuiId);
+  // if an alignment id was provided
+  if( va_cnt > 1 )
+    align = va_arg(vl,double);
 
+  // setup the arg. config. array.
+  cmDspArgSetup(ctx,args+0,"in",   cmInvalidId, kInLbId,    0,0, kInDsvFl | kTypeDsvMask, "Input to set label" );
+  cmDspArgSetup(ctx,args+1,"align",cmInvalidId, kAlignLbId, 0,0, kInDsvFl | kUIntDsvFl,   "Justification: 0=right 1=center 2=left" );
+  cmDspArgSetup(ctx,args+2,"text", cmInvalidId, kTextLbId,  0,0, kInDsvFl | kStrzDsvFl,   "Label text");
+  cmDspArgSetupNull(args + argCnt);
+
+  // create the instance
+  cmDspLabel_t* p = cmDspInstAlloc(cmDspLabel_t,ctx,classPtr,args,instSymId,id,storeSymId,0,vl1);
+
+  p->label = label;
+
+  // set the default variable values
+  cmDspSetDefaultDouble(ctx, &p->inst, kAlignLbId,  0.0, align);
+  cmDspSetDefaultStrcz( ctx, &p->inst, kTextLbId,  NULL, label==NULL ? "" : label );
+  
   // create the UI control
-  cmDspUiLabelCreate(ctx,&p->inst,kInLbId,kAlignLbId);
+  cmDspUiLabelCreate(ctx,&p->inst,kTextLbId,kAlignLbId);
 
+  va_end(vl1);
+  
   return &p->inst;
+}
+
+cmDspRC_t _cmDspLabelFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
+{
+  cmDspLabel_t* p = (cmDspLabel_t*)inst;
+  cmLhFree(ctx->lhH,p->label);
+  return kOkDspRC;
 }
 
 cmDspRC_t _cmDspLabelReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
@@ -1724,6 +1781,21 @@ cmDspRC_t _cmDspLabelReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t*
 
 cmDspRC_t _cmDspLabelRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t* evt )
 {
+  const unsigned bN = 128;
+  cmChar_t b[ bN+1 ];
+
+  // if this event is arriving on the 'in' port ...
+  if( evt->dstVarId == kInLbId )
+  {
+    cmDspLabel_t* p = (cmDspLabel_t*)inst;
+    // ... then convert it to a string
+    cmDsvToString( evt->valuePtr, p->label, b, bN );
+
+    // and set the 'label' variable 
+    return cmDspSetStrcz(ctx, inst, kTextLbId, b );
+  }
+
+  
   return cmDspSetEvent(ctx,inst,evt);
 }
 
@@ -1732,7 +1804,7 @@ cmDspClass_t*  cmLabelClassCons( cmDspCtx_t* ctx )
   cmDspClassSetup(&_cmLabelDC,ctx,"Label",
     NULL,
     _cmDspLabelAlloc,
-    NULL,
+    _cmDspLabelFree,
     _cmDspLabelReset,
     NULL,
     _cmDspLabelRecv,
@@ -2907,6 +2979,7 @@ enum
   kLoopWtId,
   kBegWtId,
   kEndWtId,
+  kChWtId,
   kCmdWtId,
   kOtWtId,
   kGainWtId,
@@ -2951,6 +3024,7 @@ typedef struct
   cmAudioFileH_t afH;           // current audio file handle
   int            nxtBegSmpIdx;  // the beg/end sample index to use with the next filename to arrive at port 'fn'
   int            nxtEndSmpIdx;  //
+  unsigned       nxtChIdx;
   cmThreadH_t    thH;
   bool           loadFileFl;
   cmDspCtx_t*    ctx;
@@ -2976,6 +3050,7 @@ cmDspInst_t*  _cmDspWaveTableAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsi
     { "loop",   kLoopWtId,   0, 0, kInDsvFl  | kIntDsvFl  | kOptArgDsvFl, "-1=loop forever  >0=loop count (dflt:-1)"},
     { "beg",    kBegWtId,    0, 0, kInDsvFl  | kIntDsvFl  | kOptArgDsvFl, "File begin sample index" },
     { "end",    kEndWtId,    0, 0, kInDsvFl  | kIntDsvFl  | kOptArgDsvFl, "File end sample index (-1=play all)" },
+    { "ch",     kChWtId,     0, 0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "File channel index 0=left, 1=right" },
     { "cmd",    kCmdWtId,    0, 0, kInDsvFl  | kSymDsvFl  | kOptArgDsvFl, "Command: on off"},
     { "ot",     kOtWtId,     0, 0, kInDsvFl  | kUIntDsvFl | kOptArgDsvFl, "Overtone count"},
     { "gain",   kGainWtId,   0, 0, kInDsvFl  | kDoubleDsvFl|kOptArgDsvFl, "Gain"},
@@ -3005,6 +3080,7 @@ cmDspInst_t*  _cmDspWaveTableAlloc(cmDspCtx_t* ctx, cmDspClass_t* classPtr, unsi
   cmDspSetDefaultInt(   ctx, &p->inst, kLoopWtId,  0,    -1 );
   cmDspSetDefaultInt(   ctx, &p->inst, kBegWtId,   0,     0 );
   cmDspSetDefaultInt(   ctx, &p->inst, kEndWtId,   0,    -1 );
+  cmDspSetDefaultUInt(  ctx, &p->inst, kChWtId,    0,     0 );  
   cmDspSetDefaultSymbol(ctx, &p->inst, kCmdWtId,   p->onSymId );
   cmDspSetDefaultUInt(  ctx, &p->inst, kOtWtId,    0,     5 );
   cmDspSetDefaultDouble(ctx, &p->inst, kGainWtId,  0,     1.0 );
@@ -3038,10 +3114,9 @@ cmDspRC_t _cmDspWaveTableFree(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
 // mode then the the function will automatically begin reading from the begining of the
 // file segment.  If the end of the file segment is encountered and the wave table is not
 // in loop mode then the empty portion of wt[] will be set to zero.
-cmDspRC_t _cmDspWaveTableReadBlock( cmDspCtx_t* ctx, cmDspWaveTable_t* p, cmSample_t* wt, unsigned rdSmpCnt, int begSmpIdx, int endSmpIdx, int maxLoopCnt  )
+cmDspRC_t _cmDspWaveTableReadBlock( cmDspCtx_t* ctx, cmDspWaveTable_t* p, cmSample_t* wt, unsigned rdSmpCnt, unsigned chIdx, int begSmpIdx, int endSmpIdx, int maxLoopCnt  )
 {
   unsigned    actFrmCnt = 0;
-  unsigned    chIdx     = 0;
   unsigned    chCnt     = 1;
   unsigned    fn        = endSmpIdx - p->fi + 1; // count of samples between p->fi and endSmpIdx
   unsigned    n0        = rdSmpCnt;
@@ -3117,9 +3192,10 @@ cmDspRC_t _cmDspWaveTableReadAudioFile( cmDspCtx_t* ctx, cmDspWaveTable_t* p, un
 {
   unsigned    n0        = rdSmpCnt;
   unsigned    n1        = 0;
-  int         begSmpIdx = cmDspInt(&p->inst,kBegWtId);
-  int         endSmpIdx = cmDspInt(&p->inst,kEndWtId);
-  int         maxLoopCnt= cmDspInt(&p->inst,kLoopWtId);
+  int         begSmpIdx = cmDspInt( &p->inst,kBegWtId);
+  int         endSmpIdx = cmDspInt( &p->inst,kEndWtId);
+  unsigned    chIdx     = cmDspUInt(&p->inst,kChWtId);
+  int         maxLoopCnt= cmDspInt( &p->inst,kLoopWtId);
 
   if( endSmpIdx < begSmpIdx )
     endSmpIdx = p->fn-1;
@@ -3137,7 +3213,7 @@ cmDspRC_t _cmDspWaveTableReadAudioFile( cmDspCtx_t* ctx, cmDspWaveTable_t* p, un
   if( p->doneFl )
     cmVOS_Zero(p->wt + p->wti,n0);
   else
-    if( _cmDspWaveTableReadBlock(ctx, p, p->wt+p->wti, n0,begSmpIdx,endSmpIdx,maxLoopCnt  ) != kOkDspRC )
+    if( _cmDspWaveTableReadBlock(ctx, p, p->wt+p->wti, n0, chIdx, begSmpIdx,endSmpIdx,maxLoopCnt  ) != kOkDspRC )
       return cmDspInstErr(ctx,&p->inst,kVarNotValidDspRC,"An error occured while reading the wave table file.");
 
   p->wtn -= n0;   // decrease the count of available samples
@@ -3149,7 +3225,7 @@ cmDspRC_t _cmDspWaveTableReadAudioFile( cmDspCtx_t* ctx, cmDspWaveTable_t* p, un
     if( p->doneFl )
       cmVOS_Zero(p->wt,n1);
     else
-      if( _cmDspWaveTableReadBlock(ctx, p, p->wt, n1,begSmpIdx,endSmpIdx,maxLoopCnt  ) != kOkDspRC )
+      if( _cmDspWaveTableReadBlock(ctx, p, p->wt, n1, chIdx, begSmpIdx,endSmpIdx,maxLoopCnt  ) != kOkDspRC )
         return cmDspInstErr(ctx,&p->inst,kVarNotValidDspRC,"An error occured while reading the wave table file.");
 
     p->wtn -= n1;  // decrease the count of available samples
@@ -3382,6 +3458,7 @@ cmDspRC_t _cmDspWaveTableReset(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEv
 
   p->nxtBegSmpIdx = cmDspInt(&p->inst,kBegWtId);
   p->nxtEndSmpIdx = cmDspInt(&p->inst,kEndWtId);
+  p->nxtChIdx     = cmDspUInt(&p->inst,kChWtId);
 
   return _cmDspWaveTableCreateTable(ctx,p);
 
@@ -3490,6 +3567,7 @@ cmDspRC_t _cmDspWaveTableRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
           cmDspSetEvent(ctx,inst,evt);                       // set the file name variable
           cmDspSetInt(ctx,inst,kBegWtId,p->nxtBegSmpIdx);    // set the beg/end smp idx var's from the stored nxtBeg/EndSmpIdx values
           cmDspSetInt(ctx,inst,kEndWtId,p->nxtEndSmpIdx);    // 
+          cmDspSetUInt(ctx,inst,kChWtId, p->nxtChIdx);       // 
           cmDspSetUInt(ctx,inst,kShapeWtId,kFileWtId);       // switch to file mode 
           rc = _cmDspWaveTableCreateTable(ctx,p);            // reload the wavetable
         }
@@ -3506,6 +3584,11 @@ cmDspRC_t _cmDspWaveTableRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt
       p->nxtEndSmpIdx = cmDsvGetInt(evt->valuePtr);
       break;
 
+    case kChWtId:
+      // store for next incoming file name msg
+      p->nxtChIdx = cmDsvGetUInt(evt->valuePtr);
+      break;
+      
     case kShapeWtId:
       if( cmDsvGetUInt(evt->valuePtr) < kShapeWtCnt )
       {
@@ -5546,6 +5629,7 @@ cmDspClassConsFunc_t _cmDspClassBuiltInArray[] =
   cm1UpClassCons,
   cmGateToSymClassCons,
   cmPortToSymClassCons,
+  cmIntToSymClassCons,
   cmRouterClassCons,
   cmAvailChClassCons,
 

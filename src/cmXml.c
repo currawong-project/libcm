@@ -650,6 +650,9 @@ cmXmlRC_t _cmXmlReadNode( cmXml_t* p, cmXmlNode_t* parent )
       return rc;
     }
 
+    if( np==NULL && p->stack==NULL)
+      break;
+
     // if an  end-tag was just read or node was created but closed then pop the stack
     if( np==NULL || (np==p->stack && cmIsFlag(np->flags,kClosedXmlFl)) )
       p->stack = p->stack->parent;

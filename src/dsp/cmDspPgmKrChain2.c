@@ -105,6 +105,7 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   unsigned paramRtChCnt = 2;
   cmDspInst_t* wnd_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
   cmDspInst_t* hop_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
+  cmDspInst_t* ign_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
   cmDspInst_t* cel_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
   cmDspInst_t* exp_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
   cmDspInst_t* mix_rt   = cmDspSysAllocInst(h, "Router",      NULL,  2,  paramRtChCnt, paramRtChCnt-1 );
@@ -118,7 +119,9 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspInst_t* kr1  = cmDspSysAllocInst(h, "Kr2",        NULL,   2, krWndSmpCnt, krHopFact );
   cmDspInst_t* xfad = cmDspSysAllocInst(h, "Xfader",     NULL,   3, xfadeChCnt,  xfadeMs, xfadeInitFl ); 
   cmDspInst_t* mix  = cmDspSysAllocInst(h, "AMix",       NULL,   3, xfadeChCnt,  mixGain, mixGain );
-  cmDspInst_t* cmp  = cmDspSysAllocInst(h, "Compressor", NULL,   8, cmpBypassFl, cmpThreshDb, cmpRatio_num, cmpAtkMs, cmpRlsMs, cmpMakeup, cmpWndMs, cmpWndMaxMs ); 
+  cmDspInst_t* cmp  = cmDspSysAllocInst(h, "Compressor", NULL,   8, cmpBypassFl, cmpThreshDb, cmpRatio_num, cmpAtkMs, cmpRlsMs, cmpMakeup, cmpWndMs, cmpWndMaxMs );
+
+  
 
   // Internal audio connections
   cmDspSysConnectAudio(h, kr0,  "out",   xfad, "in-0");
@@ -158,6 +161,7 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspSysNewColumn(h,0);
   cmDspInst_t* wnd_ctl = cmDspSysAllocMsgListP(h,preGrpSymId,NULL, lbl("WndSmpCnt"), NULL, "wndSmpCnt", 2);
   cmDspInst_t* hop_ctl = cmDspSysAllocMsgListP(h,preGrpSymId,NULL, lbl("HopFact"),   NULL, "hopFact",   2);
+  cmDspInst_t* ign_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("In Gain"),   0.0,  10.0, 0.001, 1.0 );
   cmDspInst_t* cel_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Ceiling"),   0.0, 100.0, 0.1,  30.0 );
   cmDspInst_t* exp_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Expo"),    -10.0,  10.0, 0.01,  2.0 );
   cmDspInst_t* mix_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Mix"),       0.0,   1.0, 0.01,  0.0 );    
@@ -166,7 +170,6 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspInst_t* lwr_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Lwr slope"), 0.3,  10.0, 0.01,  2.0 );
   cmDspInst_t* wet_ctl = cmDspSysAllocScalarP( h,preGrpSymId,NULL, lbl("Wet Dry"),   0.0,   1.0, 0.001, 1.0 );
 
-  
   cmDspSysInstallCb(h, wnd_ctl, "out",         wnd_rt, "f-in",    NULL );
   cmDspSysInstallCb(h, achan,   "ch",          wnd_rt, "sel",     NULL );   // ach->rt sel
   cmDspSysInstallCb(h, wnd_rt,  "f-out-0",     kr0,    "wndn",    NULL );   // wndn->kr
@@ -176,7 +179,12 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspSysInstallCb(h, achan,   "ch",          hop_rt, "sel",     NULL );   // ach->rt sel
   cmDspSysInstallCb(h, hop_rt,  "f-out-0",     kr0,    "hopf",    NULL );   // hopf->kr
   cmDspSysInstallCb(h, hop_rt,  "f-out-1",     kr1,    "hopf",    NULL );   // hopf->kr
-  
+
+  cmDspSysInstallCb(h, ign_ctl,     "val",     ign_rt, "f-in",    NULL );
+  cmDspSysInstallCb(h, achan,       "ch",      ign_rt, "sel",     NULL );   // ach->rt sel
+  cmDspSysInstallCb(h, ign_rt,      "f-out-0", kr0,    "igain",   NULL );   // ign->kr
+  cmDspSysInstallCb(h, ign_rt,      "f-out-1", kr1,    "igain",   NULL );   // ign->kr
+    
   cmDspSysInstallCb(h, thr_ctl,     "val",     thr_rt, "f-in",    NULL );
   cmDspSysInstallCb(h, achan,       "ch",      thr_rt, "sel",     NULL );   // ach->rt sel
   cmDspSysInstallCb(h, thr_rt,      "f-out-0", kr0,    "thrh",    NULL );   // thr->kr
@@ -260,6 +268,7 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
 
   
   cmDspSysInstallCb(h, modp, mlbl("hop"),  hop_ctl, "sel", NULL );
+  cmDspSysInstallCb(h, modp, mlbl("ign"),  ign_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("ceil"), cel_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("expo"), exp_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("mix"),  mix_ctl, "val", NULL );
@@ -267,7 +276,7 @@ void _cmDspSys_TlXformChain( cmDspSysH_t h, cmDspTlXform_t* c,  unsigned preGrpS
   cmDspSysInstallCb(h, modp, mlbl("upr"),  upr_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("lwr"),  lwr_ctl, "val", NULL );
   cmDspSysInstallCb(h, modp, mlbl("wet"),  wet_ctl, "val", NULL );
-  cmDspSysInstallCb(h, modp, mlbl("sw"),   achan,       "trig", NULL ); // See also: amp.sfloc->achan.trig
+  cmDspSysInstallCb(h, modp, mlbl("sw"),   achan,  "trig", NULL ); // See also: amp.sfloc->achan.trig
 
   
   c->achan = achan; 

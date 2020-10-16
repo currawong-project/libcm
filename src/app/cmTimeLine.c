@@ -733,7 +733,7 @@ cmTlRC_t _cmTlAllocMidiFileRecd( _cmTl_t* p, const cmChar_t* nameStr, const cmCh
   //cmMidiFileTickToSamples(mfH,p->srate,false);
 
   // assign note durations to all note-on msg's
-  cmMidiFileCalcNoteDurations(mfH);
+  cmMidiFileCalcNoteDurations(mfH,0);
 
   unsigned recdByteCnt = sizeof(cmTlMidiFile_t) + strlen(fn) + 1;
 
