@@ -1,3 +1,4 @@
+![libcm logo](https://currawongproject.org/static/images/cm.png)
 
 _libcm_ is a C application development framework with an emphasis on audio signal processing.
 
