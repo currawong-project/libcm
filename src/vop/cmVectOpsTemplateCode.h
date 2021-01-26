@@ -414,7 +414,7 @@ void  VECT_OP_FUNC(GaussCovariance)(VECT_OP_TYPE* yM, unsigned D, const VECT_OP_
 
 void  VECT_OP_FUNC(GaussCovariance2)(VECT_OP_TYPE* yM, unsigned D, const VECT_OP_TYPE* (*srcFunc)(void* userPtr, unsigned idx), unsigned xN, void* userPtr, const VECT_OP_TYPE* uV, const unsigned* selIdxV, unsigned selKey )
 {
-  unsigned i,j,k = 0,n;
+  unsigned i,j,k = 0,n=0;
   VECT_OP_TYPE tV[ D ];
   const VECT_OP_TYPE* sp;
   
