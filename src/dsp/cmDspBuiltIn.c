@@ -911,7 +911,10 @@ cmDspRC_t _cmDspMidiOutRecv(cmDspCtx_t* ctx, cmDspInst_t* inst, const cmDspEvt_t
           {          
             cmMpDeviceSend(p->devIdx,p->portIdx,kCtlMdId+i,121,0); // reset all controllers
             cmMpDeviceSend(p->devIdx,p->portIdx,kCtlMdId+i,123,0); // turn all notes off
-            cmSleepMs(15);
+            //cmSleepMs(15);  this delay was causing audio to glitch badly
+            // if a delay is necessary make it shorter and only send it on channels where
+            // previous note-ons were issued.
+            
           }
       }
       break;
