@@ -75,11 +75,15 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspInst_t* mfp  = cmDspSysAllocInst(h,"MidiFilePlay",NULL,  0 );
   cmDspInst_t* nmp  = cmDspSysAllocInst(h,"NanoMap",     NULL,  0 );
-  cmDspInst_t* pic  = cmDspSysAllocInst(h,"Picadae",     NULL,  0 );
-  //cmDspInst_t* mop  = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "Scarlett 18i20 USB","Scarlett 18i20 USB MIDI 1");
+  cmDspInst_t* mdly_st = cmDspSysAllocInst(h,"MsgDelay",    NULL,  2, 1024, 500.0 );
+  cmDspInst_t* mdly_d0 = cmDspSysAllocInst(h,"MsgDelay",    NULL,  2, 1024, 500.0 );
+  cmDspInst_t* mdly_d1 = cmDspSysAllocInst(h,"MsgDelay",    NULL,  2, 1024, 500.0 );
+  
+  //cmDspInst_t* pic  = cmDspSysAllocInst(h,"Picadae",     NULL,  0 );
   cmDspInst_t* mop  = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "Fastlane","Fastlane MIDI A" );
   //cmDspInst_t* mo2p = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "picadae","picadae MIDI 1");
-  cmDspInst_t* mo2p = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "Fastlane","Fastlane MIDI B");
+  cmDspInst_t* mo2p  = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "Scarlett 18i20 USB","Scarlett 18i20 USB MIDI 1");
+  //cmDspInst_t* mo2p = cmDspSysAllocInst(h,"MidiOut",     NULL,  2, "Fastlane","Fastlane MIDI A");
   cmDspInst_t* sfp  = cmDspSysAllocInst(h,"ScFol",       NULL,  5, r.scFn, sfBufCnt, sfMaxWndCnt, sfMinVel, sfEnaMeasFl );
   cmDspInst_t* amp  = cmDspSysAllocInst(h,"ActiveMeas",  NULL,  1, 100 );
   cmDspInst_t* modp = cmDspSysAllocInst(h,"ScMod",       NULL,  2, r.modFn, "m1" );
@@ -102,7 +106,7 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ao3 = cmDspSysAllocInst(h,"AudioOut",    NULL,   1, baseAudioOutCh+1 ); // 3          2
 
   cmDspSysNewPage(h,"Main");
-  cmDspInst_t* notesOffb= cmDspSysAllocInst(h,"Button", "notesOff",   2, kButtonDuiId, 1.0 );
+  //cmDspInst_t* notesOffb= cmDspSysAllocInst(h,"Button", "notesOff",   2, kButtonDuiId, 1.0 );
   cmDspInst_t* onb     = cmDspSysAllocInst(h,"Button", "start",   2, kButtonDuiId, 1.0 );
   cmDspInst_t* offb    = cmDspSysAllocInst(h,"Button", "stop",    2, kButtonDuiId, 1.0 );
   cmDspInst_t* mod_sel = cmDspSysAllocMsgList(h, NULL, "mod_sel", 1 );
@@ -135,6 +139,11 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* mi0p    = cmDspSysAllocInst(h,"AMeter","In 0",  0);
   cmDspInst_t* mi1p    = cmDspSysAllocInst(h,"AMeter","In 1",  0);
 
+  cmDspInst_t* msgDly    = cmDspSysAllocInst(h,"Scalar", "Delay", 5, kNumberDuiId, 1.0,   1000.0,1.0,   500.0 );  
+  cmDspSysInstallCb( h, msgDly, "val", mdly_st, "delay", NULL);
+  cmDspSysInstallCb( h, msgDly, "val", mdly_d0, "delay", NULL);
+  cmDspSysInstallCb( h, msgDly, "val", mdly_d1, "delay", NULL);
+ 
   cmDspInst_t* meas    = cmDspSysAllocInst(h,"Scalar", "Meas",    5, kNumberDuiId, 1.0,   59.0,1.0,   1.0 );  
   cmDspSysInstallCb( h, meas, "val", scp, "meas", NULL);
   cmDspSysInstallCb( h, meas, "val", tlp, "meas", NULL);
@@ -241,7 +250,7 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
 
   cmDspSysInstallCb(h, prePath, "out", tlp, "path", NULL );
 
-  cmDspSysInstallCb(h, notesOffb,  "sym",    pic, "alloff",  NULL );
+  //cmDspSysInstallCb(h, notesOffb,  "sym",    pic, "alloff",  NULL );
   
   // start connections
   cmDspSysInstallCb(h, onb,  "sym",    tlRt, "s-in",  NULL );
@@ -265,6 +274,9 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, pts,  "off", modp,"cmd",   NULL );
   cmDspSysInstallCb(h, offb, "sym", mop, "reset", NULL );
   cmDspSysInstallCb(h, offb, "sym", mo2p,"reset", NULL );
+  cmDspSysInstallCb(h, offb, "sym", mdly_st,"clear", NULL );
+  cmDspSysInstallCb(h, offb, "sym", mdly_d0,"clear", NULL );
+  cmDspSysInstallCb(h, offb, "sym", mdly_d1,"clear", NULL );
 
 
   // time-line to MIDI file player selection
@@ -286,20 +298,27 @@ cmDspRC_t _cmDspSysPgm_TimeLineLite(cmDspSysH_t h, void** userPtrPtr )
   cmDspSysInstallCb(h, msrc,   "d1",     sfp,  "d1",    NULL );
   cmDspSysInstallCb(h, msrc,   "d1",     nmp,  "d1",    NULL );
   cmDspSysInstallCb(h, nmp,   "d1",     mop,  "d1",    NULL );
-  cmDspSysInstallCb(h, nmp,   "d1",     pic, "d1",    NULL );
-  cmDspSysInstallCb(h, pic,   "d1",     mo2p, "d1",    NULL );
+  //cmDspSysInstallCb(h, nmp,   "d1",     mdly_d1, "in",    NULL );  
+  //cmDspSysInstallCb(h, mdly_d1, "out",  mo2p, "d1",    NULL );
+  //cmDspSysInstallCb(h, pic,   "d1",     mo2p, "d1",    NULL );
+  cmDspSysInstallCb(h, nmp, "d1",  mo2p, "d1",    NULL );
 
   cmDspSysInstallCb(h, msrc,  "d0",      sfp,  "d0",   NULL );
   cmDspSysInstallCb(h, msrc,  "d0",      nmp,  "d0",   NULL );
   cmDspSysInstallCb(h, nmp,  "d0",      mop,  "d0",   NULL );
-  cmDspSysInstallCb(h, nmp,  "d0",      pic, "d0",   NULL );
-  cmDspSysInstallCb(h, pic,   "d0",     mo2p, "d0",    NULL );
+  //cmDspSysInstallCb(h, nmp,   "d0",     mdly_d0, "in",    NULL );  
+  //cmDspSysInstallCb(h, mdly_d0, "out",  mo2p, "d0",    NULL );
+  //cmDspSysInstallCb(h, pic,   "d0",     mo2p, "d0",    NULL );
+  cmDspSysInstallCb(h, nmp, "d0",  mo2p, "d0",    NULL );
 
   cmDspSysInstallCb(h, msrc,  "status",  sfp,  "status",NULL );
   cmDspSysInstallCb(h, msrc,  "status",  nmp,  "status",NULL );
   cmDspSysInstallCb(h, nmp,  "status",  mop,  "status",NULL );
-  cmDspSysInstallCb(h, nmp,  "status",  pic, "status",NULL );
-  cmDspSysInstallCb(h, pic,   "status",  mo2p, "status",    NULL );
+  //cmDspSysInstallCb(h, nmp,   "status", mdly_st, "in",    NULL );  
+  //cmDspSysInstallCb(h, mdly_st, "out",  mo2p, "status",    NULL );
+  cmDspSysInstallCb(h, nmp, "status",  mo2p, "status",    NULL );
+  
+  //cmDspSysInstallCb(h, pic,   "status",  mo2p, "status",    NULL );
 
 
   // score follower to recd_play,modulator and printers
