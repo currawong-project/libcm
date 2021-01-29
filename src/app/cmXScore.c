@@ -569,41 +569,41 @@ cmXsRC_t  _cmXScoreParseColor( cmXScore_t* p, const cmXmlNode_t* nnp, cmXsNote_t
 
   map_t mapV[] =
   {
-    { kEvenXsFl,                                       "#0000FF" },  // blue (even)
-    { kEvenXsFl  | kEvenEndXsFl,                       "#0000FE" },  // blue (even end)
-    { kEvenXsFl  | kEvenEndXsFl,                       "#0000FD" },  // blue (even end)
-    { kTempoXsFl,                                      "#00FF00" },  // green (tempo)
-    { kTempoXsFl | kTempoEndXsFl,                      "#00FE00" },  // green (tempo end)
-    { kDynXsFl,                                        "#FF0000" },  // red   (dynamics)
-    { kDynXsFl   | kDynEndXsFl,                        "#FE0000" },  // red   (dynamics end)
-    { kDynXsFl   | kDynEndXsFl,                        "#FD0000" },  // red   (dynamics end)
-    { kTempoXsFl | kEvenXsFl,                          "#00FFFF" },  // green + blue (turquoise)
-    { kTempoXsFl | kEvenXsFl | kEvenEndXsFl,           "#00FFFE" },  // green + blue (turquoise) (end)    
-    { kDynXsFl   | kEvenXsFl,                          "#FF00FF" },  // red   + blue
-    { kDynXsFl   | kEvenXsFl | kEvenEndXsFl,           "#FF00FE" },  // red   + blue (end)
-    { kDynXsFl   | kEvenXsFl | kEvenEndXsFl,           "#FF00FD" },  // red   + blue (end)    
-    { kDynXsFl   | kEvenXsFl,                          "#FF0CF7" },  // magenta (even+dyn)
-    { kDynXsFl   | kTempoXsFl,                         "#FF7F00" },  // red   + green (brown)
-    { kDynXsFl   | kTempoXsFl,                         "#FE7F00" },  // red   + green (brown)    (end)
-    { kDynXsFl   | kTempoXsFl,                         "#FD7F00" },  // red   + green (brown)    (end)
-    { kDynXsFl   | kTempoXsFl | kTempoEndXsFl,         "#FF7E00" },  //
-    { kDynXsFl   | kDynEndXsFl | kEvenXsFl | kEvenEndXsFl, "#FE00FE" }, //
-    { kDynXsFl   | kDynEndXsFl | kEvenXsFl,            "#FE00FF" },
-    { kTempoXsFl | kEvenXsFl | kDynXsFl,               "#996633" },  // (purple)
-    { kTempoXsFl | kEvenXsFl | kDynXsFl | kDynEndXsFl, "#996632" },  // (purple)
-    { kDynXsFl,                                        "#FF6A03" },  //   176 orange  (dynamics)
-    { kEvenXsFl,                                       "#2F00E8" },  //  1001 blue (even)
-    { kTempoXsFl,                                      "#01CD1F" },  //  1196 green   (tempo)
-    { kEvenXsFl,                                       "#3600E8" },  //  1627 blue (even)
-    { kDynXsFl | kTempoXsFl,                           "#9E8F15" },  //  8827 brown (dyn + tempo)
-    { kEvenXsFl,                                       "#2E00E6" },  //  5393 blue (even)
-    { kEvenXsFl,                                       "#2C00DD" },  //  5895 blue (even)
-    { kDynXsFl,                                        "#FF5B03" },  //  6498 orange (dyn)
-    { kDynXsFl,                                        "#FF6104" },  //  6896 orange
-    { kEvenXsFl,                                       "#2A00E6" },  //  7781 blue
-    { kEvenXsFl,                                       "#2300DD" },  //  8300 blue (even)
-    { kTempoXsFl,                                      "#03CD22" },  // 10820 green (tempo)
-    { kEvenXsFl,                                       "#3400DB" },  // 11627 blue (dyn)
+    { kEvenXsFl,                                       "#FF0000FF" },  // blue (even)
+    { kEvenXsFl  | kEvenEndXsFl,                       "#FF0000FE" },  // blue (even end)
+    { kEvenXsFl  | kEvenEndXsFl,                       "#FF0000FD" },  // blue (even end)
+    { kTempoXsFl,                                      "#FF00FF00" },  // green (tempo)
+    { kTempoXsFl | kTempoEndXsFl,                      "#FF00FE00" },  // green (tempo end)
+    { kDynXsFl,                                        "#FFFF0000" },  // red   (dynamics)
+    { kDynXsFl   | kDynEndXsFl,                        "#FFFE0000" },  // red   (dynamics end)
+    { kDynXsFl   | kDynEndXsFl,                        "#FFFD0000" },  // red   (dynamics end)
+    { kTempoXsFl | kEvenXsFl,                          "#FF00FFFF" },  // green + blue (turquoise)
+    { kTempoXsFl | kEvenXsFl | kEvenEndXsFl,           "#FF00FFFE" },  // green + blue (turquoise) (end)    
+    { kDynXsFl   | kEvenXsFl,                          "#FFFF00FF" },  // red   + blue
+    { kDynXsFl   | kEvenXsFl | kEvenEndXsFl,           "#FFFF00FE" },  // red   + blue (end)
+    { kDynXsFl   | kEvenXsFl | kEvenEndXsFl,           "#FFFF00FD" },  // red   + blue (end)    
+    { kDynXsFl   | kEvenXsFl,                          "#FFFF0CF7" },  // magenta (even+dyn)
+    { kDynXsFl   | kTempoXsFl,                         "#FFFF7F00" },  // red   + green (brown)
+    { kDynXsFl   | kTempoXsFl,                         "#FFFE7F00" },  // red   + green (brown)    (end)
+    { kDynXsFl   | kTempoXsFl,                         "#FFFD7F00" },  // red   + green (brown)    (end)
+    { kDynXsFl   | kTempoXsFl | kTempoEndXsFl,         "#FFFF7E00" },  //
+    { kDynXsFl   | kDynEndXsFl | kEvenXsFl | kEvenEndXsFl, "#FFFE00FE" }, //
+    { kDynXsFl   | kDynEndXsFl | kEvenXsFl,            "#FFFE00FF" },
+    { kTempoXsFl | kEvenXsFl | kDynXsFl,               "#FF996633" },  // (purple)
+    { kTempoXsFl | kEvenXsFl | kDynXsFl | kDynEndXsFl, "#FF996632" },  // (purple)
+    { kDynXsFl,                                        "#FFFF6A03" },  //   176 orange  (dynamics)
+    { kEvenXsFl,                                       "#FF2F00E8" },  //  1001 blue (even)
+    { kTempoXsFl,                                      "#FF01CD1F" },  //  1196 green   (tempo)
+    { kEvenXsFl,                                       "#FF3600E8" },  //  1627 blue (even)
+    { kDynXsFl | kTempoXsFl,                           "#FF9E8F15" },  //  8827 brown (dyn + tempo)
+    { kEvenXsFl,                                       "#FF2E00E6" },  //  5393 blue (even)
+    { kEvenXsFl,                                       "#FF2C00DD" },  //  5895 blue (even)
+    { kDynXsFl,                                        "#FFFF5B03" },  //  6498 orange (dyn)
+    { kDynXsFl,                                        "#FFFF6104" },  //  6896 orange
+    { kEvenXsFl,                                       "#FF2A00E6" },  //  7781 blue
+    { kEvenXsFl,                                       "#FF2300DD" },  //  8300 blue (even)
+    { kTempoXsFl,                                      "#FF03CD22" },  // 10820 green (tempo)
+    { kEvenXsFl,                                       "#FF3400DB" },  // 11627 blue (dyn)
     { -1, "" }
   };
 
@@ -792,12 +792,14 @@ cmXsRC_t  _cmXScoreParseDirection(cmXScore_t* p, cmXsMeas_t* meas, const cmXmlNo
   {
 
     if( cmXmlNodeUInt(np,&duration,"per-minute",NULL) != kOkXmlRC )
-      return cmErrMsg(&p->err,kSyntaxErrorXsRC,"The 'per-minute' metronome value is missing on line %i.",np->line);
+      cmErrWarnMsg(&p->err,kSyntaxErrorXsRC,"The 'per-minute' metronome value is missing on line %i.",np->line);
+    else
+    {
+      if((rc = _cmXScoreParseNoteRValue(p,np,"beat-unit",&rvalue)) != kOkXsRC )
+        return rc;
 
-    if((rc = _cmXScoreParseNoteRValue(p,np,"beat-unit",&rvalue)) != kOkXsRC )
-      return rc;
-
-    flags = kMetronomeXsFl;
+      flags = kMetronomeXsFl;
+    }
   }
   else
 
@@ -1803,17 +1805,77 @@ void _cmXScoreGraceInsertSoonAfterFirst( cmXScore_t* p, unsigned graceGroupId, c
   _cmXScoreGraceInsertTimeBase( p, graceGroupId,aV,aN, aV[0]->tick + aV[1]->duration ); 
 }
 
+cmXsRC_t _cmXScorAssignGraceGroupId( cmXScore_t* p, unsigned* nextGraceGroupIdRef )
+{
+  enum { kBeforeGroupState, kInGroupState };
+  
+  cmXsRC_t    rc         = kOkXsRC;
+  unsigned    curGroupId = 1;
+  unsigned    state      = kBeforeGroupState;
+  cmXsPart_t* pp         = p->partL;
+    
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp = pp->measL;
+    for(; mp!=NULL; mp=mp->link)
+    {
+      cmXsNote_t* np = mp->noteL;        
+      for(; np!=NULL; np=np->slink )
+      {
+        switch( state )
+        {
+          case kBeforeGroupState:
+            if( cmIsFlag(np->flags,kBegGraceXsFl) )
+            {
+              state            = kInGroupState;
+              np->graceGroupId = curGroupId;
+
+              printf("b: %i %i %i %s\n",curGroupId,np->meas->number,np->locIdx,cmMidiToSciPitch(np->pitch,NULL,0));
+              
+            }
+            break;
+
+          case kInGroupState:
+            if( np->graceGroupId > 0 )
+            {
+              np->graceGroupId = curGroupId;
+
+              printf("%s: %i %i %i %s\n",cmIsFlag(np->flags,kEndGraceXsFl ) ? "e":"g",curGroupId,np->meas->number,np->locIdx,cmMidiToSciPitch(np->pitch,NULL,0));
+              
+              if( cmIsFlag(np->flags,kEndGraceXsFl ) )
+              {
+                curGroupId+=1;
+                state = kBeforeGroupState;
+              }
+            }
+        }
+      }
+    }
+  }
+
+  if( state != kBeforeGroupState )
+    rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"There is a missing grace note group begin or end indicator." );
+  else
+    *nextGraceGroupIdRef = curGroupId;
+  return rc;
+}
+
 
 // Adjust the locations of grace notes. Note that this must be done
 // after reordering so that we can be sure that the order in time of
 // the notes in each group has been set prior to building the
 // grace note groups - which must be in reverse time order.
-cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p, unsigned nextGraceGroupId )
+cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p )
 {
   cmXsRC_t rc           = kOkXsRC;
   unsigned graceGroupId = 1;
   double   graceDurSec  = 1.0/15.0;  // duration of all grace notes in seconds
-
+  unsigned nextGraceGroupId = 1;
+  
+  // Reassign the grace note group id's
+  if((rc = _cmXScorAssignGraceGroupId(p,&nextGraceGroupId)) != kOkXsRC )
+    return rc;
+  
   for(; graceGroupId<nextGraceGroupId; ++graceGroupId)
   {
     cmXsNote_t* gn0p        = NULL;      // first note in the grace group
@@ -1873,7 +1935,7 @@ cmXsRC_t _cmXScoreProcessGraceNotes( cmXScore_t* p, unsigned nextGraceGroupId )
     // grace note groups must have at least 3 members
     if( gN < 3 )
     {
-      rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"The grace note group (groupid=%i) ending in meas %i has fewer than 3 (%i) members.", gn1p->graceGroupId, gn1p->meas->number, gN );
+      rc = cmErrMsg(&p->err,kSyntaxErrorXsRC,"The grace note group (groupid=%i) ending in meas %i loc:%i has fewer than 3 (%i) members.", gn1p->graceGroupId, gn1p->meas->number, gn1p->locIdx, gN );
       break;
     }
     
@@ -2040,12 +2102,41 @@ cmXsRC_t _cmXScoreProcessDynamicFork( cmXScore_t* p, cmXsNote_t* bnp )
   return kOkXsRC;
 }
 
+cmXsRC_t _cmXScoreValidateDynamicForks( cmXScore_t* p )
+{
+  cmXsRC_t    rc = kOkXsRC;
+  cmXsPart_t* pp = p->partL;
+
+  for(; pp!=NULL; pp=pp->link)
+  {
+    cmXsMeas_t* mp = pp->measL;
+    for(; mp!=NULL; mp=mp->link)
+      {
+        cmXsNote_t* np = mp->noteL;        
+        for(; np!=NULL; np=np->slink )
+        {
+          if( cmIsFlag(np->flags,kDynBegForkXsFl) )
+            printf("Beg: %5i loc:%i\n",np->meas->number,np->locIdx);
+              
+          if( cmIsFlag(np->flags,kDynEndForkXsFl) )
+            printf("     %5i loc::%i\n",np->meas->number,np->locIdx);
+          
+        }
+      }
+  }
+  
+  return rc;
+  
+}
+
 
 cmXsRC_t _cmXScoreProcessDynamicForks( cmXScore_t* p )
 {
   cmXsRC_t    rc = kOkXsRC;
   cmXsPart_t* pp = p->partL;
 
+  _cmXScoreValidateDynamicForks(p);
+  
   for(; pp!=NULL; pp=pp->link)
   {
     cmXsMeas_t* mp = pp->measL;
@@ -2704,7 +2795,7 @@ cmXsRC_t  _cmXScoreReorderParseTick(cmXScore_t* p, const cmChar_t* b, unsigned l
   return rc;
 }
 
-cmXsRC_t  _cmXScoreReorderParseGrace(cmXScore_t* p, const cmChar_t* b, unsigned line, char** s0, cmXsReorder_t* r, unsigned* graceGroupIdRef )
+cmXsRC_t  _cmXScoreReorderParseGrace(cmXScore_t* p, const cmChar_t* b, unsigned line, char** s0, cmXsReorder_t* r )
 {
   cmXsRC_t  rc = kOkXsRC;
   cmChar_t* s;
@@ -2717,7 +2808,7 @@ cmXsRC_t  _cmXScoreReorderParseGrace(cmXScore_t* p, const cmChar_t* b, unsigned 
   
   ++s;
 
-  r->graceGroupId = *graceGroupIdRef;
+  r->graceGroupId = 1; // mark this as belong to a grace note group
   
   while(1)
   {
@@ -2730,14 +2821,14 @@ cmXsRC_t  _cmXScoreReorderParseGrace(cmXScore_t* p, const cmChar_t* b, unsigned 
       case 'n': r->graceFlags |= kNFirstGraceXsFl| kEndGraceXsFl; break;
       case 'g': break;
         
-      case '1':
-        r->graceGroupId += 1;
+      case '1':  // TODO: what is this doing?
+        r->graceGroupId += 1;  
         ++s;
         continue;
         
 
       case '%':
-        *graceGroupIdRef += 1;
+        //*graceGroupIdRef += 1;
         ++s;
         continue;
         
@@ -2803,7 +2894,7 @@ cmXsRC_t  _cmXScoreReorderParsePitch(cmXScore_t* p, const cmChar_t* b, unsigned 
   return rc;  
 }
 
-cmXsRC_t _cmXsReadEditFile( cmXScore_t* p, const cmChar_t* fn, unsigned* graceGroupIdPtr, cmXsReorderFile_t* rfp )
+cmXsRC_t _cmXsReadEditFile( cmXScore_t* p, const cmChar_t* fn, cmXsReorderFile_t* rfp )
 {
   typedef enum { kFindMeasStId, kFindEventStId, kReadEventStId } stateId_t;
 
@@ -2814,8 +2905,6 @@ cmXsRC_t _cmXsReadEditFile( cmXScore_t* p, const cmChar_t* fn, unsigned* graceGr
   unsigned           ln           = 0;
   stateId_t          stateId      = kFindMeasStId;
   cmXsReorderMeas_t* curMeas      = NULL;
-  
-  *graceGroupIdPtr = 1;
   
   if( cmFileOpen(&fH,fn,kReadFileFl,p->err.rpt) != kOkFileRC )
   {
@@ -2887,7 +2976,7 @@ cmXsRC_t _cmXsReadEditFile( cmXScore_t* p, const cmChar_t* fn, unsigned* graceGr
               goto errLabel;
 
             // parse the %grace note marker
-            if((rc = _cmXScoreReorderParseGrace(p, b, ln+1, &s0, r, graceGroupIdPtr)) != kOkXsRC )
+            if((rc = _cmXScoreReorderParseGrace(p, b, ln+1, &s0, r)) != kOkXsRC )
               goto errLabel;
 
             // parse the $pitch marker
@@ -2931,12 +3020,11 @@ cmXsRC_t _cmXsReadEditFile( cmXScore_t* p, const cmChar_t* fn, unsigned* graceGr
 cmXsRC_t _cmXsApplyEditFile( cmXScore_t* p, const cmChar_t* fn )
 {
   cmXsRC_t           rc           = kOkXsRC;
-  unsigned           graceGroupId = 1;
   cmXsReorderFile_t  rf;
   cmXsReorderMeas_t* m;
   memset(&rf,0,sizeof(rf));
   
-  if((rc = _cmXsReadEditFile( p, fn, &graceGroupId, &rf )) != kOkXsRC )
+  if((rc = _cmXsReadEditFile( p, fn, &rf )) != kOkXsRC )
     return rc;
 
   // reorder each measure
@@ -2954,7 +3042,7 @@ cmXsRC_t _cmXsApplyEditFile( cmXScore_t* p, const cmChar_t* fn )
   _cmXScoreSort(p);
 
   // process the grace notes.
-  _cmXScoreProcessGraceNotes( p, graceGroupId );
+  _cmXScoreProcessGraceNotes( p );
 
   // inserting grace notes may have left the score unsorted
   _cmXScoreSort(p);
@@ -2973,12 +3061,11 @@ cmXsRC_t _cmXsApplyEditFile( cmXScore_t* p, const cmChar_t* fn )
 cmXsRC_t _cmXsMergeEditFiles( cmXScore_t* p, unsigned measNumb0, const cmChar_t* keyEditFn, unsigned keyMeasNumb, const cmChar_t* outFn )
 {
   cmXsRC_t           rc            = kOkXsRC;
-  unsigned           graceGroup1Id = 1;
   unsigned           measNumb1     = keyMeasNumb;
   cmXsReorderFile_t  rf1;
   memset(&rf1,0,sizeof(rf1));
 
-  if((rc = _cmXsReadEditFile( p, keyEditFn, &graceGroup1Id, &rf1 )) != kOkXsRC )
+  if((rc = _cmXsReadEditFile( p, keyEditFn, &rf1 )) != kOkXsRC )
     return rc;
 
   while(1)
@@ -3027,168 +3114,6 @@ cmXsRC_t _cmXsMergeEditFiles( cmXScore_t* p, unsigned measNumb0, const cmChar_t*
 }
 
 
-
-cmXsRC_t _cmXsApplyEditFile0( cmXScore_t* p, const cmChar_t* fn )
-{
-  typedef enum { kFindMeasStId, kFindEventStId, kReadEventStId } stateId_t;
-
-  cmXsRC_t      rc       = kOkXsRC;
-  cmFileH_t     fH       = cmFileNullHandle;
-  cmChar_t*     b        = NULL;
-  unsigned      bN       = 0;
-  unsigned      ln       = 0;
-  stateId_t     stateId  = kFindMeasStId;
-  unsigned      rN       = 1024;
-  unsigned      ri       = 0;
-  unsigned      measNumb = 0;
-  unsigned      graceGroupId = 1;
-  cmXsReorder_t rV[ rN ];
-  
-  if( cmFileOpen(&fH,fn,kReadFileFl,p->err.rpt) != kOkFileRC )
-  {
-    rc = cmErrMsg(&p->err,kFileFailXsRC,"The reordering file '%s' could not be opened.",cmStringNullGuard(fn));
-    return rc;
-  }
-
-  for(; cmFileGetLineAuto(fH,&b,&bN)==kOkFileRC; ++ln)
-  {
-    switch( stateId )
-    {
-      case kFindEventStId:  // scanning past labels to an event line
-        {
-          unsigned voice,loc;
-          if( sscanf(b,"%i %i",&voice,&loc) != 2 )
-            continue;
-
-          stateId = kReadEventStId;
-        }
-        // fall through
-
-      case kReadEventStId:
-        {
-          cmXsReorder_t r;
-          char     pitchStr[4];
-          char* s0 = NULL;
-
-          memset(&r,0,sizeof(r));
-          
-          // parse an event line
-          if( sscanf(b,"%i %i %i %i %i %f",&r.idx,&r.voice,&r.locIdx,&r.tick,&r.durtn,&r.rval) == 6 )
-          {
-            assert( strlen(b)>=52);
-            int PC = 39; // text file column where first pitch char occurs
-            
-            if( b[PC] == ' ')
-              r.midi = kInvalidMidiPitch;
-            else
-            {
-              pitchStr[0] = b[PC+0];
-              pitchStr[1] = b[PC+1];
-              pitchStr[2] = b[PC+2];              
-              pitchStr[3] = 0;
-              
-              if( !isdigit(pitchStr[2]) )
-                r.midi = kInvalidMidiPitch;
-              else
-              {
-                if( pitchStr[1] == ' ')
-                {
-                  pitchStr[1] = pitchStr[2];
-                  pitchStr[2] = 0;
-                }
-
-                r.midi = cmSciPitchToMidi(pitchStr);
-              }
-
-            }
-
-            
-            // parse the flag edits following a '~'
-            if((rc = _cmXScoreReorderParseFlags(p,b,ln+1, &s0, &r.newFlags)) != kOkXsRC )
-              goto errLabel;
-
-            // parse the dynamic marking following a '!'
-            if((rc = _cmXScoreReorderParseDyn(p,b,ln+1,&s0, &r.dynIdx, &r.newFlags, measNumb)) != kOkXsRC )
-              goto errLabel;
-                        
-            // parse the @newtick marker
-            if((rc = _cmXScoreReorderParseTick(p, b, ln+1, &s0, &r.newTick)) != kOkXsRC )
-              goto errLabel;
-
-            // parse the %grace note marker
-            if((rc = _cmXScoreReorderParseGrace(p, b, ln+1, &s0, &r, &graceGroupId)) != kOkXsRC )
-              goto errLabel;
-
-            // parse the $pitch marker
-            if((rc =  _cmXScoreReorderParsePitch(p, b, ln+1, &s0, &r.pitch )) != kOkXsRC )
-              goto errLabel;
-            
-            // store the record
-            assert( ri < rN );
-
-            rV[ri++] = r;
-
-            continue;
-          }
-
-          // the end of the measure was encountered -
-          // reorder the measure based on the cmXsReorder_t in rV[ri]
-          if((rc =  _cmXScoreReorderMeas0(p, measNumb, rV, ri )) != kOkXsRC )
-            goto errLabel;
-
-          ri = 0;
-
-          stateId = kFindMeasStId;
-          // fall through
-        }
-
-      case kFindMeasStId:  // scanning for a bar-line
-        {
-          char colon;
-          if( sscanf(b,"%i %c",&measNumb,&colon) == 2 && colon == ':' )
-          {
-            //printf("meas: %i \n",measNumb);
-            stateId = kFindEventStId;
-
-          }
-        }
-        break;
-    }
-
-  }
-
-  // If reorder records remain to be processed
-  if( ri > 0 )
-    if((rc =  _cmXScoreReorderMeas0(p, measNumb, rV, ri )) != kOkXsRC )
-      goto errLabel;
-    
-  
-  // the ticks may have changed so the 'secs' and 'dsecs' must be updated
-  _cmXScoreSetAbsoluteTime( p );
-
-  // the bar lines should be the first event in the measure
-  _cmXScoreFixBarLines(p);
-
-  // resort to force the links to be correct 
-  _cmXScoreSort(p);
-
-  // process the grace notes.
-  _cmXScoreProcessGraceNotes( p, graceGroupId );
-
-  // inserting grace notes may have left the score unsorted
-  _cmXScoreSort(p);
-  
-  // process the dynamic forks
-  _cmXScoreProcessDynamicForks(p);
-
-  //_cmXScoreReport(p, NULL, true );
-
-
- errLabel:
-  cmFileClose(&fH);
-  cmMemFree(b);
-  return rc;
-}
 
 
 cmXsRC_t cmXScoreAlloc( cmCtx_t* ctx, cmXsH_t* hp )
