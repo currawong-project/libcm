@@ -386,8 +386,8 @@ cmDspRC_t _cmDspSysPgm_Stereo_Through( cmDspSysH_t h, void** userPtrPtr )
   cmDspInst_t* ai1p = cmDspSysAllocInst(h,"AudioIn", NULL,   1, 3 );
    
   // MOTU Traveler: Use channels 2&3 (out plugs:3&4) because 0&1 do not show up on plugs 1&2.
-  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 2 );
-  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 3 );
+  cmDspInst_t* ao0p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 0 );
+  cmDspInst_t* ao1p = cmDspSysAllocInst(h,"AudioOut",NULL,   1, 1 );
 
   cmDspInst_t* im0p = cmDspSysAllocInst(h,"AMeter","In 0",  0);
   cmDspInst_t* im1p = cmDspSysAllocInst(h,"AMeter","In 1", 0);
