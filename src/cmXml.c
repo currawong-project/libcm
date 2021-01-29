@@ -332,14 +332,17 @@ cmXmlRC_t  _cmXmlParseAttr( cmXml_t* p, cmChar_t endChar,  cmXmlNode_t* np )
   if((v0 = _cmXmlAdvanceToNextNonWhite(p)) == NULL )
     return _cmXmlSyntaxError(p);
 
+  char begChar = *p->c;
+  
   // the first character in the value must be a single quote
-  if( *p->c == '\'' )
+  if( begChar == '\'' || begChar == '"' )
   {
     if((v0 = _cmXmlAdvanceOne(p)) == NULL )
       return _cmXmlSyntaxError(p);
-    
+
+    char endStr[] = { begChar, 0 };
     // advance to the next single quote
-    v1 = _cmXmlAdvanceToNext(p,"'");
+    v1 = _cmXmlAdvanceToNext(p,endStr);
   }
   else
   {
@@ -350,7 +353,7 @@ cmXmlRC_t  _cmXmlParseAttr( cmXml_t* p, cmChar_t endChar,  cmXmlNode_t* np )
     return _cmXmlSyntaxError(p);
 
   
-  // advance past the ending single quote
+  // advance past the ending  quote
   if( *p->c != endChar )
     if( _cmXmlAdvanceOne(p) == NULL )
       return _cmXmlSyntaxError(p);
@@ -359,7 +362,7 @@ cmXmlRC_t  _cmXmlParseAttr( cmXml_t* p, cmChar_t endChar,  cmXmlNode_t* np )
   _cmXmlAttrAlloc(p, np, l0, l1-l0, v0, v1-v0 );
   
 
-  // p->c now points just past the ending single quote
+  // p->c now points just past the ending quote
   return rc;
 }
 
