@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmHashTbl.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmHashTbl.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmHashTbl : Hash table for storing arbitary data blobs.</div><pre><a name="cmHashTbl_h_code_0"></a>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkHtRC"></a><span class="e">kOkHtRC</span><span class="p">,</span>
+  <a name="kLHeapFailHtRC"></a><span class="e">kLHeapFailHtRC</span><span class="p">,</span>
+  <a name="kHashFaultHtRC"></a><span class="e">kHashFaultHtRC</span><span class="p">,</span>
+  <a name="kInvalidIdHtRC"></a><span class="e">kInvalidIdHtRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a> <a name="cmHtRC_t"></a><span class="t">cmHtRC_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmHashTblH_t"></a><span class="t">cmHashTblH_t</span><span class="p">;</span>
+<span class="k">extern</span> <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">cmHashTblNullHandle</span><span class="p">;</span>
+
+<a href="#cmHtRC_t">cmHtRC_t</a> <a name="cmHashTblCreate"></a><span class="f">cmHashTblCreate</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmHashTblH_t">cmHashTblH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bucketCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmHtRC_t">cmHtRC_t</a> <a name="cmHashTblDestroy"></a><span class="f">cmHashTblDestroy</span><span class="p">(</span> <a href="#cmHashTblH_t">cmHashTblH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span> <a name="cmHashTblIsValid"></a><span class="f">cmHashTblIsValid</span><span class="p">(</span> <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// cmhashTblStoreBase() is the canonical store function.
+// Set 'staticFl' to true if the value does not need to be reallocated
+// and copied into the internal storage space.
+// Returns a value which uniquely identifies the value.  If a unique
+// identifier cannot be generated then the function returns <a href="cmGlobal_h_0.html#cmInvalidId">cmInvalidId</a>
+// and sets the hash table error code to kHashFaultRC.</span>
+<span class="k">unsigned</span> <a name="cmHashTblStoreBase"></a><span class="f">cmHashTblStoreBase</span><span class="p">(</span>      <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">v</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span><span class="p">,</span> <span class="k">bool</span> <span class="i">staticFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span> <a name="cmHashTblStore"></a><span class="f">cmHashTblStore</span><span class="p">(</span>          <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">v</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmHashTblStoreStatic"></a><span class="f">cmHashTblStoreStatic</span><span class="p">(</span>    <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">v</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmHashTblStoreStr"></a><span class="f">cmHashTblStoreStr</span><span class="p">(</span>       <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">s</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmhashTblStoreStaticStr"></a><span class="f">cmhashTblStoreStaticStr</span><span class="p">(</span> <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">s</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmHashTblStoreV"></a><span class="f">cmHashTblStoreV</span><span class="p">(</span>         <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fmt</span><span class="p">,</span> va_list <span class="i">vl</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmHashTblStoreF"></a><span class="f">cmHashTblStoreF</span><span class="p">(</span>         <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fmt</span><span class="p">,</span> <span class="i">...</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Given a value find an id.</span>
+<span class="k">unsigned</span> <a name="cmHashTblId"></a><span class="f">cmHashTblId</span><span class="p">(</span> <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">value</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmHashTblStrToId"></a><span class="f">cmHashTblStrToId</span><span class="p">(</span> <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">str</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Returns NULL if no value is associated with 'id'.
+// 'byteCntRef' is optional.</span>
+<span class="k">const</span> <span class="k">void</span><span class="p">*</span> <a name="cmHashTblValue"></a><span class="f">cmHashTblValue</span><span class="p">(</span> <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">byteCntRef</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Wrapper around <a href="#cmHashTblValue">cmHashTblValue</a>() which assumes that the stored value is a 
+// zero terminated string.</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmHashTblStr"></a><span class="f">cmHashTblStr</span><span class="p">(</span> <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Remove a value.</span>
+<a href="#cmHtRC_t">cmHtRC_t</a> <a name="cmHashTblRemove"></a><span class="f">cmHashTblRemove</span><span class="p">(</span> <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the last error id generated by the cmHashTbl object.</span>
+<a href="#cmHtRC_t">cmHtRC_t</a> <a name="cmHashTblLastRC"></a><span class="f">cmHashTblLastRC</span><span class="p">(</span> <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span> <a name="cmHashTblReport"></a><span class="f">cmHashTblReport</span><span class="p">(</span> <a href="#cmHashTblH_t">cmHashTblH_t</a> <span class="i">h</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmHtRC_t">cmHtRC_t</a> <a name="cmHashTblTest"></a><span class="f">cmHashTblTest</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

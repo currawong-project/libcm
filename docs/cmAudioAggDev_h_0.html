@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmAudioAggDev.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmAudioAggDev.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmAudioAggDev : Audio device driver for cmAudioPort which aggregates multiple hardware devices to appear as a single devices.</div><pre><a name="cmAudioAggDev_h_code_0"></a>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkAgRC"></a><span class="e">kOkAgRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kMustAggTwoAgRC"></a><span class="e">kMustAggTwoAgRC</span><span class="p">,</span>
+  <a name="kCantUseStartedDevAgRC"></a><span class="e">kCantUseStartedDevAgRC</span><span class="p">,</span>
+  <a name="kDevAlreadyAggAgRC"></a><span class="e">kDevAlreadyAggAgRC</span><span class="p">,</span>
+  <a name="kInvalidDevIdxAgRC"></a><span class="e">kInvalidDevIdxAgRC</span><span class="p">,</span>
+  <a name="kPhysDevSetupFailAgRC"></a><span class="e">kPhysDevSetupFailAgRC</span><span class="p">,</span>
+  <a name="kPhysDevStartFailAgRC"></a><span class="e">kPhysDevStartFailAgRC</span><span class="p">,</span>
+  <a name="kPhysDevStopFailAgRC"></a><span class="e">kPhysDevStopFailAgRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a> <a name="cmAgRC_t"></a><span class="t">cmAgRC_t</span><span class="p">;</span>
+
+<span class="c">/// Allocate/free the aggregate device management system</span>
+<a href="#cmAgRC_t">cmAgRC_t</a>      <a name="cmApAggAllocate"></a><span class="f">cmApAggAllocate</span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmAgRC_t">cmAgRC_t</a>      <a name="cmApAggFree"></a><span class="f">cmApAggFree</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">/// Called by cmAudioPort() driver to notify the aggregate device
+/// system that the hardware ports have been initialized.
+/// Setup the aggregate audio device  management object for this machine.</span>
+<a href="#cmAgRC_t">cmAgRC_t</a>      <a name="cmApAggInitialize"></a><span class="f">cmApAggInitialize</span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">baseApDevIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Called by cmAudioPort() driver to notify the aggregate device
+/// system that the hardware ports have been finalized.
+/// Stop all aggregate audio devices and release any resources held 
+/// by the agg. audio dev. management object.</span>
+<a href="#cmAgRC_t">cmAgRC_t</a>      <a name="cmApAggFinalize"></a><span class="f">cmApAggFinalize</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Create an aggregate device from physical devices.
+/// Set flags to <a href="cmApBuf_h_0.html#kInApFl">kInApFl</a>, <a href="cmApBuf_h_0.html#kOutApFl">kOutApFl</a> or both to indicate whether the
+/// device should aggregate input audio, output audio or both.</span>
+<span class="k">enum</span> <span class="p">{</span> <a name="kInAggFl"></a><span class="e">kInAggFl</span> <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span> <a name="kOutAggFl"></a><span class="e">kOutAggFl</span> <span class="p">=</span> <span class="l">0x02</span> <span class="p">}</span><span class="p">;</span>
+<a href="#cmAgRC_t">cmAgRC_t</a>      <a name="cmApAggCreateDevice"></a>cmApAggCreateDevice<span class="p">(</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">label</span><span class="p">,</span>
+<span class="k">unsigned</span>       <span class="i">devCnt</span><span class="p">,</span>
+<span class="k">const</span> <span class="k">unsigned</span> physDevIdxArray<span class="p">[</span><span class="i">]</span><span class="p">,</span>
+<span class="k">unsigned</span>       <span class="i">flags</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">// Return true if the specified physical device is included 
+// in an aggregated device.</span>
+<span class="k">bool</span> <a name="cmApAggIsDeviceAggregated"></a><span class="f">cmApAggIsDeviceAggregated</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">physDevIdx</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">/// Return the count of aggregate audio devices attached to this machine.</span>
+<a href="#cmAgRC_t">cmAgRC_t</a>      <a name="cmApAggDeviceCount"></a><span class="f">cmApAggDeviceCount</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Get a textual description of the device at index 'aggDevIdx'.</span>
+<span class="k">const</span> <span class="k">char</span><span class="p">*</span>   <a name="cmApAggDeviceLabel"></a><span class="f">cmApAggDeviceLabel</span><span class="p">(</span>          <span class="k">unsigned</span> <span class="i">aggDevIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Get the count of audio input or output channels on device at index 'aggDevIdx'.</span>
+<span class="k">unsigned</span>      <a name="cmApAggDeviceChannelCount"></a><span class="f">cmApAggDeviceChannelCount</span><span class="p">(</span>   <span class="k">unsigned</span> <span class="i">aggDevIdx</span><span class="p">,</span> <span class="k">bool</span> <span class="i">inputFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Get the current sample rate of a device.  Note that if the device has both
+/// input and output capability then the sample rate is the same for both.</span>
+<span class="k">double</span>        <a name="cmApAggDeviceSampleRate"></a><span class="f">cmApAggDeviceSampleRate</span><span class="p">(</span>     <span class="k">unsigned</span> <span class="i">aggDevIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Get the count of samples per callback for the input or output for this device.</span>
+<span class="k">unsigned</span>      <a name="cmApAggDeviceFramesPerCycle"></a><span class="f">cmApAggDeviceFramesPerCycle</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">aggDevIdx</span><span class="p">,</span> <span class="k">bool</span> <span class="i">inputFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Configure a device.  
+/// All devices must be setup before they are started.
+/// framesPerCycle is the requested number of samples per audio callback. The
+/// actual number of samples made from a callback may be smaller. See the note
+/// regarding this in cmApAggAudioPacket_t.
+/// If the device cannot support the requested configuration then the function
+/// will return an error code.
+/// If the device is started when this function is called then it will be 
+/// automatically stopped and then restarted following the reconfiguration.
+/// If the reconfiguration fails then the device may not be restared.</span>
+<a href="#cmAgRC_t">cmAgRC_t</a>      <a name="cmApAggDeviceSetup"></a>cmApAggDeviceSetup<span class="p">(</span>          
+<span class="k">unsigned</span>          <span class="i">aggDevIdx</span><span class="p">,</span> 
+<span class="k">double</span>            <span class="i">srate</span><span class="p">,</span> 
+<span class="k">unsigned</span>          <span class="i">framesPerCycle</span><span class="p">,</span> 
+<a href="cmAudioPort_h_0.html#cmApCallbackPtr_t">cmApCallbackPtr_t</a> <span class="i">callbackPtr</span><span class="p">,</span>
+<span class="k">void</span><span class="p">*</span>             <span class="i">userCbPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Start a device. Note that the callback may be made prior to this function returning.</span>
+<a href="#cmAgRC_t">cmAgRC_t</a>      <a name="cmApAggDeviceStart"></a><span class="f">cmApAggDeviceStart</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">aggDevIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Stop a device.</span>
+<a href="#cmAgRC_t">cmAgRC_t</a>      <a name="cmApAggDeviceStop"></a><span class="f">cmApAggDeviceStop</span><span class="p">(</span>  <span class="k">unsigned</span> <span class="i">aggDevIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Return true if the device is currently started.</span>
+<span class="k">bool</span>          <a name="cmApAggDeviceIsStarted"></a><span class="f">cmApAggDeviceIsStarted</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">aggDevIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">int</span> <a name="cmApAggTest"></a><span class="f">cmApAggTest</span><span class="p">(</span>  <span class="k">bool</span> <span class="i">runFl</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">int</span> <span class="i">argc</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> argv<span class="p">[</span><span class="i">]</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

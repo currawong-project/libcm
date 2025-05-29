@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmDList.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmDList.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmDList : Dynamic generic array with user programmable indexing and sorting capablity.</div><pre><a name="cmDList_h_code_0"></a>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkDlRC"></a><span class="e">kOkDlRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kDuplicateIndexIdDlRC"></a><span class="e">kDuplicateIndexIdDlRC</span><span class="p">,</span>
+  <a name="kInvalidIndexDlRC"></a><span class="e">kInvalidIndexDlRC</span><span class="p">,</span>
+  <a name="kIterNotFoundDlRC"></a><span class="e">kIterNotFoundDlRC</span><span class="p">,</span>
+  <a name="kDataRecdNotFoundDlRC"></a><span class="e">kDataRecdNotFoundDlRC</span><span class="p">,</span>
+  
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">unsigned</span>   <a name="cmDlRC_t"></a><span class="t">cmDlRC_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmDListH_t"></a><span class="t">cmDListH_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmDListIterH_t"></a><span class="t">cmDListIterH_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmDListH_t">cmDListH_t</a>     <span class="i">cmDListNullHandle</span><span class="p">;</span>
+<span class="k">extern</span> <a href="#cmDListIterH_t">cmDListIterH_t</a> <span class="i">cmDListIterNullHandle</span><span class="p">;</span>
+
+<span class="c">// Return &amplt  0 if v0 &amplt  v1
+//        == 0 if v0 == v1
+//        &ampgt  0 if v0 &ampgt  v1</span>
+<span class="k">typedef</span> <span class="k">int</span> <span class="p">(</span><span class="p">*</span><a name="cmDListCmpFunc_t"></a><span class="t">cmDListCmpFunc_t</span><span class="p">)</span><span class="p">(</span> <span class="k">void</span><span class="p">*</span> <span class="i">arg</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">v0</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">v0N</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">v1</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">v1N</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">void</span> <span class="p">(</span><span class="p">*</span><a name="cmDListIndexFreeFunc_t"></a><span class="t">cmDListIndexFreeFunc_t</span><span class="p">)</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">indexId</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">arg</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// If 'cmpFunc' is not NULL then a default index with an indexId==0 will be automatically created.</span>
+<a href="#cmDlRC_t">cmDlRC_t</a> <a name="cmDListAlloc"></a><span class="f"><a href="cmDListTpl_h_0.html#cmDListAlloc_defn">cmDListAlloc</a></span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmDListH_t">cmDListH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <a href="#cmDListCmpFunc_t">cmDListCmpFunc_t</a> <span class="i">cmpFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">funcArg</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmDlRC_t">cmDlRC_t</a> <a name="cmDListFree"></a><span class="f">cmDListFree</span><span class="p">(</span>    <a href="#cmDListH_t">cmDListH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>     <a name="cmDListIsValid"></a><span class="f">cmDListIsValid</span><span class="p">(</span> <a href="#cmDListH_t">cmDListH_t</a>  <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Set resyncFl to automatically update the indexes to reflect the new record, otherwise
+// <a href="#cmDListIndexUpdateAll">cmDListIndexUpdateAll</a>() should be called to resynchronize the data list to the indexes.
+// If many inserts are to be performed with no intervening accesses to the list then it
+// is more efficient to defer updating the indexes until all the inserts are completed.</span>
+<a href="#cmDlRC_t">cmDlRC_t</a> <a name="cmDListInsert"></a><span class="f"><a href="cmDListTpl_h_0.html#cmDListInsert_defn">cmDListInsert</a></span><span class="p">(</span>  <a href="#cmDListH_t">cmDListH_t</a>  <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">recd</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">recdByteN</span><span class="p">,</span> <span class="k">bool</span> <span class="i">resyncFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Delete a data record.
+// 'recd' should be set to a value returned via one of the iterator accessors.
+// If 'resyncFl' is set then the indexes and interators will be
+// automatically synchronized with the data list after the deletion.
+// If 'resyncFl' is not set then the client must call <a href="#cmDListIndexUpdateAll">cmDListIndexUpdateAll</a>()
+// to resynchronize the indexes and iterators after the deletion.
+// Note that if multiple records are to be deleted without intervening accesses
+// to the list then it is more efficient to defer update the indexes until
+// all the deletions are completed.</span>
+<a href="#cmDlRC_t">cmDlRC_t</a> <a name="cmDListDelete"></a><span class="f"><a href="cmDListTpl_h_0.html#cmDListDelete_defn">cmDListDelete</a></span><span class="p">(</span>  <a href="#cmDListH_t">cmDListH_t</a>  <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">recd</span><span class="p">,</span> <span class="k">bool</span> <span class="i">resyncFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Allocate a new index.  'indexId' is used to identify this index and must be unique among all
+// previously allocated indexes.</span>
+<a href="#cmDlRC_t">cmDlRC_t</a> <a name="cmDListIndexAlloc"></a><span class="f"><a href="cmDListTpl_h_0.html#cmDListIndexAlloc_defn">cmDListIndexAlloc</a></span><span class="p">(</span>      <a href="#cmDListH_t">cmDListH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">indexId</span><span class="p">,</span> <a href="#cmDListCmpFunc_t">cmDListCmpFunc_t</a> <span class="i">cmpFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">funcArg</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmDlRC_t">cmDlRC_t</a> <a name="cmDListIndexFree"></a><span class="f">cmDListIndexFree</span><span class="p">(</span>       <a href="#cmDListH_t">cmDListH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">indexId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Refresh all the indexes.  This function should be called after new records are inserted
+// via <a href="#cmDListInsert">cmDListInsert</a>(..,false).</span>
+<a href="#cmDlRC_t">cmDlRC_t</a> <a name="cmDListIndexUpdateAll"></a><span class="f">cmDListIndexUpdateAll</span><span class="p">(</span>  <a href="#cmDListH_t">cmDListH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Set a function to be called when indexes are released.  </span>
+<a href="#cmDlRC_t">cmDlRC_t</a> <a name="cmDListIndexSetFreeFunc"></a><span class="f">cmDListIndexSetFreeFunc</span><span class="p">(</span><a href="#cmDListH_t">cmDListH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">indexId</span><span class="p">,</span> <a href="#cmDListIndexFreeFunc_t">cmDListIndexFreeFunc_t</a> <span class="i">func</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Allocate an interator. By default the new iterator is pointing to the first record
+// in the index identified by 'indexId'.</span>
+<a href="#cmDlRC_t">cmDlRC_t</a>    <a name="cmDListIterAlloc"></a><span class="f">cmDListIterAlloc</span><span class="p">(</span> <a href="#cmDListH_t">cmDListH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmDListIterH_t">cmDListIterH_t</a><span class="p">*</span> <span class="i">iHp</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">indexId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmDlRC_t">cmDlRC_t</a>    <a name="cmDListIterFree"></a><span class="f">cmDListIterFree</span><span class="p">(</span>      <a href="#cmDListIterH_t">cmDListIterH_t</a><span class="p">*</span> <span class="i">iHp</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>        <a name="cmDListIterIsValid"></a><span class="f">cmDListIterIsValid</span><span class="p">(</span>   <a href="#cmDListIterH_t">cmDListIterH_t</a>  <span class="i">iH</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Set the current iteration location to the begin/end of the index it is attached to.</span>
+<a href="#cmDlRC_t">cmDlRC_t</a>    <a name="cmDListIterSeekBegin"></a><span class="f">cmDListIterSeekBegin</span><span class="p">(</span> <a href="#cmDListIterH_t">cmDListIterH_t</a>  <span class="i">iH</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmDlRC_t">cmDlRC_t</a>    <a name="cmDListIterSeekEnd"></a><span class="f">cmDListIterSeekEnd</span><span class="p">(</span>   <a href="#cmDListIterH_t">cmDListIterH_t</a>  <span class="i">iH</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the current record this iterator is pointing to.</span>
+<span class="k">const</span> <span class="k">void</span><span class="p">*</span> <a name="cmDListIterGet"></a><span class="f"><a href="cmDListTpl_h_0.html#cmDListIterGet_defn">cmDListIterGet</a></span><span class="p">(</span>       <a href="#cmDListIterH_t">cmDListIterH_t</a>  <span class="i">iH</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">recdByteNRef</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the current record this iterator is pointint to and advance the iterator.</span>
+<span class="k">const</span> <span class="k">void</span><span class="p">*</span> <a name="cmDListIterPrev"></a><span class="f"><a href="cmDListTpl_h_0.html#cmDListIterPrev_defn">cmDListIterPrev</a></span><span class="p">(</span>      <a href="#cmDListIterH_t">cmDListIterH_t</a>  <span class="i">iH</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">recdByteNRef</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <span class="k">void</span><span class="p">*</span> <a name="cmDListIterNext"></a><span class="f"><a href="cmDListTpl_h_0.html#cmDListIterNext_defn">cmDListIterNext</a></span><span class="p">(</span>      <a href="#cmDListIterH_t">cmDListIterH_t</a>  <span class="i">iH</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">recdByteNRef</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Make the record which matches 'key' the current iterator.
+// The match is made by using the compare function which is assigned to the index
+// which this iterator is attached to.</span>
+<span class="k">const</span> <span class="k">void</span><span class="p">*</span> <a name="cmDListIterFind"></a><span class="f"><a href="cmDListTpl_h_0.html#cmDListIterFind_defn">cmDListIterFind</a></span><span class="p">(</span>      <a href="#cmDListIterH_t">cmDListIterH_t</a>  <span class="i">iH</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">key</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">keyN</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">recdByteNRef</span><span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

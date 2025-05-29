@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmUiRtSysMstr.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmUiRtSysMstr.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmUiRtSysMstr : Application side API for communicating with the UI audio master controls and meters.</div><pre><a name="cmUiRtSysMstr_h_code_0"></a>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkAmRC"></a><span class="e">kOkAmRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kUiFailAmRC"></a><span class="e">kUiFailAmRC</span><span class="p">,</span>
+  <a name="kPanelNotFoundAmRC"></a><span class="e">kPanelNotFoundAmRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmUiRtMstrH_t"></a><span class="t">cmUiRtMstrH_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAmRC_t"></a><span class="t">cmAmRC_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmUiRtMstrH_t">cmUiRtMstrH_t</a> <span class="i">cmUiRtMstrNullHandle</span><span class="p">;</span>
+
+<a href="#cmAmRC_t">cmAmRC_t</a> <a name="cmUiRtSysMstrAlloc"></a><span class="f">cmUiRtSysMstrAlloc</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmUiRtMstrH_t">cmUiRtMstrH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <a href="cmUi_h_0.html#cmUiH_t">cmUiH_t</a> <span class="i">uiH</span><span class="p">,</span> <a href="cmRtSys_h_0.html#cmRtSysH_t">cmRtSysH_t</a> <span class="i">asH</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">appId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmAmRC_t">cmAmRC_t</a> <a name="cmUiRtSysMstrFree"></a><span class="f">cmUiRtSysMstrFree</span><span class="p">(</span>  <a href="#cmUiRtMstrH_t">cmUiRtMstrH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>     <a name="cmUiRtSysMstrIsValid"></a><span class="f">cmUiRtSysMstrIsValid</span><span class="p">(</span> <a href="#cmUiRtMstrH_t">cmUiRtMstrH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmAmRC_t">cmAmRC_t</a> <a name="cmUiRtSysMstrInitialize"></a><span class="f">cmUiRtSysMstrInitialize</span><span class="p">(</span> <a href="#cmUiRtMstrH_t">cmUiRtMstrH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmRtSys_h_0.html#cmRtSysCtx_t">cmRtSysCtx_t</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">inDevLabel</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">outDevLabel</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Receive UI events.</span>
+<a href="cmUiDrvr_h_0.html#cmUiRC_t">cmUiRC_t</a> <a name="cmUiRtSysMstrOnUiEvent"></a><span class="f">cmUiRtSysMstrOnUiEvent</span><span class="p">(</span> <a href="#cmUiRtMstrH_t">cmUiRtMstrH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmUiDrvr_h_0.html#cmUiDriverArg_t">cmUiDriverArg_t</a><span class="p">*</span> <span class="i">a</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Receive UI status events</span>
+<a href="cmUiDrvr_h_0.html#cmUiRC_t">cmUiRC_t</a> <a name="cmUiRtSysMstrOnStatusEvent"></a><span class="f">cmUiRtSysMstrOnStatusEvent</span><span class="p">(</span> <a href="#cmUiRtMstrH_t">cmUiRtMstrH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmRtSysMsg_h_0.html#cmRtSysStatus_t">cmRtSysStatus_t</a><span class="p">*</span> <span class="i">m</span><span class="p">,</span> <span class="k">const</span> <span class="k">double</span><span class="p">*</span> <span class="i">iMeterArray</span><span class="p">,</span> <span class="k">const</span> <span class="k">double</span><span class="p">*</span> <span class="i">oMeterArray</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Clear the status indicators.</span>
+<span class="k">void</span> <a name="cmUiRtSysMstrClearStatus"></a><span class="f">cmUiRtSysMstrClearStatus</span><span class="p">(</span> <a href="#cmUiRtMstrH_t">cmUiRtMstrH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

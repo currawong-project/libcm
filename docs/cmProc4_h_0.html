@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmProc4.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmProc4.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmEditDist : Simplified string alignment function based on Levenshtein edit distance.</div><pre><a name="cmEditDist"></a>
+<span class="k">enum</span> <span class="p">{</span> <a name="kEdMinIdx"></a><span class="e">kEdMinIdx</span><span class="p">,</span> <a name="kEdSubIdx"></a><span class="e">kEdSubIdx</span><span class="p">,</span> <a name="kEdDelIdx"></a><span class="e">kEdDelIdx</span><span class="p">,</span> <a name="kEdInsIdx"></a><span class="e">kEdInsIdx</span><span class="p">,</span> <a name="kEdCnt"></a><span class="e">kEdCnt</span> <span class="p">}</span><span class="p">;</span>
+
+<a name="ed_val"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span> <a name="ed_val.v"></a><span class="i">v</span><span class="p">[</span><a href="#kEdCnt">kEdCnt</a><span class="p">]</span><span class="p">;</span>
+  <span class="k">bool</span>     <a name="ed_val.matchFl"></a><span class="i">matchFl</span><span class="p">;</span>
+  <span class="k">bool</span>     <a name="ed_val.transFl"></a><span class="i">transFl</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#ed_val">ed_val</a></span><span class="p">;</span>
+
+<a name="ed_path"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="ed_path_str"></a>ed_path_str
+<span class="p">{</span>
+  <span class="k">unsigned</span>            <a name="ed_path.code"></a><span class="i">code</span><span class="p">;</span>
+  <span class="k">unsigned</span>            <a name="ed_path.ri"></a><span class="i">ri</span><span class="p">;</span>
+  <span class="k">unsigned</span>            <a name="ed_path.ci"></a><span class="i">ci</span><span class="p">;</span>
+  <span class="k">bool</span>                <a name="ed_path.matchFl"></a><span class="i">matchFl</span><span class="p">;</span>
+  <span class="k">bool</span>                <a name="ed_path.transFl"></a><span class="i">transFl</span><span class="p">;</span>
+  <span class="k">struct</span> <a href="#ed_path_str">ed_path_str</a><span class="p">*</span> <a name="ed_path.next"></a><span class="i">next</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#ed_path">ed_path</a></span><span class="p">;</span>
+
+<span class="c">//
+//    Backtracking:
+//    m[rn,cn] is organized to indicate the mutation operations 
+//    on s0[0:rn-1] or s1[0:cn-1] during backtracking.  
+//    Backtracking begins at cell m[rn-1,cn-1] and proceeds 
+//    up and left toward m[0,0].  The action to perform during
+//    backtracking is determined by examinging which values
+//    int m[].v[1:3] match m[].v[0]. 
+//    Match                            Next Cell
+//    Index  Operation                 Location
+//    -----  ------------------------  ------------------------
+//    1      Substitute char s0[ri-1]  move diagonally; up-left
+//    2      Delete char s0[ri-1]      move up.
+//    3      Delete char s1[ci-1]      move left.
+//    (same as inserting blank
+//    into after s[ri-1]
+//
+//    Note that more than one value in m[].v[1:3] may match
+//    m[].v[0]. In this case the candidate solution branches
+//    at this point in the candidate selection processes.
+//</span>
+<span class="c">//  </span>
+<a name="ed_r"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">const</span> <span class="k">char</span><span class="p">*</span>    <a name="ed_r.s0"></a><span class="i">s0</span><span class="p">;</span>    <span class="c"> // forms rows of m[] - mutate to match s1 - rn=strlen(s0)</span>
+  <span class="k">const</span> <span class="k">char</span><span class="p">*</span>    <a name="ed_r.s1"></a><span class="i">s1</span><span class="p">;</span>    <span class="c"> // forms columns of m[] - target string - cn=strlen(s1)</span>
+  <span class="k">unsigned</span>       <a name="ed_r.rn"></a><span class="i">rn</span><span class="p">;</span>    <span class="c"> // length of s0 + 1</span>
+  <span class="k">unsigned</span>       <a name="ed_r.cn"></a><span class="i">cn</span><span class="p">;</span>    <span class="c"> // length of s1 + 1</span>
+  <a href="#ed_val">ed_val</a><span class="p">*</span>        <a name="ed_r.m"></a><span class="i">m</span><span class="p">;</span>     <span class="c"> // m[rn,cn] </span>
+  <span class="k">unsigned</span>       <a name="ed_r.pn"></a><span class="i">pn</span><span class="p">;</span>    <span class="c"> // rn+cn</span>
+  <a href="#ed_path">ed_path</a><span class="p">*</span>       <a name="ed_r.p_mem"></a><span class="i">p_mem</span><span class="p">;</span> <span class="c"> // pmem[ 2*pn ];</span>
+  <a href="#ed_path">ed_path</a><span class="p">*</span>       <a name="ed_r.p_avl"></a><span class="i">p_avl</span><span class="p">;</span> <span class="c"> // available path record linked list</span>
+  <a href="#ed_path">ed_path</a><span class="p">*</span>       <a name="ed_r.p_cur"></a><span class="i">p_cur</span><span class="p">;</span> <span class="c"> // current path linked list</span>
+  <a href="#ed_path">ed_path</a><span class="p">*</span>       <a name="ed_r.p_opt"></a><span class="i">p_opt</span><span class="p">;</span> <span class="c"> // p_opt[pn] current best alignment </span>
+  <span class="k">double</span>         <a name="ed_r.s_opt"></a><span class="i">s_opt</span><span class="p">;</span> <span class="c"> // score of the current best alignment</span>
+  
+<span class="p">}</span> <span class="t"><a href="#ed_r">ed_r</a></span><span class="p">;</span>
+
+<span class="c">// <a href="cmMain_c_0.html#print">print</a> the DP matrix ed_r.m[rn,cn].</span>
+<span class="k">void</span> <a name="ed_print_mtx"></a><span class="f">ed_print_mtx</span><span class="p">(</span> <a href="#ed_r">ed_r</a><span class="p">*</span> <span class="i">r</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Initialize <a href="#ed_r">ed_r</a>.</span>
+<span class="k">void</span> <a name="ed_init"></a><span class="f">ed_init</span><span class="p">(</span> <a href="#ed_r">ed_r</a><span class="p">*</span> <span class="i">r</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">s0</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">s1</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Fill in the DP matrix.</span>
+<span class="k">void</span> <a name="ed_calc_mtx"></a><span class="f">ed_calc_mtx</span><span class="p">(</span> <a href="#ed_r">ed_r</a><span class="p">*</span> <span class="i">r</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Traverse the possible alignments in the DP matrix and determine the optimal alignment.</span>
+<span class="k">void</span> <a name="ed_align"></a><span class="f">ed_align</span><span class="p">(</span> <a href="#ed_r">ed_r</a><span class="p">*</span> <span class="i">r</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// <a href="cmVectOpsDocOut_h_0.html#Print">Print</a> the optimal alignment p_opt[]</span>
+<span class="k">void</span> <a name="ed_print_opt"></a><span class="f">ed_print_opt</span><span class="p">(</span> <a href="#ed_r">ed_r</a><span class="p">*</span> <span class="i">r</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Free resource allocated by <a href="#ed_init">ed_init</a>().</span>
+<span class="k">void</span> <a name="ed_free"></a><span class="f">ed_free</span><span class="p">(</span><a href="#ed_r">ed_r</a><span class="p">*</span> <span class="i">r</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Main test function.</span>
+<span class="k">void</span> <a name="ed_main"></a><span class="f">ed_main</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmScoreMatch : Event oriented local score matching algorithm based on edit distance.</div><pre><a name="cmScoreMatch"></a><span class="k">enum</span> 
+<span class="p">{</span> 
+  <a name="kSmMinIdx"></a><span class="e">kSmMinIdx</span><span class="p">,</span> <span class="c"> </span>
+  <a name="kSmSubIdx"></a><span class="e">kSmSubIdx</span><span class="p">,</span> <span class="c"> // 'substitute' - may or may not match</span>
+  <a name="kSmDelIdx"></a><span class="e">kSmDelIdx</span><span class="p">,</span> <span class="c"> // 'delete' - delete a MIDI note </span>
+  <a name="kSmInsIdx"></a><span class="e">kSmInsIdx</span><span class="p">,</span> <span class="c"> // 'insert' - insert a space in the score </span>
+  <a name="kSmCnt"></a><span class="e">kSmCnt</span> 
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kSmMatchFl"></a><span class="e">kSmMatchFl</span>    <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span>
+  <a name="kSmTransFl"></a><span class="e">kSmTransFl</span>    <span class="p">=</span> <span class="l">0x02</span><span class="p">,</span>
+  <a name="kSmTruePosFl"></a><span class="e">kSmTruePosFl</span>  <span class="p">=</span> <span class="l">0x04</span><span class="p">,</span>
+  <a name="kSmFalsePosFl"></a><span class="e">kSmFalsePosFl</span> <span class="p">=</span> <span class="l">0x08</span><span class="p">,</span>
+  <a name="kSmBarFl"></a><span class="e">kSmBarFl</span>      <span class="p">=</span> <span class="l">0x10</span><span class="p">,</span>
+  <a name="kSmNoteFl"></a><span class="e">kSmNoteFl</span>     <span class="p">=</span> <span class="l">0x20</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// Dynamic Programming (DP) matrix element</span>
+<a name="cmScMatchVal_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span> <a name="cmScMatchVal_t.v"></a><span class="i">v</span><span class="p">[</span><a href="#kSmCnt">kSmCnt</a><span class="p">]</span><span class="p">;</span> <span class="c"> // cost for each operation </span>
+  <span class="k">unsigned</span> <a name="cmScMatchVal_t.flags"></a><span class="i">flags</span><span class="p">;</span>     <span class="c"> // cmSmMatchFl | cmSmTransFl</span>
+  <span class="k">unsigned</span> <a name="cmScMatchVal_t.scEvtIdx"></a><span class="i">scEvtIdx</span><span class="p">;</span> 
+<span class="p">}</span> <span class="t"><a href="#cmScMatchVal_t">cmScMatchVal_t</a></span><span class="p">;</span>
+
+<span class="c">// List record used to track a path through the DP matrix p-&ampgtm[,]</span>
+<a name="cmScMatchPath_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmScMatchPath_str"></a>cmScMatchPath_str
+<span class="p">{</span>
+  <span class="k">unsigned</span>                  <a name="cmScMatchPath_t.code"></a><span class="i">code</span><span class="p">;</span>     <span class="c"> // kSmXXXIdx</span>
+  <span class="k">unsigned</span>                  <a name="cmScMatchPath_t.ri"></a><span class="i">ri</span><span class="p">;</span>       <span class="c"> // matrix row index</span>
+  <span class="k">unsigned</span>                  <a name="cmScMatchPath_t.ci"></a><span class="i">ci</span><span class="p">;</span>       <span class="c"> // matrix col index</span>
+  <span class="k">unsigned</span>                  <a name="cmScMatchPath_t.flags"></a><span class="i">flags</span><span class="p">;</span>    <span class="c"> // cmSmMatchFl | cmSmTransFl</span>
+  <span class="k">unsigned</span>                  <a name="cmScMatchPath_t.locIdx"></a><span class="i">locIdx</span><span class="p">;</span>   <span class="c"> // p-&ampgtloc index or <a href="cmGlobal_h_0.html#cmInvalidIdx">cmInvalidIdx</a></span>
+  <span class="k">unsigned</span>                  <a name="cmScMatchPath_t.scEvtIdx"></a><span class="i">scEvtIdx</span><span class="p">;</span> <span class="c"> // scScore event index</span>
+  <span class="k">struct</span> <a href="#cmScMatchPath_str">cmScMatchPath_str</a><span class="p">*</span> <a name="cmScMatchPath_t.next"></a><span class="i">next</span><span class="p">;</span>     <span class="c"> </span>
+<span class="p">}</span> <span class="t"><a href="#cmScMatchPath_t">cmScMatchPath_t</a></span><span class="p">;</span>
+
+<a name="cmScMatchEvt_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmScMatchEvt_str"></a>cmScMatchEvt_str
+<span class="p">{</span>
+  <span class="k">unsigned</span> <a name="cmScMatchEvt_t.pitch"></a><span class="i">pitch</span><span class="p">;</span>     <span class="c"> </span>
+  <span class="k">unsigned</span> <a name="cmScMatchEvt_t.scEvtIdx"></a><span class="i">scEvtIdx</span><span class="p">;</span>  <span class="c"> // scScore event index</span>
+<span class="p">}</span> <span class="t"><a href="#cmScMatchEvt_t">cmScMatchEvt_t</a></span><span class="p">;</span>
+
+<span class="c">// Score location record. </span>
+<a name="cmScMatchLoc_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span>        <a name="cmScMatchLoc_t.evtCnt"></a><span class="i">evtCnt</span><span class="p">;</span>       <span class="c"> // count of score events at this location (i.e. a chord will have more than one event at a given location)</span>
+  <a href="#cmScMatchEvt_t">cmScMatchEvt_t</a><span class="p">*</span> <a name="cmScMatchLoc_t.evtV"></a><span class="i">evtV</span><span class="p">;</span>         <span class="c"> // evtV[evtCnt]</span>
+  <span class="k">unsigned</span>        <a name="cmScMatchLoc_t.scLocIdx"></a><span class="i">scLocIdx</span><span class="p">;</span>     <span class="c"> // scH score location index</span>
+  <span class="k">int</span>             <a name="cmScMatchLoc_t.barNumb"></a><span class="i">barNumb</span><span class="p">;</span>      <span class="c"> // bar number of this location</span>
+<span class="p">}</span> <span class="t"><a href="#cmScMatchLoc_t">cmScMatchLoc_t</a></span><span class="p">;</span>
+
+<a name="cmScMatchMidi_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span> <a name="cmScMatchMidi_t.mni"></a><span class="i">mni</span><span class="p">;</span>    <span class="c"> // unique identifier for this MIDI note - used to recognize when the <a href="#cmScMatcher">cmScMatcher</a> backtracks.</span>
+  <span class="k">unsigned</span> <a name="cmScMatchMidi_t.muid"></a><span class="i">muid</span><span class="p">;</span>   <span class="c"> // MIDI file event msg unique id (See cmMidiTrackMsg_t.uid)</span>
+  <span class="k">unsigned</span> <a name="cmScMatchMidi_t.smpIdx"></a><span class="i">smpIdx</span><span class="p">;</span> <span class="c"> // time stamp of this event</span>
+  <span class="k">unsigned</span> <a name="cmScMatchMidi_t.pitch"></a><span class="i">pitch</span><span class="p">;</span>  <span class="c"> // MIDI note pitch</span>
+  <span class="k">unsigned</span> <a name="cmScMatchMidi_t.vel"></a><span class="i">vel</span><span class="p">;</span>    <span class="c"> // &ampquot &ampquot velocity</span>
+  <span class="k">unsigned</span> <a name="cmScMatchMidi_t.locIdx"></a><span class="i">locIdx</span><span class="p">;</span> <span class="c"> // location assoc'd with this MIDI evt (<a href="cmGlobal_h_0.html#cmInvalidIdx">cmInvalidIdx</a> if not a matching or non-matching 'substitute')</span>
+  <span class="k">unsigned</span> <a name="cmScMatchMidi_t.scEvtIdx"></a><span class="i">scEvtIdx</span><span class="p">;</span> <span class="c"> // cmScore event index assoc'd with this event</span>
+<span class="p">}</span> <span class="t"><a href="#cmScMatchMidi_t">cmScMatchMidi_t</a></span><span class="p">;</span>
+
+<a name="cmScMatch"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>            <a name="cmScMatch.obj"></a><span class="i">obj</span><span class="p">;</span>         <span class="c"> </span>
+  <a href="cmScore_h_0.html#cmScH_t">cmScH_t</a>          <a name="cmScMatch.scH"></a><span class="i">scH</span><span class="p">;</span>         <span class="c"> // cmScore handle</span>
+  <span class="k">unsigned</span>         <a name="cmScMatch.locN"></a><span class="i">locN</span><span class="p">;</span>        <span class="c"> </span>
+  <a href="#cmScMatchLoc_t">cmScMatchLoc_t</a><span class="p">*</span>  <a name="cmScMatch.loc"></a><span class="i">loc</span><span class="p">;</span>         <span class="c"> // loc[locN] </span>
+  <span class="k">unsigned</span>         <a name="cmScMatch.mrn"></a><span class="i">mrn</span><span class="p">;</span>         <span class="c"> // max m[] row count (midi)</span>
+  <span class="k">unsigned</span>         <a name="cmScMatch.rn"></a><span class="i">rn</span><span class="p">;</span>          <span class="c"> // cur m[] row count</span>
+  <span class="k">unsigned</span>         <a name="cmScMatch.mcn"></a><span class="i">mcn</span><span class="p">;</span>         <span class="c"> // max m[] column count (score)</span>
+  <span class="k">unsigned</span>         <a name="cmScMatch.cn"></a><span class="i">cn</span><span class="p">;</span>          <span class="c"> // cur m[] column count</span>
+  <span class="k">unsigned</span>         <a name="cmScMatch.mmn"></a><span class="i">mmn</span><span class="p">;</span>         <span class="c"> // max length of midiBuf[] (mrn-1)</span>
+  <span class="k">unsigned</span>         <a name="cmScMatch.msn"></a><span class="i">msn</span><span class="p">;</span>         <span class="c"> // max length of score window (mcn-1)</span>
+  <a href="#cmScMatchVal_t">cmScMatchVal_t</a><span class="p">*</span>  <a name="cmScMatch.m"></a><span class="i">m</span><span class="p">;</span>           <span class="c"> // m[mrn,mcn] DP matrix</span>
+  <span class="k">unsigned</span>         <a name="cmScMatch.pn"></a><span class="i">pn</span><span class="p">;</span>          <span class="c"> // mrn+mcn</span>
+  <a href="#cmScMatchPath_t">cmScMatchPath_t</a><span class="p">*</span> <a name="cmScMatch.p_mem"></a><span class="i">p_mem</span><span class="p">;</span>       <span class="c"> // pmem[ 2*pn ] - path memory</span>
+  <a href="#cmScMatchPath_t">cmScMatchPath_t</a><span class="p">*</span> <a name="cmScMatch.p_avl"></a><span class="i">p_avl</span><span class="p">;</span>       <span class="c"> // available path record linked list</span>
+  <a href="#cmScMatchPath_t">cmScMatchPath_t</a><span class="p">*</span> <a name="cmScMatch.p_cur"></a><span class="i">p_cur</span><span class="p">;</span>       <span class="c"> // current path linked list</span>
+  <a href="#cmScMatchPath_t">cmScMatchPath_t</a><span class="p">*</span> <a name="cmScMatch.p_opt"></a><span class="i">p_opt</span><span class="p">;</span>       <span class="c"> // p_opt[pn] - current best alignment as a linked list</span>
+  <span class="k">double</span>           <a name="cmScMatch.opt_cost"></a><span class="i">opt_cost</span><span class="p">;</span>    <span class="c"> // last p_opt cost set by <a href="#cmScMatchExec">cmScMatchExec</a>() </span>
+<span class="p">}</span> <span class="t"><a href="#cmScMatch">cmScMatch</a></span><span class="p">;</span>
+
+<span class="c">//
+//    1) This matcher cannot handle multiple instances of the same pitch occuring 
+//    at the same 'location'.
+//
+//    2) Because each note of a chord is spread out over multiple locations, and 
+//    there is no way to indicate that a note in the chord is already 'in-use'.  
+//    If a MIDI note which is part of the chord is repeated, in error, it will 
+//    appear to be correct (a positive match will be assigned to
+//    the second (and possible successive notes)). 
+//</span>
+<span class="c">//  </span>
+
+<a href="#cmScMatch">cmScMatch</a><span class="p">*</span> <a name="cmScMatchAlloc"></a><span class="f">cmScMatchAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmScMatch">cmScMatch</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmScore_h_0.html#cmScH_t">cmScH_t</a> <span class="i">scH</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">maxScWndN</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">maxMidiWndN</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmScMatchFree"></a><span class="f">cmScMatchFree</span><span class="p">(</span>  <a href="#cmScMatch">cmScMatch</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmScMatchInit"></a><span class="f">cmScMatchInit</span><span class="p">(</span>  <a href="#cmScMatch">cmScMatch</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmScore_h_0.html#cmScH_t">cmScH_t</a> <span class="i">scH</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">maxScWndN</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">maxMidiWndN</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmScMatchFinal"></a><span class="f">cmScMatchFinal</span><span class="p">(</span> <a href="#cmScMatch">cmScMatch</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Locate the position in p-&ampgtloc[locIdx:locIdx+locN-1] which bests 
+// matches midiV[midiN].
+// The result of this function is to update p_opt[] 
+// The optimal path p_opt[] will only be updated if the edit_cost associated 'midiV[midiN]'.
+// with the best match is less than 'min_cost'.
+// Set 'min_cost' to DBL_MAX to force p_opt[] to be updated.
+// Returns <a href="cmProcObj_h_0.html#cmEofRC">cmEofRC</a> if locIdx + locN &ampgt p-&ampgtlocN - note that this is not 
+// necessarily an error.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmScMatchExec"></a><span class="f">cmScMatchExec</span><span class="p">(</span>  <a href="#cmScMatch">cmScMatch</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">locIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">locN</span><span class="p">,</span> <span class="k">const</span> <a href="#cmScMatchMidi_t">cmScMatchMidi_t</a><span class="p">*</span> <span class="i">midiV</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">midiN</span><span class="p">,</span> <span class="k">double</span> <span class="i">min_cost</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmScoreMatcher : MIDI score following algorithm based cmScoreMatch.</div><pre><a name="cmScoreMatcher"></a><a name="cmScMatcherResult_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span> <a name="cmScMatcherResult_t.locIdx"></a><span class="i">locIdx</span><span class="p">;</span>    <span class="c"> // index into cmScMatch_t.loc[]</span>
+  <span class="k">unsigned</span> <a name="cmScMatcherResult_t.scEvtIdx"></a><span class="i">scEvtIdx</span><span class="p">;</span>  <span class="c"> // score event index </span>
+  <span class="k">unsigned</span> <a name="cmScMatcherResult_t.mni"></a><span class="i">mni</span><span class="p">;</span>       <span class="c"> // index of the performed MIDI event associated with this score location</span>
+  <span class="k">unsigned</span> <a name="cmScMatcherResult_t.smpIdx"></a><span class="i">smpIdx</span><span class="p">;</span>    <span class="c"> // sample time index of performed MIDI event</span>
+  <span class="k">unsigned</span> <a name="cmScMatcherResult_t.muid"></a><span class="i">muid</span><span class="p">;</span>      <span class="c"> // MIDI file event msg unique id (See cmMidiTrackMsg_t.uid)</span>
+  <span class="k">unsigned</span> <a name="cmScMatcherResult_t.pitch"></a><span class="i">pitch</span><span class="p">;</span>     <span class="c"> // performed pitch </span>
+  <span class="k">unsigned</span> <a name="cmScMatcherResult_t.vel"></a><span class="i">vel</span><span class="p">;</span>       <span class="c"> // performed velocity</span>
+  <span class="k">unsigned</span> <a name="cmScMatcherResult_t.flags"></a><span class="i">flags</span><span class="p">;</span>     <span class="c"> // smTruePosFl | smFalsePosFl </span>
+<span class="p">}</span> <span class="t"><a href="#cmScMatcherResult_t">cmScMatcherResult_t</a></span><span class="p">;</span>
+
+<span class="k">struct</span> <span class="i"><a href="#cmScMatcher_str">cmScMatcher_str</a></span><span class="p">;</span>
+<span class="k">typedef</span> <span class="k">void</span> <span class="p">(</span><span class="p">*</span><a name="cmScMatcherCb_t"></a><span class="t">cmScMatcherCb_t</span><span class="p">)</span><span class="p">(</span> <span class="k">struct</span> <a href="#cmScMatcher_str">cmScMatcher_str</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">arg</span><span class="p">,</span> <a href="#cmScMatcherResult_t">cmScMatcherResult_t</a><span class="p">*</span> <span class="i">rp</span> <span class="p">)</span><span class="p">;</span>
+
+<a name="cmScMatcher"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmScMatcher_str"></a>cmScMatcher_str
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>                <a name="cmScMatcher.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="#cmScMatcherCb_t">cmScMatcherCb_t</a>      <a name="cmScMatcher.cbFunc"></a><span class="i">cbFunc</span><span class="p">;</span>
+  <span class="k">void</span><span class="p">*</span>                <a name="cmScMatcher.cbArg"></a><span class="i">cbArg</span><span class="p">;</span>
+  <a href="#cmScMatch">cmScMatch</a><span class="p">*</span>           <a name="cmScMatcher.mp"></a><span class="i">mp</span><span class="p">;</span>
+  <span class="k">unsigned</span>             <a name="cmScMatcher.mn"></a><span class="i">mn</span><span class="p">;</span>
+  <a href="#cmScMatchMidi_t">cmScMatchMidi_t</a><span class="p">*</span>     <a name="cmScMatcher.midiBuf"></a><span class="i">midiBuf</span><span class="p">;</span>  <span class="c"> // midiBuf[mn]</span>
+  
+  <a href="#cmScMatcherResult_t">cmScMatcherResult_t</a><span class="p">*</span> <a name="cmScMatcher.res"></a><span class="i">res</span><span class="p">;</span>      <span class="c"> // res[rn]</span>
+  <span class="k">unsigned</span>             <a name="cmScMatcher.rn"></a><span class="i">rn</span><span class="p">;</span>       <span class="c"> // length of res[] (set to 2*score event count)</span>
+  <span class="k">unsigned</span>             <a name="cmScMatcher.ri"></a><span class="i">ri</span><span class="p">;</span>       <span class="c"> // next avail res[] recd.</span>
+  
+  <span class="k">double</span>               <a name="cmScMatcher.s_opt"></a><span class="i">s_opt</span><span class="p">;</span>          <span class="c"> </span>
+  <span class="k">unsigned</span>             <a name="cmScMatcher.missCnt"></a><span class="i">missCnt</span><span class="p">;</span>        <span class="c"> // current count of consecutive trailing non-matches</span>
+  <span class="k">unsigned</span>             <a name="cmScMatcher.ili"></a><span class="i">ili</span><span class="p">;</span>            <span class="c"> // index into loc[] to start scan following reset</span>
+  <span class="k">unsigned</span>             <a name="cmScMatcher.eli"></a><span class="i">eli</span><span class="p">;</span>            <span class="c"> // index into loc[] of the last positive match. </span>
+  <span class="k">unsigned</span>             <a name="cmScMatcher.mni"></a><span class="i">mni</span><span class="p">;</span>            <span class="c"> // current count of MIDI events since the last call to <a href="#cmScMatcherReset">cmScMatcherReset</a>()</span>
+  <span class="k">unsigned</span>             <a name="cmScMatcher.mbi"></a><span class="i">mbi</span><span class="p">;</span>            <span class="c"> // index of oldest MIDI event in midiBuf[]; stays at 0 when the buffer is full.</span>
+  <span class="k">unsigned</span>             <a name="cmScMatcher.begSyncLocIdx"></a><span class="i">begSyncLocIdx</span><span class="p">;</span>  <span class="c"> // start of score window, in mp-&ampgtloc[], of best match in previous scan</span>
+  <span class="k">unsigned</span>             <a name="cmScMatcher.initHopCnt"></a><span class="i">initHopCnt</span><span class="p">;</span>     <span class="c"> // max window hops during the initial (when the MIDI buffer fills for first time) sync scan </span>
+  <span class="k">unsigned</span>             <a name="cmScMatcher.stepCnt"></a><span class="i">stepCnt</span><span class="p">;</span>        <span class="c"> // count of forward/backward score loc's to examine for a match during <a href="#cmScMatcherStep">cmScMatcherStep</a>().</span>
+  <span class="k">unsigned</span>             <a name="cmScMatcher.maxMissCnt"></a><span class="i">maxMissCnt</span><span class="p">;</span>     <span class="c"> // max. number of consecutive non-matches during step prior to executing a scan.</span>
+  <span class="k">unsigned</span>             <a name="cmScMatcher.scanCnt"></a><span class="i">scanCnt</span><span class="p">;</span>        <span class="c"> // current count of times a resync-scan was executed during <a href="#cmScMatcherStep">cmScMatcherStep</a>()</span>
+  
+  <span class="k">bool</span>                 <a name="cmScMatcher.printFl"></a><span class="i">printFl</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmScMatcher">cmScMatcher</a></span><span class="p">;</span>
+
+<a href="#cmScMatcher">cmScMatcher</a><span class="p">*</span> <a name="cmScMatcherAlloc"></a>cmScMatcherAlloc<span class="p">(</span> 
+<a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span>          <span class="i">c</span><span class="p">,</span>        <span class="c"> // Program context.</span>
+<a href="#cmScMatcher">cmScMatcher</a><span class="p">*</span>    <span class="i">p</span><span class="p">,</span>        <span class="c"> // Existing <a href="#cmScMatcher">cmScMatcher</a> to reallocate or NULL to allocate a new <a href="#cmScMatcher">cmScMatcher</a>.</span>
+<span class="k">double</span>          <span class="i">srate</span><span class="p">,</span>    <span class="c"> // System sample rate.</span>
+<a href="cmScore_h_0.html#cmScH_t">cmScH_t</a>         <span class="i">scH</span><span class="p">,</span>      <span class="c"> // Score handle. See <a href="cmScore_h_0.html#cmScore.h">cmScore.h</a>.</span>
+<span class="k">unsigned</span>        <span class="i">scWndN</span><span class="p">,</span>   <span class="c"> // Length of the scores active search area. ** See Notes.</span>
+<span class="k">unsigned</span>        <span class="i">midiWndN</span><span class="p">,</span> <span class="c"> // Length of the MIDI active note buffer. ** See Notes.</span>
+<a href="#cmScMatcherCb_t">cmScMatcherCb_t</a> <span class="i">cbFunc</span><span class="p">,</span>   <span class="c"> // A <a href="#cmScMatcherCb_t">cmScMatcherCb_t</a> function to be called to notify the recipient of changes in the score matcher status.</span>
+<span class="k">void</span><span class="p">*</span>           <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>  <span class="c"> // User argument to 'cbFunc'.</span>
+
+<span class="c">// Notes:
+// The <a href="#cmScMatcher">cmScMatcher</a> maintains an internal <a href="#cmScMatch">cmScMatch</a> object which is used to attempt to find the
+// best match between the current MIDI active note buffer and the current score search area.
+// 'scWndN' is used to set the <a href="#cmScMatch">cmScMatch</a> 'locN' argument.
+// 'midiWndN' sets the length of the MIDI FIFO which is used to match to the score with
+// each recceived MIDI note.
+// 'midiWndN' must be &amplt= 'scWndN'.</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmScMatcherFree"></a><span class="f">cmScMatcherFree</span><span class="p">(</span>  <a href="#cmScMatcher">cmScMatcher</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmScMatcherInit"></a><span class="f">cmScMatcherInit</span><span class="p">(</span>  <a href="#cmScMatcher">cmScMatcher</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">double</span> <span class="i">srate</span><span class="p">,</span> <a href="cmScore_h_0.html#cmScH_t">cmScH_t</a> <span class="i">scH</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">scWndN</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">midiWndN</span><span class="p">,</span> <a href="#cmScMatcherCb_t">cmScMatcherCb_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmScMatcherFinal"></a><span class="f">cmScMatcherFinal</span><span class="p">(</span> <a href="#cmScMatcher">cmScMatcher</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// 'scLocIdx' is a score index as used by <a href="cmScore_h_0.html#cmScoreLoc">cmScoreLoc</a>(scH) not into p-&ampgtmp-&ampgtloc[].</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmScMatcherReset"></a><span class="f">cmScMatcherReset</span><span class="p">(</span> <a href="#cmScMatcher">cmScMatcher</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">scLocIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Slide a score window 'hopCnt' times, beginning at 'bli' (an
+// index into p-&ampgtmp-&ampgtloc[]) looking for the best match to p-&ampgtmidiBuf[].  
+// The score window contain scWndN (p-&ampgtmp-&ampgtmcn-1) score locations.
+// Returns the index into p-&ampgtmp-&ampgtloc[] of the start of the best
+// match score window. The score associated
+// with this match is stored in s_opt.</span>
+<span class="k">unsigned</span>   <a name="cmScMatcherScan"></a><span class="f">cmScMatcherScan</span><span class="p">(</span> <a href="#cmScMatcher">cmScMatcher</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bli</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">hopCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Step forward/back by p-&ampgtstepCnt from p-&ampgteli.
+// p-&ampgteli must therefore be valid prior to calling this function.
+// If more than p-&ampgtmaxMissCnt consecutive MIDI events are 
+// missed then automatically run cmScAlignScan().
+// Return <a href="cmProcObj_h_0.html#cmEofRC">cmEofRC</a> if the end of the score is encountered.
+// Return <a href="cmProcObj_h_0.html#cmSubSysFailRC">cmSubSysFailRC</a> if an internal scan resync. failed.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmScMatcherStep"></a><span class="f">cmScMatcherStep</span><span class="p">(</span>  <a href="#cmScMatcher">cmScMatcher</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// This function calls <a href="#cmScMatcherScan">cmScMatcherScan</a>() and <a href="#cmScMatcherStep">cmScMatcherStep</a>() internally.
+// If 'status' is not kNonMidiMdId then the function returns without changing the
+// state of the object. In other words the matcher only recognizes MIDI note-on messages.
+// If the MIDI note passed by the call results in a successful match then
+// p-&ampgteli will be updated to the location in p-&ampgtmp-&ampgtloc[] of the latest 
+// match, the MIDI note in p-&ampgtmidiBuf[] associated with this match
+// will be assigned a valid locIdx and scLocIdx values, and *scLocIdxPtr
+// will be set with the matched scLocIdx of the match.
+// If this call does not result in a successful match *scLocIdxPtr is set
+// to cmInvalidIdx.
+// 'muid' is the unique id associated with this MIDI event under the circumstances
+// that the event came from a MIDI file.  See <a href="cmMidiFile_h_0.html#cmMidiFile.h">cmMidiFile.h</a> cmMidiTrackMsg_t.uid.
+// Return:
+// <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a>  - Continue processing MIDI events.
+// <a href="cmProcObj_h_0.html#cmEofRC">cmEofRC</a> - The end of the score was encountered.
+// <a href="cmProcObj_h_0.html#cmInvalidArgRC">cmInvalidArgRC</a> - scan failed or the object was in an invalid state to attempt a match.
+// <a href="cmProcObj_h_0.html#cmSubSysFailRC">cmSubSysFailRC</a> - a scan resync failed in <a href="#cmScMatcherStep">cmScMatcherStep</a>().</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmScMatcherExec"></a><span class="f">cmScMatcherExec</span><span class="p">(</span>  <a href="#cmScMatcher">cmScMatcher</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">smpIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">muid</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">status</span><span class="p">,</span> <a href="cmMidi_h_0.html#cmMidiByte_t">cmMidiByte_t</a> <span class="i">d0</span><span class="p">,</span> <a href="cmMidi_h_0.html#cmMidiByte_t">cmMidiByte_t</a> <span class="i">d1</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">scLocIdxPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span> <a name="cmScMatcherPrint"></a><span class="f">cmScMatcherPrint</span><span class="p">(</span> <a href="#cmScMatcher">cmScMatcher</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmScMeas : Measure and report some differences between the score and the performance.</div><pre><a name="cmScMeas"></a>
+<a name="cmScMeasSet_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmScore_h_0.html#cmScoreSet_t">cmScoreSet_t</a><span class="p">*</span> <a name="cmScMeasSet_t.sp"></a><span class="i">sp</span><span class="p">;</span>    <span class="c"> // ptr to this set in the score</span>
+  
+  <span class="k">unsigned</span>      <a name="cmScMeasSet_t.bsei"></a><span class="i">bsei</span><span class="p">;</span>  <span class="c"> // begin score event index </span>
+  <span class="k">unsigned</span>      <a name="cmScMeasSet_t.esei"></a><span class="i">esei</span><span class="p">;</span>  <span class="c"> // end score event index</span>
+  
+  <span class="k">unsigned</span>      <a name="cmScMeasSet_t.bsli"></a><span class="i">bsli</span><span class="p">;</span>  <span class="c"> // beg score loc index</span>
+  <span class="k">unsigned</span>      <a name="cmScMeasSet_t.esli"></a><span class="i">esli</span><span class="p">;</span>  <span class="c"> // end score loc index</span>
+  
+  <span class="k">unsigned</span>      <a name="cmScMeasSet_t.bli"></a><span class="i">bli</span><span class="p">;</span>   <span class="c"> // index into the cmScMatch.loc[] array of bsli</span>
+  <span class="k">unsigned</span>      <a name="cmScMeasSet_t.eli"></a><span class="i">eli</span><span class="p">;</span>   <span class="c"> // index into the cmScMatch.loc[] array of esli</span>
+  
+  <span class="k">double</span>        <a name="cmScMeasSet_t.value"></a><span class="i">value</span><span class="p">;</span> <span class="c"> // DBL_MAX if the value has not yet been set</span>
+  <span class="k">double</span>        <a name="cmScMeasSet_t.tempo"></a><span class="i">tempo</span><span class="p">;</span> <span class="c"> </span>
+  <span class="k">double</span>        <a name="cmScMeasSet_t.match_cost"></a><span class="i">match_cost</span><span class="p">;</span> <span class="c"> // cost of the match to the performance divided by sp-&ampgteleCnt</span>
+  
+  
+<span class="p">}</span> <span class="t"><a href="#cmScMeasSet_t">cmScMeasSet_t</a></span><span class="p">;</span>
+
+<a name="cmScMeas"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>            <a name="cmScMeas.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <span class="k">double</span>           <a name="cmScMeas.srate"></a><span class="i">srate</span><span class="p">;</span>    <span class="c"> </span>
+  <a href="#cmScMatch">cmScMatch</a><span class="p">*</span>       <a name="cmScMeas.mp"></a><span class="i">mp</span><span class="p">;</span>       <span class="c"> </span>
+  <span class="k">unsigned</span>         <a name="cmScMeas.mii"></a><span class="i">mii</span><span class="p">;</span>      <span class="c"> // next avail recd in midiBuf[]</span>
+  <span class="k">unsigned</span>         <a name="cmScMeas.mn"></a><span class="i">mn</span><span class="p">;</span>       <span class="c"> // length of of midiBuf[] (init. to 2*<a href="cmScore_h_0.html#cmScoreEvtCount">cmScoreEvtCount</a>())</span>
+  <a href="#cmScMatchMidi_t">cmScMatchMidi_t</a><span class="p">*</span> <a name="cmScMeas.midiBuf"></a><span class="i">midiBuf</span><span class="p">;</span>  <span class="c"> // midiBuf[mn]</span>
+  
+  <span class="k">unsigned</span>         <a name="cmScMeas.sn"></a><span class="i">sn</span><span class="p">;</span>       <span class="c"> // length of set[] (init. to <a href="cmScore_h_0.html#cmScoreSetCount">cmScoreSetCount</a>())</span>
+  <a href="#cmScMeasSet_t">cmScMeasSet_t</a><span class="p">*</span>   <a name="cmScMeas.set"></a><span class="i">set</span><span class="p">;</span>      <span class="c"> // set[sn] </span>
+  
+  <span class="k">unsigned</span>         <a name="cmScMeas.dn"></a><span class="i">dn</span><span class="p">;</span>       <span class="c"> // length of dynRef[]</span>
+  <span class="k">unsigned</span><span class="p">*</span>        <a name="cmScMeas.dynRef"></a><span class="i">dynRef</span><span class="p">;</span>   <span class="c"> // dynRef[dn] </span>
+  
+  <span class="k">unsigned</span>         <a name="cmScMeas.nsi"></a><span class="i">nsi</span><span class="p">;</span>      <span class="c"> // next set index to fill (this is the set[] we are waiting to complete)</span>
+  <span class="k">unsigned</span>         <a name="cmScMeas.nsli"></a><span class="i">nsli</span><span class="p">;</span>     <span class="c"> // next score location index we are expecting to receive</span>
+  
+  <span class="k">unsigned</span>         <a name="cmScMeas.vsi"></a><span class="i">vsi</span><span class="p">;</span>      <span class="c"> // set[vsi:nsi-1] indicates sets with new values following a call to <a href="#cmScMeasExec">cmScMeasExec</a>()</span>
+  <span class="k">unsigned</span>         <a name="cmScMeas.vsli"></a><span class="i">vsli</span><span class="p">;</span>     <span class="c"> // vsli:nsli-1 indicates cmScore loc's to check for section triggers following a call to <a href="#cmScMeasExec">cmScMeasExec</a>()</span>
+<span class="p">}</span> <span class="t"><a href="#cmScMeas">cmScMeas</a></span><span class="p">;</span>
+
+<span class="c">//
+// Notes:
+//
+// 1) midiBuf[] stores all MIDI notes for the duration of the performance
+// it is initialized to 2*score_event_count.
+//
+// 2) dynRef[] is the gives the MIDI velocity range for each dynamics
+// category: pppp-fff
+// 
+// 3) See a <a href="cmDspKr_c_0.html#cmDspKr.c">cmDspKr.c</a> <a href="cmDspKr_c_0.html#_cmScFolMatcherCb">_cmScFolMatcherCb</a>() for an example of how 
+// cmScMeas.vsi and cmScMeas.vsli are used to act on the results of
+// a call to cmMeasExec().</span>
+
+<a href="#cmScMeas">cmScMeas</a><span class="p">*</span> <a name="cmScMeasAlloc"></a><span class="f">cmScMeasAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmScMeas">cmScMeas</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmScore_h_0.html#cmScH_t">cmScH_t</a> <span class="i">scH</span><span class="p">,</span> <span class="k">double</span> <span class="i">srate</span><span class="p">,</span> <span class="k">const</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">dynRefArray</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">dynRefCnt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmScMeasFree"></a><span class="f">cmScMeasFree</span><span class="p">(</span>  <a href="#cmScMeas">cmScMeas</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmScMeasInit"></a><span class="f">cmScMeasInit</span><span class="p">(</span>  <a href="#cmScMeas">cmScMeas</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmScore_h_0.html#cmScH_t">cmScH_t</a> <span class="i">scH</span><span class="p">,</span> <span class="k">double</span> <span class="i">srate</span><span class="p">,</span> <span class="k">const</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">dynRefArray</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">dynRefCnt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmScMeasFinal"></a><span class="f">cmScMeasFinal</span><span class="p">(</span> <a href="#cmScMeas">cmScMeas</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Empty MIDI buffer and set the next set nsi and nsli to zero.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmScMeasReset"></a><span class="f">cmScMeasReset</span><span class="p">(</span> <a href="#cmScMeas">cmScMeas</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// This function is called for each input MIDI note which is assigned a
+// score location by cmScMatcher. 
+// 'mni' is the MIDI event index which uniquely identifies this MIDI event.
+// 'locIdx' is the location index into cmScMatcher.mp-&ampgtloc[] associated with 
+// this event.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmScMeasExec"></a><span class="f">cmScMeasExec</span><span class="p">(</span>  <a href="#cmScMeas">cmScMeas</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">mni</span><span class="p">,</span>  <span class="k">unsigned</span> <span class="i">locIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">scEvtIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">smpIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">pitch</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">vel</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr2"></span> 
+<span class="k">unsigned</span>   <a name="cmScAlignScanToTimeLineEvent"></a><span class="f">cmScAlignScanToTimeLineEvent</span><span class="p">(</span> <a href="#cmScMatcher">cmScMatcher</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmTimeLine_h_0.html#cmTlH_t">cmTlH_t</a> <span class="i">tlH</span><span class="p">,</span> <a href="cmTimeLine_h_0.html#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">top</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">endSmpIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Given a score, a time-line, and a marker on the time line scan the
+// entire score looking for the best match between the first 'midiN'
+// notes in each marker region and the score. </span>
+<span class="k">void</span>       <a name="cmScAlignScanMarkers"></a><span class="f">cmScAlignScanMarkers</span><span class="p">(</span>  <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span><span class="p">,</span> <a href="cmTimeLine_h_0.html#cmTlH_t">cmTlH_t</a> <span class="i">tlH</span><span class="p">,</span> <a href="cmScore_h_0.html#cmScH_t">cmScH_t</a> <span class="i">scH</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmScMod : Store and recall parameter information under score follower control.</div><pre><a name="cmScMod"></a><span class="c">//
+//
+//    File format:
+//    {
+//      entry_group_label :
+//      [
+//        &ampltloc&ampgt &ampltmod&ampgt &ampltvar&ampgt &amplttype&ampgt &ampltparams&ampgt    // entry record
+//      ]
+//    }
+//
+//
+//    Syntax: &ampltloc&ampgt &ampltmod&ampgt &ampltvar&ampgt &amplttype&ampgt   &ampltparams&ampgt
+//    &ampltloc&ampgt - score location
+//    &ampltmod&ampgt - name of the modulator 
+//    &ampltvar&ampgt - variable name 
+//    &amplttype&ampgt - type of operation (see Types: note below)
+//
+//    &ampltparams&ampgt
+//
+//    &ampltmin&ampgt  - set a variable min value
+//    &ampltmax&ampgt  - set a variable max value
+//    &ampltrate&ampgt - limit how often a variable is transmitted while it is ramping
+//    &ampltval&ampgt  - type dependent value - see 'Types' below.  
+//    &ampltend&ampgt  - ending value for a ramping variable
+//    &ampltdur&ampgt  - determines the length of time to get to the ending value
+//    &ampltin&ampgt   - set to '1' to indicate that this is an input variable
+//
+//    The value of parameters may be literal numeric values or may refer to
+//    variables by their name.
+//
+//    Types:
+//    set    = set &ampltvar&ampgt to &ampltval&ampgt which may be a literal or another variable.
+//    line   = ramp from its current value to &ampltval&ampgt over &ampltdur&ampgt seconds
+//    sline  = set &ampltvar&ampgt to &ampltval&ampgt and ramp to &ampltend&ampgt over &ampltdur&ampgt seconds
+//    post   = send a 'post' msg after each transmission (can be used to change the cross-fader after each msg)
+//    exec   = execute the entry group &ampltval&ampgt
+//    input  = declare an 'input' variable and set its &ampltmin&ampgt and &ampltmax&ampgt.
+//    cross  = generate an output value by interpolating between two preset values.
+//
+//</span>
+<span class="c">//  </span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kInvalidModTId"></a><span class="e">kInvalidModTId</span><span class="p">,</span>
+  <a name="kDeclModTId"></a><span class="e">kDeclModTId</span><span class="p">,</span>     <span class="c"> // declare a variable but do not associate a value with it (allows a variable to be connected to w/o sending a value) </span>
+  <a name="kSetModTId"></a><span class="e">kSetModTId</span><span class="p">,</span>      <span class="c"> // set variable to parray[0] at scLocIdx</span>
+  <a name="kLineModTId"></a><span class="e">kLineModTId</span><span class="p">,</span>     <span class="c"> // linear ramp variable to parray[0] over parray[1] seconds</span>
+  <a name="kSetLineModTId"></a><span class="e">kSetLineModTId</span><span class="p">,</span>  <span class="c"> // set variable to parray[0] and ramp to parray[1] over parray[2] seconds</span>
+  <a name="kPostModTId"></a><span class="e">kPostModTId</span><span class="p">,</span>     <span class="c"> </span>
+  <a name="kExecModTId"></a><span class="e">kExecModTId</span><span class="p">,</span>     <span class="c"> // execute an entry group</span>
+  <a name="kInputModTId"></a><span class="e">kInputModTId</span><span class="p">,</span>    <span class="c"> // This is an 'input' variable.</span>
+  <a name="kCrossModTId"></a><span class="e">kCrossModTId</span>     <span class="c"> // generate an output value by interpolating between two preset variable values</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kActiveModFl"></a><span class="e">kActiveModFl</span> <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span>  <span class="c"> // this variable is on the 'active' list</span>
+  <a name="kCalcModFl"></a><span class="e">kCalcModFl</span>   <span class="p">=</span> <span class="l">0x02</span><span class="p">,</span>  <span class="c"> // when this variable is used as a parameter it's value must be calculated rather than used directly.</span>
+  <a name="kInputModFl"></a><span class="e">kInputModFl</span>  <span class="p">=</span> <span class="l">0x04</span>   <span class="c"> // this is an input variable</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">struct</span> <span class="i"><a href="#cmScModEntry_str">cmScModEntry_str</a></span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kInvalidModPId"></a><span class="e">kInvalidModPId</span><span class="p">,</span>
+  <a name="kLiteralModPId"></a><span class="e">kLiteralModPId</span><span class="p">,</span>  <span class="c"> // this is a literal value</span>
+  <a name="kSymbolModPId"></a><span class="e">kSymbolModPId</span>    <span class="c"> </span>
+<span class="p">}</span> <a name="cmScModPId_t"></a><span class="t">cmScModPId_t</span><span class="p">;</span>
+
+<a name="cmScModParam_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmScModParam_str"></a>cmScModParam_str
+<span class="p">{</span>
+  <a href="#cmScModPId_t">cmScModPId_t</a> <a name="cmScModParam_t.pid"></a><span class="i">pid</span><span class="p">;</span>     <span class="c"> // parameter type: literal or symbol</span>
+  <span class="k">unsigned</span>     <a name="cmScModParam_t.symId"></a><span class="i">symId</span><span class="p">;</span>   <span class="c"> // symbol of external and internal variables</span>
+  <span class="k">double</span>       <a name="cmScModParam_t.val"></a><span class="i">val</span><span class="p">;</span>     <span class="c"> // value of literals</span>
+<span class="p">}</span> <span class="t"><a href="#cmScModParam_t">cmScModParam_t</a></span><span class="p">;</span>
+
+<span class="c">// <a href="#cmScModVar_t">cmScModVar_t</a> is used to track the value of a variable.</span>
+<a name="cmScModVar_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmScModVar_str"></a>cmScModVar_str
+<span class="p">{</span>
+  <span class="k">unsigned</span>                 <a name="cmScModVar_t.flags"></a><span class="i">flags</span><span class="p">;</span>    <span class="c"> // see kXXXModFl flags above.</span>
+  <span class="k">unsigned</span>                 <a name="cmScModVar_t.varSymId"></a><span class="i">varSymId</span><span class="p">;</span> <span class="c"> // variable name </span>
+  <span class="k">unsigned</span>                 <a name="cmScModVar_t.varId"></a><span class="i">varId</span><span class="p">;</span>    <span class="c"> // var id</span>
+  <span class="k">double</span>                   <a name="cmScModVar_t.value"></a><span class="i">value</span><span class="p">;</span>    <span class="c"> // current value of this variable</span>
+  <span class="k">double</span>                   <a name="cmScModVar_t.v0"></a><span class="i">v0</span><span class="p">;</span>       <span class="c"> // reserved internal variable</span>
+  <span class="k">unsigned</span>                 <a name="cmScModVar_t.phase"></a><span class="i">phase</span><span class="p">;</span>    <span class="c"> // cycle phase since activation </span>
+  <span class="k">double</span>                   <a name="cmScModVar_t.min"></a><span class="i">min</span><span class="p">;</span>
+  <span class="k">double</span>                   <a name="cmScModVar_t.max"></a><span class="i">max</span><span class="p">;</span>
+  <span class="k">double</span>                   <a name="cmScModVar_t.rate"></a><span class="i">rate</span><span class="p">;</span>     <span class="c"> // output rate in milliseconds (use</span>
+  <span class="k">struct</span> <a href="#cmScModEntry_str">cmScModEntry_str</a><span class="p">*</span> <a name="cmScModVar_t.entry"></a><span class="i">entry</span><span class="p">;</span>    <span class="c"> // last entry assoc'd with this value</span>
+  <span class="k">struct</span> <a href="#cmScModVar_str">cmScModVar_str</a><span class="p">*</span>   <a name="cmScModVar_t.vlink"></a><span class="i">vlink</span><span class="p">;</span>    <span class="c"> // p-&ampgtvlist link</span>
+  <span class="k">struct</span> <a href="#cmScModVar_str">cmScModVar_str</a><span class="p">*</span>   <a name="cmScModVar_t.alink"></a><span class="i">alink</span><span class="p">;</span>    <span class="c"> // p-&ampgtalist link</span>
+<span class="p">}</span> <span class="t"><a href="#cmScModVar_t">cmScModVar_t</a></span><span class="p">;</span>
+
+<span class="c">// Each entry gives a time tagged location and some parameters 
+// for an algorthm which is used to set/modulate a value.</span>
+<a name="cmScModEntry_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmScModEntry_str"></a>cmScModEntry_str
+<span class="p">{</span>
+  <span class="k">unsigned</span>       <a name="cmScModEntry_t.scLocIdx"></a><span class="i">scLocIdx</span><span class="p">;</span>      <span class="c"> // entry start time</span>
+  <span class="k">unsigned</span>       <a name="cmScModEntry_t.typeId"></a><span class="i">typeId</span><span class="p">;</span>        <span class="c"> // variable type</span>
+  <a href="#cmScModParam_t">cmScModParam_t</a> <a name="cmScModEntry_t.beg"></a><span class="i">beg</span><span class="p">;</span>           <span class="c"> // parameter values</span>
+  <a href="#cmScModParam_t">cmScModParam_t</a> <a name="cmScModEntry_t.end"></a><span class="i">end</span><span class="p">;</span>           <span class="c"> </span>
+  <a href="#cmScModParam_t">cmScModParam_t</a> <a name="cmScModEntry_t.dur"></a><span class="i">dur</span><span class="p">;</span>           <span class="c"> </span>
+  <a href="#cmScModParam_t">cmScModParam_t</a> <a name="cmScModEntry_t.min"></a><span class="i">min</span><span class="p">;</span>           <span class="c"> // min value for this variable</span>
+  <a href="#cmScModParam_t">cmScModParam_t</a> <a name="cmScModEntry_t.max"></a><span class="i">max</span><span class="p">;</span>           <span class="c"> // max value for this variable</span>
+  <a href="#cmScModParam_t">cmScModParam_t</a> <a name="cmScModEntry_t.rate"></a><span class="i">rate</span><span class="p">;</span>          <span class="c"> // update rate in milliseconds (DBL_MAX to disable)</span>
+  <a href="#cmScModParam_t">cmScModParam_t</a> <a name="cmScModEntry_t.arg"></a><span class="i">arg</span><span class="p">;</span>           <span class="c"> // cross input variable</span>
+  <a href="#cmScModVar_t">cmScModVar_t</a><span class="p">*</span>  <a name="cmScModEntry_t.varPtr"></a><span class="i">varPtr</span><span class="p">;</span>        <span class="c"> // target variable </span>
+<span class="p">}</span> <span class="t"><a href="#cmScModEntry_t">cmScModEntry_t</a></span><span class="p">;</span>
+
+<a name="cmScModEntryGroup_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmScModEntryGroup_str"></a>cmScModEntryGroup_str
+<span class="p">{</span>
+  <span class="k">unsigned</span>                      <a name="cmScModEntryGroup_t.symId"></a><span class="i">symId</span><span class="p">;</span>   <span class="c"> // this groups label</span>
+  <a href="#cmScModEntry_t">cmScModEntry_t</a><span class="p">*</span>               <a name="cmScModEntryGroup_t.earray"></a><span class="i">earray</span><span class="p">;</span>  <span class="c"> // entries associated with this group</span>
+  <span class="k">unsigned</span>                      <a name="cmScModEntryGroup_t.en"></a><span class="i">en</span><span class="p">;</span>      <span class="c"> // earray[en]</span>
+  <span class="k">struct</span> <a href="#cmScModEntryGroup_str">cmScModEntryGroup_str</a><span class="p">*</span> <a name="cmScModEntryGroup_t.link"></a><span class="i">link</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmScModEntryGroup_t">cmScModEntryGroup_t</a></span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">void</span> <span class="p">(</span><span class="p">*</span><a name="cmScModCb_t"></a><span class="t">cmScModCb_t</span><span class="p">)</span><span class="p">(</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">varSymId</span><span class="p">,</span> <span class="k">double</span> <span class="i">value</span><span class="p">,</span> <span class="k">bool</span> <span class="i">postFl</span> <span class="p">)</span><span class="p">;</span>
+
+<a name="cmScModulator"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>           <a name="cmScModulator.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>       <a name="cmScModulator.fn"></a><span class="i">fn</span><span class="p">;</span>           <span class="c"> // modulator score file</span>
+  <span class="k">unsigned</span>        <a name="cmScModulator.modSymId"></a><span class="i">modSymId</span><span class="p">;</span>     <span class="c"> // modulator name</span>
+  <a href="cmSymTbl_h_0.html#cmSymTblH_t">cmSymTblH_t</a>     <a name="cmScModulator.stH"></a><span class="i">stH</span><span class="p">;</span>          <span class="c"> // symbol table used by this modulator</span>
+  <a href="#cmScModCb_t">cmScModCb_t</a>     <a name="cmScModulator.cbFunc"></a><span class="i">cbFunc</span><span class="p">;</span>       <span class="c"> // active value callback function</span>
+  <span class="k">void</span><span class="p">*</span>           <a name="cmScModulator.cbArg"></a><span class="i">cbArg</span><span class="p">;</span>        <span class="c"> // first arg to cbFunc()</span>
+  <span class="k">unsigned</span>        <a name="cmScModulator.samplesPerCycle"></a><span class="i">samplesPerCycle</span><span class="p">;</span> <span class="c"> // interval in samples between calls to <a href="#cmScModulatorExec">cmScModulatorExec</a>()</span>
+  <span class="k">double</span>          <a name="cmScModulator.srate"></a><span class="i">srate</span><span class="p">;</span>        <span class="c"> // system sample rate</span>
+  <a href="#cmScModVar_t">cmScModVar_t</a><span class="p">*</span>   <a name="cmScModulator.vlist"></a><span class="i">vlist</span><span class="p">;</span>        <span class="c"> // variable list</span>
+  <a href="#cmScModVar_t">cmScModVar_t</a><span class="p">*</span>   <a name="cmScModulator.alist"></a><span class="i">alist</span><span class="p">;</span>        <span class="c"> // active variable list</span>
+  <a href="#cmScModVar_t">cmScModVar_t</a><span class="p">*</span>   <a name="cmScModulator.elist"></a><span class="i">elist</span><span class="p">;</span>        <span class="c"> // last element on the active list</span>
+  <span class="k">unsigned</span>        <a name="cmScModulator.nei"></a><span class="i">nei</span><span class="p">;</span>          <span class="c"> // next entry index in xlist-&ampgtearray[] to examine for activation</span>
+  <span class="k">unsigned</span>        <a name="cmScModulator.outVarCnt"></a><span class="i">outVarCnt</span><span class="p">;</span>    <span class="c"> // count of unique vars that are targets of entry recds</span>
+  <span class="k">unsigned</span>        <a name="cmScModulator.inVarCnt"></a><span class="i">inVarCnt</span><span class="p">;</span>     
+  <span class="k">bool</span>            <a name="cmScModulator.postFl"></a><span class="i">postFl</span><span class="p">;</span>       <span class="c"> // send a 'post' msg after each transmission</span>
+  <a href="#cmScModEntryGroup_t">cmScModEntryGroup_t</a><span class="p">*</span> <a name="cmScModulator.xlist"></a><span class="i">xlist</span><span class="p">;</span>   <span class="c"> // entry group to execute</span>
+  <a href="#cmScModEntryGroup_t">cmScModEntryGroup_t</a><span class="p">*</span> <a name="cmScModulator.glist"></a><span class="i">glist</span><span class="p">;</span>   <span class="c"> // entry group list</span>
+<span class="p">}</span> <span class="t"><a href="#cmScModulator">cmScModulator</a></span><span class="p">;</span>
+
+
+<a href="#cmScModulator">cmScModulator</a><span class="p">*</span> <a name="cmScModulatorAlloc"></a><span class="f">cmScModulatorAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmScModulator">cmScModulator</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="cmSymTbl_h_0.html#cmSymTblH_t">cmSymTblH_t</a> <span class="i">stH</span><span class="p">,</span> <span class="k">double</span> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">samplesPerCycle</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">modLabel</span><span class="p">,</span> <a href="#cmScModCb_t">cmScModCb_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmScModulatorFree"></a><span class="f">cmScModulatorFree</span><span class="p">(</span>  <a href="#cmScModulator">cmScModulator</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmScModulatorInit"></a><span class="f">cmScModulatorInit</span><span class="p">(</span>  <a href="#cmScModulator">cmScModulator</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="cmSymTbl_h_0.html#cmSymTblH_t">cmSymTblH_t</a> <span class="i">stH</span><span class="p">,</span> <span class="k">double</span> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">samplesPerCycle</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">modLabel</span><span class="p">,</span> <a href="#cmScModCb_t">cmScModCb_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmScModulatorFinal"></a><span class="f">cmScModulatorFinal</span><span class="p">(</span> <a href="#cmScModulator">cmScModulator</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return count of variables.</span>
+<span class="k">unsigned</span>       <a name="cmScModulatorOutVarCount"></a><span class="f">cmScModulatorOutVarCount</span><span class="p">(</span> <a href="#cmScModulator">cmScModulator</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return a pointer to the variable at vlist[idx].</span>
+<a href="#cmScModVar_t">cmScModVar_t</a><span class="p">*</span>  <a name="cmScModulatorOutVar"></a><span class="f">cmScModulatorOutVar</span><span class="p">(</span> <a href="#cmScModulator">cmScModulator</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">idx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>       <a name="cmScModulatorInVarCount"></a><span class="f">cmScModulatorInVarCount</span><span class="p">(</span> <a href="#cmScModulator">cmScModulator</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmScModVar_t">cmScModVar_t</a><span class="p">*</span>  <a name="cmScModulatorInVar"></a><span class="f">cmScModulatorInVar</span><span class="p">(</span> <a href="#cmScModulator">cmScModulator</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">idx</span> <span class="p">)</span><span class="p">;</span>
+
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmScModulatorSetValueMinMax"></a><span class="f">cmScModulatorSetValueMinMax</span><span class="p">(</span> <a href="#cmScModulator">cmScModulator</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">varSymId</span><span class="p">,</span> <span class="k">double</span> <span class="i">value</span><span class="p">,</span> <span class="k">double</span> <span class="i">min</span><span class="p">,</span> <span class="k">double</span> <span class="i">max</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmScModulatorSetValue"></a><span class="f">cmScModulatorSetValue</span><span class="p">(</span>       <a href="#cmScModulator">cmScModulator</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">varSymId</span><span class="p">,</span> <span class="k">double</span> <span class="i">value</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmScModulatorReset"></a><span class="f">cmScModulatorReset</span><span class="p">(</span> <a href="#cmScModulator">cmScModulator</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">scLocIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">entryGroupSymId</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmScModulatorExec"></a><span class="f">cmScModulatorExec</span><span class="p">(</span>  <a href="#cmScModulator">cmScModulator</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">scLocIdx</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmScModulatorDump"></a><span class="f">cmScModulatorDump</span><span class="p">(</span>  <a href="#cmScModulator">cmScModulator</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmRecdPlay : Record fragments of audio, store them,and play them back at a later time.</div><pre><a name="cmRecdPlay"></a><span class="c">//
+// Record fragments of audio, store them, and play them back at a later time.
+//</span>
+
+<a name="cmRecdPlayFrag"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmRecdPlayFrag_str"></a>cmRecdPlayFrag_str
+<span class="p">{</span>
+  <span class="k">unsigned</span>                   <a name="cmRecdPlayFrag.labelSymId"></a><span class="i">labelSymId</span><span class="p">;</span> <span class="c"> // this fragments label</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span><span class="p">*</span>               <a name="cmRecdPlayFrag.chArray"></a><span class="i">chArray</span><span class="p">;</span>    <span class="c"> // record buffer chArray[cmRecdPlay.chCnt][allocCnt]</span>
+  <span class="k">unsigned</span>                   <a name="cmRecdPlayFrag.allocCnt"></a><span class="i">allocCnt</span><span class="p">;</span>   <span class="c"> // count of samples allocated to each channel</span>
+  <span class="k">unsigned</span>                   <a name="cmRecdPlayFrag.playIdx"></a><span class="i">playIdx</span><span class="p">;</span>    <span class="c"> // index of next sample to play</span>
+  <span class="k">unsigned</span>                   <a name="cmRecdPlayFrag.recdIdx"></a><span class="i">recdIdx</span><span class="p">;</span>    <span class="c"> // index of next sample to receieve audio (count of full samples)</span>
+  <span class="k">double</span>                     <a name="cmRecdPlayFrag.fadeDbPerSec"></a><span class="i">fadeDbPerSec</span><span class="p">;</span> <span class="c"> // fade rate in dB per second</span>
+  <span class="k">unsigned</span>                   <a name="cmRecdPlayFrag.fadeSmpIdx"></a><span class="i">fadeSmpIdx</span><span class="p">;</span> 
+  <span class="k">struct</span> <a href="#cmRecdPlayFrag_str">cmRecdPlayFrag_str</a><span class="p">*</span> <a name="cmRecdPlayFrag.rlink"></a><span class="i">rlink</span><span class="p">;</span>      <span class="c"> // cmRecdPlay.rlist link</span>
+  <span class="k">struct</span> <a href="#cmRecdPlayFrag_str">cmRecdPlayFrag_str</a><span class="p">*</span> <a name="cmRecdPlayFrag.plink"></a><span class="i">plink</span><span class="p">;</span>      <span class="c"> // cmRecdPlay.plist link</span>
+<span class="p">}</span> <span class="t"><a href="#cmRecdPlayFrag">cmRecdPlayFrag</a></span><span class="p">;</span>
+
+<a name="cmRecdPlay"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>            <a name="cmRecdPlay.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="#cmRecdPlayFrag">cmRecdPlayFrag</a><span class="p">*</span>  <a name="cmRecdPlay.frags"></a><span class="i">frags</span><span class="p">;</span>         <span class="c"> // frags[fragCnt] fragment array</span>
+  <span class="k">unsigned</span>         <a name="cmRecdPlay.fragCnt"></a><span class="i">fragCnt</span><span class="p">;</span>       <span class="c"> // count of fragments </span>
+  <span class="k">double</span>           <a name="cmRecdPlay.srate"></a><span class="i">srate</span><span class="p">;</span>         <span class="c"> // system sample rate</span>
+  <span class="k">unsigned</span>         <a name="cmRecdPlay.chCnt"></a><span class="i">chCnt</span><span class="p">;</span>         <span class="c"> // count of input and output audio channels</span>
+  <span class="k">double</span>           <a name="cmRecdPlay.initFragSecs"></a><span class="i">initFragSecs</span><span class="p">;</span>  <span class="c"> // size initial memory allocated to each frag in seconds</span>
+  <span class="k">unsigned</span>         <a name="cmRecdPlay.maxLaSmpCnt"></a><span class="i">maxLaSmpCnt</span><span class="p">;</span>   <span class="c"> // samples allocated to each channel of the look-ahead buffers.</span>
+  <span class="k">unsigned</span>         <a name="cmRecdPlay.curLaSmpCnt"></a><span class="i">curLaSmpCnt</span><span class="p">;</span>   <span class="c"> // current look-ahead time in samples (curLaSmpCnt&amplt=maxLaSmpCnt)</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span><span class="p">*</span>     <a name="cmRecdPlay.laChs"></a><span class="i">laChs</span><span class="p">;</span>         <span class="c"> // laChs[chCnt][maxLaSmpCnt] - look-ahead buffers</span>
+  <span class="k">int</span>              <a name="cmRecdPlay.laSmpIdx"></a><span class="i">laSmpIdx</span><span class="p">;</span>      <span class="c"> // next look-ahead buffer index to receive a sample</span>
+  <a href="#cmRecdPlayFrag">cmRecdPlayFrag</a><span class="p">*</span>  <a name="cmRecdPlay.plist"></a><span class="i">plist</span><span class="p">;</span>         <span class="c"> // currently playing frags</span>
+  <a href="#cmRecdPlayFrag">cmRecdPlayFrag</a><span class="p">*</span>  <a name="cmRecdPlay.rlist"></a><span class="i">rlist</span><span class="p">;</span>         <span class="c"> // currently recording frags</span>
+<span class="p">}</span> <span class="t"><a href="#cmRecdPlay">cmRecdPlay</a></span><span class="p">;</span>
+
+
+<span class="c">// srate        - system sample rate
+// fragCnt      - total count of samples to record
+// chCnt        - count of input and output audio channels.
+// initFragSecs - amount of memory to pre-allocate for each fragment.
+// maxLaSecs    -  maximum value for curLaSecs
+// curLaSecs    -  current duration of look-ahead buffer 
+//
+// The look-ahead buffer is a circular buffer which hold the previous 'curLaSecs' seconds
+// of incoming audio.  When recording is enabled with via <a href="#cmRecdPlayBeginRecord">cmRecdPlayBeginRecord</a>() the
+// look ahead buffer is automatically prepended to the fragment.</span>
+
+<a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span>    <a name="cmRecdPlayAlloc"></a><span class="f">cmRecdPlayAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">double</span> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">fragCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">double</span> <span class="i">initFragSecs</span><span class="p">,</span> <span class="k">double</span> <span class="i">maxLaSecs</span><span class="p">,</span> <span class="k">double</span> <span class="i">curLaSecs</span>  <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmRecdPlayFree"></a><span class="f">cmRecdPlayFree</span><span class="p">(</span>  <a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmRecdPlayInit"></a><span class="f">cmRecdPlayInit</span><span class="p">(</span>  <a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">double</span> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flagCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">double</span> <span class="i">initFragSecs</span><span class="p">,</span> <span class="k">double</span> <span class="i">maxLaSecs</span><span class="p">,</span> <span class="k">double</span> <span class="i">curLaSecs</span>  <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmRecdPlayFinal"></a><span class="f">cmRecdPlayFinal</span><span class="p">(</span> <a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmRecdPlayRegisterFrag"></a><span class="f">cmRecdPlayRegisterFrag</span><span class="p">(</span> <a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">fragIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">labelSymId</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmRecdPlaySetLaSecs"></a><span class="f">cmRecdPlaySetLaSecs</span><span class="p">(</span> <a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">double</span> <span class="i">curLaSecs</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Deactivates all active recorders and players, zeros the look-ahead buffer and
+// rewinds all fragment play positions.  This function does not clear the audio from 
+// frabments that have already been recorded.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmRecdPlayRewind"></a><span class="f">cmRecdPlayRewind</span><span class="p">(</span>      <a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmRecdPlayBeginRecord"></a><span class="f">cmRecdPlayBeginRecord</span><span class="p">(</span> <a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">labelSymId</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmRecdPlayEndRecord"></a><span class="f">cmRecdPlayEndRecord</span><span class="p">(</span>   <a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">labelSymId</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmRecdPlayInsertRecord"></a><span class="f">cmRecdPlayInsertRecord</span><span class="p">(</span><a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">labelSymId</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">wavFn</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmRecdPlayBeginPlay"></a><span class="f">cmRecdPlayBeginPlay</span><span class="p">(</span>   <a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">labelSymId</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmRecdPlayEndPlay"></a><span class="f">cmRecdPlayEndPlay</span><span class="p">(</span>     <a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">labelSymId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Begin fading out the specified fragment at a rate deteremined by 'dbPerSec'.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmRecdPlayBeginFade"></a><span class="f">cmRecdPlayBeginFade</span><span class="p">(</span>   <a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">labelSymId</span><span class="p">,</span> <span class="k">double</span> <span class="i">fadeDbPerSec</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmRecdPlayExec"></a><span class="f">cmRecdPlayExec</span><span class="p">(</span>        <a href="#cmRecdPlay">cmRecdPlay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span><span class="p">*</span> <span class="i">iChs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span><span class="p">*</span> <span class="i">oChs</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">smpCnt</span> <span class="p">)</span><span class="p">;</span></pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

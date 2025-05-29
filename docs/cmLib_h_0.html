@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmLib.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmLib.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmLib : Manage shared-libraries and query them for known symbols.</div><pre><a name="cmLib_h_code_0"></a>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkLibRC"></a><span class="e">kOkLibRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kOpenFailLibRC"></a><span class="e">kOpenFailLibRC</span><span class="p">,</span>
+  <a name="kCloseFailLibRC"></a><span class="e">kCloseFailLibRC</span><span class="p">,</span>
+  <a name="kSymFailLibRC"></a><span class="e">kSymFailLibRC</span><span class="p">,</span>
+  <a name="kInvalidIdLibRC"></a><span class="e">kInvalidIdLibRC</span><span class="p">,</span>
+  <a name="kFileSysFailLibRC"></a><span class="e">kFileSysFailLibRC</span>
+  
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">unsigned</span>   <a name="cmLibRC_t"></a><span class="t">cmLibRC_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmLibH_t"></a><span class="t">cmLibH_t</span><span class="p">;</span> 
+
+
+<span class="k">extern</span> <a href="#cmLibH_t">cmLibH_t</a> <span class="i">cmLibNullHandle</span><span class="p">;</span>
+
+<span class="c">// Initialize a dynamic library manager and scan a directory for dynamic libraries
+// to load. 'dirStr' is optional.</span>
+<a href="#cmLibRC_t">cmLibRC_t</a> <a name="cmLibInitialize"></a><span class="f">cmLibInitialize</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmLibH_t">cmLibH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">dirStr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Release a dynamic library manager and close any open libraries it may own.</span>
+<a href="#cmLibRC_t">cmLibRC_t</a> <a name="cmLibFinalize"></a><span class="f">cmLibFinalize</span><span class="p">(</span>   <a href="#cmLibH_t">cmLibH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return true if the dynamic library mgr. is initialized.</span>
+<span class="k">bool</span>      <a name="cmLibIsValid"></a><span class="f">cmLibIsValid</span><span class="p">(</span> <a href="#cmLibH_t">cmLibH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Open a dynamic library.
+// Return <a href="cmGlobal_h_0.html#cmInvalidId">cmInvalidId</a> on error.</span>
+<span class="k">unsigned</span>  <a name="cmLibOpen"></a><span class="f">cmLibOpen</span><span class="p">(</span>  <a href="#cmLibH_t">cmLibH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">libFn</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Close a dynamic library.</span>
+<a href="#cmLibRC_t">cmLibRC_t</a> <a name="cmLibClose"></a><span class="f">cmLibClose</span><span class="p">(</span> <a href="#cmLibH_t">cmLibH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">libId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return a pointer to a symbol from a dynamic library.</span>
+<span class="k">void</span><span class="p">*</span>     <a name="cmLibSym"></a><span class="f">cmLibSym</span><span class="p">(</span> <a href="#cmLibH_t">cmLibH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">libId</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Scan a directory for dynamic libraries.</span>
+<a href="#cmLibRC_t">cmLibRC_t</a> <a name="cmLibScan"></a><span class="f">cmLibScan</span><span class="p">(</span> <a href="#cmLibH_t">cmLibH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">dirStr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the count of open libraries.</span>
+<span class="k">unsigned</span>  <a name="cmLibCount"></a><span class="f">cmLibCount</span><span class="p">(</span> <a href="#cmLibH_t">cmLibH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return a library id given an index</span>
+<span class="k">unsigned</span>  <a name="cmLibIndexToId"></a><span class="f">cmLibIndexToId</span><span class="p">(</span> <a href="#cmLibH_t">cmLibH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">idx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the libraries file name.</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmLibName"></a><span class="f">cmLibName</span><span class="p">(</span> <a href="#cmLibH_t">cmLibH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">libId</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

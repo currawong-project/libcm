@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmAudDspLocal.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmAudDspLocal.h"></a><!-- Begin nodes -->
+<div class="doc"><div class="blk_title">cmAudDspLocal : Implementation of the audio DSP interface for local, in-memory, communication.</div><a name="cmAudDspLocal_h_doc_0"></a></pre>
+<div class="d"><p>This class instantiates an audio-DSP engine (cmAudDsp), an interface for communicating with it (cmAudDspIF), and message delivery functions for copying messages in both directions between cmAuDsp and cmAudDspIF.</p>
+<p>Note that the underlying inteface which allows an application to control, and receive message from, cmAudDsp is provided by cmAudDspIF - which this class provides a handle to.</p>
+</div>
+<pre>
+<hr>
+</div>
+<div class="cod"><pre><a name="cmAudDspLocal_h_code_1"></a>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkAdlRC"></a><span class="e">kOkAdlRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kAudDspIfFailAdlRC"></a><span class="e">kAudDspIfFailAdlRC</span><span class="p">,</span>
+  <a name="kAudDspFailAdlRC"></a><span class="e">kAudDspFailAdlRC</span><span class="p">,</span>
+  <a name="kFileSysFailAdlRC"></a><span class="e">kFileSysFailAdlRC</span><span class="p">,</span>
+  <a name="kJsonFailAdlRC"></a><span class="e">kJsonFailAdlRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a> <a name="cmAdlRC_t"></a><span class="t">cmAdlRC_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmAdlH_t"></a><span class="t">cmAdlH_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmAdlH_t">cmAdlH_t</a> <span class="i">cmAdlNullHandle</span><span class="p">;</span>
+
+<a href="#cmAdlRC_t">cmAdlRC_t</a> <a name="cmAudDspLocalAllocate"></a>cmAudDspLocalAllocate<span class="p">(</span> 
+<a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span>                <span class="i">ctx</span><span class="p">,</span> 
+<a href="#cmAdlH_t">cmAdlH_t</a><span class="p">*</span>               <span class="i">hp</span><span class="p">,</span> 
+<span class="k">const</span> <a href="cmAudDspIF_h_0.html#cmAdIfDispatch_t">cmAdIfDispatch_t</a><span class="p">*</span> <span class="i">recd</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmAdlRC_t">cmAdlRC_t</a> <a name="cmAudDspLocalFree"></a><span class="f">cmAudDspLocalFree</span><span class="p">(</span> <a href="#cmAdlH_t">cmAdlH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmAdlRC_t">cmAdlRC_t</a> <a name="cmAudDspLocalSendSetup"></a><span class="f">cmAudDspLocalSendSetup</span><span class="p">(</span> <a href="#cmAdlH_t">cmAdlH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>      <a name="cmAudDspLocalIsValid"></a><span class="f">cmAudDspLocalIsValid</span><span class="p">(</span> <a href="#cmAdlH_t">cmAdlH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmAudDspIF_h_0.html#cmAiH_t">cmAiH_t</a>   <a name="cmAudDspLocalIF_Handle"></a><span class="f">cmAudDspLocalIF_Handle</span><span class="p">(</span> <a href="#cmAdlH_t">cmAdlH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmCsv.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmCsv.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmCsv : Comma seperated value file reader and writer.</div><pre><a name="cmCsv_h_code_0"></a>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkCsvRC"></a><span class="e">kOkCsvRC</span> <span class="p">=</span> <span class="l">0</span><span class="p">,</span>
+  <a name="kMemAllocErrCsvRC"></a><span class="e">kMemAllocErrCsvRC</span><span class="p">,</span>
+  <a name="kLexErrCsvRC"></a><span class="e">kLexErrCsvRC</span><span class="p">,</span>
+  <a name="kHashTblErrCsvRC"></a><span class="e">kHashTblErrCsvRC</span><span class="p">,</span>
+  <a name="kSyntaxErrCsvRC"></a><span class="e">kSyntaxErrCsvRC</span><span class="p">,</span>
+  <a name="kFileOpenErrCsvRC"></a><span class="e">kFileOpenErrCsvRC</span><span class="p">,</span>
+  <a name="kFileCreateErrCsvRC"></a><span class="e">kFileCreateErrCsvRC</span><span class="p">,</span>
+  <a name="kFileReadErrCsvRC"></a><span class="e">kFileReadErrCsvRC</span><span class="p">,</span>
+  <a name="kFileSeekErrCsvRC"></a><span class="e">kFileSeekErrCsvRC</span><span class="p">,</span>
+  <a name="kFileCloseErrCsvRC"></a><span class="e">kFileCloseErrCsvRC</span><span class="p">,</span>
+  <a name="kDataCvtErrCsvRC"></a><span class="e">kDataCvtErrCsvRC</span><span class="p">,</span>
+  <a name="kCellNotFoundCsvRC"></a><span class="e">kCellNotFoundCsvRC</span><span class="p">,</span>
+  <a name="kDuplicateLexCsvId"></a><span class="e">kDuplicateLexCsvId</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">unsigned</span>   <a name="cmCsvRC_t"></a><span class="t">cmCsvRC_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmCsvH_t"></a><span class="t">cmCsvH_t</span><span class="p">;</span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kIntCsvTFl"></a><span class="e">kIntCsvTFl</span>   <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span>
+  <a name="kHexCsvTFl"></a><span class="e">kHexCsvTFl</span>   <span class="p">=</span> <span class="l">0x02</span><span class="p">,</span>
+  <a name="kRealCsvTFl"></a><span class="e">kRealCsvTFl</span>  <span class="p">=</span> <span class="l">0x04</span><span class="p">,</span>
+  <a name="kIdentCsvTFl"></a><span class="e">kIdentCsvTFl</span> <span class="p">=</span> <span class="l">0x08</span><span class="p">,</span>
+  <a name="kStrCsvTFl"></a><span class="e">kStrCsvTFl</span>   <span class="p">=</span> <span class="l">0x10</span><span class="p">,</span>
+  <a name="kUdefCsvTFl"></a><span class="e">kUdefCsvTFl</span>  <span class="p">=</span> <span class="l">0x20</span><span class="p">,</span>
+  
+  <a name="kNumberTMask"></a><span class="e">kNumberTMask</span>   <span class="p">=</span> <a href="#kIntCsvTFl">kIntCsvTFl</a>   <span class="p">|</span> <a href="#kHexCsvTFl">kHexCsvTFl</a> <span class="p">|</span> <a href="#kRealCsvTFl">kRealCsvTFl</a><span class="p">,</span>
+  <a name="kTextTMask"></a><span class="e">kTextTMask</span>     <span class="p">=</span> <a href="#kIdentCsvTFl">kIdentCsvTFl</a> <span class="p">|</span> <a href="#kStrCsvTFl">kStrCsvTFl</a><span class="p">,</span>
+  <a name="kTypeTMask"></a><span class="e">kTypeTMask</span>     <span class="p">=</span> <a href="#kNumberTMask">kNumberTMask</a> <span class="p">|</span> <a href="#kTextTMask">kTextTMask</a>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// Each non-blank CSV cell is represented by a <a href="#cmCsvCell_t">cmCsvCell_t</a> record.
+// All the non-blank cells in a given row are organized as a linked
+// list throught 'rowPtr'.</span>
+<a name="cmCsvCell_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmCsvCell_str"></a>cmCsvCell_str
+<span class="p">{</span>
+  <span class="k">unsigned</span>              <a name="cmCsvCell_t.row"></a><span class="i">row</span><span class="p">;</span>     <span class="c"> // CSV row number</span>
+  <span class="k">unsigned</span>              <a name="cmCsvCell_t.col"></a><span class="i">col</span><span class="p">;</span>     <span class="c"> // CSV column number</span>
+  <span class="k">struct</span> <a href="#cmCsvCell_str">cmCsvCell_str</a><span class="p">*</span> <a name="cmCsvCell_t.rowPtr"></a><span class="i">rowPtr</span><span class="p">;</span>  <span class="c"> // links together cells in this row</span>
+  
+  <span class="k">unsigned</span>              <a name="cmCsvCell_t.symId"></a><span class="i">symId</span><span class="p">;</span>   <span class="c"> // symbol id for this cell</span>
+  <span class="k">unsigned</span>              <a name="cmCsvCell_t.flags"></a><span class="i">flags</span><span class="p">;</span>   <span class="c"> // cell flags (see kXXXCsvTFl)</span>
+  <span class="k">unsigned</span>              <a name="cmCsvCell_t.lexTId"></a><span class="i">lexTId</span><span class="p">;</span>
+  
+<span class="p">}</span> <span class="t"><a href="#cmCsvCell_t">cmCsvCell_t</a></span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">cmCsvNullHandle</span><span class="p">;</span>
+
+<a href="#cmCsvRC_t">cmCsvRC_t</a> <a name="cmCsvInitialize"></a><span class="f">cmCsvInitialize</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="p">*</span><span class="i">hp</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a> <a name="cmCsvFinalize"></a><span class="f">cmCsvFinalize</span><span class="p">(</span>   <a href="#cmCsvH_t">cmCsvH_t</a> <span class="p">*</span><span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmCsvRC_t">cmCsvRC_t</a> <a name="cmCsvInitializeFromFile"></a><span class="f">cmCsvInitializeFromFile</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="p">*</span><span class="i">hp</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">maxRowCnt</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>      <a name="cmCsvIsValid"></a><span class="f">cmCsvIsValid</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a> <a name="cmCsvLastRC"></a><span class="f">cmCsvLastRC</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>      <a name="cmCsvClearRC"></a><span class="f">cmCsvClearRC</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Register token matchers. See <a href="cmLex_h_0.html#cmLexRegisterToken">cmLexRegisterToken</a> and <a href="cmLex_h_0.html#cmLexRegisterMatcher">cmLexRegisterMatcher</a>
+// for details.</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a> <a name="cmCsvLexRegisterToken"></a><span class="f">cmCsvLexRegisterToken</span><span class="p">(</span>   <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">token</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a> <a name="cmCsvLexRegisterMatcher"></a><span class="f">cmCsvLexRegisterMatcher</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span><span class="p">,</span> <a href="cmLex_h_0.html#cmLexUserMatcherPtr_t">cmLexUserMatcherPtr_t</a> <span class="i">funcPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the next available lexer token id above the token id's used internally
+// by the object. This value is fixed after <a href="#cmCsvInitialize">cmCsvInitialize</a>()
+// and does not change for the life of the CSV object.  The application is
+// therefore free to choose any lexer id values equal to or above the 
+// returned value.</span>
+<span class="k">unsigned</span>  <a name="cmCsvLexNextAvailId"></a><span class="f">cmCsvLexNextAvailId</span><span class="p">(</span>     <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Set 'maxRowCnt' to 0 if there is no row limit on the file.</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a> <a name="cmCsvParse"></a><span class="f">cmCsvParse</span><span class="p">(</span>      <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bufCharCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">maxRowCnt</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a> <a name="cmCsvParseFile"></a><span class="f">cmCsvParseFile</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">maxRowCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>  <a name="cmCsvRowCount"></a><span class="f">cmCsvRowCount</span><span class="p">(</span>   <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return a pointer to a given cell.</span>
+<a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span> <a name="cmCsvCellPtr"></a><span class="f">cmCsvCellPtr</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">col</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return a pointer to the first cell in a given row</span>
+<a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span> <a name="cmCsvRowPtr"></a><span class="f">cmCsvRowPtr</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">// Convert a cell symbold id to a value.</span>
+<span class="k">const</span> <span class="k">char</span><span class="p">*</span> <a name="cmCsvCellSymText"></a><span class="f">cmCsvCellSymText</span><span class="p">(</span>   <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">symId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>   <a name="cmCsvCellSymInt"></a><span class="f">cmCsvCellSymInt</span><span class="p">(</span>    <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">symId</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span> <span class="i">vp</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>   <a name="cmCsvCellSymUInt"></a><span class="f">cmCsvCellSymUInt</span><span class="p">(</span>   <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">symId</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">vp</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>   <a name="cmCsvCellSymFloat"></a><span class="f">cmCsvCellSymFloat</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">symId</span><span class="p">,</span> <span class="k">float</span><span class="p">*</span> <span class="i">vp</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>   <a name="cmCsvCellSymDouble"></a><span class="f">cmCsvCellSymDouble</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">symId</span><span class="p">,</span> <span class="k">double</span><span class="p">*</span> <span class="i">vp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the value associated with a cell.</span>
+<span class="k">const</span> <span class="k">char</span><span class="p">*</span> <a name="cmCsvCellText"></a><span class="f">cmCsvCellText</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">col</span> <span class="p">)</span><span class="p">;</span> <span class="c"> // Returns NULL on error.</span>
+<span class="k">int</span>         <a name="cmCsvCellInt"></a><span class="f">cmCsvCellInt</span><span class="p">(</span>   <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">col</span> <span class="p">)</span><span class="p">;</span> <span class="c"> // Returns INT_MAX on error.</span>
+<span class="k">unsigned</span>    <a name="cmCsvCellUInt"></a><span class="f">cmCsvCellUInt</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">col</span> <span class="p">)</span><span class="p">;</span> <span class="c"> // Returns UINT_MAX on error.</span>
+<span class="k">float</span>       <a name="cmCsvCellFloat"></a><span class="f">cmCsvCellFloat</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">col</span> <span class="p">)</span><span class="p">;</span> <span class="c"> // Returns FLT_MAX on error.</span>
+<span class="k">double</span>      <a name="cmCsvCellDouble"></a><span class="f">cmCsvCellDouble</span><span class="p">(</span><a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">col</span> <span class="p">)</span><span class="p">;</span> <span class="c"> // Returns DBL_MAX on error.</span>
+
+<span class="c">// Insert a value into the internal symbol table.</span>
+<span class="k">unsigned</span>   <a name="cmCsvInsertSymText"></a><span class="f">cmCsvInsertSymText</span><span class="p">(</span>   <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">text</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>   <a name="cmCsvInsertSymInt"></a><span class="f">cmCsvInsertSymInt</span><span class="p">(</span>    <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">int</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>   <a name="cmCsvInsertSymUInt"></a><span class="f">cmCsvInsertSymUInt</span><span class="p">(</span>   <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>   <a name="cmCsvInsertSymHex"></a><span class="f">cmCsvInsertSymHex</span><span class="p">(</span>    <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>   <a name="cmCsvInsertSymFloat"></a><span class="f">cmCsvInsertSymFloat</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">float</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>   <a name="cmCsvInsertSymDouble"></a><span class="f">cmCsvInsertSymDouble</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">double</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>  
+
+
+<span class="c">// Set the value associated with a cell.</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvSetCellIdent"></a><span class="f">cmCsvSetCellIdent</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">col</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">text</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvSetCellQText"></a><span class="f">cmCsvSetCellQText</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">col</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">text</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvSetCellInt"></a><span class="f">cmCsvSetCellInt</span><span class="p">(</span>    <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">col</span><span class="p">,</span> <span class="k">int</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvSetCellUInt"></a><span class="f">cmCsvSetCellUInt</span><span class="p">(</span>   <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">col</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvSetCellHex"></a><span class="f">cmCsvSetCellHex</span><span class="p">(</span>    <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">col</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvSetCellFloat"></a><span class="f">cmCsvSetCellFloat</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">col</span><span class="p">,</span> <span class="k">float</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvSetCellDouble"></a><span class="f">cmCsvSetCellDouble</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">row</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">col</span><span class="p">,</span> <span class="k">double</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Insert a new row and column 0 cell just above the row assigned to 'row'.
+// lexTId is an arbitrary id used by the application to set the value of 
+// cmCsvCell_t.lexTId in the new cell. There are no constraints on its value.
+//<a href="#cmCsvRC_t">cmCsvRC_t</a>  cmCsvInsertRowBefore(  <a href="#cmCsvH_t">cmCsvH_t</a> h, unsigned row, <a href="#cmCsvCell_t">cmCsvCell_t</a>** cellPtrPtr, unsigned symId, unsigned flags, unsigned lexTId );</span>
+
+<span class="c">// Column 0 will be added if 'cellPtrPtr'!= NULL and 'symId'!=cmInvalidId.
+// If cellPtrPtr and symId are not valid then 'flags' and 'lexTId' are ignored.</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvAppendRow"></a><span class="f">cmCsvAppendRow</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span><span class="p">*</span> <span class="i">cellPtrPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">symId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">lexTId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Insert a new cell to the right of leftCellPtr.
+// lexTId is an arbitrary id used by the application to set the value of 
+// cmCsvCell_t.lexTId in the new cell. There are no constraints on its value.</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvInsertColAfter"></a><span class="f">cmCsvInsertColAfter</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span> <span class="i">leftCellPtr</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span><span class="p">*</span> <span class="i">cellPtrPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">symId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">lexTId</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvInsertIdentColAfter"></a><span class="f">cmCsvInsertIdentColAfter</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span> <span class="i">leftCellPtr</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span><span class="p">*</span> <span class="i">cellPtrPtr</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">val</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">lexTId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvInsertQTextColAfter"></a><span class="f">cmCsvInsertQTextColAfter</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span> <span class="i">leftCellPtr</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span><span class="p">*</span> <span class="i">cellPtrPtr</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">val</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">lexTId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvInsertIntColAfter"></a><span class="f">cmCsvInsertIntColAfter</span><span class="p">(</span>    <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span> <span class="i">leftCellPtr</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span><span class="p">*</span> <span class="i">cellPtrPtr</span><span class="p">,</span> <span class="k">int</span> <span class="i">val</span><span class="p">,</span>         <span class="k">unsigned</span> <span class="i">lexTId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvInsertUIntColAfter"></a><span class="f">cmCsvInsertUIntColAfter</span><span class="p">(</span>   <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span> <span class="i">leftCellPtr</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span><span class="p">*</span> <span class="i">cellPtrPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">val</span><span class="p">,</span>    <span class="k">unsigned</span> <span class="i">lexTId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvInsertHexColAfter"></a><span class="f">cmCsvInsertHexColAfter</span><span class="p">(</span>    <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span> <span class="i">leftCellPtr</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span><span class="p">*</span> <span class="i">cellPtrPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">val</span><span class="p">,</span>    <span class="k">unsigned</span> <span class="i">lexTId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvInsertFloatColAfter"></a><span class="f">cmCsvInsertFloatColAfter</span><span class="p">(</span>  <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span> <span class="i">leftCellPtr</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span><span class="p">*</span> <span class="i">cellPtrPtr</span><span class="p">,</span> <span class="k">float</span> <span class="i">val</span><span class="p">,</span>       <span class="k">unsigned</span> <span class="i">lexTId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvInsertDoubleColAfter"></a><span class="f">cmCsvInsertDoubleColAfter</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span> <span class="i">leftCellPtr</span><span class="p">,</span> <a href="#cmCsvCell_t">cmCsvCell_t</a><span class="p">*</span><span class="p">*</span> <span class="i">cellPtrPtr</span><span class="p">,</span> <span class="k">double</span> <span class="i">val</span><span class="p">,</span>      <span class="k">unsigned</span> <span class="i">lexTId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Write the CSV object out to a file.</span>
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvWrite"></a><span class="f">cmCsvWrite</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmCsvRC_t">cmCsvRC_t</a>  <a name="cmCsvPrint"></a><span class="f">cmCsvPrint</span><span class="p">(</span> <a href="#cmCsvH_t">cmCsvH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">rowCnt</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

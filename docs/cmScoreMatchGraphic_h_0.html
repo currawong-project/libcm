@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmScoreMatchGraphic.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmScoreMatchGraphic.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmScoreMatchGraphic : Implements the functionality of cmMidiScoreFollowMain().</div><pre><a name="cmScoreMatchGraphic_h_code_0"></a>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkSmgRC"></a><span class="e">kOkSmgRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kFileSmgRC"></a><span class="e">kFileSmgRC</span><span class="p">,</span>
+  <a name="kScoreFailSmgRC"></a><span class="e">kScoreFailSmgRC</span><span class="p">,</span>
+  <a name="kMidiFileFailSmgRC"></a><span class="e">kMidiFileFailSmgRC</span><span class="p">,</span>
+  <a name="kOpFailSmgRC"></a><span class="e">kOpFailSmgRC</span><span class="p">,</span>
+  <a name="kMatchFailSmgRC"></a><span class="e">kMatchFailSmgRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmSmgRC_t"></a><span class="t">cmSmgRC_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmSmgH_t"></a><span class="t">cmSmgH_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmSmgH_t">cmSmgH_t</a> <span class="i">cmSmgNullHandle</span><span class="p">;</span>
+
+<a href="#cmSmgRC_t">cmSmgRC_t</a> <a name="cmScoreMatchGraphicAlloc"></a><span class="f">cmScoreMatchGraphicAlloc</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmSmgH_t">cmSmgH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">scoreFn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">midiFn</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmSmgRC_t">cmSmgRC_t</a> <a name="cmScoreMatchGraphicFree"></a><span class="f">cmScoreMatchGraphicFree</span><span class="p">(</span> <a href="#cmSmgH_t">cmSmgH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>      <a name="cmScoreMatchGraphicIsValid"></a><span class="f">cmScoreMatchGraphicIsValid</span><span class="p">(</span> <a href="#cmSmgH_t">cmSmgH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmSmgRC_t">cmSmgRC_t</a> <a name="cmScoreMatchGraphicInsertMidi"></a><span class="f">cmScoreMatchGraphicInsertMidi</span><span class="p">(</span> <a href="#cmSmgH_t">cmSmgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">midiUid</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">midiPitch</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">midiVel</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">csvScoreEventId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmSmgRC_t">cmSmgRC_t</a> <a name="cmScoreMatchGraphicWrite"></a><span class="f">cmScoreMatchGraphicWrite</span><span class="p">(</span> <a href="#cmSmgH_t">cmSmgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Generate a set of markers for use in a cmTimeLine file which forms a marked area
+// beginning at each bar line and ends at the end of the file.</span>
+<a href="#cmSmgRC_t">cmSmgRC_t</a> <a name="cmScoreMatchGraphicGenTimeLineBars"></a><span class="f">cmScoreMatchGraphicGenTimeLineBars</span><span class="p">(</span> <a href="#cmSmgH_t">cmSmgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">srate</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Update the MIDI file velocity values and insert pedal events
+// from from score into MIDI file and then write the updated MIDI
+// file to 'newMidiFn'.</span>
+<a href="#cmSmgRC_t">cmSmgRC_t</a> <a name="cmScoreMatchGraphicUpdateMidiFromScore"></a><span class="f">cmScoreMatchGraphicUpdateMidiFromScore</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmSmgH_t">cmSmgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">newMidiFn</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

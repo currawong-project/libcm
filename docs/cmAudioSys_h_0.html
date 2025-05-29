@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmAudioSys.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmAudioSys.h"></a><!-- Begin nodes -->
+<div class="doc"><div class="blk_title">cmAudioSys : This is the kernel of a real-time audio processing engine.</div><a name="cmAudioSys_h_doc_0"></a></pre>
+<div class="d"><p>The audio system is composed a collection of independent sub-systems. Each sub-system maintains a thread which runs asynchrounsly from the application, the MIDI devices, and the audio devices. To faciliate communication between these components each sub-system maintains two thread-safe data buffers one for control information and a second for audio data.</p>
+<p>The audio devices are the primary driver for the system. Callbacks from the audio devices (See #<a href="cmAudioPort_h_0.html#cmApCallbackPtr_t">cmApCallbackPtr_t</a>) inserts incoming audio samples into the audio record buffers and extracts samples from the playback buffer.<br />
+When sufficient incoming samples and outgoing empty buffer space exists a sub-system thread is waken up by the callback. This triggers a DSP audio processing cycle which empties/fills the audio buffers. During a DSP processing cycle control messages from the application and MIDI are blocked and buffered. Upon completetion of the DSP cycle a control message transfer cycles occurs - buffered incoming messages are passed to the DSP system and messages originating in the DSP system are buffered by the audio system for later pickup by the application or MIDI system.</p>
+<p>Note that control messages that arrive when the DSP cycle is not occurring can pass directly through to the DSP system.</p>
+<p>The DSP system sends messages back to the host by calling <a href="#cmAsDspToHostFunc_t">cmAsDspToHostFunc_t</a> provided by cmAudioSysCtx_t. These calls are always made from within an audio system call to audio or control update within cmAsCallback_t. <a href="#cmAsDspToHostFunc_t">cmAsDspToHostFunc_t</a> simply stores the message in a message buffer. The host picks up the message at some later time when it notices that messages are waiting via polling <a href="#cmAudioSysIsMsgWaiting">cmAudioSysIsMsgWaiting</a>().</p>
+<p>Implementation:  The audio sub-systems work by maintaining an internal thread which blocks on a mutex condition variable. While the thread is blocked the mutex is unlocked allowing messages to pass directly through to the DSP procedure via cmAsCallback().</p>
+<p>Periodic calls from running audio devices update the audio buffer. When the audio buffer has input samples waiting and output space available the condition variable is signaled, the mutex is then automatically locked by the system, and the DSP execution procedure is called via cmAsCallback().</p>
+<p>Messages arriving while the mutex is locked are queued and delivered to the DSP procedure at the end of the DSP execution procedure.</p>
+</div>
+<pre>
+<hr>
+</div>
+<div class="cod"><pre><a name="cmAudioSys_h_code_1"></a><span class="c">// Audio system result codes</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkAsRC"></a><span class="e">kOkAsRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kThreadErrAsRC"></a><span class="e">kThreadErrAsRC</span><span class="p">,</span>
+  <a name="kMutexErrAsRC"></a><span class="e">kMutexErrAsRC</span><span class="p">,</span>
+  <a name="kTsQueueErrAsRC"></a><span class="e">kTsQueueErrAsRC</span><span class="p">,</span>
+  <a name="kMsgEnqueueFailAsRC"></a><span class="e">kMsgEnqueueFailAsRC</span><span class="p">,</span>
+  <a name="kAudioDevSetupErrAsRC"></a><span class="e">kAudioDevSetupErrAsRC</span><span class="p">,</span>
+  <a name="kAudioBufSetupErrAsRC"></a><span class="e">kAudioBufSetupErrAsRC</span><span class="p">,</span>
+  <a name="kAudioDevStartFailAsRC"></a><span class="e">kAudioDevStartFailAsRC</span><span class="p">,</span>
+  <a name="kAudioDevStopFailAsRC"></a><span class="e">kAudioDevStopFailAsRC</span><span class="p">,</span>
+  <a name="kBufTooSmallAsRC"></a><span class="e">kBufTooSmallAsRC</span><span class="p">,</span>
+  <a name="kNoMsgWaitingAsRC"></a><span class="e">kNoMsgWaitingAsRC</span><span class="p">,</span>
+  <a name="kMidiSysFailAsRC"></a><span class="e">kMidiSysFailAsRC</span><span class="p">,</span>
+  <a name="kSerialPortFailAsRC"></a><span class="e">kSerialPortFailAsRC</span><span class="p">,</span>
+  <a name="kMsgSerializeFailAsRC"></a><span class="e">kMsgSerializeFailAsRC</span><span class="p">,</span>
+  <a name="kStateBufFailAsRC"></a><span class="e">kStateBufFailAsRC</span><span class="p">,</span>
+  <a name="kInvalidArgAsRC"></a><span class="e">kInvalidArgAsRC</span><span class="p">,</span>
+  <a name="kNotInitAsRC"></a><span class="e">kNotInitAsRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kAsDfltMsgQueueByteCnt"></a><span class="e">kAsDfltMsgQueueByteCnt</span>   <span class="p">=</span> <span class="l">0xffff</span><span class="p">,</span>
+  <a name="kAsDfltDevFramesPerCycle"></a><span class="e">kAsDfltDevFramesPerCycle</span> <span class="p">=</span> <span class="l">512</span><span class="p">,</span>
+  <a name="kAsDfltDspFramesPerCycle"></a><span class="e">kAsDfltDspFramesPerCycle</span> <span class="p">=</span> <span class="l">64</span><span class="p">,</span>
+  <a name="kAsDfltBufCnt"></a><span class="e">kAsDfltBufCnt</span>            <span class="p">=</span> <span class="l">3</span><span class="p">,</span>
+  <a name="kAsDfltSrate"></a><span class="e">kAsDfltSrate</span>             <span class="p">=</span> <span class="l">44100</span><span class="p">,</span>
+  <a name="kAsDfltSyncToInputFl"></a><span class="e">kAsDfltSyncToInputFl</span>     <span class="p">=</span> <span class="l">1</span><span class="p">,</span>
+  <a name="kAsDfltMinMeterMs"></a><span class="e">kAsDfltMinMeterMs</span>        <span class="p">=</span> <span class="l">10</span><span class="p">,</span>
+  <a name="kAsDfltMeterMs"></a><span class="e">kAsDfltMeterMs</span>           <span class="p">=</span> <span class="l">50</span><span class="p">,</span>
+  <a name="kAsDfltMaxMeterMs"></a><span class="e">kAsDfltMaxMeterMs</span>        <span class="p">=</span> <span class="l">1000</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmAudioSysH_t"></a><span class="t">cmAudioSysH_t</span><span class="p">;</span>  <span class="c"> // Audio system handle type</span>
+<span class="k">typedef</span> <span class="k">unsigned</span>   <a name="cmAsRC_t"></a><span class="t">cmAsRC_t</span><span class="p">;</span>       <span class="c"> // Audio system result code</span>
+
+<span class="k">struct</span> <span class="i"><a href="#cmAudioSysCtx_str">cmAudioSysCtx_str</a></span><span class="p">;</span>
+
+<span class="c">//
+// DSP system callback function.
+//
+// This is the sole point of entry into the DSP system while the audio system is running.
+//
+// ctxPtr is pointer to a <a href="#cmAudioSysCtx_t">cmAudioSysCtx_t</a> record.
+//
+// This function is called under two circumstances:
+//
+// 1) To notify the DSP system that the audio input/output buffers need to be serviced.
+// This is a perioidic request which the DSP system uses as its execution trigger.
+// cmAudioSysCtx_t.audioRateFl is set to true to indicate this type of callback.
+//
+// 2) To pass messages from the host application to the DSP system.
+// The DSP system is asyncronous with the host because it executes in the 
+// audio system thread rather than the host thread.  The <a href="#cmAudioSysDeliverMsg">cmAudioSysDeliverMsg</a>() 
+// function synchronizes incoming messages with the internal audio system 
+// thread to prevent thread collisions.
+//
+// Notes:
+// This callback is always made with the internal audio system mutex locked.
+//
+// The signal time covered by the callback is from 
+// ctx-&ampgtbegSmpIdx to ctx-&ampgtbegSmpIdx+cfg-&ampgtdspFramesPerCycle.
+//
+// The return value is currently not used.</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a> <span class="p">(</span><span class="p">*</span><a name="cmAsCallback_t"></a><span class="t">cmAsCallback_t</span><span class="p">)</span><span class="p">(</span><span class="k">void</span><span class="p">*</span> <span class="i">ctxPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">msgByteCnt</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">msgDataPtr</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">// Audio device sub-sytem configuration record </span>
+<a name="cmAudioSysArgs_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmAudioSysArgs_str"></a>cmAudioSysArgs_str
+<span class="p">{</span>
+  <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span>        <a name="cmAudioSysArgs_t.rpt"></a><span class="i">rpt</span><span class="p">;</span>               <span class="c"> // system console object</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmAudioSysArgs_t.inDevLabel"></a><span class="i">inDevLabel</span><span class="p">;</span>        <span class="c"> // input audio device text label</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmAudioSysArgs_t.outDevLabel"></a><span class="i">outDevLabel</span><span class="p">;</span>       <span class="c"> // output audio device text label</span>
+  <span class="k">unsigned</span>        <a name="cmAudioSysArgs_t.inDevIdx"></a><span class="i">inDevIdx</span><span class="p">;</span>          <span class="c"> // input audio device index</span>
+  <span class="k">unsigned</span>        <a name="cmAudioSysArgs_t.outDevIdx"></a><span class="i">outDevIdx</span><span class="p">;</span>         <span class="c"> // output audio device index </span>
+  <span class="k">bool</span>            <a name="cmAudioSysArgs_t.syncInputFl"></a><span class="i">syncInputFl</span><span class="p">;</span>       <span class="c"> // true/false sync the DSP update callbacks with audio input/output</span>
+  <span class="k">unsigned</span>        <a name="cmAudioSysArgs_t.msgQueueByteCnt"></a><span class="i">msgQueueByteCnt</span><span class="p">;</span>   <span class="c"> // Size of the internal msg queue used to buffer msgs arriving via <a href="#cmAudioSysDeliverMsg">cmAudioSysDeliverMsg</a>().</span>
+  <span class="k">unsigned</span>        <a name="cmAudioSysArgs_t.devFramesPerCycle"></a><span class="i">devFramesPerCycle</span><span class="p">;</span> <span class="c"> // (512) Audio device samples per channel per device update buffer.</span>
+  <span class="k">unsigned</span>        <a name="cmAudioSysArgs_t.dspFramesPerCycle"></a><span class="i">dspFramesPerCycle</span><span class="p">;</span> <span class="c"> // (64) Audio samples per channel per DSP cycle.</span>
+  <span class="k">unsigned</span>        <a name="cmAudioSysArgs_t.audioBufCnt"></a><span class="i">audioBufCnt</span><span class="p">;</span>       <span class="c"> // (3) Audio device buffers.</span>
+  <span class="k">double</span>          <a name="cmAudioSysArgs_t.srate"></a><span class="i">srate</span><span class="p">;</span>             <span class="c"> // Audio sample rate.</span>
+  <span class="k">int</span>             <a name="cmAudioSysArgs_t.srateMult"></a><span class="i">srateMult</span><span class="p">;</span>         <span class="c"> // Sample rate multiplication factor (negative for divide)</span>
+<span class="p">}</span> <span class="t"><a href="#cmAudioSysArgs_t">cmAudioSysArgs_t</a></span><span class="p">;</span>
+
+<span class="c">// Audio sub-system configuration record.
+// This record is provided by the host to configure the audio system
+// via cmAudioSystemAllocate() or cmAudioSystemInitialize().</span>
+<a name="cmAudioSysSubSys_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmAudioSysSubSys_str"></a>cmAudioSysSubSys_str
+<span class="p">{</span>
+  <a href="#cmAudioSysArgs_t">cmAudioSysArgs_t</a> <a name="cmAudioSysSubSys_t.args"></a><span class="i">args</span><span class="p">;</span>              <span class="c"> // Audio device configuration</span>
+  <a href="#cmAsCallback_t">cmAsCallback_t</a>   <a name="cmAudioSysSubSys_t.cbFunc"></a><span class="i">cbFunc</span><span class="p">;</span>            <span class="c"> // DSP system entry point function.</span>
+  <span class="k">void</span><span class="p">*</span>            <a name="cmAudioSysSubSys_t.cbDataPtr"></a><span class="i">cbDataPtr</span><span class="p">;</span>         <span class="c"> // Host provided data for the DSP system callback. </span>
+<span class="p">}</span> <span class="t"><a href="#cmAudioSysSubSys_t">cmAudioSysSubSys_t</a></span><span class="p">;</span>
+
+
+<span class="c">// Signature of a callback function provided by the audio system to receive messages 
+// from the DSP system for later dispatch to the host application.
+// This declaration is used by the DSP system implementation and the audio system.
+// Note that this function is intended to convey one message broken into multiple parts.
+// See <a href="cmThread_h_0.html#cmTsQueueEnqueueSegMsg">cmTsQueueEnqueueSegMsg</a>() for the equivalent interface.</span>
+<span class="k">typedef</span> <a href="#cmAsRC_t">cmAsRC_t</a> <span class="p">(</span><span class="p">*</span><a name="cmAsDspToHostFunc_t"></a><span class="t">cmAsDspToHostFunc_t</span><span class="p">)</span><span class="p">(</span><span class="k">struct</span> <a href="#cmAudioSysCtx_str">cmAudioSysCtx_str</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> msgDataPtrArray<span class="p">[</span><span class="i">]</span><span class="p">,</span> <span class="k">unsigned</span> msgByteCntArray<span class="p">[</span><span class="i">]</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">msgSegCnt</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Record passed with each call to the DSP callback function <a href="#cmAsCallback_t">cmAsCallback_t</a></span>
+<a name="cmAudioSysCtx_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmAudioSysCtx_str"></a>cmAudioSysCtx_str
+<span class="p">{</span>
+  <span class="k">void</span><span class="p">*</span>               <a name="cmAudioSysCtx_t.reserved"></a><span class="i">reserved</span><span class="p">;</span>      <span class="c"> // used internally by the audio system</span>
+  
+  <span class="k">bool</span>                <a name="cmAudioSysCtx_t.audioRateFl"></a><span class="i">audioRateFl</span><span class="p">;</span>   <span class="c"> // true if this is an audio update callback</span>
+  
+  <span class="k">unsigned</span>            <a name="cmAudioSysCtx_t.srcNetNodeId"></a><span class="i">srcNetNodeId</span><span class="p">;</span>  <span class="c"> // Source net node if this is a msg callback originating from a remote network node. </span>
+  <span class="k">unsigned</span>            <a name="cmAudioSysCtx_t.asSubIdx"></a><span class="i">asSubIdx</span><span class="p">;</span>      <span class="c"> // index of the sub-system this DSP process is serving</span>
+  
+  <a href="#cmAudioSysSubSys_t">cmAudioSysSubSys_t</a><span class="p">*</span> <a name="cmAudioSysCtx_t.ss"></a><span class="i">ss</span><span class="p">;</span>            <span class="c"> // ptr to a copy of the cfg recd used to initialize the audio system</span>
+  <span class="k">unsigned</span>            <a name="cmAudioSysCtx_t.begSmpIdx"></a><span class="i">begSmpIdx</span><span class="p">;</span>     <span class="c"> // gives signal time as a sample count</span>
+  
+  <a href="#cmAsDspToHostFunc_t">cmAsDspToHostFunc_t</a> <a name="cmAudioSysCtx_t.dspToHostFunc"></a><span class="i">dspToHostFunc</span><span class="p">;</span> <span class="c"> // Callback used by the DSP process to send messages to the host via the audio system. Returns a <a href="#cmAsRC_t">cmAsRC_t</a> result code.</span>
+  
+  <span class="c">// output (playback) buffers</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span><span class="p">*</span>        <a name="cmAudioSysCtx_t.oChArray"></a><span class="i">oChArray</span><span class="p">;</span>      <span class="c"> // each ele is a ptr to buffer with cfg.dspFramesPerCycle samples</span>
+  <span class="k">unsigned</span>            <a name="cmAudioSysCtx_t.oChCnt"></a><span class="i">oChCnt</span><span class="p">;</span>        <span class="c"> // count of output channels (ele's in oChArray[])</span>
+  <a href="cmTime_h_0.html#cmTimeSpec_t">cmTimeSpec_t</a>        <a name="cmAudioSysCtx_t.oTimeStamp"></a><span class="i">oTimeStamp</span><span class="p">;</span>
+  
+  <span class="c">// input (recording) buffers</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span><span class="p">*</span>        <a name="cmAudioSysCtx_t.iChArray"></a><span class="i">iChArray</span><span class="p">;</span>      <span class="c"> // each ele is a ptr to buffer with cfg.dspFramesPerCycle samples</span>
+  <span class="k">unsigned</span>            <a name="cmAudioSysCtx_t.iChCnt"></a><span class="i">iChCnt</span><span class="p">;</span>        <span class="c"> // count of input channels (ele's in iChArray[])</span>
+  <a href="cmTime_h_0.html#cmTimeSpec_t">cmTimeSpec_t</a>        <a name="cmAudioSysCtx_t.iTimeStamp"></a><span class="i">iTimeStamp</span><span class="p">;</span>
+  
+<span class="p">}</span> <span class="t"><a href="#cmAudioSysCtx_t">cmAudioSysCtx_t</a></span><span class="p">;</span>
+
+
+<span class="c">// Audio system configuration record used by <a href="#cmAudioSysAllocate">cmAudioSysAllocate</a>().</span>
+<a name="cmAudioSysCfg_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmAudioSysCfg_str"></a>cmAudioSysCfg_str
+<span class="p">{</span>
+  <a href="#cmAudioSysSubSys_t">cmAudioSysSubSys_t</a><span class="p">*</span>   <a name="cmAudioSysCfg_t.ssArray"></a><span class="i">ssArray</span><span class="p">;</span>      <span class="c"> // sub-system cfg record array</span>
+  <span class="k">unsigned</span>              <a name="cmAudioSysCfg_t.ssCnt"></a><span class="i">ssCnt</span><span class="p">;</span>        <span class="c"> // count of sub-systems </span>
+  <span class="k">unsigned</span>              <a name="cmAudioSysCfg_t.meterMs"></a><span class="i">meterMs</span><span class="p">;</span>      <span class="c"> // Meter sample period in milliseconds</span>
+  <span class="k">void</span><span class="p">*</span>                 <a name="cmAudioSysCfg_t.clientCbData"></a><span class="i">clientCbData</span><span class="p">;</span> <span class="c"> // User arg. for clientCbFunc().</span>
+  <a href="cmThread_h_0.html#cmTsQueueCb_t">cmTsQueueCb_t</a>         <a name="cmAudioSysCfg_t.clientCbFunc"></a><span class="i">clientCbFunc</span><span class="p">;</span> <span class="c"> // Called by <a href="#cmAudioSysReceiveMsg">cmAudioSysReceiveMsg</a>() to deliver internally generated msg's to the host. Set to NULL if msg's will be directly returned by buffers passed to
+                                       // <a href="#cmAudioSysReceiveMsg">cmAudioSysReceiveMsg</a>().</span>  
+  <a href="cmUdpNet_h_0.html#cmUdpNetH_t">cmUdpNetH_t</a>           <a name="cmAudioSysCfg_t.netH"></a><span class="i">netH</span><span class="p">;</span>
+  <a href="cmSerialPort_h_0.html#cmSeH_t">cmSeH_t</a>               <a name="cmAudioSysCfg_t.serialPortH"></a><span class="i">serialPortH</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmAudioSysCfg_t">cmAudioSysCfg_t</a></span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">cmAudioSysNullHandle</span><span class="p">;</span>
+
+<span class="c">// Allocate and initialize an audio system as a collection of 'cfgCnt' sub-systems.
+// Prior to call this function the audio audio ports system must be initalized 
+// (via <a href="cmAudioPort_h_0.html#cmApInitialize">cmApInitialize</a>()) and the MIDI port system must be initialized 
+// (via <a href="cmMidiPort_h_0.html#cmMpInitialize">cmMpInitialize</a>()).  Note also that <a href="cmAudioPort_h_0.html#cmApFinalize">cmApFinalize</a>() and <a href="cmMidiPort_h_0.html#cmMpFinalize">cmMpFinalize</a>() 
+// cannot be called prior to <a href="#cmAudioSysFree">cmAudioSysFree</a>().
+// See cmAudioSystemTest() for a complete example.</span>
+<a href="#cmAsRC_t">cmAsRC_t</a>  <a name="cmAudioSysAllocate"></a><span class="f">cmAudioSysAllocate</span><span class="p">(</span> <a href="#cmAudioSysH_t">cmAudioSysH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span><span class="p">,</span> <span class="k">const</span> <a href="#cmAudioSysCfg_t">cmAudioSysCfg_t</a><span class="p">*</span> <span class="i">cfg</span>  <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Finalize and release any resources held by the audio system.</span>
+<a href="#cmAsRC_t">cmAsRC_t</a>  <a name="cmAudioSysFree"></a><span class="f">cmAudioSysFree</span><span class="p">(</span> <a href="#cmAudioSysH_t">cmAudioSysH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Returns true if 'h' is a handle which was successfully allocated by 
+// <a href="#cmAudioSysAllocate">cmAudioSysAllocate</a>().</span>
+<span class="k">bool</span>      <a name="cmAudioSysHandleIsValid"></a><span class="f">cmAudioSysHandleIsValid</span><span class="p">(</span> <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Reinitialize a previously allocated audio system.  This function
+// begins with a call to <a href="#cmAudioSysFinalize">cmAudioSysFinalize</a>().   
+// Use <a href="#cmAudioSysEnable">cmAudioSysEnable</a>(h,true) to begin processing audio following this call.</span>
+<a href="#cmAsRC_t">cmAsRC_t</a>  <a name="cmAudioSysInitialize"></a><span class="f">cmAudioSysInitialize</span><span class="p">(</span> <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="#cmAudioSysCfg_t">cmAudioSysCfg_t</a><span class="p">*</span> <span class="i">cfg</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Complements <a href="#cmAudioSysInitialize">cmAudioSysInitialize</a>(). In general there is no need to call this function
+// since calls to <a href="#cmAudioSysInitialize">cmAudioSysInitialize</a>() and <a href="#cmAudioSysFree">cmAudioSysFree</a>() automaticatically call it.</span>
+<a href="#cmAsRC_t">cmAsRC_t</a>  <a name="cmAudioSysFinalize"></a><span class="f">cmAudioSysFinalize</span><span class="p">(</span> <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Returns true if the audio system has been successfully initialized.</span>
+<span class="k">bool</span>     <a name="cmAudioSysIsInitialized"></a><span class="f">cmAudioSysIsInitialized</span><span class="p">(</span> <span class="i"><a href="#cmAudioSysH_t">cmAudioSysH_t</a></span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Returns true if the audio system is enabled.</span>
+<span class="k">bool</span>      <a name="cmAudioSysIsEnabled"></a><span class="f">cmAudioSysIsEnabled</span><span class="p">(</span> <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Enable/disable the audio system.  Enabling the starts audio stream
+// in/out of the system.</span>
+<a href="#cmAsRC_t">cmAsRC_t</a>  <a name="cmAudioSysEnable"></a><span class="f">cmAudioSysEnable</span><span class="p">(</span> <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">bool</span> <span class="i">enableFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">//
+// Host to DSP delivery functions
+// </span>
+
+<span class="c">// Deliver a message from the host application to the DSP process. (host -&ampgt DSP);
+// The message is formed as a concatenation of the bytes in each of the segments
+// pointed to by 'msgDataPtrArrary[segCnt][msgByteCntArray[segCnt]'.
+// This is the canonical msg delivery function in so far as the other host-&ampgtDSP
+// msg delivery function are written in terms of this function.
+// The first 4 bytes in the first segment must contain the index of the audio sub-system
+// which is to receive the message.</span>
+<a href="#cmAsRC_t">cmAsRC_t</a>  <a name="cmAudioSysDeliverSegMsg"></a><span class="f">cmAudioSysDeliverSegMsg</span><span class="p">(</span>  <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> msgDataPtrArray<span class="p">[</span><span class="i">]</span><span class="p">,</span> <span class="k">unsigned</span> msgByteCntArray<span class="p">[</span><span class="i">]</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">msgSegCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">srcNetNodeId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Deliver a single message from the host to the DSP system.</span>
+<a href="#cmAsRC_t">cmAsRC_t</a>  <a name="cmAudioSysDeliverMsg"></a><span class="f">cmAudioSysDeliverMsg</span><span class="p">(</span>   <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">h</span><span class="p">,</span>  <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">msgPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">msgByteCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">srcNetNodeId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Deliver a single message from the host to the DSP system.
+// Prior to delivery the 'id' is prepended to the message.</span>
+<a href="#cmAsRC_t">cmAsRC_t</a>  <a name="cmAudioSysDeliverIdMsg"></a><span class="f">cmAudioSysDeliverIdMsg</span><span class="p">(</span>  <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">asSubIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">msgPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">msgByteCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">srcNetNodeId</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">//
+// DSP to Host message functions
+// </span>
+
+<span class="c">// Is a msg from the DSP waiting to be picked up by the host?  (host &amplt- DSP)
+// 0  = no msgs are waiting or the msg queue is locked by the DSP process.
+// &ampgt0 = the size of the buffer required to hold the next msg returned via 
+// <a href="#cmAudioSysReceiveMsg">cmAudioSysReceiveMsg</a>().</span>
+<span class="k">unsigned</span>  <a name="cmAudioSysIsMsgWaiting"></a><span class="f">cmAudioSysIsMsgWaiting</span><span class="p">(</span>  <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Copy the next available msg sent from the DSP process to the host into the host supplied msg buffer
+// pointed to by 'msgBufPtr'.  Set 'msgDataPtr' to NULL to receive msg by callback from cmAudioSysCfg_t.clientCbFunc.
+// Returns <a href="#kBufTooSmallAsRC">kBufTooSmallAsRC</a> if msgDataPtr[msgByteCnt] is too small to hold the msg.
+// Returns <a href="#kNoMsgWaitingAsRC">kNoMsgWaitingAsRC</a> if no messages are waiting for delivery or the msg queue is locked by the DSP process.
+// Returns <a href="#kOkAsRC">kOkAsRC</a> if a msg was delivered.
+// Call <a href="#cmAudioSysIsMsgWaiting">cmAudioSysIsMsgWaiting</a>() prior to calling this function to get
+// the size of the data buffer required to hold the next message.</span>
+<a href="#cmAsRC_t">cmAsRC_t</a>  <a name="cmAudioSysReceiveMsg"></a><span class="f">cmAudioSysReceiveMsg</span><span class="p">(</span>    <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">h</span><span class="p">,</span>  <span class="k">void</span><span class="p">*</span> <span class="i">msgDataPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">msgByteCnt</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">// Fill an audio system status record.</span>
+<span class="k">void</span>      <a name="cmAudioSysStatus"></a><span class="f">cmAudioSysStatus</span><span class="p">(</span>  <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">asSubIdx</span><span class="p">,</span> <a href="cmAudioSysMsg_h_0.html#cmAudioSysStatus_t">cmAudioSysStatus_t</a><span class="p">*</span> <span class="i">statusPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Enable <a href="cmAudioSysMsg_h_0.html#cmAudioSysStatus_t">cmAudioSysStatus_t</a> notifications to be sent periodically to the host.
+// Set asSubIdx to <a href="cmGlobal_h_0.html#cmInvalidIdx">cmInvalidIdx</a> to enable/disable all sub-systems.
+// The notifications occur approximately every cmAudioSysCfg_t.meterMs milliseconds.</span>
+<span class="k">void</span> <a name="cmAudioSysStatusNotifyEnable"></a><span class="f">cmAudioSysStatusNotifyEnable</span><span class="p">(</span> <span class="i"><a href="#cmAudioSysH_t">cmAudioSysH_t</a></span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">asSubIdx</span><span class="p">,</span> <span class="k">bool</span> <span class="i">enableFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return a pointer the context record associated with a sub-system</span>
+<a href="#cmAudioSysCtx_t">cmAudioSysCtx_t</a><span class="p">*</span> <a name="cmAudioSysContext"></a><span class="f">cmAudioSysContext</span><span class="p">(</span> <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">asSubIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the count of audio sub-systems.
+// This is the same as the count of cfg recds passed to cmAudioSystemInitialize().</span>
+<span class="k">unsigned</span> <a name="cmAudioSysSubSystemCount"></a><span class="f">cmAudioSysSubSystemCount</span><span class="p">(</span> <a href="#cmAudioSysH_t">cmAudioSysH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Audio system test and example function.</span>
+<span class="k">void</span>      <a name="cmAudioSysTest"></a><span class="f"><a href="cmAudioSys_c_0.html#cmAudioSysTest_defn">cmAudioSysTest</a></span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span><span class="p">,</span> <span class="k">int</span> <span class="i">argc</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> argv<span class="p">[</span><span class="i">]</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

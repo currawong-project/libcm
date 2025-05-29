@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmThread.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmThread.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmThread : Threads and thread safe containers.</div><pre><a name="cmThread_h_code_0"></a>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmThreadH_t"></a><span class="t">cmThreadH_t</span><span class="p">;</span>
+<span class="k">typedef</span> <span class="k">unsigned</span>   <a name="cmThRC_t"></a><span class="t">cmThRC_t</span><span class="p">;</span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkThRC"></a><span class="e">kOkThRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>         <span class="c"> // 0</span>
+  <a name="kCreateFailThRC"></a><span class="e">kCreateFailThRC</span><span class="p">,</span>     <span class="c"> // 1</span>
+  <a name="kDestroyFailThRC"></a><span class="e">kDestroyFailThRC</span><span class="p">,</span>    <span class="c"> // 2</span>
+  <a name="kTimeOutThRC"></a><span class="e">kTimeOutThRC</span><span class="p">,</span>        <span class="c"> // 3</span>
+  <a name="kInvalidHandleThRC"></a><span class="e">kInvalidHandleThRC</span><span class="p">,</span>  <span class="c"> // 4</span>
+  <a name="kLockFailThRC"></a><span class="e">kLockFailThRC</span><span class="p">,</span>       <span class="c"> // 5</span>
+  <a name="kUnlockFailThRC"></a><span class="e">kUnlockFailThRC</span><span class="p">,</span>     <span class="c"> // 6</span>
+  <a name="kCVarWaitFailThRC"></a><span class="e">kCVarWaitFailThRC</span><span class="p">,</span>   <span class="c"> // 7</span>
+  <a name="kCVarSignalFailThRC"></a><span class="e">kCVarSignalFailThRC</span><span class="p">,</span> <span class="c"> // 8</span>
+  <a name="kBufFullThRC"></a><span class="e">kBufFullThRC</span><span class="p">,</span>        <span class="c"> // 9</span>
+  <a name="kBufEmptyThRC"></a><span class="e">kBufEmptyThRC</span><span class="p">,</span>       <span class="c"> // 10</span>
+  <a name="kBufTooSmallThRC"></a><span class="e">kBufTooSmallThRC</span>     <span class="c"> // 11</span>
+  
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">enum</span> 
+<span class="p">{</span>
+  <a name="kNotInitThId"></a><span class="e">kNotInitThId</span><span class="p">,</span>
+  <a name="kPausedThId"></a><span class="e">kPausedThId</span><span class="p">,</span>
+  <a name="kRunningThId"></a><span class="e">kRunningThId</span><span class="p">,</span>
+  <a name="kExitedThId"></a><span class="e">kExitedThId</span>   
+<span class="p">}</span> <a name="cmThStateId_t"></a><span class="t">cmThStateId_t</span><span class="p">;</span>
+
+
+<span class="c">// Return 'false' to indicate that the thread should terminate 
+// otherwise return 'true'</span>
+<span class="k">typedef</span> <span class="k">bool</span> <span class="p">(</span><span class="p">*</span><a name="cmThreadFunc_t"></a><span class="t">cmThreadFunc_t</span><span class="p">)</span><span class="p">(</span><span class="k">void</span><span class="p">*</span> <span class="i">param</span><span class="p">)</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmThreadH_t">cmThreadH_t</a> <span class="i">cmThreadNullHandle</span><span class="p">;</span>
+
+<span class="c">// Create a thread. The thread is automatically set to the 'paused' state.</span>
+<a href="#cmThRC_t">cmThRC_t</a>      <a name="cmThreadCreate"></a><span class="f">cmThreadCreate</span><span class="p">(</span>  <a href="#cmThreadH_t">cmThreadH_t</a><span class="p">*</span> <span class="i">hPtr</span><span class="p">,</span> <a href="#cmThreadFunc_t">cmThreadFunc_t</a> <span class="i">cmThreadFuncPtr</span><span class="p">,</span>  <span class="k">void</span><span class="p">*</span> <span class="i">funcParam</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Release the resources associated with a thread previously created with <a href="#cmThreadCreate">cmThreadCreate</a>().</span>
+<a href="#cmThRC_t">cmThRC_t</a>      <a name="cmThreadDestroy"></a><span class="f">cmThreadDestroy</span><span class="p">(</span> <a href="#cmThreadH_t">cmThreadH_t</a><span class="p">*</span> <span class="i">hPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">enum</span> 
+<span class="p">{</span> 
+  <a name="kPauseThFl"></a><span class="e">kPauseThFl</span> <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span>  <span class="c"> // set to pause, clear to unpause</span>
+  <a name="kWaitThFl"></a><span class="e">kWaitThFl</span>  <span class="p">=</span> <span class="l">0x02</span>   <span class="c"> // set to wait for thread to pause/unpause prior to returning.</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// Pause or unpause a thread.  Set <a href="#kWaitThFl">kWaitThFl</a> to wait for the thread to be
+// paused or unpaused prior to returning. </span>
+<a href="#cmThRC_t">cmThRC_t</a>      <a name="cmThreadPause"></a><span class="f">cmThreadPause</span><span class="p">(</span>   <a href="#cmThreadH_t">cmThreadH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">cmdFlags</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the current thread state.</span>
+<a href="#cmThStateId_t">cmThStateId_t</a> <a name="cmThreadState"></a><span class="f">cmThreadState</span><span class="p">(</span>   <a href="#cmThreadH_t">cmThreadH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>          <a name="cmThreadIsValid"></a><span class="f">cmThreadIsValid</span><span class="p">(</span> <a href="#cmThreadH_t">cmThreadH_t</a> <span class="i">h</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// The Pause time out gives the period in microseconds which the thread will
+// sleep while it is paused.  In other words the thread will wake up
+// every 'pause time out micro-seconds' to check to see if it has been
+// requested to leave the paused state. Default:50000.</span>
+<span class="k">unsigned</span>      <a name="cmThreadPauseTimeOutMicros"></a><span class="f">cmThreadPauseTimeOutMicros</span><span class="p">(</span> <a href="#cmThreadH_t">cmThreadH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>          <a name="cmThreadSetPauseTimeOutMicros"></a><span class="f">cmThreadSetPauseTimeOutMicros</span><span class="p">(</span> <a href="#cmThreadH_t">cmThreadH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">usecs</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// The wait time out gives the length of time the thread should expect to 
+// wait in order change states.  This value should always be greater than
+// or equal to the pause time out and the expected length of time the 
+// client callback function will run. 
+// This timeout comes into play in two situations:
+// 1) This is the maximum length of time that <a href="#cmThreadPause">cmThreadPause</a>() will wait for
+// the thread to enter/leave the pause state when the <a href="#kWaitThFl">kWaitThFl</a> has been set.
+// If the thread does not enter/leave the pause state in this amount of time
+// then <a href="#cmThreadPause">cmThreadPause</a>() returns the error code kTimeOutThRC.
+// 2) This is the maximum length of time the <a href="#cmThreadDestroy">cmThreadDestroy</a>() wll wait for
+// the thread to enter the 'exited' state after being requested to destroy 
+// itself. If this time period expires then <a href="#cmThreadDestroy">cmThreadDestroy</a>() returns
+// kTimeOutThRC.
+// Default:1000000.</span>
+<span class="k">unsigned</span>      <a name="cmThreadWaitTimeOutMicros"></a><span class="f">cmThreadWaitTimeOutMicros</span><span class="p">(</span>  <a href="#cmThreadH_t">cmThreadH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>          <a name="cmThreadSetWaitTimeOutMicros"></a><span class="f">cmThreadSetWaitTimeOutMicros</span><span class="p">(</span> <a href="#cmThreadH_t">cmThreadH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">usecs</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>          <a name="cmThreadTest"></a><span class="f">cmThreadTest</span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmThreadMutex : Thread mutex object.</div><pre><a name="cmThreadMutex"></a><span class="c"><hr id="hr2"></span> <a name="cmThreadMutexH_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">void</span><span class="p">*</span> <a name="cmThreadMutexH_t.h"></a><span class="i">h</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmThreadMutexH_t">cmThreadMutexH_t</a></span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmThreadMutexH_t">cmThreadMutexH_t</a> <span class="i">kCmThreadMutexNULL</span><span class="p">;</span>
+
+<a href="#cmThRC_t">cmThRC_t</a> <a name="cmThreadMutexCreate"></a><span class="f">cmThreadMutexCreate</span><span class="p">(</span>   <a href="#cmThreadMutexH_t">cmThreadMutexH_t</a><span class="p">*</span> <span class="i">hPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmThRC_t">cmThRC_t</a> <a name="cmThreadMutexDestroy"></a><span class="f">cmThreadMutexDestroy</span><span class="p">(</span>  <a href="#cmThreadMutexH_t">cmThreadMutexH_t</a><span class="p">*</span> <span class="i">hPtr</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmThRC_t">cmThRC_t</a> <a name="cmThreadMutexTryLock"></a><span class="f">cmThreadMutexTryLock</span><span class="p">(</span>  <a href="#cmThreadMutexH_t">cmThreadMutexH_t</a>  <span class="i">h</span><span class="p">,</span> <span class="k">bool</span><span class="p">*</span> <span class="i">lockFlPtr</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmThRC_t">cmThRC_t</a> <a name="cmThreadMutexLock"></a><span class="f">cmThreadMutexLock</span><span class="p">(</span>     <a href="#cmThreadMutexH_t">cmThreadMutexH_t</a>  <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmThRC_t">cmThRC_t</a> <a name="cmThreadMutexUnlock"></a><span class="f">cmThreadMutexUnlock</span><span class="p">(</span>   <a href="#cmThreadMutexH_t">cmThreadMutexH_t</a>  <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>     <a name="cmThreadMutexIsValid"></a><span class="f">cmThreadMutexIsValid</span><span class="p">(</span>  <a href="#cmThreadMutexH_t">cmThreadMutexH_t</a>  <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Set 'lockFl' if the function should lock the mutex prior to waiting.
+// If 'lockFl' is false then the function assumes the mutex is already locked
+// and directly waits. If 'lockFl' is set and the mutex is not already locked
+// then the result is undefined.</span>
+<a href="#cmThRC_t">cmThRC_t</a> <a name="cmThreadMutexWaitOnCondVar"></a><span class="f">cmThreadMutexWaitOnCondVar</span><span class="p">(</span> <a href="#cmThreadMutexH_t">cmThreadMutexH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">bool</span> <span class="i">lockFl</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmThRC_t">cmThRC_t</a> <a name="cmThreadMutexSignalCondVar"></a><span class="f">cmThreadMutexSignalCondVar</span><span class="p">(</span> <a href="#cmThreadMutexH_t">cmThreadMutexH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+</pre>
+</div>
+<div class="cod"><div class="blk_title">cmTsQueue : Thread safe message queue.</div><pre><a name="cmTsQueue"></a><span class="c"><hr id="hr2"></span> 
+<span class="c">// cmThread safe message queue.
+//
+// This object is intended as a way to serialize one-way
+// communication between multiple sender threads and one 
+// receiver thread. The object is implemented as 
+// a double buffer.  One buffer acts as
+// an input queue the the other buffer acts as an
+// output queue. When the output queue is empty the buffers
+// are swapped. Any pending messages in the input queue
+// then become available to the receiver in the output queue.
+//
+// An internal mutex prevents the queue logic from becoming
+// corrupted.  The mutex is locked during the entire enqueue
+// operation. The enqueue operation may therefore block its
+// thread while waiting for mutex access.  The dequeue operation
+// only locks the mutex when the current output buffer is
+// empty, the input buffer contains messages, and the mutex
+// is not already locked. The mutex only remains locked for the
+// period of time necessary to switch the input and output
+// buffer pointers. The mutex is not locked during the actual
+// dequeue copy or transmit.
+//
+// Given this logic the dequeue thread should never
+// block because it only locks the mutex when it is not already
+// locked. The enqueue thread will only block when it happens to collide 
+// with the dequeue buffer switch operation or an enqueue operation
+// from another thread. If it happens that there is only a single
+// sender thread then the sender will virtually never block because
+// the dequeue lock is only maintained for a very short period of time.  
+//</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmTsQueueH_t"></a><span class="t">cmTsQueueH_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmTsQueueH_t">cmTsQueueH_t</a> <span class="i">cmTsQueueNullHandle</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a> <span class="p">(</span><span class="p">*</span><a name="cmTsQueueCb_t"></a><span class="t">cmTsQueueCb_t</span><span class="p">)</span><span class="p">(</span><span class="k">void</span><span class="p">*</span> <span class="i">userCbPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">msgByteCnt</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">msgDataPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Set 'cbFunc' to NULL if the dequeue callback option will not be used.</span>
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTsQueueCreate"></a><span class="f">cmTsQueueCreate</span><span class="p">(</span>     <a href="#cmTsQueueH_t">cmTsQueueH_t</a><span class="p">*</span> <span class="i">hPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bufByteCnt</span><span class="p">,</span> <a href="#cmTsQueueCb_t">cmTsQueueCb_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTsQueueDestroy"></a><span class="f">cmTsQueueDestroy</span><span class="p">(</span>    <a href="#cmTsQueueH_t">cmTsQueueH_t</a><span class="p">*</span> <span class="i">hPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Set or clear the dequeue callback option after the queue was created.</span>
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTsQueueSetCallback"></a><span class="f">cmTsQueueSetCallback</span><span class="p">(</span> <a href="#cmTsQueueH_t">cmTsQueueH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTsQueueCb_t">cmTsQueueCb_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Copy a msg into the queue. This function return <a href="#kBufFullThRC">kBufFullThRC</a> if the buffer is full.
+// This interface allows the message to be formed from a concatenation of 'arrayCnt' segments.</span>
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTsQueueEnqueueSegMsg"></a><span class="f">cmTsQueueEnqueueSegMsg</span><span class="p">(</span> <a href="#cmTsQueueH_t">cmTsQueueH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> msgPtrArray<span class="p">[</span><span class="i">]</span><span class="p">,</span> <span class="k">unsigned</span> msgByteCntArray<span class="p">[</span><span class="i">]</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">arrayCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Copy a msg onto the queue.  This function is written in terms of <a href="#cmTsQueueEnqueueSegMsg">cmTsQueueEnqueueSegMsg</a>().</span>
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTsQueueEnqueueMsg"></a><span class="f">cmTsQueueEnqueueMsg</span><span class="p">(</span> <a href="#cmTsQueueH_t">cmTsQueueH_t</a>  <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">dataPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Prepend 'id' to the bytes contained in 'dataPtr[byteCnt]' and enqueue the resulting msg.
+// This function is written in terms of cmTesQueueEnqueueSegMsg().</span>
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTsQueueEnqueueIdMsg"></a><span class="f">cmTsQueueEnqueueIdMsg</span><span class="p">(</span> <a href="#cmTsQueueH_t">cmTsQueueH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">dataPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Total size of the queue buffer.</span>
+<span class="k">unsigned</span> <a name="cmTsQueueAllocByteCount"></a><span class="f">cmTsQueueAllocByteCount</span><span class="p">(</span> <a href="#cmTsQueueH_t">cmTsQueueH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Bytes available to enqueue the next message.</span>
+<span class="k">unsigned</span> <a name="cmTsQueueAvailByteCount"></a><span class="f">cmTsQueueAvailByteCount</span><span class="p">(</span> <a href="#cmTsQueueH_t">cmTsQueueH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Remove one msg from the queue.  
+// If 'dataPtr' is not NULL the msg is copied into the buffer it points to.
+// If 'cbFunc' in the earlier call to <a href="#cmTsQueueCreate">cmTsQueueCreate</a>() was not NULL then
+// the msg is transmitted via the callback.
+// This function should only be called from the deque thread.</span>
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTsQueueDequeueMsg"></a><span class="f">cmTsQueueDequeueMsg</span><span class="p">(</span> <a href="#cmTsQueueH_t">cmTsQueueH_t</a>  <span class="i">h</span><span class="p">,</span>  <span class="k">void</span><span class="p">*</span> <span class="i">dataPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// thQueueMsgWaiting() returns true if there is a msg available
+// to dequeue.  This function should only be called from the
+// deque thread.</span>
+<span class="k">bool</span>     <a name="cmTsQueueMsgWaiting"></a><span class="f">cmTsQueueMsgWaiting</span><span class="p">(</span> <a href="#cmTsQueueH_t">cmTsQueueH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the size in bytes of the next msg to dequeue or zero
+// if no msgs are waiting. The function should only be called from the
+// deque thread.</span>
+<span class="k">unsigned</span> <a name="cmTsQueueDequeueMsgByteCount"></a><span class="f">cmTsQueueDequeueMsgByteCount</span><span class="p">(</span> <a href="#cmTsQueueH_t">cmTsQueueH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>     <a name="cmTsQueueIsValid"></a><span class="f">cmTsQueueIsValid</span><span class="p">(</span>    <a href="#cmTsQueueH_t">cmTsQueueH_t</a> <span class="i">h</span><span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<div class="cod"><div class="blk_title">cmTs1p1c : Single producer/Single consumer non-blocking thread safe queue.</div><pre><a name="cmTs1p1c"></a><span class="c"><hr id="hr2"></span> 
+<span class="c">// Single producer / Single consumer thread-safe queue.
+// These functions have identical semantics and return values
+// to the same named cmTsQueueXXXX() calls above.</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmTs1p1cH_t"></a><span class="t">cmTs1p1cH_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmTs1p1cH_t">cmTs1p1cH_t</a> <span class="i">cmTs1p1cNullHandle</span><span class="p">;</span>
+
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTs1p1cCreate"></a><span class="f">cmTs1p1cCreate</span><span class="p">(</span>     <a href="#cmTs1p1cH_t">cmTs1p1cH_t</a><span class="p">*</span> <span class="i">hPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bufByteCnt</span><span class="p">,</span> <a href="#cmTsQueueCb_t">cmTsQueueCb_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTs1p1cDestroy"></a><span class="f">cmTs1p1cDestroy</span><span class="p">(</span>    <a href="#cmTs1p1cH_t">cmTs1p1cH_t</a><span class="p">*</span> <span class="i">hPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTs1p1cSetCallback"></a><span class="f">cmTs1p1cSetCallback</span><span class="p">(</span> <a href="#cmTs1p1cH_t">cmTs1p1cH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTsQueueCb_t">cmTsQueueCb_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTs1p1cEnqueueSegMsg"></a><span class="f">cmTs1p1cEnqueueSegMsg</span><span class="p">(</span> <a href="#cmTs1p1cH_t">cmTs1p1cH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> msgPtrArray<span class="p">[</span><span class="i">]</span><span class="p">,</span> <span class="k">unsigned</span> msgByteCntArray<span class="p">[</span><span class="i">]</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">arrayCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTs1p1cEnqueueMsg"></a><span class="f">cmTs1p1cEnqueueMsg</span><span class="p">(</span> <a href="#cmTs1p1cH_t">cmTs1p1cH_t</a>  <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">dataPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>   <a name="cmTs1p1cAllocByteCount"></a><span class="f">cmTs1p1cAllocByteCount</span><span class="p">(</span> <a href="#cmTs1p1cH_t">cmTs1p1cH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>   <a name="cmTs1p1cAvailByteCount"></a><span class="f">cmTs1p1cAvailByteCount</span><span class="p">(</span> <a href="#cmTs1p1cH_t">cmTs1p1cH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTs1p1cDequeueMsg"></a><span class="f">cmTs1p1cDequeueMsg</span><span class="p">(</span> <a href="#cmTs1p1cH_t">cmTs1p1cH_t</a>  <span class="i">h</span><span class="p">,</span>  <span class="k">void</span><span class="p">*</span> <span class="i">dataPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>       <a name="cmTs1p1cMsgWaiting"></a><span class="f">cmTs1p1cMsgWaiting</span><span class="p">(</span> <a href="#cmTs1p1cH_t">cmTs1p1cH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>   <a name="cmTs1p1cDequeueMsgByteCount"></a><span class="f">cmTs1p1cDequeueMsgByteCount</span><span class="p">(</span> <a href="#cmTs1p1cH_t">cmTs1p1cH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>       <a name="cmTs1p1cIsValid"></a><span class="f">cmTs1p1cIsValid</span><span class="p">(</span> <a href="#cmTs1p1cH_t">cmTs1p1cH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>  
+</pre>
+</div>
+<div class="cod"><div class="blk_title">cmThCAS : Non-blocking primitive operations.</div><pre><a name="cmThCAS"></a><span class="c"><hr id="hr2"></span> 
+<span class="c">// Thread safe compare-and-swap (actualy compare-and-test). 
+// Returns true if the *addr==new when the function returns 
+// otherwise returns false.</span>
+<span class="k">bool</span>     <a name="cmThIntCAS"></a><span class="f">cmThIntCAS</span><span class="p">(</span>   <span class="k">int</span><span class="p">*</span>      <span class="i">addr</span><span class="p">,</span> <span class="k">int</span>      <span class="i">old</span><span class="p">,</span> <span class="k">int</span>      <span class="i">neww</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>     <a name="cmThUIntCAS"></a><span class="f">cmThUIntCAS</span><span class="p">(</span>  <span class="k">unsigned</span><span class="p">*</span> <span class="i">addr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">old</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">neww</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>     <a name="cmThFloatCAS"></a><span class="f">cmThFloatCAS</span><span class="p">(</span> <span class="k">float</span><span class="p">*</span>    <span class="i">addr</span><span class="p">,</span> <span class="k">float</span>    <span class="i">old</span><span class="p">,</span> <span class="k">float</span>    <span class="i">neww</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Note: voidPtrPtr is must really be a pointer to a pointer.</span>
+<span class="k">bool</span>     <a name="cmThPtrCAS"></a><span class="f">cmThPtrCAS</span><span class="p">(</span>   <span class="k">void</span><span class="p">*</span> <span class="i">voidPtrPtr</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span>    <span class="i">old</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span>    <span class="i">neww</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Thread safe increment and decrement implemented in terms of
+// cmThXXXCAS().</span>
+<span class="k">void</span>     <a name="cmThIntIncr"></a><span class="f">cmThIntIncr</span><span class="p">(</span>  <span class="k">int</span><span class="p">*</span>      <span class="i">addr</span><span class="p">,</span> <span class="k">int</span>      <span class="i">incr</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmThUIntIncr"></a><span class="f">cmThUIntIncr</span><span class="p">(</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">addr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">incr</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmThFloatIncr"></a><span class="f">cmThFloatIncr</span><span class="p">(</span><span class="k">float</span><span class="p">*</span>    <span class="i">addr</span><span class="p">,</span> <span class="k">float</span>    <span class="i">incr</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmThIntDecr"></a><span class="f">cmThIntDecr</span><span class="p">(</span>  <span class="k">int</span><span class="p">*</span>      <span class="i">addr</span><span class="p">,</span> <span class="k">int</span>      <span class="i">decr</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmThUIntDecr"></a><span class="f">cmThUIntDecr</span><span class="p">(</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">addr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">decr</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmThFloatDecr"></a><span class="f">cmThFloatDecr</span><span class="p">(</span><span class="k">float</span><span class="p">*</span>    <span class="i">addr</span><span class="p">,</span> <span class="k">float</span>    <span class="i">decr</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<div class="cod"><div class="blk_title">cmMp1c : Multiple producer, single consumer non-blocking thread-safe queue.</div><pre><a name="cmMp1c"></a><span class="c"><hr id="hr2">// Multiple producer / Single consumer thread-safe queue.
+// These functions have identical semantics and return values
+// to the same named cmTsQueueXXXX() calls above.</span> 
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmTsMp1cH_t"></a><span class="t">cmTsMp1cH_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a> <span class="i">cmTsMp1cNullHandle</span><span class="p">;</span>
+
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTsMp1cCreate"></a><span class="f">cmTsMp1cCreate</span><span class="p">(</span>     <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a><span class="p">*</span> <span class="i">hPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bufByteCnt</span><span class="p">,</span> <a href="#cmTsQueueCb_t">cmTsQueueCb_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTsMp1cDestroy"></a><span class="f">cmTsMp1cDestroy</span><span class="p">(</span>    <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a><span class="p">*</span> <span class="i">hPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>          <a name="cmTsMp1cSetCbFunc"></a><span class="f">cmTsMp1cSetCbFunc</span><span class="p">(</span> <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a> <span class="i">h</span><span class="p">,</span>  <a href="#cmTsQueueCb_t">cmTsQueueCb_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTsQueueCb_t">cmTsQueueCb_t</a> <a name="cmTsMp1cCbFunc"></a><span class="f">cmTsMp1cCbFunc</span><span class="p">(</span>    <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span><span class="p">*</span>         <a name="cmTsMp1cCbArg"></a><span class="f">cmTsMp1cCbArg</span><span class="p">(</span>     <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTsMp1cEnqueueSegMsg"></a><span class="f">cmTsMp1cEnqueueSegMsg</span><span class="p">(</span> <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> msgPtrArray<span class="p">[</span><span class="i">]</span><span class="p">,</span> <span class="k">unsigned</span> msgByteCntArray<span class="p">[</span><span class="i">]</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">arrayCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTsMp1cEnqueueMsg"></a><span class="f">cmTsMp1cEnqueueMsg</span><span class="p">(</span> <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a>  <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">dataPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>   <a name="cmTsMp1cAllocByteCount"></a><span class="f">cmTsMp1cAllocByteCount</span><span class="p">(</span> <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>   <a name="cmTsMp1cAvailByteCount"></a><span class="f">cmTsMp1cAvailByteCount</span><span class="p">(</span> <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmThRC_t">cmThRC_t</a>   <a name="cmTsMp1cDequeueMsg"></a><span class="f">cmTsMp1cDequeueMsg</span><span class="p">(</span> <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a>  <span class="i">h</span><span class="p">,</span>  <span class="k">void</span><span class="p">*</span> <span class="i">dataPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>       <a name="cmTsMp1cMsgWaiting"></a><span class="f">cmTsMp1cMsgWaiting</span><span class="p">(</span> <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>   <a name="cmTsMp1cDequeueMsgByteCount"></a><span class="f">cmTsMp1cDequeueMsgByteCount</span><span class="p">(</span> <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>       <a name="cmTsMp1cIsValid"></a><span class="f">cmTsMp1cIsValid</span><span class="p">(</span> <a href="#cmTsMp1cH_t">cmTsMp1cH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>  
+
+<span class="k">void</span> <a name="cmTsQueueTest"></a><span class="f">cmTsQueueTest</span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span> <a name="cmTs1p1cTest"></a><span class="f">cmTs1p1cTest</span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span> <a name="cmTsMp1cTest"></a><span class="f">cmTsMp1cTest</span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<div class="cod"><div class="blk_title">cmSleep : Sleep related functions.</div><pre><a name="cmSleep"></a><span class="c">// Sleep functions</span>
+<span class="k">void</span> <a name="cmSleepUs"></a><span class="f">cmSleepUs</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">microseconds</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span> <a name="cmSleepMs"></a><span class="f">cmSleepMs</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">milliseconds</span> <span class="p">)</span><span class="p">;</span></pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

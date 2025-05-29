@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmAudioSys.c</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmAudioSys.c"></a><!-- Begin nodes -->
+<div class="doc"><a name="cmAudioSys_c_doc_0"></a></pre>
+<div class="d"><p><a href="cmAudioSys_h_0.html#cmAudioSysTest">cmAudioSysTest</a>() demonstrates the audio system usage.</p>
+</div>
+<pre>
+<hr>
+</div>
+<div class="cod"><pre><a name="cmAudioSys_c_code_1"></a>
+<a name="_cmAsTestCbRecd"></a><span class="k">typedef</span> <span class="k">struct</span> 
+<span class="p">{</span>
+  <span class="k">double</span>   <a name="_cmAsTestCbRecd.hz"></a><span class="i">hz</span><span class="p">;</span>       <span class="c"> // current synth frq</span>
+  <span class="k">long</span>     <a name="_cmAsTestCbRecd.phs"></a><span class="i">phs</span><span class="p">;</span>      <span class="c"> // current synth phase</span>
+  <span class="k">double</span>   <a name="_cmAsTestCbRecd.srate"></a><span class="i">srate</span><span class="p">;</span>    <span class="c"> // audio sample rate</span>
+  <span class="k">unsigned</span> <a name="_cmAsTestCbRecd.cbCnt"></a><span class="i">cbCnt</span><span class="p">;</span>    <span class="c"> // DSP cycle count</span>
+  <span class="k">bool</span>     <a name="_cmAsTestCbRecd.synthFl"></a><span class="i">synthFl</span><span class="p">;</span>  <span class="c"> // true=synth false=pass through</span>
+<span class="p">}</span> <span class="t"><a href="#_cmAsTestCbRecd">_cmAsTestCbRecd</a></span><span class="p">;</span>
+
+<a name="_cmAsTestMsg"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span> <a name="_cmAsTestMsg.asSubIdx"></a><span class="i">asSubIdx</span><span class="p">;</span> <span class="c"> // asSubIdx must always be the first field in the msg</span>
+  <span class="k">unsigned</span> <a name="_cmAsTestMsg.id"></a><span class="i">id</span><span class="p">;</span>   <span class="c"> // 0 = set DSP Hz, 1 = report cbCount to host</span>
+  <span class="k">double</span>   <a name="_cmAsTestMsg.hz"></a><span class="i">hz</span><span class="p">;</span>   
+  <span class="k">unsigned</span> <a name="_cmAsTestMsg.uint"></a><span class="i">uint</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#_cmAsTestMsg">_cmAsTestMsg</a></span><span class="p">;</span>
+
+
+<span class="k">long</span> <a name="_cmAsSynthSine_defn"></a><a name="_cmAsSynthSine"></a><span class="f">_cmAsSynthSine</span><span class="p">(</span> <a href="#_cmAsTestCbRecd">_cmAsTestCbRecd</a><span class="p">*</span> r<span class="p">,</span> <a href="cmAudioPort_h_0.html#cmApSample_t">cmApSample_t</a><span class="p">*</span> p<span class="p">,</span> <span class="k">unsigned</span> chCnt<span class="p">,</span> <span class="k">unsigned</span> frmCnt <span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">long</span>     ph <span class="p">=</span> <span class="l">0</span><span class="p">;</span>
+  <span class="k">unsigned</span> i<span class="p">;</span>
+  
+  
+  <span class="k">for</span><span class="p">(</span>i<span class="p">=</span><span class="l">0</span><span class="p">;</span> i<span class="p">&lt</span>chCnt<span class="p">;</span> <span class="p">+</span><span class="p">+</span>i<span class="p">)</span>
+  <span class="p">{</span>
+    <span class="k">unsigned</span>      j<span class="p">;</span>
+    <a href="cmAudioPort_h_0.html#cmApSample_t">cmApSample_t</a><span class="p">*</span> op <span class="p">=</span> p <span class="p">+</span> i<span class="p">;</span>
+    
+    ph    <span class="p">=</span> r<span class="p">-</span><span class="p">&gt</span>phs<span class="p">;</span>
+    <span class="k">for</span><span class="p">(</span>j<span class="p">=</span><span class="l">0</span><span class="p">;</span> j<span class="p">&lt</span>frmCnt<span class="p">;</span> j<span class="p">+</span><span class="p">+</span><span class="p">,</span> op<span class="p">+</span><span class="p">=</span>chCnt<span class="p">,</span> ph<span class="p">+</span><span class="p">+</span><span class="p">)</span>
+      <span class="p">*</span>op <span class="p">=</span> <span class="p">(</span><a href="cmAudioPort_h_0.html#cmApSample_t">cmApSample_t</a><span class="p">)</span><span class="p">(</span><span class="l">0.9</span> <span class="p">*</span> sin<span class="p">(</span> <span class="l">2.0</span> <span class="p">*</span> M_PI <span class="p">*</span> r<span class="p">-</span><span class="p">&gt</span>hz <span class="p">*</span> ph <span class="p">/</span> r<span class="p">-</span><span class="p">&gt</span>srate <span class="p">)</span><span class="p">)</span><span class="p">;</span>
+  <span class="p">}</span>
+  
+  <span class="k">return</span> ph<span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">unsigned</span> _cmAsTestChIdx <span class="p">=</span> <span class="l">0</span><span class="p">;</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a> <a name="_cmAsTestCb_defn"></a><a name="_cmAsTestCb"></a><span class="f">_cmAsTestCb</span><span class="p">(</span> <span class="k">void</span><span class="p">*</span> cbPtr<span class="p">,</span> <span class="k">unsigned</span> msgByteCnt<span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> msgDataPtr <span class="p">)</span>
+<span class="p">{</span>
+  <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>              rc  <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">;</span>
+  <a href="cmAudioSys_h_0.html#cmAudioSysCtx_t">cmAudioSysCtx_t</a><span class="p">*</span>    ctx <span class="p">=</span> <span class="p">(</span><a href="cmAudioSys_h_0.html#cmAudioSysCtx_t">cmAudioSysCtx_t</a><span class="p">*</span><span class="p">)</span>cbPtr<span class="p">;</span>
+  <a href="cmAudioSys_h_0.html#cmAudioSysSubSys_t">cmAudioSysSubSys_t</a><span class="p">*</span> ss  <span class="p">=</span> ctx<span class="p">-</span><span class="p">&gt</span>ss<span class="p">;</span>
+  <a href="#_cmAsTestCbRecd">_cmAsTestCbRecd</a><span class="p">*</span>    r   <span class="p">=</span> <span class="p">(</span><a href="#_cmAsTestCbRecd">_cmAsTestCbRecd</a><span class="p">*</span><span class="p">)</span>ss<span class="p">-</span><span class="p">&gt</span>cbDataPtr<span class="p">;</span>
+  
+  <span class="c">// update the calback counter</span>
+  <span class="p">+</span><span class="p">+</span>r<span class="p">-</span><span class="p">&gt</span>cbCnt<span class="p">;</span>
+  
+  <span class="c">// if this is an audio update request</span>
+  <span class="k">if</span><span class="p">(</span> msgByteCnt <span class="p">=</span><span class="p">=</span> <span class="l">0</span> <span class="p">)</span>
+  <span class="p">{</span>
+    <span class="k">unsigned</span>      i<span class="p">;</span>
+    <span class="k">if</span><span class="p">(</span> r<span class="p">-</span><span class="p">&gt</span>synthFl <span class="p">)</span>
+    <span class="p">{</span>
+      <span class="k">long</span> phs <span class="p">=</span> <span class="l">0</span><span class="p">;</span>
+      <span class="k">if</span><span class="p">(</span><span class="l">0</span><span class="p">)</span>
+      <span class="p">{</span>
+        <span class="k">for</span><span class="p">(</span>i<span class="p">=</span><span class="l">0</span><span class="p">;</span> i<span class="p">&lt</span>ctx<span class="p">-</span><span class="p">&gt</span>oChCnt<span class="p">;</span> <span class="p">+</span><span class="p">+</span>i<span class="p">)</span>
+          <span class="k">if</span><span class="p">(</span> ctx<span class="p">-</span><span class="p">&gt</span>oChArray<span class="p">[</span>i<span class="p">]</span> <span class="p">!</span><span class="p">=</span> NULL <span class="p">)</span>
+            phs <span class="p">=</span> <a href="#_cmAsSynthSine">_cmAsSynthSine</a><span class="p">(</span>r<span class="p">,</span> ctx<span class="p">-</span><span class="p">&gt</span>oChArray<span class="p">[</span>i<span class="p">]</span><span class="p">,</span> <span class="l">1</span><span class="p">,</span> ss<span class="p">-</span><span class="p">&gt</span>args<span class="p">.</span>dspFramesPerCycle <span class="p">)</span><span class="p">;</span>
+      <span class="p">}</span>
+      <span class="k">else</span>
+      <span class="p">{</span>
+        <span class="k">if</span><span class="p">(</span> _cmAsTestChIdx <span class="p">&lt</span> ctx<span class="p">-</span><span class="p">&gt</span>oChCnt <span class="p">)</span>
+          phs <span class="p">=</span> <a href="#_cmAsSynthSine">_cmAsSynthSine</a><span class="p">(</span>r<span class="p">,</span> ctx<span class="p">-</span><span class="p">&gt</span>oChArray<span class="p">[</span>_cmAsTestChIdx<span class="p">]</span><span class="p">,</span> <span class="l">1</span><span class="p">,</span> ss<span class="p">-</span><span class="p">&gt</span>args<span class="p">.</span>dspFramesPerCycle <span class="p">)</span><span class="p">;</span>
+      <span class="p">}</span>
+      
+      r<span class="p">-</span><span class="p">&gt</span>phs <span class="p">=</span> phs<span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">else</span>
+    <span class="p">{</span>
+      <span class="c">// BUG BUG BUG - this assumes that the input and output channels are the same.</span>
+      <span class="k">unsigned</span> chCnt <span class="p">=</span> <a href="cmGlobal_h_0.html#cmMin">cmMin</a><span class="p">(</span>ctx<span class="p">-</span><span class="p">&gt</span>oChCnt<span class="p">,</span>ctx<span class="p">-</span><span class="p">&gt</span>iChCnt<span class="p">)</span><span class="p">;</span>
+      <span class="k">for</span><span class="p">(</span>i<span class="p">=</span><span class="l">0</span><span class="p">;</span> i<span class="p">&lt</span>chCnt<span class="p">;</span> <span class="p">+</span><span class="p">+</span>i<span class="p">)</span>
+        memcpy<span class="p">(</span>ctx<span class="p">-</span><span class="p">&gt</span>oChArray<span class="p">[</span>i<span class="p">]</span><span class="p">,</span>ctx<span class="p">-</span><span class="p">&gt</span>iChArray<span class="p">[</span>i<span class="p">]</span><span class="p">,</span><span class="k">sizeof</span><span class="p">(</span><a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">)</span><span class="p">*</span>ss<span class="p">-</span><span class="p">&gt</span>args<span class="p">.</span>dspFramesPerCycle<span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+    
+  <span class="p">}</span>
+  <span class="k">else</span> <span class="c"> // ... otherwise it is a msg for the DSP process from the host</span>
+  <span class="p">{</span>
+    <a href="#_cmAsTestMsg">_cmAsTestMsg</a><span class="p">*</span> msg <span class="p">=</span> <span class="p">(</span><a href="#_cmAsTestMsg">_cmAsTestMsg</a><span class="p">*</span><span class="p">)</span>msgDataPtr<span class="p">;</span>
+    
+    msg<span class="p">-</span><span class="p">&gt</span>asSubIdx <span class="p">=</span> ctx<span class="p">-</span><span class="p">&gt</span>asSubIdx<span class="p">;</span>
+    
+    <span class="k">switch</span><span class="p">(</span>msg<span class="p">-</span><span class="p">&gt</span>id<span class="p">)</span>
+    <span class="p">{</span>
+    <span class="k">case</span> <span class="l">0</span><span class="p">:</span>
+      r<span class="p">-</span><span class="p">&gt</span>hz <span class="p">=</span> msg<span class="p">-</span><span class="p">&gt</span>hz<span class="p">;</span>
+      <span class="k">break</span><span class="p">;</span>
+      
+    <span class="k">case</span> <span class="l">1</span><span class="p">:</span>
+      msg<span class="p">-</span><span class="p">&gt</span>uint <span class="p">=</span> r<span class="p">-</span><span class="p">&gt</span>cbCnt<span class="p">;</span>
+      msgByteCnt <span class="p">=</span> <span class="k">sizeof</span><span class="p">(</span><a href="#_cmAsTestMsg">_cmAsTestMsg</a><span class="p">)</span><span class="p">;</span>
+      rc <span class="p">=</span> ctx<span class="p">-</span><span class="p">&gt</span>dspToHostFunc<span class="p">(</span>ctx<span class="p">,</span><span class="p">(</span><span class="k">const</span> <span class="k">void</span> <span class="p">*</span><span class="p">*</span><span class="p">)</span><span class="p">&amp</span>msg<span class="p">,</span><span class="p">&amp</span>msgByteCnt<span class="p">,</span><span class="l">1</span><span class="p">)</span><span class="p">;</span>
+      <span class="k">break</span><span class="p">;</span>
+    <span class="p">}</span>
+    
+  <span class="p">}</span>
+  
+  <span class="k">return</span> rc<span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">// <a href="cmMain_c_0.html#print">print</a> the usage message for cmAudioPortTest.c</span>
+<span class="k">void</span> <a name="_cmAsPrintUsage_defn"></a><a name="_cmAsPrintUsage"></a><span class="f">_cmAsPrintUsage</span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> rpt <span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">char</span> msg<span class="p">[</span><span class="p">]</span> <span class="p">=</span>
+  <span class="l">&quotcmAudioSysTest() command switches:\n&quot</span>
+  <span class="l">&quot-r &ltsrate&gt -c &ltchcnt&gt -b &ltbufcnt&gt -f &ltfrmcnt&gt -i &ltidevidx&gt -o &ltodevidx&gt -m &ltmsgqsize&gt -d &ltdspsize&gt -t -p -h \n&quot</span>
+  <span class="l">&quot\n&quot</span>
+  <span class="l">&quot-r &ltsrate&gt = sample rate (48000)\n&quot</span>
+  <span class="l">&quot-c &ltchcnt&gt = audio channels (2)\n&quot</span>
+  <span class="l">&quot-b &ltbufcnt&gt = count of buffers (3)\n&quot</span>
+  <span class="l">&quot-f &ltfrmcnt&gt = count of samples per buffer (512)\n&quot</span>
+  <span class="l">&quot-i &ltidevidx&gt = input device index (0)\n&quot</span>
+  <span class="l">&quot-o &ltodevidx&gt = output device index (2)\n&quot</span>
+  <span class="l">&quot-m &ltmsgqsize&gt = message queue byte count (1024)\n&quot</span>
+  <span class="l">&quot-d &ltdspsize&gt  = samples per DSP frame (64)\n&quot</span> 
+  <span class="l">&quot-s = true: sync to input port false: sync to output port\n&quot</span>
+  <span class="l">&quot-t = copy input to output otherwise synthesize a 1000 Hz sine (false)\n&quot</span>
+  <span class="l">&quot-p = report but don't start audio devices\n&quot</span>
+  <span class="l">&quot-h = print this usage message\n&quot</span><span class="p">;</span>
+  
+  <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a><span class="p">(</span>rpt<span class="p">,</span><span class="l">&quot%s&quot</span><span class="p">,</span>msg<span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">// Get a command line option.</span>
+<span class="k">int</span> <a name="_cmAsGetOpt_defn"></a><a name="_cmAsGetOpt"></a><span class="f">_cmAsGetOpt</span><span class="p">(</span> <span class="k">int</span> argc<span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> argv<span class="p">[</span><span class="p">]</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> label<span class="p">,</span> <span class="k">int</span> defaultVal<span class="p">,</span> <span class="k">bool</span> boolFl <span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">int</span> i <span class="p">=</span> <span class="l">0</span><span class="p">;</span>
+  <span class="k">for</span><span class="p">(</span><span class="p">;</span> i<span class="p">&lt</span>argc<span class="p">;</span> <span class="p">+</span><span class="p">+</span>i<span class="p">)</span>
+    <span class="k">if</span><span class="p">(</span> strcmp<span class="p">(</span>label<span class="p">,</span>argv<span class="p">[</span>i<span class="p">]</span><span class="p">)</span> <span class="p">=</span><span class="p">=</span> <span class="l">0</span> <span class="p">)</span>
+  <span class="p">{</span>
+    <span class="k">if</span><span class="p">(</span>boolFl<span class="p">)</span>
+      <span class="k">return</span> <span class="l">1</span><span class="p">;</span>
+    
+    <span class="k">if</span><span class="p">(</span> i <span class="p">=</span><span class="p">=</span> <span class="p">(</span>argc<span class="l">-1</span><span class="p">)</span> <span class="p">)</span>
+      <span class="k">return</span> defaultVal<span class="p">;</span>
+    
+    <span class="k">return</span> atoi<span class="p">(</span>argv<span class="p">[</span>i<span class="p">+</span><span class="l">1</span><span class="p">]</span><span class="p">)</span><span class="p">;</span>
+  <span class="p">}</span>
+  
+  <span class="k">return</span> defaultVal<span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">bool</span> <a name="_cmAsGetBoolOpt_defn"></a><a name="_cmAsGetBoolOpt"></a><span class="f">_cmAsGetBoolOpt</span><span class="p">(</span> <span class="k">int</span> argc<span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> argv<span class="p">[</span><span class="p">]</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> label<span class="p">,</span> <span class="k">bool</span> defaultVal <span class="p">)</span>
+<span class="p">{</span> <span class="k">return</span> <a href="#_cmAsGetOpt">_cmAsGetOpt</a><span class="p">(</span>argc<span class="p">,</span>argv<span class="p">,</span>label<span class="p">,</span>defaultVal<span class="p">?</span><span class="l">1</span><span class="p">:</span><span class="l">0</span><span class="p">,</span>true<span class="p">)</span><span class="p">!</span><span class="p">=</span><span class="l">0</span><span class="p">;</span> <span class="p">}</span>
+
+<span class="k">int</span> <a name="_cmAsGetIntOpt_defn"></a><a name="_cmAsGetIntOpt"></a><span class="f">_cmAsGetIntOpt</span><span class="p">(</span> <span class="k">int</span> argc<span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> argv<span class="p">[</span><span class="p">]</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> label<span class="p">,</span> <span class="k">int</span> defaultVal <span class="p">)</span>
+<span class="p">{</span> <span class="k">return</span> <a href="#_cmAsGetOpt">_cmAsGetOpt</a><span class="p">(</span>argc<span class="p">,</span>argv<span class="p">,</span>label<span class="p">,</span>defaultVal<span class="p">,</span>false<span class="p">)</span><span class="p">;</span> <span class="p">}</span>
+
+
+<span class="k">void</span> <a name="cmAudioSysTest_defn"></a><span class="f"><a href="cmAudioSys_h_0.html#cmAudioSysTest">cmAudioSysTest</a></span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> rpt<span class="p">,</span> <span class="k">int</span> argc<span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> argv<span class="p">[</span><span class="p">]</span> <span class="p">)</span>
+<span class="p">{</span>
+  <a href="cmAudioSys_h_0.html#cmAudioSysCfg_t">cmAudioSysCfg_t</a>    cfg<span class="p">;</span>
+  <a href="cmAudioSys_h_0.html#cmAudioSysSubSys_t">cmAudioSysSubSys_t</a> ss<span class="p">;</span>
+  <a href="cmAudioSys_h_0.html#cmAudioSysH_t">cmAudioSysH_t</a>      h      <span class="p">=</span> cmAudioSysNullHandle<span class="p">;</span>
+  <a href="cmAudioSysMsg_h_0.html#cmAudioSysStatus_t">cmAudioSysStatus_t</a> status<span class="p">;</span>
+  <a href="#_cmAsTestCbRecd">_cmAsTestCbRecd</a>    cbRecd <span class="p">=</span> <span class="p">{</span><span class="l">1000.0</span><span class="p">,</span><span class="l">0</span><span class="p">,</span><span class="l">48000.0</span><span class="p">,</span><span class="l">0</span><span class="p">}</span><span class="p">;</span>
+  
+  cfg<span class="p">.</span>ssArray <span class="p">=</span> <span class="p">&amp</span>ss<span class="p">;</span>
+  cfg<span class="p">.</span>ssCnt   <span class="p">=</span> <span class="l">1</span><span class="p">;</span>
+  <span class="c">//cfg.afpArray= NULL;
+  //cfg.afpCnt  = 0;</span>  
+  cfg<span class="p">.</span>meterMs <span class="p">=</span> <span class="l">50</span><span class="p">;</span>
+  
+  <span class="k">if</span><span class="p">(</span><a href="#_cmAsGetBoolOpt">_cmAsGetBoolOpt</a><span class="p">(</span>argc<span class="p">,</span>argv<span class="p">,</span><span class="l">&quot-h&quot</span><span class="p">,</span>false<span class="p">)</span><span class="p">)</span>
+    <a href="#_cmAsPrintUsage">_cmAsPrintUsage</a><span class="p">(</span>rpt<span class="p">)</span><span class="p">;</span>
+  
+  cbRecd<span class="p">.</span>srate   <span class="p">=</span> <a href="#_cmAsGetIntOpt">_cmAsGetIntOpt</a><span class="p">(</span>argc<span class="p">,</span>argv<span class="p">,</span><span class="l">&quot-r&quot</span><span class="p">,</span><span class="l">48000</span><span class="p">)</span><span class="p">;</span>
+  cbRecd<span class="p">.</span>synthFl <span class="p">=</span> <a href="#_cmAsGetBoolOpt">_cmAsGetBoolOpt</a><span class="p">(</span>argc<span class="p">,</span>argv<span class="p">,</span><span class="l">&quot-t&quot</span><span class="p">,</span>false<span class="p">)</span><span class="p">=</span><span class="p">=</span>false<span class="p">;</span>
+  
+  ss<span class="p">.</span>args<span class="p">.</span>rpt               <span class="p">=</span> rpt<span class="p">;</span>
+  ss<span class="p">.</span>args<span class="p">.</span>inDevIdx          <span class="p">=</span> <a href="#_cmAsGetIntOpt">_cmAsGetIntOpt</a><span class="p">(</span> argc<span class="p">,</span>argv<span class="p">,</span><span class="l">&quot-i&quot</span><span class="p">,</span><span class="l">0</span><span class="p">)</span><span class="p">;</span> 
+  ss<span class="p">.</span>args<span class="p">.</span>outDevIdx         <span class="p">=</span> <a href="#_cmAsGetIntOpt">_cmAsGetIntOpt</a><span class="p">(</span> argc<span class="p">,</span>argv<span class="p">,</span><span class="l">&quot-o&quot</span><span class="p">,</span><span class="l">2</span><span class="p">)</span><span class="p">;</span> 
+  ss<span class="p">.</span>args<span class="p">.</span>syncInputFl       <span class="p">=</span> <a href="#_cmAsGetBoolOpt">_cmAsGetBoolOpt</a><span class="p">(</span>argc<span class="p">,</span>argv<span class="p">,</span><span class="l">&quot-s&quot</span><span class="p">,</span>true<span class="p">)</span><span class="p">;</span>
+  ss<span class="p">.</span>args<span class="p">.</span>msgQueueByteCnt   <span class="p">=</span> <a href="#_cmAsGetIntOpt">_cmAsGetIntOpt</a><span class="p">(</span> argc<span class="p">,</span>argv<span class="p">,</span><span class="l">&quot-m&quot</span><span class="p">,</span><span class="l">8192</span><span class="p">)</span><span class="p">;</span>
+  ss<span class="p">.</span>args<span class="p">.</span>devFramesPerCycle <span class="p">=</span> <a href="#_cmAsGetIntOpt">_cmAsGetIntOpt</a><span class="p">(</span> argc<span class="p">,</span>argv<span class="p">,</span><span class="l">&quot-f&quot</span><span class="p">,</span><span class="l">512</span><span class="p">)</span><span class="p">;</span>
+  ss<span class="p">.</span>args<span class="p">.</span>dspFramesPerCycle <span class="p">=</span> <a href="#_cmAsGetIntOpt">_cmAsGetIntOpt</a><span class="p">(</span> argc<span class="p">,</span>argv<span class="p">,</span><span class="l">&quot-d&quot</span><span class="p">,</span><span class="l">64</span><span class="p">)</span><span class="p">;</span><span class="p">;</span>
+  ss<span class="p">.</span>args<span class="p">.</span>audioBufCnt       <span class="p">=</span> <a href="#_cmAsGetIntOpt">_cmAsGetIntOpt</a><span class="p">(</span> argc<span class="p">,</span>argv<span class="p">,</span><span class="l">&quot-b&quot</span><span class="p">,</span><span class="l">3</span><span class="p">)</span><span class="p">;</span>       
+  ss<span class="p">.</span>args<span class="p">.</span>srate             <span class="p">=</span> cbRecd<span class="p">.</span>srate<span class="p">;</span>
+  ss<span class="p">.</span>cbFunc                 <span class="p">=</span> <a href="#_cmAsTestCb">_cmAsTestCb</a><span class="p">;</span>                            <span class="c"> // set the DSP entry function</span>
+  ss<span class="p">.</span>cbDataPtr              <span class="p">=</span> <span class="p">&amp</span>cbRecd<span class="p">;</span>                                <span class="c"> // set the DSP function argument record</span>
+  
+  <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a><span class="p">(</span>rpt<span class="p">,</span><span class="l">&quotin:%i out:%i syncFl:%i que:%i fpc:%i dsp:%i bufs:%i sr:%f\n&quot</span><span class="p">,</span>ss<span class="p">.</span>args<span class="p">.</span>inDevIdx<span class="p">,</span>ss<span class="p">.</span>args<span class="p">.</span>outDevIdx<span class="p">,</span>ss<span class="p">.</span>args<span class="p">.</span>syncInputFl<span class="p">,</span>
+  ss<span class="p">.</span>args<span class="p">.</span>msgQueueByteCnt<span class="p">,</span>ss<span class="p">.</span>args<span class="p">.</span>devFramesPerCycle<span class="p">,</span>ss<span class="p">.</span>args<span class="p">.</span>dspFramesPerCycle<span class="p">,</span>ss<span class="p">.</span>args<span class="p">.</span>audioBufCnt<span class="p">,</span>ss<span class="p">.</span>args<span class="p">.</span>srate<span class="p">)</span><span class="p">;</span>
+  
+  <span class="k">if</span><span class="p">(</span> <a href="cmAudioNrtDev_h_0.html#cmApNrtAllocate">cmApNrtAllocate</a><span class="p">(</span>rpt<span class="p">)</span> <span class="p">!</span><span class="p">=</span> <a href="cmAudioPort_h_0.html#kOkApRC">kOkApRC</a> <span class="p">)</span>
+    goto errLabel<span class="p">;</span>
+  
+  <span class="k">if</span><span class="p">(</span> <a href="cmAudioPortFile_h_0.html#cmApFileAllocate">cmApFileAllocate</a><span class="p">(</span>rpt<span class="p">)</span> <span class="p">!</span><span class="p">=</span> <a href="cmAudioPort_h_0.html#kOkApRC">kOkApRC</a> <span class="p">)</span>
+    goto errLabel<span class="p">;</span>
+  
+  <span class="c">// initialize the audio device system</span>
+  <span class="k">if</span><span class="p">(</span> <a href="cmAudioPort_h_0.html#cmApInitialize">cmApInitialize</a><span class="p">(</span>rpt<span class="p">)</span> <span class="p">!</span><span class="p">=</span> <a href="cmAudioPort_h_0.html#kOkApRC">kOkApRC</a> <span class="p">)</span>
+    goto errLabel<span class="p">;</span>
+  
+  <a href="cmAudioPort_h_0.html#cmApReport">cmApReport</a><span class="p">(</span>rpt<span class="p">)</span><span class="p">;</span>
+  
+  <span class="c">// initialize the audio buffer</span>
+  <span class="k">if</span><span class="p">(</span> <a href="cmApBuf_h_0.html#cmApBufInitialize">cmApBufInitialize</a><span class="p">(</span> <a href="cmAudioPort_h_0.html#cmApDeviceCount">cmApDeviceCount</a><span class="p">(</span><span class="p">)</span><span class="p">,</span> cfg<span class="p">.</span>meterMs <span class="p">)</span> <span class="p">!</span><span class="p">=</span> <a href="cmAudioPort_h_0.html#kOkApRC">kOkApRC</a> <span class="p">)</span>
+    goto errLabel<span class="p">;</span>
+  
+  <span class="c">// initialize the audio system</span>
+  <span class="k">if</span><span class="p">(</span> <a href="cmAudioSys_h_0.html#cmAudioSysAllocate">cmAudioSysAllocate</a><span class="p">(</span><span class="p">&amp</span>h<span class="p">,</span>rpt<span class="p">,</span><span class="p">&amp</span>cfg<span class="p">)</span> <span class="p">!</span><span class="p">=</span> <a href="cmAudioSys_h_0.html#kOkAsRC">kOkAsRC</a> <span class="p">)</span>
+    goto errLabel<span class="p">;</span>
+  
+  <span class="c">// start the audio system</span>
+  <a href="cmAudioSys_h_0.html#cmAudioSysEnable">cmAudioSysEnable</a><span class="p">(</span>h<span class="p">,</span>true<span class="p">)</span><span class="p">;</span>
+  
+  <span class="k">char</span> c <span class="p">=</span> <span class="l">0</span><span class="p">;</span>
+  printf<span class="p">(</span><span class="l">&quotq=quit a-g=note n=ch r=rqst s=status\n&quot</span><span class="p">)</span><span class="p">;</span>
+  
+  <span class="c">// simulate a host event loop</span>
+  <span class="k">while</span><span class="p">(</span>c <span class="p">!</span><span class="p">=</span> <span class="l">'q'</span><span class="p">)</span>
+  <span class="p">{</span>
+    <a href="#_cmAsTestMsg">_cmAsTestMsg</a> msg <span class="p">=</span> <span class="p">{</span><span class="l">0</span><span class="p">,</span><span class="l">0</span><span class="p">,</span><span class="l">0</span><span class="p">,</span><span class="l">0</span><span class="p">}</span><span class="p">;</span>
+    <span class="k">bool</span>         fl  <span class="p">=</span> true<span class="p">;</span>
+    
+    <span class="c">// wait here for a key press</span>
+    c <span class="p">=</span><span class="p">(</span><span class="k">char</span><span class="p">)</span>fgetc<span class="p">(</span>stdin<span class="p">)</span><span class="p">;</span>
+    fflush<span class="p">(</span>stdin<span class="p">)</span><span class="p">;</span>
+    
+    
+    <span class="k">switch</span><span class="p">(</span>c<span class="p">)</span>
+    <span class="p">{</span>
+    <span class="k">case</span> <span class="l">'c'</span><span class="p">:</span> msg<span class="p">.</span>hz <span class="p">=</span> <a href="cmMath_h_0.html#cmMidiToHz">cmMidiToHz</a><span class="p">(</span><span class="l">60</span><span class="p">)</span><span class="p">;</span> <span class="k">break</span><span class="p">;</span>
+    <span class="k">case</span> <span class="l">'d'</span><span class="p">:</span> msg<span class="p">.</span>hz <span class="p">=</span> <a href="cmMath_h_0.html#cmMidiToHz">cmMidiToHz</a><span class="p">(</span><span class="l">62</span><span class="p">)</span><span class="p">;</span> <span class="k">break</span><span class="p">;</span>
+    <span class="k">case</span> <span class="l">'e'</span><span class="p">:</span> msg<span class="p">.</span>hz <span class="p">=</span> <a href="cmMath_h_0.html#cmMidiToHz">cmMidiToHz</a><span class="p">(</span><span class="l">64</span><span class="p">)</span><span class="p">;</span> <span class="k">break</span><span class="p">;</span>
+    <span class="k">case</span> <span class="l">'f'</span><span class="p">:</span> msg<span class="p">.</span>hz <span class="p">=</span> <a href="cmMath_h_0.html#cmMidiToHz">cmMidiToHz</a><span class="p">(</span><span class="l">65</span><span class="p">)</span><span class="p">;</span> <span class="k">break</span><span class="p">;</span>
+    <span class="k">case</span> <span class="l">'g'</span><span class="p">:</span> msg<span class="p">.</span>hz <span class="p">=</span> <a href="cmMath_h_0.html#cmMidiToHz">cmMidiToHz</a><span class="p">(</span><span class="l">67</span><span class="p">)</span><span class="p">;</span> <span class="k">break</span><span class="p">;</span>
+    <span class="k">case</span> <span class="l">'a'</span><span class="p">:</span> msg<span class="p">.</span>hz <span class="p">=</span> <a href="cmMath_h_0.html#cmMidiToHz">cmMidiToHz</a><span class="p">(</span><span class="l">69</span><span class="p">)</span><span class="p">;</span> <span class="k">break</span><span class="p">;</span>
+    <span class="k">case</span> <span class="l">'b'</span><span class="p">:</span> msg<span class="p">.</span>hz <span class="p">=</span> <a href="cmMath_h_0.html#cmMidiToHz">cmMidiToHz</a><span class="p">(</span><span class="l">71</span><span class="p">)</span><span class="p">;</span> <span class="k">break</span><span class="p">;</span>
+      
+    <span class="k">case</span> <span class="l">'r'</span><span class="p">:</span> msg<span class="p">.</span>id <span class="p">=</span> <span class="l">1</span><span class="p">;</span> <span class="k">break</span><span class="p">;</span> <span class="c"> // request DSP process to send a callback count</span>
+      
+    <span class="k">case</span> <span class="l">'n'</span><span class="p">:</span> <span class="p">+</span><span class="p">+</span>_cmAsTestChIdx<span class="p">;</span> printf<span class="p">(</span><span class="l">&quotch:%i\n&quot</span><span class="p">,</span>_cmAsTestChIdx<span class="p">)</span><span class="p">;</span> <span class="k">break</span><span class="p">;</span>
+      
+    <span class="k">case</span> <span class="l">'s'</span><span class="p">:</span>  
+      <span class="c">// report the audio system status</span>
+      <a href="cmAudioSys_h_0.html#cmAudioSysStatus">cmAudioSysStatus</a><span class="p">(</span>h<span class="p">,</span><span class="l">0</span><span class="p">,</span><span class="p">&amp</span>status<span class="p">)</span><span class="p">;</span>
+      printf<span class="p">(</span><span class="l">&quotphs:%li cb count:%i (upd:%i wake:%i acb:%i msgs:%i)\n&quot</span><span class="p">,</span>cbRecd<span class="p">.</span>phs<span class="p">,</span> cbRecd<span class="p">.</span>cbCnt<span class="p">,</span> status<span class="p">.</span>updateCnt<span class="p">,</span> status<span class="p">.</span>wakeupCnt<span class="p">,</span> status<span class="p">.</span>audioCbCnt<span class="p">,</span> status<span class="p">.</span>msgCbCnt<span class="p">)</span><span class="p">;</span>
+      <span class="c">//printf(&ampquot%f \n&ampquot,status.oMeterArray[0]);</span>
+      fl <span class="p">=</span> false<span class="p">;</span>
+      <span class="k">break</span><span class="p">;</span>
+      
+    <span class="k">default</span><span class="p">:</span>
+      fl<span class="p">=</span>false<span class="p">;</span>
+      
+    <span class="p">}</span>
+    
+    <span class="k">if</span><span class="p">(</span> fl <span class="p">)</span>
+    <span class="p">{</span>
+      <span class="c">// transmit a command to the DSP process</span>
+      <a href="cmAudioSys_h_0.html#cmAudioSysDeliverMsg">cmAudioSysDeliverMsg</a><span class="p">(</span>h<span class="p">,</span><span class="p">&amp</span>msg<span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span>msg<span class="p">)</span><span class="p">,</span> <a href="cmGlobal_h_0.html#cmInvalidId">cmInvalidId</a><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+    
+    
+    <span class="c">// check if messages are waiting to be delivered from the DSP process</span>
+    <span class="k">unsigned</span> msgByteCnt<span class="p">;</span>
+    <span class="k">if</span><span class="p">(</span><span class="p">(</span>msgByteCnt <span class="p">=</span> <a href="cmAudioSys_h_0.html#cmAudioSysIsMsgWaiting">cmAudioSysIsMsgWaiting</a><span class="p">(</span>h<span class="p">)</span><span class="p">)</span> <span class="p">&gt</span> <span class="l">0</span> <span class="p">)</span>
+    <span class="p">{</span>
+      <span class="k">char</span> buf<span class="p">[</span> msgByteCnt <span class="p">]</span><span class="p">;</span>
+      
+      <span class="c">// rcv a msg from the DSP process</span>
+      <span class="k">if</span><span class="p">(</span> <a href="cmAudioSys_h_0.html#cmAudioSysReceiveMsg">cmAudioSysReceiveMsg</a><span class="p">(</span>h<span class="p">,</span>buf<span class="p">,</span>msgByteCnt<span class="p">)</span> <span class="p">=</span><span class="p">=</span> <a href="cmAudioSys_h_0.html#kOkAsRC">kOkAsRC</a> <span class="p">)</span>
+      <span class="p">{</span>
+        <a href="#_cmAsTestMsg">_cmAsTestMsg</a><span class="p">*</span> msg <span class="p">=</span> <span class="p">(</span><a href="#_cmAsTestMsg">_cmAsTestMsg</a><span class="p">*</span><span class="p">)</span>buf<span class="p">;</span>
+        <span class="k">switch</span><span class="p">(</span>msg<span class="p">-</span><span class="p">&gt</span>id<span class="p">)</span>
+        <span class="p">{</span>
+        <span class="k">case</span> <span class="l">1</span><span class="p">:</span>
+          printf<span class="p">(</span><span class="l">&quotRCV: Callback count:%i\n&quot</span><span class="p">,</span>msg<span class="p">-</span><span class="p">&gt</span>uint<span class="p">)</span><span class="p">;</span>
+          <span class="k">break</span><span class="p">;</span>
+        <span class="p">}</span>
+        
+      <span class="p">}</span>
+    <span class="p">}</span>
+    
+    <span class="c">// report the audio buffer status
+    //<a href="cmApBuf_h_0.html#cmApBufReport">cmApBufReport</a>(ss.args.rpt);</span>    
+  <span class="p">}</span>
+  
+  <span class="c">// stop the audio system</span>
+  <a href="cmAudioSys_h_0.html#cmAudioSysEnable">cmAudioSysEnable</a><span class="p">(</span>h<span class="p">,</span>false<span class="p">)</span><span class="p">;</span>
+  
+  
+  goto exitLabel<span class="p">;</span>
+  
+  errLabel<span class="p">:</span>
+  printf<span class="p">(</span><span class="l">&quotAUDIO SYSTEM TEST ERROR\n&quot</span><span class="p">)</span><span class="p">;</span>
+  
+  exitLabel<span class="p">:</span>
+  
+  <a href="cmAudioSys_h_0.html#cmAudioSysFree">cmAudioSysFree</a><span class="p">(</span><span class="p">&amp</span>h<span class="p">)</span><span class="p">;</span>
+  <a href="cmAudioPort_h_0.html#cmApFinalize">cmApFinalize</a><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+  <a href="cmAudioPortFile_h_0.html#cmApFileFree">cmApFileFree</a><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+  <a href="cmAudioNrtDev_h_0.html#cmApNrtFree">cmApNrtFree</a><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+  <a href="cmApBuf_h_0.html#cmApBufFinalize">cmApBufFinalize</a><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+  
+<span class="p">}</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

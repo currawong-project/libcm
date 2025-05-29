@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmUdpNet.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmUdpNet.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmUdpNet : UDP based network object.</div><pre><a name="cmUdpNet_h_code_0"></a><span class="c">// </span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkUnRC"></a><span class="e">kOkUnRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kDuplicateNodeLabelUnRC"></a><span class="e">kDuplicateNodeLabelUnRC</span><span class="p">,</span>
+  <a name="kDuplicateNodeIdUnRC"></a><span class="e">kDuplicateNodeIdUnRC</span><span class="p">,</span>
+  <a name="kUdpPortFailUnRC"></a><span class="e">kUdpPortFailUnRC</span><span class="p">,</span>
+  <a name="kInvalidNodeLabelUnRC"></a><span class="e">kInvalidNodeLabelUnRC</span><span class="p">,</span>
+  <a name="kNodeNotFoundUnRC"></a><span class="e">kNodeNotFoundUnRC</span><span class="p">,</span>
+  <a name="kInvalidNodeAddrUnRC"></a><span class="e">kInvalidNodeAddrUnRC</span><span class="p">,</span>
+  <a name="kSendFailUnRC"></a><span class="e">kSendFailUnRC</span><span class="p">,</span>
+  <a name="kGetDataFailUnRC"></a><span class="e">kGetDataFailUnRC</span><span class="p">,</span>
+  <a name="kJsonFailUnRC"></a><span class="e">kJsonFailUnRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmUnRC_t"></a><span class="t">cmUnRC_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmUdpNetH_t"></a><span class="t">cmUdpNetH_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">cmUdpNetNullHandle</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">void</span> <span class="p">(</span><span class="p">*</span><a name="cmUdpNetCallback_t"></a><span class="t">cmUdpNetCallback_t</span><span class="p">)</span><span class="p">(</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span><span class="p">,</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">data</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">dataByteCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">remoteNodeId</span> <span class="p">)</span><span class="p">;</span> 
+
+<span class="c">// Allocate a UDP net manager. To use the manager one of the
+// initialization functions must be used configure it.</span>
+<a href="#cmUnRC_t">cmUnRC_t</a> <a name="cmUdpNetAlloc"></a><span class="f">cmUdpNetAlloc</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span>  <a href="#cmUdpNetH_t">cmUdpNetH_t</a><span class="p">*</span>  <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Allocate and initialize a UDP network manager from
+// a JSON script.  This function is a simple wrapper for
+// calls to <a href="#cmUdpNetAlloc">cmUdpNetAlloc</a>(), <a href="#cmUdpNetInitJson">cmUdpNetInitJson</a>(), and
+// <a href="#cmUdpNetEnableListen">cmUdpNetEnableListen</a>(h,listenFl).</span>
+<span class="k">enum</span> <span class="p">{</span> <a name="kListenUnFl"></a><span class="e">kListenUnFl</span><span class="p">=</span><span class="l">0x01</span><span class="p">,</span> <a name="kNetOptionalUnFl"></a><span class="e">kNetOptionalUnFl</span><span class="p">=</span><span class="l">0x02</span> <span class="p">}</span><span class="p">;</span>
+<a href="#cmUnRC_t">cmUnRC_t</a> <a name="cmUdpNetAllocJson"></a>cmUdpNetAllocJson<span class="p">(</span> 
+<a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span>           <span class="i">ctx</span><span class="p">,</span> 
+<a href="#cmUdpNetH_t">cmUdpNetH_t</a><span class="p">*</span>       <span class="i">hp</span><span class="p">,</span>
+<a href="cmJson_h_0.html#cmJsonH_t">cmJsonH_t</a>          <span class="i">jsH</span><span class="p">,</span>
+<a href="#cmUdpNetCallback_t">cmUdpNetCallback_t</a> <span class="i">cbFunc</span><span class="p">,</span>
+<span class="k">void</span><span class="p">*</span>              <span class="i">cbArg</span><span class="p">,</span>
+<span class="k">unsigned</span>           <span class="i">flags</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Release a UDP network manager and any resources it may hold.</span>
+<a href="#cmUnRC_t">cmUnRC_t</a> <a name="cmUdpNetFree"></a><span class="f">cmUdpNetFree</span><span class="p">(</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>  
+
+<span class="c">// Initialize a UDP net using a previously allocated handle
+// The node information (nodeLabel,nodeId,nodeSocketPort) refers
+// to the local node. The callback information (cbFunc,cbArg)
+// are used during <a href="#cmUdpNetReceive">cmUdpNetReceive</a>() to receive incoming
+// information from the local node.</span>
+<a href="#cmUnRC_t">cmUnRC_t</a> <a name="cmUdpNetInit"></a>cmUdpNetInit<span class="p">(</span>
+<a href="#cmUdpNetH_t">cmUdpNetH_t</a>         <span class="i">h</span><span class="p">,</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>     <span class="i">nodeLabel</span><span class="p">,</span>
+<span class="k">unsigned</span>            <span class="i">nodeId</span><span class="p">,</span>
+<a href="cmUdpPort_h_0.html#cmUdpPort_t">cmUdpPort_t</a>         <span class="i">nodeSocketPort</span><span class="p">,</span>
+<a href="#cmUdpNetCallback_t">cmUdpNetCallback_t</a>  <span class="i">cbFunc</span><span class="p">,</span>
+<span class="k">void</span><span class="p">*</span>               <span class="i">cbArg</span><span class="p">,</span>
+<span class="k">unsigned</span>            <span class="i">recvBufByteCnt</span><span class="p">,</span>
+<span class="k">unsigned</span>            <span class="i">socketRecvTimeOutMs</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Initialize a UDP net and register  remote nodes using  a JSON resource.</span>
+<a href="#cmUnRC_t">cmUnRC_t</a> <a name="cmUdpNetInitJson"></a>cmUdpNetInitJson<span class="p">(</span> 
+<a href="#cmUdpNetH_t">cmUdpNetH_t</a>        <span class="i">h</span><span class="p">,</span> 
+<a href="cmJson_h_0.html#cmJsonH_t">cmJsonH_t</a>          <span class="i">jsH</span><span class="p">,</span>
+<a href="#cmUdpNetCallback_t">cmUdpNetCallback_t</a> <span class="i">cbFunc</span><span class="p">,</span>
+<span class="k">void</span><span class="p">*</span>              <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return true if the if the network has been initialized.</span>
+<span class="k">bool</span> <a name="cmUdpNetIsInitialized"></a><span class="f">cmUdpNetIsInitialized</span><span class="p">(</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Finalize a UDP net.  This releases any resources allocated
+// via one of the above 'init' functions. </span>
+<a href="#cmUnRC_t">cmUnRC_t</a> <a name="cmUdpNetFinal"></a><span class="f">cmUdpNetFinal</span><span class="p">(</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Enable/disable the networks listening port.  While in 
+// 'listening' mode the network internally queue's all arriving
+// messages.  Messages are then forwarded to the client via
+// calls to <a href="#cmUdpNetReceive">cmUdpNetReceive</a>().</span>
+<a href="#cmUnRC_t">cmUnRC_t</a> <a name="cmUdpNetEnableListen"></a><span class="f">cmUdpNetEnableListen</span><span class="p">(</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">bool</span> <span class="i">enableFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return true if the handle is valid.</span>
+<span class="k">bool</span>     <a name="cmUdpNetIsValid"></a><span class="f">cmUdpNetIsValid</span><span class="p">(</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>        <a name="cmUdpNetLocalNodeId"></a><span class="f">cmUdpNetLocalNodeId</span><span class="p">(</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmUdpNetLocalNodeLabel"></a><span class="f">cmUdpNetLocalNodeLabel</span><span class="p">(</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the node id associated with a node label or '<a href="cmGlobal_h_0.html#cmInvalidId">cmInvalidId</a>' if the
+// label is not found.</span>
+<span class="k">unsigned</span>        <a name="cmUdpNetNodeLabelToId"></a><span class="f">cmUdpNetNodeLabelToId</span><span class="p">(</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">label</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the node label associated with a node id or NULL if the id 
+// is not found.</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmUdpNetNodeIdToLabel"></a><span class="f">cmUdpNetNodeIdToLabel</span><span class="p">(</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Get the total count of nodes on the network.  This count includes the local node.</span>
+<span class="k">unsigned</span>        <a name="cmUdpNetNodeCount"></a><span class="f">cmUdpNetNodeCount</span><span class="p">(</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the node id of each network node.</span>
+<span class="k">unsigned</span>        <a name="cmUdpNetNodeId"></a><span class="f">cmUdpNetNodeId</span><span class="p">(</span>    <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">nodeIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Register a remote node.</span>
+<a href="#cmUnRC_t">cmUnRC_t</a> <a name="cmUdpNetRegisterRemote"></a>cmUdpNetRegisterRemote<span class="p">(</span> 
+<a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span><span class="p">,</span> 
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">remoteNodeLabel</span><span class="p">,</span>
+<span class="k">unsigned</span>        <span class="i">remoteNodeId</span><span class="p">,</span>
+<span class="k">const</span> <span class="k">char</span><span class="p">*</span>     <span class="i">remoteNodeSockAddr</span><span class="p">,</span>
+<a href="cmUdpPort_h_0.html#cmUdpPort_t">cmUdpPort_t</a>     <span class="i">remoteNodePort</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Send a message to a remote network node.</span>
+<a href="#cmUnRC_t">cmUnRC_t</a> <a name="cmUdpNetSendById"></a><span class="f">cmUdpNetSendById</span><span class="p">(</span>    <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">remoteNodeId</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">data</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">dataByteCnt</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmUnRC_t">cmUnRC_t</a> <a name="cmUdpNetSendByLabel"></a><span class="f">cmUdpNetSendByLabel</span><span class="p">(</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">remoteNodeLabel</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">data</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">dataByteCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Transmit any waiting incoming messages to the client via the
+// <a href="#cmUdpNetCallback_t">cmUdpNetCallback_t</a> callback function provided
+// <a href="#cmUdpNetInit">cmUdpNetInit</a>().
+// On input *msgCntPtr should hold the max. number of 
+// messages to receive or NULL to receive all available.
+// On return *msgCntPtr is set to the actual number of
+// messages received.</span>
+<a href="#cmUnRC_t">cmUnRC_t</a> <a name="cmUdpNetReceive"></a><span class="f">cmUdpNetReceive</span><span class="p">(</span>  <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">msgCntPtr</span> <span class="p">)</span><span class="p">;</span>
+
+
+<a href="#cmUnRC_t">cmUnRC_t</a> <a name="cmUdpNetPrintNodes"></a><span class="f">cmUdpNetPrintNodes</span><span class="p">(</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmUdpNetReport"></a><span class="f">cmUdpNetReport</span><span class="p">(</span> <a href="#cmUdpNetH_t">cmUdpNetH_t</a> <span class="i">h</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a> <a name="cmUdpNetTest"></a><span class="f">cmUdpNetTest</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">int</span> <span class="i">argc</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> argv<span class="p">[</span><span class="i">]</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

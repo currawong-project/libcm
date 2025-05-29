@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmAudioFile.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmAudioFile.h"></a><!-- Begin nodes -->
+<div class="doc"><div class="blk_title">cmAudioFile : Read and write AIFF and WAV audio files.</div><a name="cmAudioFile_h_doc_0"></a></pre>
+<div class="d"><p>This class supports reading uncompressed AIFF and WAV files and writing uncompressed AIFF files. The reading and writing routines are known to work with 8,16,24, and 32 bit integer sample formats.</p>
+</div>
+<pre>
+<hr>
+</div>
+<div class="cod"><pre><a name="cmAudioFile_h_code_1"></a>
+#ifndef <a href="#cmAudioFile_MAX_FRAME_READ_CNT">cmAudioFile_MAX_FRAME_READ_CNT</a>
+<span class="c">// Maximum number of samples which will be read in one call to fread().
+// This value is only significant in that an internal buffer is created on the stack
+// whose size must be limited to prevent stack overflows.</span>
+<span class="m">#define </span><a name="cmAudioFile_MAX_FRAME_READ_CNT"></a><span class="m">cmAudioFile_MAX_FRAME_READ_CNT</span><span class="m"> (8192) </span>
+#endif
+
+
+<span class="c">// Audio file result codes.</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkAfRC"></a><span class="e">kOkAfRC</span> <span class="p">=</span> <span class="l">0</span><span class="p">,</span>
+  <a name="kOpenFailAfRC"></a><span class="e">kOpenFailAfRC</span><span class="p">,</span>
+  <a name="kReadFailAfRC"></a><span class="e">kReadFailAfRC</span><span class="p">,</span>
+  <a name="kWriteFailAfRC"></a><span class="e">kWriteFailAfRC</span><span class="p">,</span>
+  <a name="kSeekFailAfRC"></a><span class="e">kSeekFailAfRC</span><span class="p">,</span>
+  <a name="kCloseFailAfRC"></a><span class="e">kCloseFailAfRC</span><span class="p">,</span>
+  <a name="kNotAiffAfRC"></a><span class="e">kNotAiffAfRC</span><span class="p">,</span>
+  <a name="kInvalidBitWidthAfRC"></a><span class="e">kInvalidBitWidthAfRC</span><span class="p">,</span>
+  <a name="kInvalidFileModeAfRC"></a><span class="e">kInvalidFileModeAfRC</span><span class="p">,</span>
+  <a name="kInvalidHandleAfRC"></a><span class="e">kInvalidHandleAfRC</span><span class="p">,</span>
+  <a name="kInvalidChCountAfRC"></a><span class="e">kInvalidChCountAfRC</span><span class="p">,</span>
+  <a name="kRptFileFailAfRC"></a><span class="e">kRptFileFailAfRC</span><span class="p">,</span>
+  <a name="kUnknownErrAfRC"></a><span class="e">kUnknownErrAfRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// Informational flags used by audioFileInfo</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kAiffAfFl"></a><span class="e">kAiffAfFl</span>        <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span>    <span class="c"> // this is an AIFF file </span>
+  <a name="kWavAfFl"></a><span class="e">kWavAfFl</span>         <span class="p">=</span> <span class="l">0x02</span><span class="p">,</span>    <span class="c"> // this is a WAV file </span>
+  <a name="kSwapAfFl"></a><span class="e">kSwapAfFl</span>        <span class="p">=</span> <span class="l">0x04</span><span class="p">,</span>    <span class="c"> // file header bytes must be swapped</span>
+  <a name="kAifcAfFl"></a><span class="e">kAifcAfFl</span>        <span class="p">=</span> <span class="l">0x08</span><span class="p">,</span>    <span class="c"> // this is an AIFC file</span>
+  <a name="kSwapSamplesAfFl"></a><span class="e">kSwapSamplesAfFl</span> <span class="p">=</span> <span class="l">0x10</span>     <span class="c"> // file sample bytes must be swapped</span>
+<span class="p">}</span><span class="p">;</span>
+
+
+<span class="c">// Constants</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kAudioFileLabelCharCnt"></a><span class="e">kAudioFileLabelCharCnt</span> <span class="p">=</span> <span class="l">256</span><span class="p">,</span>
+  
+  <a name="kAfBextDescN"></a><span class="e">kAfBextDescN</span>       <span class="p">=</span> <span class="l">256</span><span class="p">,</span>
+  <a name="kAfBextOriginN"></a><span class="e">kAfBextOriginN</span>     <span class="p">=</span> <span class="l">32</span><span class="p">,</span>
+  <a name="kAfBextOriginRefN"></a><span class="e">kAfBextOriginRefN</span>  <span class="p">=</span> <span class="l">32</span><span class="p">,</span>
+  <a name="kAfBextOriginDateN"></a><span class="e">kAfBextOriginDateN</span> <span class="p">=</span> <span class="l">10</span><span class="p">,</span>
+  <a name="kAfBextOriginTimeN"></a><span class="e">kAfBextOriginTimeN</span> <span class="p">=</span> <span class="l">8</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// Aiff marker record</span>
+<a name="cmAudioFileMarker_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span>    <a name="cmAudioFileMarker_t.id"></a><span class="i">id</span><span class="p">;</span>
+  <span class="k">unsigned</span>    <a name="cmAudioFileMarker_t.frameIdx"></a><span class="i">frameIdx</span><span class="p">;</span>
+  <span class="k">char</span>        <span class="i">label</span><span class="p">[</span><a href="#kAudioFileLabelCharCnt">kAudioFileLabelCharCnt</a><span class="p">]</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmAudioFileMarker_t">cmAudioFileMarker_t</a></span><span class="p">;</span>
+
+<span class="c">// Broadcast WAV header record As used by ProTools audio files. See http://en.wikipedia.org/wiki/Broadcast_Wave_Format
+// When generated from Protools the timeRefLow/timeRefHigh values appear to actually refer
+// to the position on the Protools time-line rather than the wall clock time.</span>
+<a name="cmAudioFileBext_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">char</span>     <a name="cmAudioFileBext_t.desc"></a><span class="i">desc</span><span class="p">[</span>      <a href="#kAfBextDescN">kAfBextDescN</a>       <span class="p">+</span> <span class="l">1</span> <span class="p">]</span><span class="p">;</span>
+  <span class="k">char</span>     <a name="cmAudioFileBext_t.origin"></a><span class="i">origin</span><span class="p">[</span>    <a href="#kAfBextOriginN">kAfBextOriginN</a>     <span class="p">+</span> <span class="l">1</span> <span class="p">]</span><span class="p">;</span>
+  <span class="k">char</span>     <a name="cmAudioFileBext_t.originRef"></a><span class="i">originRef</span><span class="p">[</span> <a href="#kAfBextOriginRefN">kAfBextOriginRefN</a>  <span class="p">+</span> <span class="l">1</span> <span class="p">]</span><span class="p">;</span>
+  <span class="k">char</span>     <a name="cmAudioFileBext_t.originDate"></a><span class="i">originDate</span><span class="p">[</span><a href="#kAfBextOriginDateN">kAfBextOriginDateN</a> <span class="p">+</span> <span class="l">1</span> <span class="p">]</span><span class="p">;</span>
+  <span class="k">char</span>     <a name="cmAudioFileBext_t.originTime"></a><span class="i">originTime</span><span class="p">[</span><a href="#kAfBextOriginTimeN">kAfBextOriginTimeN</a> <span class="p">+</span> <span class="l">1</span> <span class="p">]</span><span class="p">;</span>
+  <span class="k">unsigned</span> <a name="cmAudioFileBext_t.timeRefLow"></a><span class="i">timeRefLow</span><span class="p">;</span>   <span class="c"> // sample count since midnight low word</span>
+  <span class="k">unsigned</span> <a name="cmAudioFileBext_t.timeRefHigh"></a><span class="i">timeRefHigh</span><span class="p">;</span>  <span class="c"> // sample count since midnight high word</span>
+<span class="p">}</span> <span class="t"><a href="#cmAudioFileBext_t">cmAudioFileBext_t</a></span><span class="p">;</span>
+
+<span class="c">// Audio file information record used by audioFileNew and audioFileOpen</span>
+<a name="cmAudioFileInfo_t"></a><span class="k">typedef</span> <span class="k">struct</span> 
+<span class="p">{</span>
+  <span class="k">unsigned</span>             <a name="cmAudioFileInfo_t.bits"></a><span class="i">bits</span><span class="p">;</span>        <span class="c"> // bits per sample</span>
+  <span class="k">unsigned</span>             <a name="cmAudioFileInfo_t.chCnt"></a><span class="i">chCnt</span><span class="p">;</span>       <span class="c"> // count of audio file channels</span>
+  <span class="k">double</span>               <a name="cmAudioFileInfo_t.srate"></a><span class="i">srate</span><span class="p">;</span>       <span class="c"> // audio file sample rate in samples per second</span>
+  <span class="k">unsigned</span>             <a name="cmAudioFileInfo_t.frameCnt"></a><span class="i">frameCnt</span><span class="p">;</span>    <span class="c"> // total number of sample frames in the audio file</span>
+  <span class="k">unsigned</span>             <a name="cmAudioFileInfo_t.flags"></a><span class="i">flags</span><span class="p">;</span>       <span class="c"> // informational flags </span>
+  <span class="k">unsigned</span>             <a name="cmAudioFileInfo_t.markerCnt"></a><span class="i">markerCnt</span><span class="p">;</span>   <span class="c"> // count of markers in markerArray</span>
+  <a href="#cmAudioFileMarker_t">cmAudioFileMarker_t</a><span class="p">*</span> <a name="cmAudioFileInfo_t.markerArray"></a><span class="i">markerArray</span><span class="p">;</span> <span class="c"> // array of markers </span>
+  <a href="#cmAudioFileBext_t">cmAudioFileBext_t</a>    <a name="cmAudioFileInfo_t.bextRecd"></a><span class="i">bextRecd</span><span class="p">;</span>    <span class="c"> // only used with Broadcast WAV files</span>
+<span class="p">}</span> <span class="t"><a href="#cmAudioFileInfo_t">cmAudioFileInfo_t</a></span><span class="p">;</span>
+
+
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmAudioFileH_t"></a><span class="t">cmAudioFileH_t</span><span class="p">;</span>    <span class="c"> // opaque audio file handle </span>
+<span class="k">extern</span> <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">cmNullAudioFileH</span><span class="p">;</span>  <span class="c"> // NULL audio file handle</span>
+
+<span class="c">// Create an audio file handle and optionally use the handle to open an audio file.
+//
+//   fn         The audio file name to open or NULL to create the audio file handle without opening the file.
+//   infoPtr    A pointer to an audioFileInfo record to be filled when the file is open or NULL to ignore.
+//   rcPtr      A pointer to a result code to be set in the event of a runtime error or NULL to ignore.
+//   rpt        A pointer to a <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a> object which error messages from this class will be directed to.
+//  Returns  <a href="#cmAudioFileH_t">cmAudioFileH_t</a> A new audio file handle.
+//</span>
+<a href="#cmAudioFileH_t">cmAudioFileH_t</a> <a name="cmAudioFileNewOpen"></a><span class="f">cmAudioFileNewOpen</span><span class="p">(</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <a href="#cmAudioFileInfo_t">cmAudioFileInfo_t</a><span class="p">*</span> <span class="i">infoPtr</span><span class="p">,</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a><span class="p">*</span> <span class="i">rcPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span> 
+
+<span class="c">// Open an audio file for writing</span>
+<a href="#cmAudioFileH_t">cmAudioFileH_t</a> <a name="cmAudioFileNewCreate"></a><span class="f">cmAudioFileNewCreate</span><span class="p">(</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">double</span> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bits</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a><span class="p">*</span> <span class="i">rcPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">// Open an audio file for reading using a handle returned from an earlier call to audioFileNewXXX().
+//
+//   h          A file handle returned from and earlier call to <a href="#cmAudioFileNewOpen">cmAudioFileNewOpen</a>() or <a href="#cmAudioFileNewCreate">cmAudioFileNewCreate</a>().
+//   fn         The audio file name to open or NULL to create the audio file handle without opening the file.
+//   infoPtr    A pointer to an audioFileInfo record to be filled when the file is open or NULL to ignore.
+// Returns an <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a> value indicating the success (<a href="#kOkAfRC">kOkAfRC</a>) or failure of the call.
+//
+// If the audio file handle 'h' refers to an open file then it is automatically closed prior to being
+// reopened with the new file.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileOpen"></a><span class="f">cmAudioFileOpen</span><span class="p">(</span>       <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <a href="#cmAudioFileInfo_t">cmAudioFileInfo_t</a><span class="p">*</span> <span class="i">infoPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Open an audio file for writing.  The type of the audio file, AIF or WAV
+// is determined by the file name extension.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileCreate"></a>cmAudioFileCreate<span class="p">(</span>     
+<a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span>    <span class="c"> // Handle returned from an earlier call to <a href="#cmAudioFileNewCreate">cmAudioFileNewCreate</a>() or <a href="#cmAudioFileNewOpen">cmAudioFileNewOpen</a>().</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span>  <span class="c"> // File name of the new file.</span>
+<span class="k">double</span> <span class="i">srate</span><span class="p">,</span>        <span class="c"> // Sample rate of the new file.</span>
+<span class="k">unsigned</span> <span class="i">bits</span><span class="p">,</span>       <span class="c"> // Sample word width for the new file in bits (must be 8,16,24 or 32).</span>
+<span class="k">unsigned</span> <span class="i">chCnt</span>       <span class="c"> // Audio channel count for the new file.</span>
+<span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Close a the file associated with handle 'h' but do not release the handle.
+// If the file was opened for writing (<a href="#cmAudioFileCreate">cmAudioFileCreate</a>()) then this function will
+// write the file header prior to closing the file.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileClose"></a><span class="f">cmAudioFileClose</span><span class="p">(</span>      <a href="#cmAudioFileH_t">cmAudioFileH_t</a><span class="p">*</span> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Close the file associated with handle 'h' (via an internal call to 
+// <a href="#cmAudioFileClose">cmAudioFileClose</a>()) and release the handle and any resources
+// associated with it.  This is the complement to <a href="#cmAudioFileOpen">cmAudioFileOpen</a>/Create().</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileDelete"></a><span class="f">cmAudioFileDelete</span><span class="p">(</span>     <a href="#cmAudioFileH_t">cmAudioFileH_t</a><span class="p">*</span> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return true if the handle is not closed or deleted.</span>
+<span class="k">bool</span>       <a name="cmAudioFileIsValid"></a><span class="f">cmAudioFileIsValid</span><span class="p">(</span>    <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return true if the handle is open.</span>
+<span class="k">bool</span>       <a name="cmAudioFileIsOpen"></a><span class="f">cmAudioFileIsOpen</span><span class="p">(</span>     <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return true if the current file position is at the end of the file.</span>
+<span class="k">bool</span>       <a name="cmAudioFileIsEOF"></a><span class="f">cmAudioFileIsEOF</span><span class="p">(</span>      <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the current file position as a frame index.</span>
+<span class="k">unsigned</span>   <a name="cmAudioFileTell"></a><span class="f">cmAudioFileTell</span><span class="p">(</span>       <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Set the current file position as an offset from the first frame.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileSeek"></a><span class="f">cmAudioFileSeek</span><span class="p">(</span>       <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Sample Reading Functions.
+//
+// Fill a user suppled buffer with up to frmCnt samples.
+// If less than frmCnt samples are available at the specified audio file location then the unused
+// buffer space is set to zero. Check *actualFrmCntPtr for the count of samples actually available
+// in the return buffer.  Functions which do not include a begFrmIdx argument begin reading from
+// the current file location (see <a href="#cmAudioFileSeek">cmAudioFileSeek</a>()). The buf argument is always a pointer to an
+// array of pointers of length chCnt.  Each channel buffer specified in buf[] must contain at least
+// frmCnt samples.
+//
+// 
+//  h               An audio file handle returned from an earlier call to audioFileNew()
+//  fn              The name of the audio file to read.
+//  begFrmIdx       The frame index of the first sample to read. Functions that do not use this parameter begin reading at the current file location (See <a href="#cmAudioFileTell">cmAudioFileTell</a>()).
+//  frmCnt          The number of samples allocated in buf.
+//  chIdx           The index of the first channel to read.
+//  chCnt           The count of channels to read.
+//  buf             An array containing chCnt pointers to arrays of frmCnt samples.
+//  actualFrmCntPtr The number of frames actually written to the return buffer (ignored if NULL)</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileReadInt"></a><span class="f">cmAudioFileReadInt</span><span class="p">(</span>    <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span><span class="p">*</span>    <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">actualFrmCntPtr</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileReadFloat"></a><span class="f">cmAudioFileReadFloat</span><span class="p">(</span>  <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">float</span><span class="p">*</span><span class="p">*</span>  <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">actualFrmCntPtr</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileReadDouble"></a><span class="f">cmAudioFileReadDouble</span><span class="p">(</span> <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">double</span><span class="p">*</span><span class="p">*</span> <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">actualFrmCntPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileGetInt"></a><span class="f">cmAudioFileGetInt</span><span class="p">(</span>    <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">begFrmIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span><span class="p">*</span>    <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">actualFrmCntPtr</span><span class="p">,</span> <a href="#cmAudioFileInfo_t">cmAudioFileInfo_t</a><span class="p">*</span> <span class="i">afInfoPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileGetFloat"></a><span class="f">cmAudioFileGetFloat</span><span class="p">(</span>  <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">begFrmIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">float</span><span class="p">*</span><span class="p">*</span>  <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">actualFrmCntPtr</span><span class="p">,</span> <a href="#cmAudioFileInfo_t">cmAudioFileInfo_t</a><span class="p">*</span> <span class="i">afInfoPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileGetDouble"></a><span class="f">cmAudioFileGetDouble</span><span class="p">(</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">begFrmIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">double</span><span class="p">*</span><span class="p">*</span> <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">actualFrmCntPtr</span><span class="p">,</span> <a href="#cmAudioFileInfo_t">cmAudioFileInfo_t</a><span class="p">*</span> <span class="i">afInfoPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Sum the returned samples into the output buffer.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileReadSumInt"></a><span class="f">cmAudioFileReadSumInt</span><span class="p">(</span>    <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span><span class="p">*</span>    <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">actualFrmCntPtr</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileReadSumFloat"></a><span class="f">cmAudioFileReadSumFloat</span><span class="p">(</span>  <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">float</span><span class="p">*</span><span class="p">*</span>  <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">actualFrmCntPtr</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileReadSumDouble"></a><span class="f">cmAudioFileReadSumDouble</span><span class="p">(</span> <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">double</span><span class="p">*</span><span class="p">*</span> <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">actualFrmCntPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileGetSumInt"></a><span class="f">cmAudioFileGetSumInt</span><span class="p">(</span>    <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">begFrmIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span><span class="p">*</span>    <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">actualFrmCntPtr</span><span class="p">,</span> <a href="#cmAudioFileInfo_t">cmAudioFileInfo_t</a><span class="p">*</span> <span class="i">afInfoPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileGetSumFloat"></a><span class="f">cmAudioFileGetSumFloat</span><span class="p">(</span>  <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">begFrmIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">float</span><span class="p">*</span><span class="p">*</span>  <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">actualFrmCntPtr</span><span class="p">,</span> <a href="#cmAudioFileInfo_t">cmAudioFileInfo_t</a><span class="p">*</span> <span class="i">afInfoPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileGetSumDouble"></a><span class="f">cmAudioFileGetSumDouble</span><span class="p">(</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">begFrmIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">double</span><span class="p">*</span><span class="p">*</span> <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">actualFrmCntPtr</span><span class="p">,</span> <a href="#cmAudioFileInfo_t">cmAudioFileInfo_t</a><span class="p">*</span> <span class="i">afInfoPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Sample Writing Functions</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmAudioFileWriteInt"></a><span class="f">cmAudioFileWriteInt</span><span class="p">(</span>    <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span><span class="p">*</span>    <span class="i">bufPtrPtr</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmAudioFileWriteFloat"></a><span class="f">cmAudioFileWriteFloat</span><span class="p">(</span>  <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">float</span><span class="p">*</span><span class="p">*</span>  <span class="i">bufPtrPtr</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmAudioFileWriteDouble"></a><span class="f">cmAudioFileWriteDouble</span><span class="p">(</span> <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">double</span><span class="p">*</span><span class="p">*</span> <span class="i">bufPtrPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmAudioFileWriteFileInt"></a><span class="f">cmAudioFileWriteFileInt</span><span class="p">(</span>    <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">double</span> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bit</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span><span class="p">*</span>    <span class="i">bufPtrPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmAudioFileWriteFileFloat"></a><span class="f">cmAudioFileWriteFileFloat</span><span class="p">(</span>  <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">double</span> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bit</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">float</span><span class="p">*</span><span class="p">*</span>  <span class="i">bufPtrPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmAudioFileWriteFileDouble"></a><span class="f">cmAudioFileWriteFileDouble</span><span class="p">(</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">double</span> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bit</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">double</span><span class="p">*</span><span class="p">*</span> <span class="i">bufPtrPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+
+
+<span class="c">// Alias the <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a> and <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> sample reading and writing functions to the appropriate
+// type based on #<a href="cmFloatTypes_h_0.html#CM_FLOAT_SMP">CM_FLOAT_SMP</a> and #<a href="cmFloatTypes_h_0.html#CM_FLOAT_REAL">CM_FLOAT_REAL</a>.</span>
+
+#if <a href="cmFloatTypes_h_0.html#CM_FLOAT_SMP">CM_FLOAT_SMP</a> == 1
+
+<span class="m">#define </span><a name="cmAudioFileReadSample"></a><span class="m">cmAudioFileReadSample</span><span class="m">      <a href="#cmAudioFileReadFloat">cmAudioFileReadFloat</a></span>
+<span class="m">#define </span><a name="cmAudioFileReadSumSample"></a><span class="m">cmAudioFileReadSumSample</span><span class="m">   <a href="#cmAudioFileReadSumFloat">cmAudioFileReadSumFloat</a></span>
+<span class="m">#define </span><a name="cmAudioFileGetSample"></a><span class="m">cmAudioFileGetSample</span><span class="m">       <a href="#cmAudioFileGetFloat">cmAudioFileGetFloat</a></span>
+<span class="m">#define </span><a name="cmAudioFileGetSumSample"></a><span class="m">cmAudioFileGetSumSample</span><span class="m">    <a href="#cmAudioFileGetSumFloat">cmAudioFileGetSumFloat</a></span>
+<span class="m">#define </span><a name="cmAudioFileWriteSample"></a><span class="m">cmAudioFileWriteSample</span><span class="m">     <a href="#cmAudioFileWriteFloat">cmAudioFileWriteFloat</a></span>
+<span class="m">#define </span><a name="cmAudioFileWriteFileSample"></a><span class="m">cmAudioFileWriteFileSample</span><span class="m"> <a href="#cmAudioFileWriteFileFloat">cmAudioFileWriteFileFloat</a></span>
+
+#else
+
+<span class="m">#define </span><span class="m"><a href="#cmAudioFileReadSample">cmAudioFileReadSample</a></span><span class="m">      <a href="#cmAudioFileReadDouble">cmAudioFileReadDouble</a></span>
+<span class="m">#define </span><span class="m"><a href="#cmAudioFileReadSumSample">cmAudioFileReadSumSample</a></span><span class="m">   <a href="#cmAudioFileReadSumDouble">cmAudioFileReadSumDouble</a></span>
+<span class="m">#define </span><span class="m"><a href="#cmAudioFileGetSample">cmAudioFileGetSample</a></span><span class="m">       <a href="#cmAudioFileGetDouble">cmAudioFileGetDouble</a></span>
+<span class="m">#define </span><span class="m"><a href="#cmAudioFileGetSumSample">cmAudioFileGetSumSample</a></span><span class="m">    <a href="#cmAudioFileGetSumDouble">cmAudioFileGetSumDouble</a></span>
+<span class="m">#define </span><span class="m"><a href="#cmAudioFileWriteSample">cmAudioFileWriteSample</a></span><span class="m">     <a href="#cmAudioFileWriteDouble">cmAudioFileWriteDouble</a></span>
+<span class="m">#define </span><span class="m"><a href="#cmAudioFileWriteFileSample">cmAudioFileWriteFileSample</a></span><span class="m"> <a href="#cmAudioFileWriteFileDouble">cmAudioFileWriteFileDouble</a></span>
+
+#endif
+
+#if <a href="cmFloatTypes_h_0.html#CM_FLOAT_REAL">CM_FLOAT_REAL</a> == 1
+
+<span class="m">#define </span><a name="cmAudioFileReadReal"></a><span class="m">cmAudioFileReadReal</span><span class="m">      <a href="#cmAudioFileReadFloat">cmAudioFileReadFloat</a></span>
+<span class="m">#define </span><a name="cmAudioFileReadSumReal"></a><span class="m">cmAudioFileReadSumReal</span><span class="m">   <a href="#cmAudioFileReadSumFloat">cmAudioFileReadSumFloat</a></span>
+<span class="m">#define </span><a name="cmAudioFileGetReal"></a><span class="m">cmAudioFileGetReal</span><span class="m">       <a href="#cmAudioFileGetFloat">cmAudioFileGetFloat</a></span>
+<span class="m">#define </span><a name="cmAudioFileGetSumReal"></a><span class="m">cmAudioFileGetSumReal</span><span class="m">    <a href="#cmAudioFileGetSumFloat">cmAudioFileGetSumFloat</a></span>
+<span class="m">#define </span><a name="cmAudioFileWriteReal"></a><span class="m">cmAudioFileWriteReal</span><span class="m">     <a href="#cmAudioFileWriteFloat">cmAudioFileWriteFloat</a></span>
+<span class="m">#define </span><a name="cmAudioFileWriteFileReal"></a><span class="m">cmAudioFileWriteFileReal</span><span class="m"> <a href="#cmAudioFileWriteFileFloat">cmAudioFileWriteFileFloat</a></span>
+
+#else
+
+<span class="m">#define </span><span class="m"><a href="#cmAudioFileReadReal">cmAudioFileReadReal</a></span><span class="m">      <a href="#cmAudioFileReadDouble">cmAudioFileReadDouble</a></span>
+<span class="m">#define </span><span class="m"><a href="#cmAudioFileReadSumReal">cmAudioFileReadSumReal</a></span><span class="m">   <a href="#cmAudioFileReadSumDouble">cmAudioFileReadSumDouble</a></span>
+<span class="m">#define </span><span class="m"><a href="#cmAudioFileGetReal">cmAudioFileGetReal</a></span><span class="m">       <a href="#cmAudioFileGetDouble">cmAudioFileGetDouble</a></span>
+<span class="m">#define </span><span class="m"><a href="#cmAudioFileGetSumReal">cmAudioFileGetSumReal</a></span><span class="m">    <a href="#cmAudioFileGetSumDouble">cmAudioFileGetSumDouble</a></span>
+<span class="m">#define </span><span class="m"><a href="#cmAudioFileWriteReal">cmAudioFileWriteReal</a></span><span class="m">     <a href="#cmAudioFileWriteDouble">cmAudioFileWriteDouble</a></span>
+<span class="m">#define </span><span class="m"><a href="#cmAudioFileWriteFileReal">cmAudioFileWriteFileReal</a></span><span class="m"> <a href="#cmAudioFileWriteFileDouble">cmAudioFileWriteFileDouble</a></span>
+
+#endif
+
+
+<span class="c">// Scan an entire audio file and return the minimum, maximum and mean sample value.
+// On error *minPtr, *maxPtr, and *meanPtr are set to -acSample_MAX, <a href="cmFloatTypes_h_0.html#cmSample_MAX">cmSample_MAX</a>, and 0 respectively</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileMinMaxMean"></a><span class="f">cmAudioFileMinMaxMean</span><span class="p">(</span> <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">minPtr</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">maxPtr</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">meanPtr</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileMinMaxMeanFn"></a><span class="f">cmAudioFileMinMaxMeanFn</span><span class="p">(</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">minPtr</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">maxPtr</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">meanPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the file name associated with a audio file handle.</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmAudioFileName"></a><span class="f">cmAudioFileName</span><span class="p">(</span> <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Given an error code return the associated message.</span>
+<span class="k">const</span> <span class="k">char</span><span class="p">*</span> <a name="cmAudioFileErrorMsg"></a><span class="f">cmAudioFileErrorMsg</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">rc</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the <a href="#cmAudioFileInfo_t">cmAudioFileInfo_t</a> record associated with a file.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileGetInfo"></a><span class="f">cmAudioFileGetInfo</span><span class="p">(</span>   <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <a href="#cmAudioFileInfo_t">cmAudioFileInfo_t</a><span class="p">*</span> <span class="i">infoPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// <a href="cmVectOpsDocOut_h_0.html#Print">Print</a> the <a href="#cmAudioFileInfo_t">cmAudioFileInfo_t</a> to a file.</span>
+<span class="k">void</span>       <a name="cmAudioFilePrintInfo"></a><span class="f">cmAudioFilePrintInfo</span><span class="p">(</span> <span class="k">const</span> <a href="#cmAudioFileInfo_t">cmAudioFileInfo_t</a><span class="p">*</span> <span class="i">infoPtr</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="i">*</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileReportInfo"></a><span class="f">cmAudioFileReportInfo</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">audioFn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">rptFn</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// <a href="cmVectOpsDocOut_h_0.html#Print">Print</a> the file header information and frmCnt sample values beginning at frame index frmIdx.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileReport"></a><span class="f">cmAudioFileReport</span><span class="p">(</span>   <a href="#cmAudioFileH_t">cmAudioFileH_t</a> <span class="i">h</span><span class="p">,</span>  <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// <a href="cmVectOpsDocOut_h_0.html#Print">Print</a> the file header information and  frmCnt sample values beginning at frame index frmIdx.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileReportFn"></a><span class="f">cmAudioFileReportFn</span><span class="p">(</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">frmCnt</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Change the sample rate value in the header.  Note that this function does not resample the audio
+// signal it simply changes the value of the sample rate in the header.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileSetSrate"></a><span class="f">cmAudioFileSetSrate</span><span class="p">(</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">audioFn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">srate</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Generate a sine tone and write it to a file.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAudioFileSine"></a><span class="f">cmAudioFileSine</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">double</span> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bits</span><span class="p">,</span> <span class="k">double</span> <span class="i">hz</span><span class="p">,</span> <span class="k">double</span> <span class="i">gain</span><span class="p">,</span> <span class="k">double</span> <span class="i">secs</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">// Testing and example routine for functions in cmAudioFile.h.
+// Also see cmProcTest.c cmAudioFileReadWriteTest()</span>
+<span class="k">void</span>       <a name="cmAudioFileTest"></a><span class="f">cmAudioFileTest</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">int</span> <span class="i">argc</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> argv<span class="p">[</span><span class="i">]</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>
