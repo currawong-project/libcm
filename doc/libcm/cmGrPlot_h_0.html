@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmGrPlot.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmGrPlot.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmGrPlot : Device indenpendent, multi-axis, interactive, plotting system based on cmGrPage, cmGrAxis and cmGr.</div><pre><a name="cmGrPlot_h_code_0"></a>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkGrPlRC"></a><span class="e">kOkGrPlRC</span><span class="p">,</span>
+  <a name="kObjNotFoundGrPlRC"></a><span class="e">kObjNotFoundGrPlRC</span><span class="p">,</span>
+  <a name="kGrFailGrPlRC"></a><span class="e">kGrFailGrPlRC</span><span class="p">,</span>
+  <a name="kRsrcFailGrPlRC"></a><span class="e">kRsrcFailGrPlRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// Graphic object type id's</span>
+<span class="k">typedef</span> <span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kInvalidPlId"></a><span class="e">kInvalidPlId</span><span class="p">,</span>
+  <a name="kRectGrPlId"></a><span class="e">kRectGrPlId</span><span class="p">,</span>
+  <a name="kHLineGrPlId"></a><span class="e">kHLineGrPlId</span><span class="p">,</span>
+  <a name="kVLineGrPlId"></a><span class="e">kVLineGrPlId</span><span class="p">,</span>
+  <a name="kLineGrPlId"></a><span class="e">kLineGrPlId</span><span class="p">,</span>
+  <a name="kEllipseGrPlId"></a><span class="e">kEllipseGrPlId</span><span class="p">,</span>
+  <a name="kDiamondGrPlId"></a><span class="e">kDiamondGrPlId</span><span class="p">,</span>
+  <a name="kUTriGrPlId"></a><span class="e">kUTriGrPlId</span><span class="p">,</span>
+  <a name="kDTriGrPlId"></a><span class="e">kDTriGrPlId</span><span class="p">,</span>
+  <a name="kLTriGrPlId"></a><span class="e">kLTriGrPlId</span><span class="p">,</span>
+  <a name="kRTriGrPlId"></a><span class="e">kRTriGrPlId</span><span class="p">,</span>
+  <a name="kStarGrPlId"></a><span class="e">kStarGrPlId</span><span class="p">,</span>
+  <a name="kCrossGrPlId"></a><span class="e">kCrossGrPlId</span><span class="p">,</span>
+  <a name="kPlusGrPlId"></a><span class="e">kPlusGrPlId</span><span class="p">,</span>
+<span class="p">}</span> <a name="cmGrPlObjTypeId_t"></a><span class="t">cmGrPlObjTypeId_t</span><span class="p">;</span>
+
+<span class="c">// Object cfg. flags</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kSymbolGrPlFl"></a><span class="e">kSymbolGrPlFl</span>   <span class="p">=</span> <span class="l">0x0001</span><span class="p">,</span>  <span class="c"> // This object is a symbol</span>
+  <a name="kNoSelectGrPlFl"></a><span class="e">kNoSelectGrPlFl</span> <span class="p">=</span> <span class="l">0x0002</span><span class="p">,</span>  <span class="c"> // The clicking with the mouse will not select this object</span>
+  <a name="kNoDragGrPlFl"></a><span class="e">kNoDragGrPlFl</span>   <span class="p">=</span> <span class="l">0x0004</span><span class="p">,</span>  <span class="c"> // Dragging with the mouse will not move this object</span>
+  <a name="kNoFocusGrPlFl"></a><span class="e">kNoFocusGrPlFl</span>  <span class="p">=</span> <span class="l">0x0008</span><span class="p">,</span>  <span class="c"> // This object cannot receive focus.</span>
+  <a name="kNoDrawGrPlFl"></a><span class="e">kNoDrawGrPlFl</span>   <span class="p">=</span> <span class="l">0x0010</span><span class="p">,</span>  <span class="c"> // Do not draw this object (is is invisible and disabled)</span>
+  <a name="kNoFillGrPlFl"></a><span class="e">kNoFillGrPlFl</span>   <span class="p">=</span> <span class="l">0x0020</span><span class="p">,</span>  <span class="c"> // Do not draw the fill area of this object</span>
+  <a name="kNoBorderGrPlFl"></a><span class="e">kNoBorderGrPlFl</span> <span class="p">=</span> <span class="l">0x0040</span><span class="p">,</span>  <span class="c"> // Do not draw the border of this object</span>
+  <a name="kNoLabelGrPlFl"></a><span class="e">kNoLabelGrPlFl</span>  <span class="p">=</span> <span class="l">0x0080</span><span class="p">,</span>  <span class="c"> // Do not draw the label for this object</span>
+  <a name="kBorderSelGrPlFl"></a><span class="e">kBorderSelGrPlFl</span><span class="p">=</span> <span class="l">0x0100</span><span class="p">,</span>  <span class="c"> // This object is selected by clicking near it's border</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// object state flags</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kVisibleGrPlFl"></a><span class="e">kVisibleGrPlFl</span> <span class="p">=</span> <span class="l">0x0001</span><span class="p">,</span>  <span class="c"> </span>
+  <a name="kEnabledGrPlFl"></a><span class="e">kEnabledGrPlFl</span> <span class="p">=</span> <span class="l">0x0002</span><span class="p">,</span>  <span class="c"> // Enabled obj's must be visible. </span>
+  <a name="kSelectGrPlFl"></a><span class="e">kSelectGrPlFl</span>  <span class="p">=</span> <span class="l">0x0004</span><span class="p">,</span>  <span class="c"> // This object is selected - multiple objects may be selected</span>
+  <a name="kFocusGrPlFl"></a><span class="e">kFocusGrPlFl</span>   <span class="p">=</span> <span class="l">0x0008</span>   <span class="c"> // Focused obj's are also selected - only one object can have the focus.</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kFocusPlGrId"></a><span class="e">kFocusPlGrId</span><span class="p">,</span> 
+  <a name="kSelectPlGrId"></a><span class="e">kSelectPlGrId</span><span class="p">,</span> 
+  <a name="kEnablePlGrId"></a><span class="e">kEnablePlGrId</span><span class="p">,</span> 
+  <a name="kDisablePlGrId"></a><span class="e">kDisablePlGrId</span><span class="p">,</span> 
+  
+  <a name="kMaxPlGrId"></a><span class="e">kMaxPlGrId</span>
+<span class="p">}</span> <a name="cmGrPlStateId_t"></a><span class="t">cmGrPlStateId_t</span><span class="p">;</span> 
+
+<span class="k">enum</span> <span class="c"> // TODO: change these into cmGrPlotH_t user settable variables</span>
+<span class="p">{</span>
+  <a name="kDefaultSymW"></a><span class="e">kDefaultSymW</span> <span class="p">=</span> <span class="l">9</span><span class="p">,</span>
+  <a name="kDefaultSymH"></a><span class="e">kDefaultSymH</span> <span class="p">=</span> <span class="l">9</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmGrPlH_t"></a><span class="t">cmGrPlH_t</span><span class="p">;</span>  
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmGrPlObjH_t"></a><span class="t">cmGrPlObjH_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmGrPlRC_t"></a><span class="t">cmGrPlRC_t</span><span class="p">;</span>
+
+<span class="c">// Plot object callback id's</span>
+<span class="k">typedef</span> <span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kCreatedCbSelGrPlId"></a><span class="e">kCreatedCbSelGrPlId</span><span class="p">,</span>
+  <a name="kDestroyedCbSelGrPlId"></a><span class="e">kDestroyedCbSelGrPlId</span><span class="p">,</span>
+  <a name="kPreEventCbSelGrPlId"></a><span class="e">kPreEventCbSelGrPlId</span><span class="p">,</span>
+  <a name="kEventCbSelGrPlId"></a><span class="e">kEventCbSelGrPlId</span><span class="p">,</span>
+  <a name="kStateChangeGrPlId"></a><span class="e">kStateChangeGrPlId</span><span class="p">,</span>          <span class="c"> // See Note with <a href="#cmGrPlotCbFunc_t">cmGrPlotCbFunc_t</a> below. </span>
+<span class="p">}</span> <a name="cmGrPlCbSelId_t"></a><span class="t">cmGrPlCbSelId_t</span><span class="p">;</span>
+
+
+<a name="cmGrPlotCbArg_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span>        <a name="cmGrPlotCbArg_t.ctx"></a><span class="i">ctx</span><span class="p">;</span>          <span class="c"> // Global program context.</span>
+  <span class="k">void</span><span class="p">*</span>           <a name="cmGrPlotCbArg_t.cbArg"></a><span class="i">cbArg</span><span class="p">;</span>        <span class="c"> // User pointer set in <a href="#cmGrPlotObjSetCb">cmGrPlotObjSetCb</a>().</span>
+  <a href="#cmGrPlCbSelId_t">cmGrPlCbSelId_t</a> <a name="cmGrPlotCbArg_t.selId"></a><span class="i">selId</span><span class="p">;</span>        <span class="c"> // Callback selector id. See cmGrPlCbSeId_t.</span>
+  <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a>    <a name="cmGrPlotCbArg_t.objH"></a><span class="i">objH</span><span class="p">;</span>         <span class="c"> // The plot object handle.</span>
+  <span class="k">unsigned</span>        <a name="cmGrPlotCbArg_t.eventFlags"></a><span class="i">eventFlags</span><span class="p">;</span>   <span class="c"> // Event flags from canvas callback (See <a href="cmGr_h_0.html#cmGrEvent">cmGrEvent</a>() flags)</span>
+  <a href="cmGr_h_0.html#cmGrKeyCodeId_t">cmGrKeyCodeId_t</a> <a name="cmGrPlotCbArg_t.eventKey"></a><span class="i">eventKey</span><span class="p">;</span>     <span class="c"> // Event keys (See the <a href="cmGr_h_0.html#cmGrEvent">cmGrEvent</a>() keys)</span>
+  <span class="k">int</span>             <a name="cmGrPlotCbArg_t.eventX"></a><span class="i">eventX</span><span class="p">;</span>       <span class="c"> // Mouse X,Y location when event was generated (Same as <a href="cmGr_h_0.html#cmGrEvent">cmGrEvent</a>()) </span>
+  <span class="k">int</span>             <a name="cmGrPlotCbArg_t.eventY"></a><span class="i">eventY</span><span class="p">;</span>       <span class="c"> </span>
+  <span class="k">unsigned</span>        <a name="cmGrPlotCbArg_t.deltaFlags"></a><span class="i">deltaFlags</span><span class="p">;</span>   <span class="c"> // Event which caused an object state change (See kXXXGrPlFl flags) </span>
+<span class="p">}</span> <span class="t"><a href="#cmGrPlotCbArg_t">cmGrPlotCbArg_t</a></span><span class="p">;</span>
+
+
+<span class="c">// Return 'false' from kPreEventCbGrPlSelId events to prevent default processing.
+// Note:
+// When this callback is made with the '<a href="#kStateChangeGrPlId">kStateChangeGrPlId</a>' the state of
+// the object has not yet been changed.  This may be confusing because if 
+// the state of the object is queried inside the callback it will have the 
+// pre-change state - but this state will be automatically toggled when the 
+// callback returns  'true'.  Examine the arg-&ampgtdeltaFlags to determine the
+// state attribute which is changing.</span>
+<span class="k">typedef</span> <span class="k">bool</span> <span class="p">(</span><span class="p">*</span><a name="cmGrPlotCbFunc_t"></a><span class="t">cmGrPlotCbFunc_t</span><span class="p">)</span><span class="p">(</span> <a href="#cmGrPlotCbArg_t">cmGrPlotCbArg_t</a><span class="p">*</span> <span class="i">arg</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmGrPlH_t">cmGrPlH_t</a>    <span class="i">cmGrPlNullHandle</span><span class="p">;</span>
+<span class="k">extern</span> <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">cmGrPlObjNullHandle</span><span class="p">;</span>
+
+<span class="c">// Notes:
+// 1) Set <a href="#kSymbolGrPlFl">kSymbolGrPlFl</a> to create a symbol.
+// 2) If <a href="#kSymbolGrPlFl">kSymbolGrPlFl</a> is set then w and h are taken as the physical size 
+//    of the symbol. Set w and h to 0 to use the default symbols size
+//    <a href="#kDefaultSymW">kDefaultSymW</a>, <a href="#kDefaultSymH">kDefaultSymH</a></span>
+
+<a href="#cmGrPlRC_t">cmGrPlRC_t</a>      <a name="cmGrPlotObjCreate"></a>cmGrPlotObjCreate<span class="p">(</span> 
+<a href="#cmGrPlH_t">cmGrPlH_t</a>         <span class="i">plH</span><span class="p">,</span>          <span class="c"> // Owner Plot Object Manager. See <a href="#cmGrPlotCreate">cmGrPlotCreate</a>().</span>
+<a href="cmGr_h_0.html#cmGrH_t">cmGrH_t</a>           <span class="i">grH</span><span class="p">,</span>          <span class="c"> // The canvas this object will be drawn on.</span>
+<a href="#cmGrPlObjH_t">cmGrPlObjH_t</a><span class="p">*</span>     <span class="i">ohp</span><span class="p">,</span>          <span class="c"> // Pointer to the new objects handle (optional)</span>
+<span class="k">unsigned</span>          <span class="i">id</span><span class="p">,</span>           <span class="c"> // User defined identifier.</span>
+<a href="#cmGrPlObjH_t">cmGrPlObjH_t</a>      <span class="i">parentObjH</span><span class="p">,</span>   <span class="c"> // Containing parent object.</span>
+<a href="#cmGrPlObjH_t">cmGrPlObjH_t</a>      <span class="i">xAnchorObjH</span><span class="p">,</span>  <span class="c"> // x is taken as an offset from this obj's x coord (optional).</span>
+<a href="#cmGrPlObjH_t">cmGrPlObjH_t</a>      <span class="i">yAnchorObjH</span><span class="p">,</span>  <span class="c"> // y is taken as an offset from this obj's y coord (optional).</span>
+<a href="#cmGrPlObjTypeId_t">cmGrPlObjTypeId_t</a> <span class="i">typeId</span><span class="p">,</span>       <span class="c"> // See <a href="#cmGrPlObjTypeId_t">cmGrPlObjTypeId_t</a></span>
+<span class="k">unsigned</span>          <span class="i">cfgFlags</span><span class="p">,</span>     <span class="c"> </span>
+<a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>          <span class="i">x</span><span class="p">,</span>            <span class="c"> // Coord's within the parent's world coord system.</span>
+<a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>          <span class="i">y</span><span class="p">,</span>            <span class="c"> </span>
+<a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>          <span class="i">w</span><span class="p">,</span>            <span class="c"> </span>
+<a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>          <span class="i">h</span><span class="p">,</span>            <span class="c"> </span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>   <span class="i">label</span><span class="p">,</span>        <span class="c"> // Object text string (optional) </span>
+<span class="k">const</span> <a href="cmGr_h_0.html#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">wext</span> <span class="p">)</span><span class="p">;</span>       <span class="c"> // This objects internal world extents (optional)</span>
+
+<a href="#cmGrPlRC_t">cmGrPlRC_t</a>        <a name="cmGrPlotObjDestroy"></a><span class="f">cmGrPlotObjDestroy</span><span class="p">(</span>       <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a><span class="p">*</span> <span class="i">ohp</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>              <a name="cmGrPlotObjIsValid"></a><span class="f">cmGrPlotObjIsValid</span><span class="p">(</span>       <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmGrPlH_t">cmGrPlH_t</a>         <a name="cmGrPlotObjMgrHandle"></a><span class="f">cmGrPlotObjMgrHandle</span><span class="p">(</span>     <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGr_h_0.html#cmGrObjH_t">cmGrObjH_t</a>        <a name="cmGrPlotObjHandle"></a><span class="f">cmGrPlotObjHandle</span><span class="p">(</span>        <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmGrPlObjH_t">cmGrPlObjH_t</a>      <a name="cmGrPlotObjParent"></a><span class="f">cmGrPlotObjParent</span><span class="p">(</span>        <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmGrPlObjH_t">cmGrPlObjH_t</a>      <a name="cmGrPlotObjXAnchor"></a><span class="f">cmGrPlotObjXAnchor</span><span class="p">(</span>       <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmGrPlObjH_t">cmGrPlObjH_t</a>      <a name="cmGrPlotObjYAnchor"></a><span class="f">cmGrPlotObjYAnchor</span><span class="p">(</span>       <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>              <a name="cmGrPlotObjSetId"></a><span class="f">cmGrPlotObjSetId</span><span class="p">(</span>         <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>          <a name="cmGrPlotObjId"></a><span class="f">cmGrPlotObjId</span><span class="p">(</span>            <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>              <a name="cmGrPlotObjSetUserPtr"></a><span class="f">cmGrPlotObjSetUserPtr</span><span class="p">(</span>    <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">userPtr</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>              <a name="cmGrPlotObjAllocUser"></a><span class="f">cmGrPlotObjAllocUser</span><span class="p">(</span>     <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">data</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span><span class="p">*</span>             <a name="cmGrPlotObjUserPtr"></a><span class="f">cmGrPlotObjUserPtr</span><span class="p">(</span>       <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>              <a name="cmGrPlotObjSetLabel"></a><span class="f">cmGrPlotObjSetLabel</span><span class="p">(</span>      <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">label</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>   <a name="cmGrPlotObjLabel"></a><span class="f">cmGrPlotObjLabel</span><span class="p">(</span>         <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<span class="c">// Set flags to kXXXJsGrFl values.  See cmGrDrawTextJustify for their meaning.
+// 'color' is optional</span>
+<span class="k">void</span>              <a name="cmGrPlotObjSetLabelAttr"></a><span class="f">cmGrPlotObjSetLabelAttr</span><span class="p">(</span>  <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span><span class="p">,</span> <span class="k">int</span> <span class="i">angle</span><span class="p">,</span> <span class="k">const</span> <a href="cmGr_h_0.html#cmGrColor_t">cmGrColor_t</a> <span class="i">color</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>          <a name="cmGrPlotObjLabelFlags"></a><span class="f">cmGrPlotObjLabelFlags</span><span class="p">(</span>    <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">int</span>               <a name="cmGrPlotObjLabelAngle"></a><span class="f">cmGrPlotObjLabelAngle</span><span class="p">(</span>    <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGr_h_0.html#cmGrColor_t">cmGrColor_t</a>       <a name="cmGrPlotObjLabelColor"></a><span class="f">cmGrPlotObjLabelColor</span><span class="p">(</span>  <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="k">void</span>              <a name="cmGrPlotObjSetStateFlags"></a><span class="f">cmGrPlotObjSetStateFlags</span><span class="p">(</span> <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>          <a name="cmGrPlotObjStateFlags"></a><span class="f">cmGrPlotObjStateFlags</span><span class="p">(</span>    <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span>  <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>              <a name="cmGrPlotObjSetCfgFlags"></a><span class="f">cmGrPlotObjSetCfgFlags</span><span class="p">(</span>   <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>              <a name="cmGrPlotObjClrCfgFlags"></a><span class="f">cmGrPlotObjClrCfgFlags</span><span class="p">(</span>   <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>              <a name="cmGrPlotObjTogCfgFlags"></a><span class="f">cmGrPlotObjTogCfgFlags</span><span class="p">(</span>   <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>          <a name="cmGrPlotObjCfgFlags"></a><span class="f">cmGrPlotObjCfgFlags</span><span class="p">(</span>      <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmGrPlRC_t">cmGrPlRC_t</a>        <a name="cmGrPlotObjSetPhysExt"></a><span class="f">cmGrPlotObjSetPhysExt</span><span class="p">(</span>    <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">int</span>  <span class="i">loffs</span><span class="p">,</span> <span class="k">int</span>  <span class="i">toffs</span><span class="p">,</span> <span class="k">int</span>  <span class="i">roffs</span><span class="p">,</span> <span class="k">int</span>  <span class="i">boffs</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>              <a name="cmGrPlotObjPhysExt"></a><span class="f">cmGrPlotObjPhysExt</span><span class="p">(</span>       <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span> <span class="i">loffs</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span> <span class="i">toffs</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span> <span class="i">roffs</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span> <span class="i">boffs</span>  <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>              <a name="cmGrPlotObjVExt"></a><span class="f">cmGrPlotObjVExt</span><span class="p">(</span>          <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="cmGr_h_0.html#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">vext</span>  <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>              <a name="cmGrPlotObjSetFontFamily"></a><span class="f">cmGrPlotObjSetFontFamily</span><span class="p">(</span> <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>          <a name="cmGrPlotObjFontFamily"></a><span class="f">cmGrPlotObjFontFamily</span><span class="p">(</span>    <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>              <a name="cmGrPlotObjSetFontSize"></a><span class="f">cmGrPlotObjSetFontSize</span><span class="p">(</span>   <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">size</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>          <a name="cmGrPlotObjFontSize"></a><span class="f">cmGrPlotObjFontSize</span><span class="p">(</span>      <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>              <a name="cmGrPlotObjSetFontStyle"></a><span class="f">cmGrPlotObjSetFontStyle</span><span class="p">(</span>  <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>          <a name="cmGrPlotObjFontStyle"></a><span class="f">cmGrPlotObjFontStyle</span><span class="p">(</span>     <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>              <a name="cmGrPlotObjSetFont"></a><span class="f">cmGrPlotObjSetFont</span><span class="p">(</span>       <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">size</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">style</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>              <a name="cmGrPlotObjSetLineColor"></a><span class="f">cmGrPlotObjSetLineColor</span><span class="p">(</span>  <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrPlStateId_t">cmGrPlStateId_t</a> <span class="i">id</span><span class="p">,</span> <span class="k">const</span> <a href="cmGr_h_0.html#cmGrColor_t">cmGrColor_t</a> <span class="i">c</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGr_h_0.html#cmGrColor_t">cmGrColor_t</a>       <a name="cmGrPlotObjLineColor"></a><span class="f">cmGrPlotObjLineColor</span><span class="p">(</span>     <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrPlStateId_t">cmGrPlStateId_t</a> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGr_h_0.html#cmGrColor_t">cmGrColor_t</a>       <a name="cmGrPlotObjCurLineColor"></a><span class="f">cmGrPlotObjCurLineColor</span><span class="p">(</span>  <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>              <a name="cmGrPlotObjSetFillColor"></a><span class="f">cmGrPlotObjSetFillColor</span><span class="p">(</span>  <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrPlStateId_t">cmGrPlStateId_t</a> <span class="i">id</span><span class="p">,</span> <span class="k">const</span> <a href="cmGr_h_0.html#cmGrColor_t">cmGrColor_t</a> <span class="i">c</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGr_h_0.html#cmGrColor_t">cmGrColor_t</a>       <a name="cmGrPlotObjFillColor"></a><span class="f">cmGrPlotObjFillColor</span><span class="p">(</span>     <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrPlStateId_t">cmGrPlStateId_t</a> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGr_h_0.html#cmGrColor_t">cmGrColor_t</a>       <a name="cmGrPlotObjCurFillColor"></a><span class="f">cmGrPlotObjCurFillColor</span><span class="p">(</span>  <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>              <a name="cmGrPlotObjSetCb"></a><span class="f">cmGrPlotObjSetCb</span><span class="p">(</span>        <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrPlotCbFunc_t">cmGrPlotCbFunc_t</a> <span class="i">func</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">arg</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmGrPlotCbFunc_t">cmGrPlotCbFunc_t</a>  <a name="cmGrPlotObjCbFunc"></a><span class="f">cmGrPlotObjCbFunc</span><span class="p">(</span>       <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span><span class="p">*</span>             <a name="cmGrPlotObjCbArg"></a><span class="f">cmGrPlotObjCbArg</span><span class="p">(</span>        <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">// Draw aH above bH in the z-order.</span>
+<span class="k">void</span>            <a name="cmGrPlotObjDrawAbove"></a><span class="f">cmGrPlotObjDrawAbove</span><span class="p">(</span>     <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">bH</span><span class="p">,</span> <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">aH</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1">// Plot Object Manager Functions
+<hr id="hr1"></span> <a href="#cmGrPlRC_t">cmGrPlRC_t</a>   <a name="cmGrPlotCreate"></a><span class="f">cmGrPlotCreate</span><span class="p">(</span>  <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmGrPlH_t">cmGrPlH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmGrPlRC_t">cmGrPlRC_t</a>   <a name="cmGrPlotDestroy"></a><span class="f">cmGrPlotDestroy</span><span class="p">(</span> <a href="#cmGrPlH_t">cmGrPlH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>         <a name="cmGrPlotIsValid"></a><span class="f">cmGrPlotIsValid</span><span class="p">(</span> <a href="#cmGrPlH_t">cmGrPlH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmGrPlRC_t">cmGrPlRC_t</a>   <a name="cmGrPlotClear"></a><span class="f">cmGrPlotClear</span><span class="p">(</span>   <a href="#cmGrPlH_t">cmGrPlH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span> <span class="c"> // destroy all objects</span>
+<a href="cmErr_h_0.html#cmErr_t">cmErr_t</a><span class="p">*</span>     <a name="cmGrPlotErr"></a><span class="f">cmGrPlotErr</span><span class="p">(</span>     <a href="#cmGrPlH_t">cmGrPlH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span>     <a name="cmGrPlotRpt"></a><span class="f">cmGrPlotRpt</span><span class="p">(</span>     <a href="#cmGrPlH_t">cmGrPlH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the count of plot objects.</span>
+<span class="k">unsigned</span>     <a name="cmGrPlotObjectCount"></a><span class="f">cmGrPlotObjectCount</span><span class="p">(</span>   <a href="#cmGrPlH_t">cmGrPlH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the handle of the ith object (0&amplt=index&ampltcmGrPlotObjectCount())</span>
+<a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <a name="cmGrPlotObjectIndexToHandle"></a><span class="f">cmGrPlotObjectIndexToHandle</span><span class="p">(</span> <a href="#cmGrPlH_t">cmGrPlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">index</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Given a plot object id return the associated object handle.</span>
+<a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <a name="cmGrPlotObjectIdToHandle"></a><span class="f">cmGrPlotObjectIdToHandle</span><span class="p">(</span> <a href="#cmGrPlH_t">cmGrPlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Callback func(arg,objH) for every object. </span>
+<span class="k">typedef</span> <span class="k">void</span> <span class="p">(</span><span class="p">*</span><a name="cmGrPlotObjCbFunc_t"></a><span class="t">cmGrPlotObjCbFunc_t</span><span class="p">)</span><span class="p">(</span> <span class="k">void</span><span class="p">*</span> <span class="i">arg</span><span class="p">,</span> <a href="#cmGrPlObjH_t">cmGrPlObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>         <a name="cmGrPlotObjCb"></a><span class="f">cmGrPlotObjCb</span><span class="p">(</span> <a href="#cmGrPlH_t">cmGrPlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrPlotObjCbFunc_t">cmGrPlotObjCbFunc_t</a> <span class="i">func</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">arg</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Pass a keyboard event to the plot system.</span>
+<span class="k">void</span>         <a name="cmGrPlotKeyEvent"></a><span class="f">cmGrPlotKeyEvent</span><span class="p">(</span>   <a href="#cmGrPlH_t">cmGrPlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="cmGr_h_0.html#cmGrH_t">cmGrH_t</a> <span class="i">grH</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">eventFlags</span><span class="p">,</span> <a href="cmGr_h_0.html#cmGrKeyCodeId_t">cmGrKeyCodeId_t</a> <span class="i">keycode</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Set the default object callback and arg.</span>
+<span class="k">void</span>         <a name="cmGrPlotSetCb"></a><span class="f">cmGrPlotSetCb</span><span class="p">(</span> <a href="#cmGrPlH_t">cmGrPlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrPlotCbFunc_t">cmGrPlotCbFunc_t</a> <span class="i">func</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">arg</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

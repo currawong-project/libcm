@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmMem.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmMem.h"></a><!-- Begin nodes -->
+<div class="doc"><div class="blk_title">cmMem : Implements a memory allocation manager interface.</div><a name="cmMem_h_doc_0"></a></pre>
+<div class="d"><p>Using cmMem allows memory leaks and some instances of memory corruption to be be detected. It can also perform memory block alignment.</p>
+<p>The cmMm class acts as an interface for implementing functions designed to replace malloc() and free(). cmMm does not actually allocate memory itself but rather tracks and conditions block of memory provided by other sources. In this sense it acts as a backend for a memory allocation manager.<br />
+<a href="cmMallocDebug_h_0.html#cmMallocDebug.h">cmMallocDebug.h</a> gives an example of using cmMm to interface to malloc() and free(). <a href="cmLinkedHeap_h_0.html#cmLinkedHeap.h">cmLinkedHeap.h</a> gives an example of using cmMm to link to an alternate heap manager. See <a href="cmMallocDebug_h_0.html#cmMdTest">cmMdTest</a>() and <a href="cmLinkedHeap_h_0.html#cmLHeapTest">cmLHeapTest</a>() for usage examples of cmMm.</p>
+<p>cmMm works as follows:</p>
+<ol type="1">
+<li><p>A client memory manager creates and configures a cmMm object via <a href="#cmMmInitialize">cmMmInitialize</a>(). As part of the configuration the client gives callback functions which implement actual memory allocation and release. In practice this means the callback probably call malloc() or free().</p></li>
+<li><p>At some point later when the client needs to allocate a block of memory it calls <a href="#cmMmAllocate">cmMmAllocate</a>() with the size of the requested block. cmMm translates this request into a call to the client provided memory allocation callback to get a block of raw memory which is slightly larger than the request block.</p></li>
+<li><p>Given the raw memory block cmMm conditions it in the following ways and returns it to the client.</p></li>
+</ol>
+<ul>
+<li>The base of the blocks data area is shifted such that it is has an arbitrary address aligned according to the value set by the alignByteCnt parameter to <a href="#cmMmInitialize">cmMmInitialize</a>(). Address aligment is sometimes required by routines which make use of the the SIMD unit on some CPUs.<br />
+</li>
+<li>‘Guard’ bytes are prepended and appended to the blocks data area. These bytes are set to the known fixed value (0xaa). At some point later cmMm can then test for accidental writes just before or just after the legal data area by checking the value of these guard bytes.</li>
+<li>The number of bytes allocated is written just prior to the leading guard bytes. This allows the memory manager to track the size of the memory and thereby makes reallocations() to smaller or equal data areas very fast. This also allows the size of the data area to be known just by having a pointer to the data area (see <a href="#cmMmByteCount">cmMmByteCount</a>()). This basic information is not availabe via malloc().</li>
+<li>A record is added to an internal database to track the allocation code location (file name, file line, function name) and the allocation status (active or released).</li>
+<li>The client may request that a new block of memory be automatically filled with zeros. If automatic zeroing is not requested then the block is filled with 0x55 to indicate that it is not initialized. This can be useful when attempting to recognize uninitialized memory during debugging.</li>
+</ul>
+<p>When a client requests that a block of memory is released cmMm does the following:</p>
+<ol type="1">
+<li><p>If deferred release is enabled (kDeferFreeFl) then the block is filled with 0x33 but the callback to freeFunc() is not actually made. This allows cmMm to track attempted writes to freed memory areas. When deferred release is enabled the freeFunc() is not called on any blocks until <a href="#cmMmFinalize">cmMmFinalize</a>(). If the program continually allocates memory over the life of the program this may mean that the program will eventually exhaust physical memory.</p></li>
+<li><p>If tracking is enabled (<a href="#kTrackMmFl">kTrackMmFl</a>) then the block pointer is looked up in the internal database. If the pointer is not found then a kMissingRecdRC is returned indicating an attempt to release a non-allocated block.</p></li>
+<li><p>If tracking is enabled (<a href="#kTrackMmFl">kTrackMmFl</a>) then the block is marked as released in the internal tracking database. At the end of the program all blocks should be marked for release otherwise they are considered leaks.</p></li>
+</ol>
+<p>At any time during the life of the cmMm object the client can request a report of the allocated blocks <a href="#cmMmReport">cmMmReport</a>(). This report examines each allocated block for corrupt guard bytes, double frees (attempts to release an allocated block that was already released), and leaked blocks (active blocks).</p>
+</div>
+<pre>
+<hr>
+</div>
+<div class="cod"><pre><a name="cmMem_h_code_1"></a>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmMmH_t"></a><span class="t">cmMmH_t</span><span class="p">;</span>  <span class="c"> // cmMm handle type. </span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmMmRC_t"></a><span class="t">cmMmRC_t</span><span class="p">;</span> <span class="c"> // cmMm result code types.</span>
+
+<span class="c">// cmMm result codes </span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkMmRC"></a><span class="e">kOkMmRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kObjAllocFailMmRC"></a><span class="e">kObjAllocFailMmRC</span><span class="p">,</span>
+  <a name="kTrkAllocFailMmRC"></a><span class="e">kTrkAllocFailMmRC</span><span class="p">,</span>
+  <a name="kAllocFailMmRC"></a><span class="e">kAllocFailMmRC</span><span class="p">,</span>
+  <a name="kFreeFailMmRC"></a><span class="e">kFreeFailMmRC</span><span class="p">,</span>
+  <a name="kMissingRecdMmRC"></a><span class="e">kMissingRecdMmRC</span><span class="p">,</span>
+  <a name="kGuardCorruptMmRC"></a><span class="e">kGuardCorruptMmRC</span><span class="p">,</span>
+  <a name="kWriteAfterFreeMmRC"></a><span class="e">kWriteAfterFreeMmRC</span><span class="p">,</span>
+  <a name="kLeakDetectedMmRC"></a><span class="e">kLeakDetectedMmRC</span><span class="p">,</span>
+  <a name="kDblFreeDetectedMmRC"></a><span class="e">kDblFreeDetectedMmRC</span><span class="p">,</span>
+  <a name="kParamErrMmRC"></a><span class="e">kParamErrMmRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// All <a href="#cmMmH_t">cmMmH_t</a> variables should be initialized with this value prior to calling <a href="#cmMmInitialize">cmMmInitialize</a>().</span>
+<span class="k">extern</span> <a href="#cmMmH_t">cmMmH_t</a> <span class="i">cmMmNullHandle</span><span class="p">;</span>
+
+<span class="c">// Function signature for data allocation routine client provided to <a href="#cmMmInitialize">cmMmInitialize</a>().
+// Return NULL if byteCnt == 0.</span>
+<span class="k">typedef</span> <span class="k">void</span><span class="p">*</span> <span class="p">(</span><span class="p">*</span><a name="cmAllocMmFunc_t"></a><span class="t">cmAllocMmFunc_t</span><span class="p">)</span><span class="p">(</span><span class="k">void</span><span class="p">*</span> <span class="i">funcArgPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Function signature for data release routine client provided to <a href="#cmMmInitialize">cmMmInitialize</a>().
+// Return true on success and false on failure.  Return true if ptr==NULL.</span>
+<span class="k">typedef</span> <span class="k">bool</span>  <span class="p">(</span><span class="p">*</span><a name="cmFreeMmFunc_t"></a><span class="t">cmFreeMmFunc_t</span><span class="p">)</span><span class="p">(</span> <span class="k">void</span><span class="p">*</span> <span class="i">funcArgPtr</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">ptr</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Flags for use with <a href="#cmMmInitialize">cmMmInitialize</a>()</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kTrackMmFl"></a><span class="e">kTrackMmFl</span>      <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span>   <span class="c"> // Track alloc's and free's for use by <a href="#cmMmReport">cmMmReport</a>().</span>
+  <a name="kDeferFreeMmFl"></a><span class="e">kDeferFreeMmFl</span>  <span class="p">=</span> <span class="l">0x02</span><span class="p">,</span>   <span class="c"> // Defer memory release until <a href="#cmMmFinalize">cmMmFinalize</a>() (ignored unless <a href="#kTrackMmFl">kTrackMmFl</a> is set.) Allows checks for 'write after release'.</span>
+  <a name="kFillUninitMmFl"></a><span class="e">kFillUninitMmFl</span> <span class="p">=</span> <span class="l">0x04</span><span class="p">,</span>   <span class="c"> // Fill uninitialized (non-zeroed) memory with a 0x55 upon allocation</span>
+  <a name="kFillFreedMmFl"></a><span class="e">kFillFreedMmFl</span>  <span class="p">=</span> <span class="l">0x08</span>    <span class="c"> // Fill freed memory with 0x33. This allow checks for wite-after-free.</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// Create a new cmMm object.
+// If *hp was not initalized by an earlier call to <a href="#cmMmInitialize">cmMmInitialize</a>() then it should 
+// be set to cmMmNullHandle prior to calling this function. If *hp is a valid handle
+// then it is automatically finalized by an internal call to <a href="#cmMmFinalize">cmMmFinalize</a>() prior to
+// being re-iniitalized.</span>
+<a href="#cmMmRC_t">cmMmRC_t</a> <a name="cmMmInitialize"></a>cmMmInitialize<span class="p">(</span> 
+<a href="#cmMmH_t">cmMmH_t</a><span class="p">*</span>        <span class="i">hp</span><span class="p">,</span>           <span class="c"> // Pointer to a client provided <a href="#cmMmH_t">cmMmH_t</a> handle to recieve the handle of the new object.</span>
+<a href="#cmAllocMmFunc_t">cmAllocMmFunc_t</a> <span class="i">allocFunc</span><span class="p">,</span>    <span class="c"> // The memory allocation function equivalent to malloc().</span>
+<a href="#cmFreeMmFunc_t">cmFreeMmFunc_t</a>  <span class="i">freeFunc</span><span class="p">,</span>     <span class="c"> // The memory release function equivalent to free().</span>
+<span class="k">void</span><span class="p">*</span>           <span class="i">funcArgPtr</span><span class="p">,</span>   <span class="c"> // An application supplied data value sent with call backs to allocFunc() and freeFunc().</span>
+<span class="k">unsigned</span>        <span class="i">guardByteCnt</span><span class="p">,</span> <span class="c"> // Count of guardBytes to precede and follow each allocated block.</span>
+<span class="k">unsigned</span>        <span class="i">alignByteCnt</span><span class="p">,</span> <span class="c"> // Address alignment to provide for each allocated block.</span>
+<span class="k">unsigned</span>        <span class="i">flags</span><span class="p">,</span>        <span class="c"> // Configuration flags (See cmXXXMmFl).</span>
+<a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span>        <span class="i">rptPtr</span>        <span class="c"> // Pointer to an error reporting object.</span>
+<span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Release a cmMm object created by an earlier call to <a href="#cmMmInitialize">cmMmInitialize</a>(). Upon successful completion *hp is set to cmMmNullHandle.</span>
+<a href="#cmMmRC_t">cmMmRC_t</a> <a name="cmMmFinalize"></a><span class="f">cmMmFinalize</span><span class="p">(</span> <a href="#cmMmH_t">cmMmH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span> <a name="cmMmGuardByteCount"></a><span class="f">cmMmGuardByteCount</span><span class="p">(</span>  <a href="#cmMmH_t">cmMmH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span> <span class="c"> // Return the count of guard bytes this cmMm object is applying.</span>
+<span class="k">unsigned</span> <a name="cmMmAlignByteCount"></a><span class="f">cmMmAlignByteCount</span><span class="p">(</span>  <a href="#cmMmH_t">cmMmH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span> <span class="c"> // Return the byte alignment this cmMm object is applying.</span>
+<span class="k">unsigned</span> <a name="cmMmInitializeFlags"></a><span class="f">cmMmInitializeFlags</span><span class="p">(</span> <a href="#cmMmH_t">cmMmH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span> <span class="c"> // Return the configuration flags this cmMm object was initialized with.</span>
+
+<span class="c">// Return true if 'h' is a valid handle for an existing cmMm object.</span>
+<span class="k">bool</span>     <a name="cmMmIsValid"></a><span class="f">cmMmIsValid</span><span class="p">(</span>  <a href="#cmMmH_t">cmMmH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// flags for use with <a href="#cmMmAllocate">cmMmAllocate</a>()</span>
+<span class="k">enum</span> cmMmAllocFlags_t
+<span class="p">{</span>
+  <a name="kZeroMmFl"></a><span class="e">kZeroMmFl</span>     <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span> <span class="c"> // Initialize new memory area to zero.</span>
+  <a name="kAlignMmFl"></a><span class="e">kAlignMmFl</span>    <span class="p">=</span> <span class="l">0x02</span><span class="p">,</span> <span class="c"> // Align the returned memory according to the alignByteCnt set in <a href="#cmMmInitialize">cmMmInitialize</a>().</span>
+  <a name="kPreserveMmFl"></a><span class="e">kPreserveMmFl</span> <span class="p">=</span> <span class="l">0x04</span>  <span class="c"> // Preserve existing memory contents during reallocation (orgDataPtr!=NULL). </span>
+<span class="p">}</span><span class="p">;</span> 
+
+<span class="c">// Allocate a block of memory.
+// Calling this function results in a call to the function named in allocFunc() in <a href="#cmMmInitialize">cmMmInitialize</a>(). </span>
+<span class="k">void</span><span class="p">*</span> <a name="cmMmAllocate"></a>cmMmAllocate<span class="p">(</span>     
+<a href="#cmMmH_t">cmMmH_t</a>     <span class="i">h</span><span class="p">,</span>                  <span class="c"> // Handle for this cmMm object returned from an earlier successful call to <a href="#cmMmInitialize">cmMmInitialize</a>().</span>
+<span class="k">void</span><span class="p">*</span>       <span class="i">orgDataPtr</span><span class="p">,</span>         <span class="c"> // If this is a re-allocation then this pointer should point to the original allocation otherwise it should be NULL.</span>
+<span class="k">unsigned</span>    <span class="i">newEleCnt</span><span class="p">,</span>          <span class="c"> // Count of elmements in this allocation.</span>
+<span class="k">unsigned</span>    <span class="i">newEleByteCnt</span><span class="p">,</span>      <span class="c"> // Bytes per element in this allocation. The total memory request is newEleCnt*newEleByteCnt.</span>
+<span class="k">enum</span> cmMmAllocFlags_t    <span class="i">flags</span><span class="p">,</span> <span class="c"> // See cmMmAllocFlags_t.</span>
+<span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fileName</span><span class="p">,</span>           <span class="c"> // Name of the C file from which the allocation request is being made. </span>
+<span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">funcName</span><span class="p">,</span>           <span class="c"> // Name of the C function from which the allocation request is being made.</span>
+<span class="k">unsigned</span>    <span class="i">fileLine</span>            <span class="c"> // Line in the C file on which the allocation request is being made.</span>
+<span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Free memory pointed to by dataPtr.  
+// If dataPtr==NULL then the functon does nothing and returns.
+// Calling this function results in a call to the function named in freeFunc() in <a href="#cmMmInitialize">cmMmInitialize</a>().
+// This is the release mode memory free routine. See <a href="#cmMmFreeDebug">cmMmFreeDebug</a>() for the debug mode memory release routine. 
+//  See \ref debug_mode for more about debug vs. release mode.</span>
+<a href="#cmMmRC_t">cmMmRC_t</a> <a name="cmMmFree"></a><span class="f">cmMmFree</span><span class="p">(</span> <a href="#cmMmH_t">cmMmH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">dataPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Debug mode version of <a href="#cmMmFree">cmMmFree</a>(). See <a href="#cmMmFree">cmMmFree</a>() for the release mode memory free routine. 
+// See debug_mode for more about debug vs. release mode.  
+// This routine is functionally identical to the <a href="#cmMmFree">cmMmFree</a>() but takes the calling
+// location information for use in tracking the block of memory.</span>
+<a href="#cmMmRC_t">cmMmRC_t</a> <a name="cmMmFreeDebug"></a><span class="f">cmMmFreeDebug</span><span class="p">(</span> <a href="#cmMmH_t">cmMmH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">dataPtr</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fileName</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">funcName</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">fileLine</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// This function is identical to <a href="#cmMmFree">cmMmFree</a>() but takes the address of the pointer
+// to the block of memory to free. Upon successful completion *dataPtrPtr is
+// set to NULL. In general this should be the preferred version of the free routine
+// because it helps to eliminate problems of reusing deallocated memory blocks.
+// Note that although dataPtrPtr must  point to a valid address  *dataPtrPtr may be NULL.
+// This routine is generally only used in the release compile mode.
+//  See <a href="#cmMmFreePtrDebug">cmMmFreePtrDebug</a>() for the debug mode version.  See \ref debug_mode for more
+//  about compile vs. release mode.</span>
+<a href="#cmMmRC_t">cmMmRC_t</a> <a name="cmMmFreePtr"></a><span class="f">cmMmFreePtr</span><span class="p">(</span>  <a href="#cmMmH_t">cmMmH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span><span class="p">*</span> <span class="i">dataPtrPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Debug compile mode version of <a href="#cmMmFreePtr">cmMmFreePtr</a>(). 
+// This function is functionally identical to <a href="#cmMmFreePtr">cmMmFreePtr</a>() but accepts information
+// on the location of the call to aid in debuging.</span>
+<a href="#cmMmRC_t">cmMmRC_t</a> <a name="cmMmFreePtrDebug"></a><span class="f">cmMmFreePtrDebug</span><span class="p">(</span> <a href="#cmMmH_t">cmMmH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">dataPtr</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fileName</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">funcName</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">fileLine</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the size of a memory block returned from <a href="#cmMmAllocate">cmMmAllocate</a>().</span>
+<span class="k">unsigned</span> <a name="cmMmByteCount"></a><span class="f">cmMmByteCount</span><span class="p">(</span> <a href="#cmMmH_t">cmMmH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">dataPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the unique id associated with an address returned from <a href="#cmMmAllocate">cmMmAllocate</a>().</span>
+<span class="k">unsigned</span> <a name="cmMmDebugId"></a><span class="f">cmMmDebugId</span><span class="p">(</span> <a href="#cmMmH_t">cmMmH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">dataPtr</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Flags for use with <a href="#cmMmReport">cmMmReport</a>().</span>
+<span class="k">enum</span> 
+<span class="p">{</span>
+  <a name="kSuppressSummaryMmFl"></a><span class="e">kSuppressSummaryMmFl</span> <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span> <span class="c"> // Do not <a href="cmMain_c_0.html#print">print</a> a memory use summary report.</span>
+  <a name="kIgnoreNormalMmFl"></a><span class="e">kIgnoreNormalMmFl</span>    <span class="p">=</span> <span class="l">0x02</span><span class="p">,</span> <span class="c"> // Do not <a href="cmMain_c_0.html#print">print</a> information for non-leaked,non-corrupt memory blocks. </span>
+  <a name="kIgnoreLeaksMmFl"></a><span class="e">kIgnoreLeaksMmFl</span>     <span class="p">=</span> <span class="l">0x04</span>  <span class="c"> // Do not <a href="cmMain_c_0.html#print">print</a> information for leaked blocks. </span>
+  
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// Report on the memory tracking data. 
+// Returns kMmOkRC if no errors were found otherwise returns the error of the
+// last anomoly reported. </span>
+<a href="#cmMmRC_t">cmMmRC_t</a> <a name="cmMmReport"></a><span class="f">cmMmReport</span><span class="p">(</span>   <a href="#cmMmH_t">cmMmH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Analyze the memory assoc'd with a specific tracking record for corruption.
+// Returns: <a href="#kOkMmRC">kOkMmRC</a>,<a href="#kGuardCorruptMmRC">kGuardCorruptMmRC</a>,kWriteAfterFreeMmRc, or kMissingRecdMmRC.
+// This function is only useful if <a href="#kTrackMmFl">kTrackMmFl</a> was set in <a href="#cmMmInitialize">cmMmInitialize</a>().
+// Write-after-free errors are only detectable if <a href="#kDeferFreeMmFl">kDeferFreeMmFl</a> was set in <a href="#cmMmInitialize">cmMmInitialize</a>().</span>
+<a href="#cmMmRC_t">cmMmRC_t</a> <a name="cmMmIsGuardCorrupt"></a><span class="f">cmMmIsGuardCorrupt</span><span class="p">(</span> <a href="#cmMmH_t">cmMmH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Check all tracking records by calling cmMmmIsGuardCorrupt() on each record.</span>
+<a href="#cmMmRC_t">cmMmRC_t</a> <a name="cmMmCheckAllGuards"></a><span class="f">cmMmCheckAllGuards</span><span class="p">(</span> <a href="#cmMmH_t">cmMmH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

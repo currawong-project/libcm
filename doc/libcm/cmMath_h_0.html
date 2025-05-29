@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmMath.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmMath.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmMath : Math utility functions</div><pre><a name="cmMath_h_code_0"></a>
+<span class="k">double</span>   <a name="cmX80ToDouble"></a><span class="f">cmX80ToDouble</span><span class="p">(</span> <span class="k">unsigned</span> <span class="k">char</span> s<span class="p">[</span><span class="l">10</span><span class="i">]</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmDoubleToX80"></a><span class="f">cmDoubleToX80</span><span class="p">(</span> <span class="k">double</span> <span class="i">v</span><span class="p">,</span> <span class="k">unsigned</span> <span class="k">char</span> s<span class="p">[</span><span class="l">10</span><span class="i">]</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>     <a name="cmIsPowerOfTwo"></a><span class="f">cmIsPowerOfTwo</span><span class="p">(</span>   <span class="k">unsigned</span> <span class="i">i</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmNextPowerOfTwo"></a><span class="f">cmNextPowerOfTwo</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">i</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmNearPowerOfTwo"></a><span class="f">cmNearPowerOfTwo</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">i</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>     <a name="cmIsOddU"></a><span class="f">cmIsOddU</span><span class="p">(</span>    <span class="k">unsigned</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>     <a name="cmIsEvenU"></a><span class="f">cmIsEvenU</span><span class="p">(</span>   <span class="k">unsigned</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmNextOddU"></a><span class="f">cmNextOddU</span><span class="p">(</span>  <span class="k">unsigned</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmPrevOddU"></a><span class="f">cmPrevOddU</span><span class="p">(</span>  <span class="k">unsigned</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmNextEvenU"></a><span class="f">cmNextEvenU</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmPrevEvenU"></a><span class="f">cmPrevEvenU</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Increment or decrement 'idx' by 'delta' always wrapping the result into the range
+/// 0 to (maxN-1).
+/// 'idx': initial value 
+/// 'delta':  incremental amount
+/// 'maxN' - 1 : maximum return value.</span>
+<span class="k">unsigned</span> <a name="cmModIncr"></a><span class="f">cmModIncr</span><span class="p">(</span><span class="k">int</span> <span class="i">idx</span><span class="p">,</span> <span class="k">int</span> <span class="i">delta</span><span class="p">,</span> <span class="k">int</span> <span class="i">maxN</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// modified bessel function of first kind, order 0
+// ref: orfandis appendix B io.m</span>
+<span class="k">double</span>   <a name="cmBessel0"></a><span class="f">cmBessel0</span><span class="p">(</span> <span class="k">double</span> <span class="i">x</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c"><hr id="hr2">// The following elliptic-related function approximations come from
+// Parks &ampamp Burrus, Digital <a href="cmVectOpsDocOut_h_0.html#Filter">Filter</a> Design, Appendix program 9, pp. 317-326
+// which in turn draws directly on other sources</span> 
+<span class="c">// calculate complete elliptic integral (quarter period) K
+// given *complimentary* modulus kc</span>
+<a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmEllipK"></a><span class="f">cmEllipK</span><span class="p">(</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">kc</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// calculate elliptic modulus k
+// given ratio of complete elliptic integrals r = K/K'
+// (solves the &ampquotdegree equation&ampquot for fixed N = K*K1'/K'K1)</span>
+<a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmEllipDeg"></a><span class="f">cmEllipDeg</span><span class="p">(</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">r</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// calculate arc elliptic tangent u (elliptic integral of the 1st kind)
+// given argument x = sc(u,k) and *complimentary* modulus kc</span>
+<a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmEllipArcSc"></a><span class="f">cmEllipArcSc</span><span class="p">(</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">x</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">kc</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// calculate Jacobi elliptic functions sn, cn, and dn
+// given argument u and *complimentary* modulus kc</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>   <a name="cmEllipJ"></a><span class="f">cmEllipJ</span><span class="p">(</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">u</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">kc</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <span class="i">sn</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <span class="i">cn</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <span class="i">dn</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c"><hr id="hr2">// bilinear transform
+// z = (2*sr + s)/(2*sr - s)</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a> <a name="cmBlt"></a><span class="f">cmBlt</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">n</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">sr</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <span class="i">rp</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <span class="i">ip</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c"><hr id="hr2">// Pitch conversion</span> <span class="k">unsigned</span> <a name="cmHzToMidi"></a><span class="f">cmHzToMidi</span><span class="p">(</span> <span class="k">double</span> <span class="i">hz</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">float</span>    <a name="cmMidiToHz"></a><span class="f">cmMidiToHz</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">midi</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr2">// Floating point byte swapping</span> <span class="k">unsigned</span>           <a name="cmFfSwapFloatToUInt"></a><span class="f">cmFfSwapFloatToUInt</span><span class="p">(</span> <span class="k">float</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">float</span>              <a name="cmFfSwapUIntToFloat"></a><span class="f">cmFfSwapUIntToFloat</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <span class="k">long</span> <span class="k">long</span> <a name="cmFfSwapDoubleToULLong"></a><span class="f">cmFfSwapDoubleToULLong</span><span class="p">(</span> <span class="k">double</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">double</span>             <a name="cmFfSwapULLongToDouble"></a><span class="f">cmFfSwapULLongToDouble</span><span class="p">(</span> <span class="k">unsigned</span> <span class="k">long</span> <span class="k">long</span> <span class="i">v</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr2"></span> <span class="k">int</span>      <a name="cmRandInt"></a><span class="f">cmRandInt</span><span class="p">(</span> <span class="k">int</span> <span class="i">min</span><span class="p">,</span> <span class="k">int</span> <span class="i">max</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmRandUInt"></a><span class="f">cmRandUInt</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">min</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">max</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">float</span>    <a name="cmRandFloat"></a><span class="f">cmRandFloat</span><span class="p">(</span> <span class="k">float</span> <span class="i">min</span><span class="p">,</span> <span class="k">float</span> <span class="i">max</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">double</span>   <a name="cmRandDouble"></a><span class="f">cmRandDouble</span><span class="p">(</span> <span class="k">double</span> <span class="i">min</span><span class="p">,</span> <span class="k">double</span> <span class="i">max</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr2"></span> <span class="k">bool</span> <a name="cmIsCloseD"></a><span class="f">cmIsCloseD</span><span class="p">(</span> <span class="k">double</span>   <span class="i">x0</span><span class="p">,</span> <span class="k">double</span>   <span class="i">x1</span><span class="p">,</span> <span class="k">double</span> <span class="i">eps</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span> <a name="cmIsCloseF"></a><span class="f">cmIsCloseF</span><span class="p">(</span> <span class="k">float</span>    <span class="i">x0</span><span class="p">,</span> <span class="k">float</span>    <span class="i">x1</span><span class="p">,</span> <span class="k">double</span> <span class="i">eps</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span> <a name="cmIsCloseI"></a><span class="f">cmIsCloseI</span><span class="p">(</span> <span class="k">int</span>      <span class="i">x0</span><span class="p">,</span> <span class="k">int</span>      <span class="i">x1</span><span class="p">,</span> <span class="k">double</span> <span class="i">eps</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span> <a name="cmIsCloseU"></a><span class="f">cmIsCloseU</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">x0</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">x1</span><span class="p">,</span> <span class="k">double</span> <span class="i">eps</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr2">// Run a length 'lfsrN' linear feedback shift register (LFSR) for 'yN' iterations to
+// produce a length 'yN' bit string in yV[yN].
+// 'lfsrN' count of bits in the shift register range: 2&amplt= lfsrN &amplt= 32.
+// 'tapMask' is a bit mask which gives the tap indexes positions for the LFSR. 
+// The least significant bit corresponds to the maximum delay tap position.  
+// The min tap position is therefore denoted by the tap mask bit location 1 &amplt&amplt (lfsrN-1).
+// A minimum of two taps must exist.
+// 'seed' sets the initial delay state.
+// 'yV[yN]' is the the output vector
+// 'yN' is count of elements in yV.
+// The function resturn kOkAtRC on success or kInvalidArgsRCRC if any arguments are invalid.
+// /sa <a href="#cmLFSR_Test">cmLFSR_Test</a>.</span> <span class="k">void</span>   <a name="cmLFSR"></a><span class="f">cmLFSR</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">lfsrN</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">tapMask</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seed</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">yV</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">yN</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Example and test code for <a href="#cmLFSR">cmLFSR</a>() </span>
+<span class="k">bool</span> <a name="cmLFSR_Test"></a><span class="f">cmLFSR_Test</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">// Generate a set of 'goldN' Gold codes using the Maximum Length Sequences (MLS) generated
+// by a length 'lfsrN' linear feedback shift register.
+// 'err' is an error object to be set if the the function fails.
+// 'lfsrN' is the length of the Linear Feedback Shift Registers (LFSR) used to generate the MLS.
+// 'poly_coeff0' tap mask for the first LFSR.
+// 'coeff1' tap mask the the second LFSR.
+// 'goldN' is the count of Gold codes to generate. 
+// 'yM[mlsN', goldN] is a column major output matrix where each column contains a Gold code.
+// 'mlsN' is the length of the maximum length sequence for each Gold code which can be
+// calculated as mlsN = (1 &amplt&amplt a-&ampgtlfsrN) - 1.
+// Note that values of 'lfsrN' and the 'poly_coeffx' must be carefully selected such that
+// they will produce a MLS.  For example to generate a MLS with length 31 set 'lfsrN' to 5 and
+// then select poly_coeff from two different elements of the set {0x12 0x14 0x17 0x1B 0x1D 0x1E}.
+// See http://www.ece.cmu.edu/~koopman/lfsr/index.html for a complete set of MSL polynomial
+// coefficients for given LFSR lengths.
+// Returns false if insufficient balanced pairs exist.</span>
+<span class="k">bool</span>   <a name="cmGenGoldCodes"></a><span class="f">cmGenGoldCodes</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">lfsrN</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">poly_coeff0</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">poly_coeff1</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">goldN</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span> <span class="i">yM</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">mlsN</span>  <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

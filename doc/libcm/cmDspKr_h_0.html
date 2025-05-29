@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmDspKr.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmDspKr.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmDspKr : Dataflow process interface developed for GUTIM.</div><pre><a name="cmDspKr_h_code_0"></a>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmKrClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmKrClassCons_defn">cmKrClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmKr2ClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmKr2ClassCons_defn">cmKr2ClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmTimeLineClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmTimeLineClassCons_defn">cmTimeLineClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmScoreClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmScoreClassCons_defn">cmScoreClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmMidiFilePlayClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmMidiFilePlayClassCons_defn">cmMidiFilePlayClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmScFolClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmScFolClassCons_defn">cmScFolClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmScModClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmScModClassCons_defn">cmScModClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmGSwitchClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmGSwitchClassCons_defn">cmGSwitchClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmScaleRangeClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmScaleRangeClassCons_defn">cmScaleRangeClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmActiveMeasClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmActiveMeasClassCons_defn">cmActiveMeasClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmAmSyncClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmAmSyncClassCons_defn">cmAmSyncClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmNanoMapClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmNanoMapClassCons_defn">cmNanoMapClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmPicadaeClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmPicadaeClassCons_defn">cmPicadaeClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmRecdPlayClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmRecdPlayClassCons_defn">cmRecdPlayClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmGoertzelClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmGoertzelClassCons_defn">cmGoertzelClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmSyncRecdClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmSyncRecdClassCons_defn">cmSyncRecdClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmTakeSeqBldrClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmTakeSeqBldrClassCons_defn">cmTakeSeqBldrClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmTakeSeqRendClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmTakeSeqRendClassCons_defn">cmTakeSeqRendClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmReflectCalcClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmReflectCalcClassCons_defn">cmReflectCalcClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">struct</span> <a href="cmDspClass_h_0.html#cmDspClass_str">cmDspClass_str</a><span class="p">*</span> <a name="cmEchoCancelClassCons"></a><span class="f"><a href="cmDspKr_c_0.html#cmEchoCancelClassCons_defn">cmEchoCancelClassCons</a></span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspCtx_t">cmDspCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmTextTemplate.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmTextTemplate.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmTextTemplate : Generate text using templates with replaceable variables.</div><pre><a name="cmTextTemplate_h_code_0"></a><span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkTtRC"></a><span class="e">kOkTtRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kFileFailTtRC"></a><span class="e">kFileFailTtRC</span><span class="p">,</span>
+  <a name="kLHeapFailTtRC"></a><span class="e">kLHeapFailTtRC</span><span class="p">,</span>
+  <a name="kSyntaxErrTtRC"></a><span class="e">kSyntaxErrTtRC</span><span class="p">,</span>
+  <a name="kFindFailTtRC"></a><span class="e">kFindFailTtRC</span><span class="p">,</span>
+  <a name="kInvalidTypeTtRC"></a><span class="e">kInvalidTypeTtRC</span><span class="p">,</span>
+  <a name="kJsonFailTtRC"></a><span class="e">kJsonFailTtRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmTtH_t"></a><span class="t">cmTtH_t</span><span class="p">;</span>
+<span class="k">typedef</span> <span class="k">unsigned</span>   <a name="cmTtRC_t"></a><span class="t">cmTtRC_t</span><span class="p">;</span>
+<span class="k">extern</span>  <a href="#cmTtH_t">cmTtH_t</a>    <span class="i">cmTtNullHandle</span><span class="p">;</span>
+
+<span class="c">// Initialize a template file.</span>
+<a href="#cmTtRC_t">cmTtRC_t</a> <a name="cmTextTemplateInitialize"></a><span class="f">cmTextTemplateInitialize</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmTtH_t">cmTtH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Finalize a template file</span>
+<a href="#cmTtRC_t">cmTtRC_t</a> <a name="cmTextTemplateFinalize"></a><span class="f">cmTextTemplateFinalize</span><span class="p">(</span> <a href="#cmTtH_t">cmTtH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return true if the template file is intialized.</span>
+<span class="k">bool</span>     <a name="cmTextTemplateIsValid"></a><span class="f">cmTextTemplateIsValid</span><span class="p">(</span> <a href="#cmTtH_t">cmTtH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Set the value of a template variable.
+// The node identified by { label,index, label, index ... } must
+// be a variable node.  The function will fail if a 'set' or 'text' node
+// is identified.
+// Set 'value' to NULL to erase a previously set value.</span>
+<a href="#cmTtRC_t">cmTtRC_t</a> <a name="cmTextTemplateSetValue"></a><span class="f">cmTextTemplateSetValue</span><span class="p">(</span> <a href="#cmTtH_t">cmTtH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">value</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">label</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">index</span><span class="p">,</span> <span class="i">...</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Create a copy of the sub-tree identified by the variable path
+// and insert it as the left sibling of the sub-tree's root.</span>
+<a href="#cmTtRC_t">cmTtRC_t</a> <a name="cmTextTemplateRepeat"></a><span class="f">cmTextTemplateRepeat</span><span class="p">(</span> <a href="#cmTtH_t">cmTtH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">label</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">index</span><span class="p">,</span> <span class="i">...</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Write the template file.</span>
+<a href="#cmTtRC_t">cmTtRC_t</a> <a name="cmTextTemplateWrite"></a><span class="f">cmTextTemplateWrite</span><span class="p">(</span> <a href="#cmTtH_t">cmTtH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Apply a template value JSON file to this template</span>
+<a href="#cmTtRC_t">cmTtRC_t</a> <a name="cmTextTemplateApply"></a><span class="f">cmTextTemplateApply</span><span class="p">(</span> <a href="#cmTtH_t">cmTtH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// <a href="cmVectOpsDocOut_h_0.html#Print">Print</a> an annotated template tree.</span>
+<span class="k">void</span> <a name="cmTtPrintTree"></a><span class="f">cmTtPrintTree</span><span class="p">(</span> <a href="#cmTtH_t">cmTtH_t</a> <span class="i">h</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmTtRC_t">cmTtRC_t</a> <a name="cmTextTemplateTest"></a><span class="f">cmTextTemplateTest</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

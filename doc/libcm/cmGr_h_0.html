@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmGr.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmGr.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmGr : Low level device independent API for descibing interactive graphics objects.</div><pre><a name="cmGr_h_code_0"></a><span class="k">enum</span> 
+<span class="p">{</span>
+  <a name="kAliceBlueGrId"></a><span class="e">kAliceBlueGrId</span>            <span class="p">=</span> <span class="l">0xf0f8ff</span><span class="p">,</span>
+  <a name="kAntiqueWhiteGrId"></a><span class="e">kAntiqueWhiteGrId</span>         <span class="p">=</span> <span class="l">0xfaebd7</span><span class="p">,</span>
+  <a name="kAquaGrId"></a><span class="e">kAquaGrId</span>                 <span class="p">=</span> <span class="l">0x00ffff</span><span class="p">,</span>
+  <a name="kAquamarineGrId"></a><span class="e">kAquamarineGrId</span>           <span class="p">=</span> <span class="l">0x7fffd4</span><span class="p">,</span>
+  <a name="kAzureGrId"></a><span class="e">kAzureGrId</span>                <span class="p">=</span> <span class="l">0xf0ffff</span><span class="p">,</span>
+  <a name="kBeigeGrId"></a><span class="e">kBeigeGrId</span>                <span class="p">=</span> <span class="l">0xf5f5dc</span><span class="p">,</span>
+  <a name="kBisqueGrId"></a><span class="e">kBisqueGrId</span>               <span class="p">=</span> <span class="l">0xffe4c4</span><span class="p">,</span>
+  <a name="kBlackGrId"></a><span class="e">kBlackGrId</span>                <span class="p">=</span> <span class="l">0x000000</span><span class="p">,</span>
+  <a name="kBlanchedAlmondGrId"></a><span class="e">kBlanchedAlmondGrId</span>       <span class="p">=</span> <span class="l">0xffebcd</span><span class="p">,</span>
+  <a name="kBlueGrId"></a><span class="e">kBlueGrId</span>                 <span class="p">=</span> <span class="l">0x0000ff</span><span class="p">,</span>
+  <a name="kBlueVioletGrId"></a><span class="e">kBlueVioletGrId</span>           <span class="p">=</span> <span class="l">0x8a2be2</span><span class="p">,</span>
+  <a name="kBrownGrId"></a><span class="e">kBrownGrId</span>                <span class="p">=</span> <span class="l">0xa52a2a</span><span class="p">,</span>
+  <a name="kBurlyWoodGrId"></a><span class="e">kBurlyWoodGrId</span>            <span class="p">=</span> <span class="l">0xdeb887</span><span class="p">,</span>
+  <a name="kCadetBlueGrId"></a><span class="e">kCadetBlueGrId</span>            <span class="p">=</span> <span class="l">0x5f9ea0</span><span class="p">,</span>
+  <a name="kChartreuseGrId"></a><span class="e">kChartreuseGrId</span>           <span class="p">=</span> <span class="l">0x7fff00</span><span class="p">,</span>
+  <a name="kChocolateGrId"></a><span class="e">kChocolateGrId</span>            <span class="p">=</span> <span class="l">0xd2691e</span><span class="p">,</span>
+  <a name="kCoralGrId"></a><span class="e">kCoralGrId</span>                <span class="p">=</span> <span class="l">0xff7f50</span><span class="p">,</span>
+  <a name="kCornflowerBlueGrId"></a><span class="e">kCornflowerBlueGrId</span>       <span class="p">=</span> <span class="l">0x6495ed</span><span class="p">,</span>
+  <a name="kCornsilkGrId"></a><span class="e">kCornsilkGrId</span>             <span class="p">=</span> <span class="l">0xfff8dc</span><span class="p">,</span>
+  <a name="kCrimsonGrId"></a><span class="e">kCrimsonGrId</span>              <span class="p">=</span> <span class="l">0xdc143c</span><span class="p">,</span>
+  <a name="kCyanGrId"></a><span class="e">kCyanGrId</span>                 <span class="p">=</span> <span class="l">0x00ffff</span><span class="p">,</span>
+  <a name="kDarkBlueGrId"></a><span class="e">kDarkBlueGrId</span>             <span class="p">=</span> <span class="l">0x00008b</span><span class="p">,</span>
+  <a name="kDarkCyanGrId"></a><span class="e">kDarkCyanGrId</span>             <span class="p">=</span> <span class="l">0x008b8b</span><span class="p">,</span>
+  <a name="kDarkGoldenRodGrId"></a><span class="e">kDarkGoldenRodGrId</span>        <span class="p">=</span> <span class="l">0xb8860b</span><span class="p">,</span>
+  <a name="kDarkGrayGrId"></a><span class="e">kDarkGrayGrId</span>             <span class="p">=</span> <span class="l">0xa9a9a9</span><span class="p">,</span>
+  <a name="kDarkGreyGrId"></a><span class="e">kDarkGreyGrId</span>             <span class="p">=</span> <span class="l">0xa9a9a9</span><span class="p">,</span>
+  <a name="kDarkGreenGrId"></a><span class="e">kDarkGreenGrId</span>            <span class="p">=</span> <span class="l">0x006400</span><span class="p">,</span>
+  <a name="kDarkKhakiGrId"></a><span class="e">kDarkKhakiGrId</span>            <span class="p">=</span> <span class="l">0xbdb76b</span><span class="p">,</span>
+  <a name="kDarkMagentaGrId"></a><span class="e">kDarkMagentaGrId</span>          <span class="p">=</span> <span class="l">0x8b008b</span><span class="p">,</span>
+  <a name="kDarkOliveGreenGrId"></a><span class="e">kDarkOliveGreenGrId</span>       <span class="p">=</span> <span class="l">0x556b2f</span><span class="p">,</span>
+  <a name="kDarkorangeGrId"></a><span class="e">kDarkorangeGrId</span>           <span class="p">=</span> <span class="l">0xff8c00</span><span class="p">,</span>
+  <a name="kDarkOrchidGrId"></a><span class="e">kDarkOrchidGrId</span>           <span class="p">=</span> <span class="l">0x9932cc</span><span class="p">,</span>
+  <a name="kDarkRedGrId"></a><span class="e">kDarkRedGrId</span>              <span class="p">=</span> <span class="l">0x8b0000</span><span class="p">,</span>
+  <a name="kDarkSalmonGrId"></a><span class="e">kDarkSalmonGrId</span>           <span class="p">=</span> <span class="l">0xe9967a</span><span class="p">,</span>
+  <a name="kDarkSeaGreenGrId"></a><span class="e">kDarkSeaGreenGrId</span>         <span class="p">=</span> <span class="l">0x8fbc8f</span><span class="p">,</span>
+  <a name="kDarkSlateBlueGrId"></a><span class="e">kDarkSlateBlueGrId</span>        <span class="p">=</span> <span class="l">0x483d8b</span><span class="p">,</span>
+  <a name="kDarkSlateGrayGrId"></a><span class="e">kDarkSlateGrayGrId</span>        <span class="p">=</span> <span class="l">0x2f4f4f</span><span class="p">,</span>
+  <a name="kDarkSlateGreyGrId"></a><span class="e">kDarkSlateGreyGrId</span>        <span class="p">=</span> <span class="l">0x2f4f4f</span><span class="p">,</span>
+  <a name="kDarkTurquoiseGrId"></a><span class="e">kDarkTurquoiseGrId</span>        <span class="p">=</span> <span class="l">0x00ced1</span><span class="p">,</span>
+  <a name="kDarkVioletGrId"></a><span class="e">kDarkVioletGrId</span>           <span class="p">=</span> <span class="l">0x9400d3</span><span class="p">,</span>
+  <a name="kDeepPinkGrId"></a><span class="e">kDeepPinkGrId</span>             <span class="p">=</span> <span class="l">0xff1493</span><span class="p">,</span>
+  <a name="kDeepSkyBlueGrId"></a><span class="e">kDeepSkyBlueGrId</span>          <span class="p">=</span> <span class="l">0x00bfff</span><span class="p">,</span>
+  <a name="kDimGrayGrId"></a><span class="e">kDimGrayGrId</span>              <span class="p">=</span> <span class="l">0x696969</span><span class="p">,</span>
+  <a name="kDimGreyGrId"></a><span class="e">kDimGreyGrId</span>              <span class="p">=</span> <span class="l">0x696969</span><span class="p">,</span>
+  <a name="kDodgerBlueGrId"></a><span class="e">kDodgerBlueGrId</span>           <span class="p">=</span> <span class="l">0x1e90ff</span><span class="p">,</span>
+  <a name="kFireBrickGrId"></a><span class="e">kFireBrickGrId</span>            <span class="p">=</span> <span class="l">0xb22222</span><span class="p">,</span>
+  <a name="kFloralWhiteGrId"></a><span class="e">kFloralWhiteGrId</span>          <span class="p">=</span> <span class="l">0xfffaf0</span><span class="p">,</span>
+  <a name="kForestGreenGrId"></a><span class="e">kForestGreenGrId</span>          <span class="p">=</span> <span class="l">0x228b22</span><span class="p">,</span>
+  <a name="kFuchsiaGrId"></a><span class="e">kFuchsiaGrId</span>              <span class="p">=</span> <span class="l">0xff00ff</span><span class="p">,</span>
+  <a name="kGainsboroGrId"></a><span class="e">kGainsboroGrId</span>            <span class="p">=</span> <span class="l">0xdcdcdc</span><span class="p">,</span>
+  <a name="kGhostWhiteGrId"></a><span class="e">kGhostWhiteGrId</span>           <span class="p">=</span> <span class="l">0xf8f8ff</span><span class="p">,</span>
+  <a name="kGoldGrId"></a><span class="e">kGoldGrId</span>                 <span class="p">=</span> <span class="l">0xffd700</span><span class="p">,</span>
+  <a name="kGoldenRodGrId"></a><span class="e">kGoldenRodGrId</span>            <span class="p">=</span> <span class="l">0xdaa520</span><span class="p">,</span>
+  <a name="kGrayGrId"></a><span class="e">kGrayGrId</span>                 <span class="p">=</span> <span class="l">0x808080</span><span class="p">,</span>
+  <a name="kGreyGrId"></a><span class="e">kGreyGrId</span>                 <span class="p">=</span> <span class="l">0x808080</span><span class="p">,</span>
+  <a name="kGreenGrId"></a><span class="e">kGreenGrId</span>                <span class="p">=</span> <span class="l">0x008000</span><span class="p">,</span>
+  <a name="kGreenYellowGrId"></a><span class="e">kGreenYellowGrId</span>          <span class="p">=</span> <span class="l">0xadff2f</span><span class="p">,</span>
+  <a name="kHoneyDewGrId"></a><span class="e">kHoneyDewGrId</span>             <span class="p">=</span> <span class="l">0xf0fff0</span><span class="p">,</span>
+  <a name="kHotPinkGrId"></a><span class="e">kHotPinkGrId</span>              <span class="p">=</span> <span class="l">0xff69b4</span><span class="p">,</span>
+  <a name="kIndianRedGrId"></a><span class="e">kIndianRedGrId</span>            <span class="p">=</span> <span class="l">0xcd5c5c</span><span class="p">,</span>
+  <a name="kIndigoGrId"></a><span class="e">kIndigoGrId</span>               <span class="p">=</span> <span class="l">0x4b0082</span><span class="p">,</span>
+  <a name="kIvoryGrId"></a><span class="e">kIvoryGrId</span>                <span class="p">=</span> <span class="l">0xfffff0</span><span class="p">,</span>
+  <a name="kKhakiGrId"></a><span class="e">kKhakiGrId</span>                <span class="p">=</span> <span class="l">0xf0e68c</span><span class="p">,</span>
+  <a name="kLavenderGrId"></a><span class="e">kLavenderGrId</span>             <span class="p">=</span> <span class="l">0xe6e6fa</span><span class="p">,</span>
+  <a name="kLavenderBlushGrId"></a><span class="e">kLavenderBlushGrId</span>        <span class="p">=</span> <span class="l">0xfff0f5</span><span class="p">,</span>
+  <a name="kLawnGreenGrId"></a><span class="e">kLawnGreenGrId</span>            <span class="p">=</span> <span class="l">0x7cfc00</span><span class="p">,</span>
+  <a name="kLemonChiffonGrId"></a><span class="e">kLemonChiffonGrId</span>         <span class="p">=</span> <span class="l">0xfffacd</span><span class="p">,</span>
+  <a name="kLightBlueGrId"></a><span class="e">kLightBlueGrId</span>            <span class="p">=</span> <span class="l">0xadd8e6</span><span class="p">,</span>
+  <a name="kLightCoralGrId"></a><span class="e">kLightCoralGrId</span>           <span class="p">=</span> <span class="l">0xf08080</span><span class="p">,</span>
+  <a name="kLightCyanGrId"></a><span class="e">kLightCyanGrId</span>            <span class="p">=</span> <span class="l">0xe0ffff</span><span class="p">,</span>
+  <a name="kLightGoldenRodYellowGrId"></a><span class="e">kLightGoldenRodYellowGrId</span> <span class="p">=</span> <span class="l">0xfafad2</span><span class="p">,</span>
+  <a name="kLightGrayGrId"></a><span class="e">kLightGrayGrId</span>            <span class="p">=</span> <span class="l">0xd3d3d3</span><span class="p">,</span>
+  <a name="kLightGreyGrId"></a><span class="e">kLightGreyGrId</span>            <span class="p">=</span> <span class="l">0xd3d3d3</span><span class="p">,</span>
+  <a name="kLightGreenGrId"></a><span class="e">kLightGreenGrId</span>           <span class="p">=</span> <span class="l">0x90ee90</span><span class="p">,</span>
+  <a name="kLightPinkGrId"></a><span class="e">kLightPinkGrId</span>            <span class="p">=</span> <span class="l">0xffb6c1</span><span class="p">,</span>
+  <a name="kLightSalmonGrId"></a><span class="e">kLightSalmonGrId</span>          <span class="p">=</span> <span class="l">0xffa07a</span><span class="p">,</span>
+  <a name="kLightSeaGreenGrId"></a><span class="e">kLightSeaGreenGrId</span>        <span class="p">=</span> <span class="l">0x20b2aa</span><span class="p">,</span>
+  <a name="kLightSkyBlueGrId"></a><span class="e">kLightSkyBlueGrId</span>         <span class="p">=</span> <span class="l">0x87cefa</span><span class="p">,</span>
+  <a name="kLightSlateGrayGrId"></a><span class="e">kLightSlateGrayGrId</span>       <span class="p">=</span> <span class="l">0x778899</span><span class="p">,</span>
+  <a name="kLightSlateGreyGrId"></a><span class="e">kLightSlateGreyGrId</span>       <span class="p">=</span> <span class="l">0x778899</span><span class="p">,</span>
+  <a name="kLightSteelBlueGrId"></a><span class="e">kLightSteelBlueGrId</span>       <span class="p">=</span> <span class="l">0xb0c4de</span><span class="p">,</span>
+  <a name="kLightYellowGrId"></a><span class="e">kLightYellowGrId</span>          <span class="p">=</span> <span class="l">0xffffe0</span><span class="p">,</span>
+  <a name="kLimeGrId"></a><span class="e">kLimeGrId</span>                 <span class="p">=</span> <span class="l">0x00ff00</span><span class="p">,</span>
+  <a name="kLimeGreenGrId"></a><span class="e">kLimeGreenGrId</span>            <span class="p">=</span> <span class="l">0x32cd32</span><span class="p">,</span>
+  <a name="kLinenGrId"></a><span class="e">kLinenGrId</span>                <span class="p">=</span> <span class="l">0xfaf0e6</span><span class="p">,</span>
+  <a name="kMagentaGrId"></a><span class="e">kMagentaGrId</span>              <span class="p">=</span> <span class="l">0xff00ff</span><span class="p">,</span>
+  <a name="kMaroonGrId"></a><span class="e">kMaroonGrId</span>               <span class="p">=</span> <span class="l">0x800000</span><span class="p">,</span>
+  <a name="kMediumAquaMarineGrId"></a><span class="e">kMediumAquaMarineGrId</span>     <span class="p">=</span> <span class="l">0x66cdaa</span><span class="p">,</span>
+  <a name="kMediumBlueGrId"></a><span class="e">kMediumBlueGrId</span>           <span class="p">=</span> <span class="l">0x0000cd</span><span class="p">,</span>
+  <a name="kMediumOrchidGrId"></a><span class="e">kMediumOrchidGrId</span>         <span class="p">=</span> <span class="l">0xba55d3</span><span class="p">,</span>
+  <a name="kMediumPurpleGrId"></a><span class="e">kMediumPurpleGrId</span>         <span class="p">=</span> <span class="l">0x9370d8</span><span class="p">,</span>
+  <a name="kMediumSeaGreenGrId"></a><span class="e">kMediumSeaGreenGrId</span>       <span class="p">=</span> <span class="l">0x3cb371</span><span class="p">,</span>
+  <a name="kMediumSlateBlueGrId"></a><span class="e">kMediumSlateBlueGrId</span>      <span class="p">=</span> <span class="l">0x7b68ee</span><span class="p">,</span>
+  <a name="kMediumSpringGreenGrId"></a><span class="e">kMediumSpringGreenGrId</span>    <span class="p">=</span> <span class="l">0x00fa9a</span><span class="p">,</span>
+  <a name="kMediumTurquoiseGrId"></a><span class="e">kMediumTurquoiseGrId</span>      <span class="p">=</span> <span class="l">0x48d1cc</span><span class="p">,</span>
+  <a name="kMediumVioletRedGrId"></a><span class="e">kMediumVioletRedGrId</span>      <span class="p">=</span> <span class="l">0xc71585</span><span class="p">,</span>
+  <a name="kMidnightBlueGrId"></a><span class="e">kMidnightBlueGrId</span>         <span class="p">=</span> <span class="l">0x191970</span><span class="p">,</span>
+  <a name="kMintCreamGrId"></a><span class="e">kMintCreamGrId</span>            <span class="p">=</span> <span class="l">0xf5fffa</span><span class="p">,</span>
+  <a name="kMistyRoseGrId"></a><span class="e">kMistyRoseGrId</span>            <span class="p">=</span> <span class="l">0xffe4e1</span><span class="p">,</span>
+  <a name="kMoccasinGrId"></a><span class="e">kMoccasinGrId</span>             <span class="p">=</span> <span class="l">0xffe4b5</span><span class="p">,</span>
+  <a name="kNavajoWhiteGrId"></a><span class="e">kNavajoWhiteGrId</span>          <span class="p">=</span> <span class="l">0xffdead</span><span class="p">,</span>
+  <a name="kNavyGrId"></a><span class="e">kNavyGrId</span>                 <span class="p">=</span> <span class="l">0x000080</span><span class="p">,</span>
+  <a name="kOldLaceGrId"></a><span class="e">kOldLaceGrId</span>              <span class="p">=</span> <span class="l">0xfdf5e6</span><span class="p">,</span>
+  <a name="kOliveGrId"></a><span class="e">kOliveGrId</span>                <span class="p">=</span> <span class="l">0x808000</span><span class="p">,</span>
+  <a name="kOliveDrabGrId"></a><span class="e">kOliveDrabGrId</span>            <span class="p">=</span> <span class="l">0x6b8e23</span><span class="p">,</span>
+  <a name="kOrangeGrId"></a><span class="e">kOrangeGrId</span>               <span class="p">=</span> <span class="l">0xffa500</span><span class="p">,</span>
+  <a name="kOrangeRedGrId"></a><span class="e">kOrangeRedGrId</span>            <span class="p">=</span> <span class="l">0xff4500</span><span class="p">,</span>
+  <a name="kOrchidGrId"></a><span class="e">kOrchidGrId</span>               <span class="p">=</span> <span class="l">0xda70d6</span><span class="p">,</span>
+  <a name="kPaleGoldenRodGrId"></a><span class="e">kPaleGoldenRodGrId</span>        <span class="p">=</span> <span class="l">0xeee8aa</span><span class="p">,</span>
+  <a name="kPaleGreenGrId"></a><span class="e">kPaleGreenGrId</span>            <span class="p">=</span> <span class="l">0x98fb98</span><span class="p">,</span>
+  <a name="kPaleTurquoiseGrId"></a><span class="e">kPaleTurquoiseGrId</span>        <span class="p">=</span> <span class="l">0xafeeee</span><span class="p">,</span>
+  <a name="kPaleVioletRedGrId"></a><span class="e">kPaleVioletRedGrId</span>        <span class="p">=</span> <span class="l">0xd87093</span><span class="p">,</span>
+  <a name="kPapayaWhipGrId"></a><span class="e">kPapayaWhipGrId</span>           <span class="p">=</span> <span class="l">0xffefd5</span><span class="p">,</span>
+  <a name="kPeachPuffGrId"></a><span class="e">kPeachPuffGrId</span>            <span class="p">=</span> <span class="l">0xffdab9</span><span class="p">,</span>
+  <a name="kPeruGrId"></a><span class="e">kPeruGrId</span>                 <span class="p">=</span> <span class="l">0xcd853f</span><span class="p">,</span>
+  <a name="kPinkGrId"></a><span class="e">kPinkGrId</span>                 <span class="p">=</span> <span class="l">0xffc0cb</span><span class="p">,</span>
+  <a name="kPlumGrId"></a><span class="e">kPlumGrId</span>                 <span class="p">=</span> <span class="l">0xdda0dd</span><span class="p">,</span>
+  <a name="kPowderBlueGrId"></a><span class="e">kPowderBlueGrId</span>           <span class="p">=</span> <span class="l">0xb0e0e6</span><span class="p">,</span>
+  <a name="kPurpleGrId"></a><span class="e">kPurpleGrId</span>               <span class="p">=</span> <span class="l">0x800080</span><span class="p">,</span>
+  <a name="kRedGrId"></a><span class="e">kRedGrId</span>                  <span class="p">=</span> <span class="l">0xff0000</span><span class="p">,</span>
+  <a name="kRosyBrownGrId"></a><span class="e">kRosyBrownGrId</span>            <span class="p">=</span> <span class="l">0xbc8f8f</span><span class="p">,</span>
+  <a name="kRoyalBlueGrId"></a><span class="e">kRoyalBlueGrId</span>            <span class="p">=</span> <span class="l">0x4169e1</span><span class="p">,</span>
+  <a name="kSaddleBrownGrId"></a><span class="e">kSaddleBrownGrId</span>          <span class="p">=</span> <span class="l">0x8b4513</span><span class="p">,</span>
+  <a name="kSalmonGrId"></a><span class="e">kSalmonGrId</span>               <span class="p">=</span> <span class="l">0xfa8072</span><span class="p">,</span>
+  <a name="kSandyBrownGrId"></a><span class="e">kSandyBrownGrId</span>           <span class="p">=</span> <span class="l">0xf4a460</span><span class="p">,</span>
+  <a name="kSeaGreenGrId"></a><span class="e">kSeaGreenGrId</span>             <span class="p">=</span> <span class="l">0x2e8b57</span><span class="p">,</span>
+  <a name="kSeaShellGrId"></a><span class="e">kSeaShellGrId</span>             <span class="p">=</span> <span class="l">0xfff5ee</span><span class="p">,</span>
+  <a name="kSiennaGrId"></a><span class="e">kSiennaGrId</span>               <span class="p">=</span> <span class="l">0xa0522d</span><span class="p">,</span>
+  <a name="kSilverGrId"></a><span class="e">kSilverGrId</span>               <span class="p">=</span> <span class="l">0xc0c0c0</span><span class="p">,</span>
+  <a name="kSkyBlueGrId"></a><span class="e">kSkyBlueGrId</span>              <span class="p">=</span> <span class="l">0x87ceeb</span><span class="p">,</span>
+  <a name="kSlateBlueGrId"></a><span class="e">kSlateBlueGrId</span>            <span class="p">=</span> <span class="l">0x6a5acd</span><span class="p">,</span>
+  <a name="kSlateGrayGrId"></a><span class="e">kSlateGrayGrId</span>            <span class="p">=</span> <span class="l">0x708090</span><span class="p">,</span>
+  <a name="kSlateGreyGrId"></a><span class="e">kSlateGreyGrId</span>            <span class="p">=</span> <span class="l">0x708090</span><span class="p">,</span>
+  <a name="kSnowGrId"></a><span class="e">kSnowGrId</span>                 <span class="p">=</span> <span class="l">0xfffafa</span><span class="p">,</span>
+  <a name="kSpringGreenGrId"></a><span class="e">kSpringGreenGrId</span>          <span class="p">=</span> <span class="l">0x00ff7f</span><span class="p">,</span>
+  <a name="kSteelBlueGrId"></a><span class="e">kSteelBlueGrId</span>            <span class="p">=</span> <span class="l">0x4682b4</span><span class="p">,</span>
+  <a name="kTanGrId"></a><span class="e">kTanGrId</span>                  <span class="p">=</span> <span class="l">0xd2b48c</span><span class="p">,</span>
+  <a name="kTealGrId"></a><span class="e">kTealGrId</span>                 <span class="p">=</span> <span class="l">0x008080</span><span class="p">,</span>
+  <a name="kThistleGrId"></a><span class="e">kThistleGrId</span>              <span class="p">=</span> <span class="l">0xd8bfd8</span><span class="p">,</span>
+  <a name="kTomatoGrId"></a><span class="e">kTomatoGrId</span>               <span class="p">=</span> <span class="l">0xff6347</span><span class="p">,</span>
+  <a name="kTurquoiseGrId"></a><span class="e">kTurquoiseGrId</span>            <span class="p">=</span> <span class="l">0x40e0d0</span><span class="p">,</span>
+  <a name="kVioletGrId"></a><span class="e">kVioletGrId</span>               <span class="p">=</span> <span class="l">0xee82ee</span><span class="p">,</span>
+  <a name="kWheatGrId"></a><span class="e">kWheatGrId</span>                <span class="p">=</span> <span class="l">0xf5deb3</span><span class="p">,</span>
+  <a name="kWhiteGrId"></a><span class="e">kWhiteGrId</span>                <span class="p">=</span> <span class="l">0xffffff</span><span class="p">,</span>
+  <a name="kWhiteSmokeGrId"></a><span class="e">kWhiteSmokeGrId</span>           <span class="p">=</span> <span class="l">0xf5f5f5</span><span class="p">,</span>
+  <a name="kYellowGrId"></a><span class="e">kYellowGrId</span>               <span class="p">=</span> <span class="l">0xffff00</span><span class="p">,</span>
+  <a name="kYellowGreenGrId"></a><span class="e">kYellowGreenGrId</span>          <span class="p">=</span> <span class="l">0x9acd32</span>
+<span class="p">}</span><span class="p">;</span>
+
+
+<span class="k">typedef</span> <span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kHomeGrId"></a><span class="e">kHomeGrId</span> <span class="p">=</span> <span class="l">5</span><span class="p">,</span>       <span class="c"> // 5</span>
+  <a name="kPageUpGrId"></a><span class="e">kPageUpGrId</span><span class="p">,</span>         <span class="c"> // 6</span>
+  <a name="kEndGrId"></a><span class="e">kEndGrId</span><span class="p">,</span>            <span class="c"> // 7</span>
+  <a name="kBackSpaceGrId"></a><span class="e">kBackSpaceGrId</span> <span class="p">=</span> <span class="l">8</span><span class="p">,</span>  <span class="c"> // 8</span>
+  <a name="kTabGrId"></a><span class="e">kTabGrId</span>       <span class="p">=</span> <span class="l">9</span><span class="p">,</span>  <span class="c"> // 9 </span>
+  <a name="kPageDownGrId"></a><span class="e">kPageDownGrId</span><span class="p">,</span>       <span class="c"> // 10</span>
+  <a name="kLeftGrId"></a><span class="e">kLeftGrId</span><span class="p">,</span>           <span class="c"> // 11</span>
+  <a name="kUpGrId"></a><span class="e">kUpGrId</span><span class="p">,</span>             <span class="c"> // 12</span>
+  <a name="kEnterGrId"></a><span class="e">kEnterGrId</span>  <span class="p">=</span> <span class="l">13</span><span class="p">,</span>    <span class="c"> // 13</span>
+  <a name="kRightGrId"></a><span class="e">kRightGrId</span><span class="p">,</span>          <span class="c"> // 14</span>
+  <a name="kDownGrId"></a><span class="e">kDownGrId</span><span class="p">,</span>           <span class="c"> // 15</span>
+  <a name="kInsertGrId"></a><span class="e">kInsertGrId</span><span class="p">,</span>         <span class="c"> // 16</span>
+  <a name="kPrintGrId"></a><span class="e">kPrintGrId</span><span class="p">,</span>          <span class="c"> // 17</span>
+  <a name="kScrollLockGrId"></a><span class="e">kScrollLockGrId</span><span class="p">,</span>     <span class="c"> // 18</span>
+  <a name="kPauseGrId"></a><span class="e">kPauseGrId</span><span class="p">,</span>          <span class="c"> // 19</span>
+  <a name="kMenuGrId"></a><span class="e">kMenuGrId</span><span class="p">,</span>           <span class="c"> // 20</span>
+  <a name="kLShiftGrId"></a><span class="e">kLShiftGrId</span><span class="p">,</span>         <span class="c"> // 21</span>
+  <a name="kRShiftGrId"></a><span class="e">kRShiftGrId</span><span class="p">,</span>         <span class="c"> // 22</span>
+  <a name="kLCtrlGrId"></a><span class="e">kLCtrlGrId</span><span class="p">,</span>          <span class="c"> // 23</span>
+  <a name="kRCtrlGrId"></a><span class="e">kRCtrlGrId</span><span class="p">,</span>          <span class="c"> // 24</span>
+  <a name="kLAltGrId"></a><span class="e">kLAltGrId</span><span class="p">,</span>           <span class="c"> // 25</span>
+  <a name="kRAltGrId"></a><span class="e">kRAltGrId</span><span class="p">,</span>           <span class="c"> // 26</span>
+  <a name="kEscapeGrId"></a><span class="e">kEscapeGrId</span> <span class="p">=</span> <span class="l">27</span><span class="p">,</span>    <span class="c"> // 27</span>
+  <a name="kLSuperGrId"></a><span class="e">kLSuperGrId</span><span class="p">,</span>         <span class="c"> // 28</span>
+  <a name="kRSuperGrId"></a><span class="e">kRSuperGrId</span><span class="p">,</span>         <span class="c"> // 29</span>
+  <a name="kNumLockGrId"></a><span class="e">kNumLockGrId</span><span class="p">,</span>        <span class="c"> // 30</span>
+  <a name="kCapsLockGrId"></a><span class="e">kCapsLockGrId</span><span class="p">,</span>       <span class="c"> // 31</span>
+  <a name="kSpaceGrId"></a><span class="e">kSpaceGrId</span>     <span class="p">=</span> <span class="l">32</span><span class="p">,</span> <span class="c"> // 32 Min. printable ASCII</span>
+  <a name="kExclMarkGrId"></a><span class="e">kExclMarkGrId</span><span class="p">,</span>       <span class="c"> // 33</span>
+  <a name="kDQuoteGrId"></a><span class="e">kDQuoteGrId</span><span class="p">,</span>         <span class="c"> // 34</span>
+  <a name="kPoundGrId"></a><span class="e">kPoundGrId</span><span class="p">,</span>          <span class="c"> // 35</span>
+  <a name="kDollarGrId"></a><span class="e">kDollarGrId</span><span class="p">,</span>         <span class="c"> // 36</span>
+  <a name="kPercentGrId"></a><span class="e">kPercentGrId</span><span class="p">,</span>        <span class="c"> // 37</span>
+  <a name="kAmpersandGrId"></a><span class="e">kAmpersandGrId</span><span class="p">,</span>      <span class="c"> // 38</span>
+  <a name="kApostropheGrId"></a><span class="e">kApostropheGrId</span><span class="p">,</span>     <span class="c"> // 39</span>
+  <a name="kLParenGrId"></a><span class="e">kLParenGrId</span><span class="p">,</span>         <span class="c"> // 40</span>
+  <a name="kRParenGrId"></a><span class="e">kRParenGrId</span><span class="p">,</span>         <span class="c"> // 41</span>
+  <a name="kAsteriskGrId"></a><span class="e">kAsteriskGrId</span><span class="p">,</span>       <span class="c"> // 42 </span>
+  <a name="kPlusGrId"></a><span class="e">kPlusGrId</span><span class="p">,</span>           <span class="c"> // 43</span>
+  <a name="kCommaGrId"></a><span class="e">kCommaGrId</span><span class="p">,</span>          <span class="c"> // 44</span>
+  <a name="kHyphenGrId"></a><span class="e">kHyphenGrId</span><span class="p">,</span>         <span class="c"> // 45</span>
+  <a name="kPeriodGrId"></a><span class="e">kPeriodGrId</span><span class="p">,</span>         <span class="c"> // 46</span>
+  <a name="kForwardSlashGrId"></a><span class="e">kForwardSlashGrId</span><span class="p">,</span>   <span class="c"> // 47</span>
+  <a name="k0GrId"></a><span class="e">k0GrId</span><span class="p">,</span>              <span class="c"> // 48</span>
+  <a name="k1GrId"></a><span class="e">k1GrId</span><span class="p">,</span>              <span class="c"> // 49</span>
+  <a name="k2GrId"></a><span class="e">k2GrId</span><span class="p">,</span>              <span class="c"> // 50</span>
+  <a name="k3GrId"></a><span class="e">k3GrId</span><span class="p">,</span>              <span class="c"> // 51</span>
+  <a name="k4GrId"></a><span class="e">k4GrId</span><span class="p">,</span>              <span class="c"> // 52</span>
+  <a name="k5GrId"></a><span class="e">k5GrId</span><span class="p">,</span>              <span class="c"> // 53 </span>
+  <a name="k6GrId"></a><span class="e">k6GrId</span><span class="p">,</span>              <span class="c"> // 54</span>
+  <a name="k7GrId"></a><span class="e">k7GrId</span><span class="p">,</span>              <span class="c"> // 55</span>
+  <a name="k8GrId"></a><span class="e">k8GrId</span><span class="p">,</span>              <span class="c"> // 56</span>
+  <a name="k9GrId"></a><span class="e">k9GrId</span><span class="p">,</span>              <span class="c"> // 57</span>
+  <a name="kColonGrId"></a><span class="e">kColonGrId</span><span class="p">,</span>          <span class="c"> // 58 </span>
+  <a name="kSemiColonGrId"></a><span class="e">kSemiColonGrId</span><span class="p">,</span>      <span class="c"> // 59</span>
+  <a name="kLesserGrId"></a><span class="e">kLesserGrId</span><span class="p">,</span>         <span class="c"> // 60</span>
+  <a name="kEqualGrId"></a><span class="e">kEqualGrId</span><span class="p">,</span>          <span class="c"> // 61</span>
+  <a name="kGreaterGrId"></a><span class="e">kGreaterGrId</span><span class="p">,</span>        <span class="c"> // 62</span>
+  <a name="kQMarkGrId"></a><span class="e">kQMarkGrId</span><span class="p">,</span>          <span class="c"> // 63</span>
+  <a name="kAtGrId"></a><span class="e">kAtGrId</span><span class="p">,</span>             <span class="c"> // 64</span>
+  <a name="kA_GrId"></a><span class="e">kA_GrId</span><span class="p">,</span>             <span class="c"> // 65</span>
+  <a name="kB_GrId"></a><span class="e">kB_GrId</span><span class="p">,</span>             <span class="c"> // 66</span>
+  <a name="kC_GrId"></a><span class="e">kC_GrId</span><span class="p">,</span>             <span class="c"> // 67</span>
+  <a name="kD_GrId"></a><span class="e">kD_GrId</span><span class="p">,</span>             <span class="c"> // 68</span>
+  <a name="kE_GrId"></a><span class="e">kE_GrId</span><span class="p">,</span>             <span class="c"> // 69</span>
+  <a name="kF_GrId"></a><span class="e">kF_GrId</span><span class="p">,</span>             <span class="c"> // 70</span>
+  <a name="kG_GrId"></a><span class="e">kG_GrId</span><span class="p">,</span>             <span class="c"> // 71</span>
+  <a name="kH_GrId"></a><span class="e">kH_GrId</span><span class="p">,</span>             <span class="c"> // 72</span>
+  <a name="kI_GrId"></a><span class="e">kI_GrId</span><span class="p">,</span>             <span class="c"> // 73</span>
+  <a name="kJ_GrId"></a><span class="e">kJ_GrId</span><span class="p">,</span>             <span class="c"> // 74</span>
+  <a name="kK_GrId"></a><span class="e">kK_GrId</span><span class="p">,</span>             <span class="c"> // 75</span>
+  <a name="kL_GrId"></a><span class="e">kL_GrId</span><span class="p">,</span>             <span class="c"> // 76</span>
+  <a name="kM_GrId"></a><span class="e">kM_GrId</span><span class="p">,</span>             <span class="c"> // 77</span>
+  <a name="kN_GrId"></a><span class="e">kN_GrId</span><span class="p">,</span>             <span class="c"> // 78</span>
+  <a name="kO_GrId"></a><span class="e">kO_GrId</span><span class="p">,</span>             <span class="c"> // 79</span>
+  <a name="kP_GrId"></a><span class="e">kP_GrId</span><span class="p">,</span>             <span class="c"> // 80</span>
+  <a name="kQ_GrId"></a><span class="e">kQ_GrId</span><span class="p">,</span>             <span class="c"> // 81</span>
+  <a name="kR_GrId"></a><span class="e">kR_GrId</span><span class="p">,</span>             <span class="c"> // 82</span>
+  <a name="kS_GrId"></a><span class="e">kS_GrId</span><span class="p">,</span>             <span class="c"> // 83</span>
+  <a name="kT_GrId"></a><span class="e">kT_GrId</span><span class="p">,</span>             <span class="c"> // 84</span>
+  <a name="kU_GrId"></a><span class="e">kU_GrId</span><span class="p">,</span>             <span class="c"> // 85</span>
+  <a name="kV_GrId"></a><span class="e">kV_GrId</span><span class="p">,</span>             <span class="c"> // 86</span>
+  <a name="kW_GrId"></a><span class="e">kW_GrId</span><span class="p">,</span>             <span class="c"> // 87</span>
+  <a name="kX_GrId"></a><span class="e">kX_GrId</span><span class="p">,</span>             <span class="c"> // 88</span>
+  <a name="kY_GrId"></a><span class="e">kY_GrId</span><span class="p">,</span>             <span class="c"> // 89</span>
+  <a name="kZ_GrId"></a><span class="e">kZ_GrId</span><span class="p">,</span>             <span class="c"> // 90</span>
+  <a name="kLBracketGrId"></a><span class="e">kLBracketGrId</span><span class="p">,</span>       <span class="c"> // 91</span>
+  <a name="kBackSlashGrId"></a><span class="e">kBackSlashGrId</span><span class="p">,</span>      <span class="c"> // 92</span>
+  <a name="kRBracketGrId"></a><span class="e">kRBracketGrId</span><span class="p">,</span>       <span class="c"> // 93</span>
+  <a name="kCaretGrId"></a><span class="e">kCaretGrId</span><span class="p">,</span>          <span class="c"> // 94</span>
+  <a name="kUnderScoreGrId"></a><span class="e">kUnderScoreGrId</span><span class="p">,</span>     <span class="c"> // 95</span>
+  <a name="kAccentGrId"></a><span class="e">kAccentGrId</span><span class="p">,</span>         <span class="c"> // 96</span>
+  <a name="ka_GrId"></a><span class="e">ka_GrId</span><span class="p">,</span>             <span class="c"> // 97</span>
+  <a name="kb_GrId"></a><span class="e">kb_GrId</span><span class="p">,</span>             <span class="c"> // 98 </span>
+  <a name="kc_GrId"></a><span class="e">kc_GrId</span><span class="p">,</span>             <span class="c"> // 99 </span>
+  <a name="kd_GrId"></a><span class="e">kd_GrId</span><span class="p">,</span>             <span class="c"> // 100</span>
+  <a name="ke_GrId"></a><span class="e">ke_GrId</span><span class="p">,</span>             <span class="c"> // 101</span>
+  <a name="kf_GrId"></a><span class="e">kf_GrId</span><span class="p">,</span>             <span class="c"> // 102</span>
+  <a name="kg_GrId"></a><span class="e">kg_GrId</span><span class="p">,</span>             <span class="c"> // 103</span>
+  <a name="kh_GrId"></a><span class="e">kh_GrId</span><span class="p">,</span>             <span class="c"> // 104</span>
+  <a name="ki_GrId"></a><span class="e">ki_GrId</span><span class="p">,</span>             <span class="c"> // 105</span>
+  <a name="kj_GrId"></a><span class="e">kj_GrId</span><span class="p">,</span>             <span class="c"> // 106</span>
+  <a name="kk_GrId"></a><span class="e">kk_GrId</span><span class="p">,</span>             <span class="c"> // 107</span>
+  <a name="kl_GrId"></a><span class="e">kl_GrId</span><span class="p">,</span>             <span class="c"> // 108</span>
+  <a name="km_GrId"></a><span class="e">km_GrId</span><span class="p">,</span>             <span class="c"> // 109</span>
+  <a name="kn_GrId"></a><span class="e">kn_GrId</span><span class="p">,</span>             <span class="c"> // 110</span>
+  <a name="ko_GrId"></a><span class="e">ko_GrId</span><span class="p">,</span>             <span class="c"> // 111</span>
+  <a name="kp_GrId"></a><span class="e">kp_GrId</span><span class="p">,</span>             <span class="c"> // 112</span>
+  <a name="kq_GrId"></a><span class="e">kq_GrId</span><span class="p">,</span>             <span class="c"> // 113</span>
+  <a name="kr_GrId"></a><span class="e">kr_GrId</span><span class="p">,</span>             <span class="c"> // 114</span>
+  <a name="ks_GrId"></a><span class="e">ks_GrId</span><span class="p">,</span>             <span class="c"> // 115</span>
+  <a name="kt_GrId"></a><span class="e">kt_GrId</span><span class="p">,</span>             <span class="c"> // 116</span>
+  <a name="ku_GrId"></a><span class="e">ku_GrId</span><span class="p">,</span>             <span class="c"> // 117</span>
+  <a name="kv_GrId"></a><span class="e">kv_GrId</span><span class="p">,</span>             <span class="c"> // 118</span>
+  <a name="kw_GrId"></a><span class="e">kw_GrId</span><span class="p">,</span>             <span class="c"> // 119</span>
+  <a name="kx_GrId"></a><span class="e">kx_GrId</span><span class="p">,</span>             <span class="c"> // 120</span>
+  <a name="ky_GrId"></a><span class="e">ky_GrId</span><span class="p">,</span>             <span class="c"> // 121</span>
+  <a name="kz_GrId"></a><span class="e">kz_GrId</span><span class="p">,</span>             <span class="c"> // 122</span>
+  <a name="kLBraceGrId"></a><span class="e">kLBraceGrId</span><span class="p">,</span>         <span class="c"> // 123</span>
+  <a name="kPipeGrId"></a><span class="e">kPipeGrId</span><span class="p">,</span>           <span class="c"> // 124</span>
+  <a name="kRBraceGrId"></a><span class="e">kRBraceGrId</span><span class="p">,</span>         <span class="c"> // 125</span>
+  <a name="kTildeGrId"></a><span class="e">kTildeGrId</span><span class="p">,</span>          <span class="c"> // 126</span>
+  <a name="kDeleteGrId"></a><span class="e">kDeleteGrId</span><span class="p">,</span>         <span class="c"> // 127</span>
+  <a name="kNP_MultGrId"></a><span class="e">kNP_MultGrId</span><span class="p">,</span>        <span class="c"> // 128</span>
+  <a name="kNP_PlusGrId"></a><span class="e">kNP_PlusGrId</span><span class="p">,</span>        <span class="c"> // 129</span>
+  <a name="kNP_MinusGrId"></a><span class="e">kNP_MinusGrId</span><span class="p">,</span>       <span class="c"> // 130</span>
+  <a name="kNP_DecPtGrId"></a><span class="e">kNP_DecPtGrId</span><span class="p">,</span>       <span class="c"> // 131</span>
+  <a name="kNP_DivGrId"></a><span class="e">kNP_DivGrId</span><span class="p">,</span>         <span class="c"> // 132</span>
+  <a name="kNP_0GrId"></a><span class="e">kNP_0GrId</span><span class="p">,</span>           <span class="c"> // 133</span>
+  <a name="kNP_1GrId"></a><span class="e">kNP_1GrId</span><span class="p">,</span>           <span class="c"> // 134</span>
+  <a name="kNP_2GrId"></a><span class="e">kNP_2GrId</span><span class="p">,</span>           <span class="c"> // 135</span>
+  <a name="kNP_3GrId"></a><span class="e">kNP_3GrId</span><span class="p">,</span>           <span class="c"> // 136</span>
+  <a name="kNP_4GrId"></a><span class="e">kNP_4GrId</span><span class="p">,</span>           <span class="c"> // 137</span>
+  <a name="kNP_5GrId"></a><span class="e">kNP_5GrId</span><span class="p">,</span>           <span class="c"> // 138</span>
+  <a name="kNP_6GrId"></a><span class="e">kNP_6GrId</span><span class="p">,</span>           <span class="c"> // 139</span>
+  <a name="kNP_7GrId"></a><span class="e">kNP_7GrId</span><span class="p">,</span>           <span class="c"> // 140</span>
+  <a name="kNP_8GrId"></a><span class="e">kNP_8GrId</span><span class="p">,</span>           <span class="c"> // 141</span>
+  <a name="kNP_9GrId"></a><span class="e">kNP_9GrId</span><span class="p">,</span>           <span class="c"> // 142</span>
+  <a name="kNP_EqualGrId"></a><span class="e">kNP_EqualGrId</span><span class="p">,</span>       <span class="c"> // 143</span>
+  <a name="kNP_EnterGrId"></a><span class="e">kNP_EnterGrId</span><span class="p">,</span>       <span class="c"> // 144</span>
+  <a name="kFunc_1GrId"></a><span class="e">kFunc_1GrId</span><span class="p">,</span>         <span class="c"> // 145</span>
+  <a name="kFunc_2GrId"></a><span class="e">kFunc_2GrId</span><span class="p">,</span>         <span class="c"> // 146</span>
+  <a name="kFunc_3GrId"></a><span class="e">kFunc_3GrId</span><span class="p">,</span>         <span class="c"> // 147</span>
+  <a name="kFunc_4GrId"></a><span class="e">kFunc_4GrId</span><span class="p">,</span>         <span class="c"> // 148 </span>
+  <a name="kFunc_5GrId"></a><span class="e">kFunc_5GrId</span><span class="p">,</span>         <span class="c"> // 149</span>
+  <a name="kFunc_6GrId"></a><span class="e">kFunc_6GrId</span><span class="p">,</span>         <span class="c"> // 150</span>
+  <a name="kFunc_7GrId"></a><span class="e">kFunc_7GrId</span><span class="p">,</span>         <span class="c"> // 151</span>
+  <a name="kFunc_8GrId"></a><span class="e">kFunc_8GrId</span><span class="p">,</span>         <span class="c"> // 152</span>
+  <a name="kFunc_9GrId"></a><span class="e">kFunc_9GrId</span><span class="p">,</span>         <span class="c"> // 153</span>
+  <a name="kFunc_10GrId"></a><span class="e">kFunc_10GrId</span><span class="p">,</span>        <span class="c"> // 154</span>
+  <a name="kFunc_11GrId"></a><span class="e">kFunc_11GrId</span><span class="p">,</span>        <span class="c"> // 155</span>
+  <a name="kFunc_12GrId"></a><span class="e">kFunc_12GrId</span><span class="p">,</span>        <span class="c"> // 156</span>
+  <a name="kBrightUpGrId"></a><span class="e">kBrightUpGrId</span><span class="p">,</span>       <span class="c"> // 157</span>
+  <a name="kBrightDnGrId"></a><span class="e">kBrightDnGrId</span><span class="p">,</span>       <span class="c"> // 158</span>
+  <a name="kAudio_PrevGrId"></a><span class="e">kAudio_PrevGrId</span><span class="p">,</span>     <span class="c"> // 159</span>
+  <a name="kAudio_PlayGrId"></a><span class="e">kAudio_PlayGrId</span><span class="p">,</span>     <span class="c"> // 160</span>
+  <a name="kAudio_NextGrId"></a><span class="e">kAudio_NextGrId</span><span class="p">,</span>     <span class="c"> // 161</span>
+  <a name="kAudio_MuteGrId"></a><span class="e">kAudio_MuteGrId</span><span class="p">,</span>     <span class="c"> // 162</span>
+  <a name="kAudio_UpGrId"></a><span class="e">kAudio_UpGrId</span><span class="p">,</span>       <span class="c"> // 163</span>
+  <a name="kAudio_DnGrId"></a><span class="e">kAudio_DnGrId</span><span class="p">,</span>       <span class="c"> // 164</span>
+  <a name="kEjectGrId"></a><span class="e">kEjectGrId</span><span class="p">,</span>          <span class="c"> // 165</span>
+  <a name="kInvalidKeyCodeGrId"></a><span class="e">kInvalidKeyCodeGrId</span>
+<span class="p">}</span> <a name="cmGrKeyCodeId_t"></a><span class="t">cmGrKeyCodeId_t</span><span class="p">;</span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kMinAsciiGrId"></a><span class="e">kMinAsciiGrId</span> <span class="p">=</span> <a href="#kSpaceGrId">kSpaceGrId</a><span class="p">,</span>
+  <a name="kMaxAsciiGrId"></a><span class="e">kMaxAsciiGrId</span> <span class="p">=</span> <a href="#kDeleteGrId">kDeleteGrId</a>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkGrRC"></a><span class="e">kOkGrRC</span><span class="p">,</span>
+  <a name="kLHeapFailGrRC"></a><span class="e">kLHeapFailGrRC</span><span class="p">,</span>
+  <a name="kAppErrGrRC"></a><span class="e">kAppErrGrRC</span><span class="p">,</span>
+  <a name="kRootObjCreateFailGrRC"></a><span class="e">kRootObjCreateFailGrRC</span><span class="p">,</span>
+  <a name="kInvalidCoordsGrRC"></a><span class="e">kInvalidCoordsGrRC</span><span class="p">,</span>
+  <a name="kExtsErrGrRC"></a><span class="e">kExtsErrGrRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kLeftGrFl"></a><span class="e">kLeftGrFl</span>   <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span>
+  <a name="kTopGrFl"></a><span class="e">kTopGrFl</span>    <span class="p">=</span> <span class="l">0x02</span><span class="p">,</span>
+  <a name="kRightGrFl"></a><span class="e">kRightGrFl</span>  <span class="p">=</span> <span class="l">0x04</span><span class="p">,</span>
+  <a name="kBottomGrFl"></a><span class="e">kBottomGrFl</span> <span class="p">=</span> <span class="l">0x08</span><span class="p">,</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kLeftGrIdx"></a><span class="e">kLeftGrIdx</span>   <span class="p">=</span> <span class="l">0</span><span class="p">,</span>   <span class="c"> // min-x</span>
+  <a name="kTopGrIdx"></a><span class="e">kTopGrIdx</span>    <span class="p">=</span> <span class="l">1</span><span class="p">,</span>   <span class="c"> // max-y</span>
+  <a name="kRightGrIdx"></a><span class="e">kRightGrIdx</span>  <span class="p">=</span> <span class="l">2</span><span class="p">,</span>   <span class="c"> // max-x</span>
+  <a name="kBottomGrIdx"></a><span class="e">kBottomGrIdx</span> <span class="p">=</span> <span class="l">3</span><span class="p">,</span>   <span class="c"> // min-y</span>
+  <a name="kAxisGrCnt"></a><span class="e">kAxisGrCnt</span>   <span class="p">=</span> <span class="l">4</span>
+<span class="p">}</span> <a name="cmGrAxisIdx_t"></a><span class="t">cmGrAxisIdx_t</span><span class="p">;</span>
+
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmGrH_t"></a><span class="t">cmGrH_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmGrObjH_t"></a><span class="t">cmGrObjH_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmGrDcH_t"></a><span class="t">cmGrDcH_t</span><span class="p">;</span>
+<span class="k">typedef</span> <span class="k">unsigned</span>   <a name="cmGrRC_t"></a><span class="t">cmGrRC_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmGrH_t">cmGrH_t</a>     <span class="i">cmGrNullHandle</span><span class="p">;</span>
+<span class="k">extern</span> <a href="#cmGrObjH_t">cmGrObjH_t</a>  <span class="i">cmGrObjNullHandle</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmGrV_t"></a><span class="t">cmGrV_t</span><span class="p">;</span>
+
+<span class="c"><hr id="hr2"></span> 
+<span class="c">// Calculate the width and height between two pixels.
+// This implies that the first and last pixel are inside the valid range.</span>
+<span class="m">#define </span><a name="cmGrXtoW"></a><span class="m">cmGrXtoW</span><span class="m">(x0,x1)        (abs((x1)-(x0))+1)</span>
+<span class="m">#define </span><a name="cmGrWtoX"></a><span class="m">cmGrWtoX</span><span class="m">(x0,w)         (((x0)+(w))-1)</span>
+
+<span class="m">#define </span><a name="cmGrYtoH"></a><span class="m">cmGrYtoH</span><span class="m">(y0,y1)        (abs((y1)-(y0))+1)</span>
+<span class="m">#define </span><a name="cmGrHtoY"></a><span class="m">cmGrHtoY</span><span class="m">(y0,h)         (((y0)+(h))-1)</span>
+
+<span class="m">#define </span><a name="cmGrPIsXInRange"></a><span class="m">cmGrPIsXInRange</span><span class="m">(x,x0,w) ((x0)&lt=(x)&amp&amp(x)&lt=<a href="#cmGrWtoX">cmGrWtoX</a>((x0),(w)))</span>
+<span class="m">#define </span><a name="cmGrPIsYInRange"></a><span class="m">cmGrPIsYInRange</span><span class="m">(y,y0,h) ((y0)&lt=(y)&amp&amp(y)&lt=<a href="#cmGrHtoY">cmGrHtoY</a>((y0),(h)))</span>
+
+<span class="m">#define </span><a name="cmGrVIsXInRange"></a><span class="m">cmGrVIsXInRange</span><span class="m">(x,x0,w) ((x0)&lt=(x)&amp&amp(x)&lt=((x0)+(w)))</span>
+<span class="m">#define </span><a name="cmGrVIsYInRange"></a><span class="m">cmGrVIsYInRange</span><span class="m">(y,y0,h) ((y0)&lt=(y)&amp&amp(y)&lt=((y0)+(h)))</span>
+
+<a name="cmGrPPt_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">int</span> <a name="cmGrPPt_t.x"></a><span class="i">x</span><span class="p">;</span>
+  <span class="k">int</span> <a name="cmGrPPt_t.y"></a><span class="i">y</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmGrPPt_t">cmGrPPt_t</a></span><span class="p">;</span>
+
+<span class="m">#define </span><a name="cmGrPPtSet"></a><span class="m">cmGrPPtSet</span><span class="m">( p, xx, yy ) do{ (p)-&gtx=(xx); (p)-&gty=(yy); }while(0)</span>
+<span class="m">#define </span><a name="cmGrPPtIsEqual"></a><span class="m">cmGrPPtIsEqual</span><span class="m">(p0,p1) ((p0)-&gtx==(p1)-&gtx &amp&amp (p0)-&gty==(p1)-&gty)</span>
+<span class="m">#define </span><a name="cmGrPPtPrint"></a><span class="m">cmGrPPtPrint</span><span class="m">(lbl,p) printf("%s x=%i y=%i\n",(lbl),(p)-&gtx,(p)-&gty)</span>
+
+<span class="c"><hr id="hr2"></span> <a name="cmGrPSz_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">int</span> <a name="cmGrPSz_t.w"></a><span class="i">w</span><span class="p">;</span>
+  <span class="k">int</span> <a name="cmGrPSz_t.h"></a><span class="i">h</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmGrPSz_t">cmGrPSz_t</a></span><span class="p">;</span>
+
+<span class="m">#define   </span><a name="cmGrPSzSet"></a><span class="m">cmGrPSzSet</span><span class="m">(      s, ww, hh )          do{ (s)-&gtw=(ww); (s)-&gth=(hh);}while(0)</span>
+<span class="m">#define   </span><a name="cmGrPSzSetD"></a><span class="m">cmGrPSzSetD</span><span class="m">(     s, x0, y0, x1, y1 )  <a href="#cmGrPSzSet">cmGrPSzSet</a>(<a href="#cmGrXtoW">cmGrXtoW</a>(x0,x1),<a href="#cmGrYtoH">cmGrYtoH</a>(y0,y1))</span>
+
+<span class="m">#define   </span><a name="cmGrPSzSetEmpty"></a><span class="m">cmGrPSzSetEmpty</span><span class="m">( s )  ((s)-&gtw = (s)-&gth =  0)</span>
+<span class="m">#define   </span><a name="cmGrPSzSetNull"></a><span class="m">cmGrPSzSetNull</span><span class="m">(  s )  ((s)-&gtw = (s)-&gth = -1)</span>
+<span class="m">#define   </span><a name="cmGrPSzIsEmpty"></a><span class="m">cmGrPSzIsEmpty</span><span class="m">(  s )  ((s)-&gtw== 0 &amp&amp (s)-&gth== 0)</span>
+<span class="m">#define   </span><a name="cmGrPSzIsNull"></a><span class="m">cmGrPSzIsNull</span><span class="m">(   s )  ((s)-&gtw==-1 &amp&amp (s)-&gth==-1)</span>
+<span class="m">#define   </span><a name="cmGrPSzIsEqual"></a><span class="m">cmGrPSzIsEqual</span><span class="m">(s0,s1) ((s0)-&gtw==(s1)-&gtw &amp&amp (s0)-&gth==(s1)-&gth)</span>
+<span class="m">#define   </span><a name="cmGrPSzPrint"></a><span class="m">cmGrPSzPrint</span><span class="m">(lbl,s) printf("%s w=%i h=%i\n",(lbl),(s)-&gtw,(s)-&gth)</span>
+
+<span class="c"><hr id="hr2"></span> <a name="cmGrPExt_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="#cmGrPPt_t">cmGrPPt_t</a> <a name="cmGrPExt_t.loc"></a><span class="i">loc</span><span class="p">;</span>
+  <a href="#cmGrPSz_t">cmGrPSz_t</a> <a name="cmGrPExt_t.sz"></a><span class="i">sz</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmGrPExt_t">cmGrPExt_t</a></span><span class="p">;</span>
+
+<span class="m">#define   </span><a name="cmGrPExtSet"></a><span class="m">cmGrPExtSet</span><span class="m">( e, x, y, w, h )    do{ <a href="#cmGrPPtSet">cmGrPPtSet</a>(&amp(e)-&gtloc,(x),(y)); <a href="#cmGrPSzSet">cmGrPSzSet</a>(&amp(e)-&gtsz,(w),(h)); }while(0)</span>
+<span class="m">#define   </span><a name="cmGrPExtSetD"></a><span class="m">cmGrPExtSetD</span><span class="m">(e, x0, y0, x1, y1) <a href="#cmGrPExtSet">cmGrPExtSet</a>(e,<a href="cmGlobal_h_0.html#cmMin">cmMin</a>(x0,x1),<a href="cmGlobal_h_0.html#cmMin">cmMin</a>(y0,y1),<a href="#cmGrXtoW">cmGrXtoW</a>(x0,x1),<a href="#cmGrYtoH">cmGrYtoH</a>(y0,y1))</span>
+
+<span class="m">#define   </span><a name="cmGrPExtL"></a><span class="m">cmGrPExtL</span><span class="m">(e) ((e)-&gtloc.x)</span>
+<span class="m">#define   </span><a name="cmGrPExtT"></a><span class="m">cmGrPExtT</span><span class="m">(e) ((e)-&gtloc.y)</span>
+<span class="m">#define   </span><a name="cmGrPExtR"></a><span class="m">cmGrPExtR</span><span class="m">(e) (<a href="#cmGrWtoX">cmGrWtoX</a>((e)-&gtloc.x,(e)-&gtsz.w))</span>
+<span class="m">#define   </span><a name="cmGrPExtB"></a><span class="m">cmGrPExtB</span><span class="m">(e) (<a href="#cmGrHtoY">cmGrHtoY</a>((e)-&gtloc.y,(e)-&gtsz.h))</span>
+<span class="m">#define   </span><a name="cmGrPExtW"></a><span class="m">cmGrPExtW</span><span class="m">(e) ((e)-&gtsz.w)</span>
+<span class="m">#define   </span><a name="cmGrPExtH"></a><span class="m">cmGrPExtH</span><span class="m">(e) ((e)-&gtsz.h)</span>
+
+<span class="m">#define   </span><a name="cmGrPExtSetL"></a><span class="m">cmGrPExtSetL</span><span class="m">(e,v) ((e)-&gtloc.x = (v))</span>
+<span class="m">#define   </span><a name="cmGrPExtSetT"></a><span class="m">cmGrPExtSetT</span><span class="m">(e,v) ((e)-&gtloc.y = (v))</span>
+<span class="m">#define   </span><a name="cmGrPExtSetR"></a><span class="m">cmGrPExtSetR</span><span class="m">(e,v) <a href="#cmGrPExtSetW">cmGrPExtSetW</a>(e,<a href="#cmGrXtoW">cmGrXtoW</a>((e)-&gtloc.x,(v)))</span>
+<span class="m">#define   </span><a name="cmGrPExtSetB"></a><span class="m">cmGrPExtSetB</span><span class="m">(e,v) <a href="#cmGrPExtSetH">cmGrPExtSetH</a>(e,<a href="#cmGrYtoH">cmGrYtoH</a>((e)-&gtloc.y,(v)))</span>
+<span class="m">#define   </span><a name="cmGrPExtSetW"></a><span class="m">cmGrPExtSetW</span><span class="m">(e,v) ((e)-&gtsz.w = (v))</span>
+<span class="m">#define   </span><a name="cmGrPExtSetH"></a><span class="m">cmGrPExtSetH</span><span class="m">(e,v) ((e)-&gtsz.h = (v))</span>
+
+<span class="m">#define   </span><a name="cmGrPExtCtrX"></a><span class="m">cmGrPExtCtrX</span><span class="m">(e)   ((e)-&gtloc.x + (e)-&gtsz.w / 2)</span>
+<span class="m">#define   </span><a name="cmGrPExtCtrY"></a><span class="m">cmGrPExtCtrY</span><span class="m">(e)   ((e)-&gtloc.y + (e)-&gtsz.h / 2)</span>
+<span class="m">#define   </span><a name="cmGrPExtCtr"></a><span class="m">cmGrPExtCtr</span><span class="m">(e,pt) do{ (pt)-&gtx=<a href="#cmGrPExtCtrX">cmGrPExtCtrX</a>(e); (pt)-&gty=<a href="#cmGrPExtCtrY">cmGrPExtCtrY</a>(e); }while(0)</span>
+
+<span class="m">#define   </span><a name="cmGrPExtSetEmpty"></a><span class="m">cmGrPExtSetEmpty</span><span class="m">( e ) do{ <a href="#cmGrPSzSetEmpty">cmGrPSzSetEmpty</a>(&amp(e)-&gtsz); <a href="#cmGrPPtSet">cmGrPPtSet</a>(&amp(e)-&gtloc,0,0); }while(0)</span>
+<span class="m">#define   </span><a name="cmGrPExtSetNull"></a><span class="m">cmGrPExtSetNull</span><span class="m">(  e ) do{ <a href="#cmGrPSzSetNull">cmGrPSzSetNull</a>( &amp(e)-&gtsz); <a href="#cmGrPPtSet">cmGrPPtSet</a>(&amp(e)-&gtloc,0,0); }while(0)</span>
+<span class="m">#define   </span><a name="cmGrPExtIsEmpty"></a><span class="m">cmGrPExtIsEmpty</span><span class="m">(  e ) <a href="#cmGrPSzIsEmpty">cmGrPSzIsEmpty</a>( &amp(e)-&gtsz )</span>
+<span class="m">#define   </span><a name="cmGrPExtIsNull"></a><span class="m">cmGrPExtIsNull</span><span class="m">(   e ) <a href="#cmGrPSzIsNull">cmGrPSzIsNull</a>(  &amp(e)-&gtsz )</span>
+<span class="m">#define   </span><a name="cmGrPExtIsNullOrEmpty"></a><span class="m">cmGrPExtIsNullOrEmpty</span><span class="m">(e) (<a href="#cmGrPExtIsNull">cmGrPExtIsNull</a>(e)||<a href="#cmGrPExtIsEmpty">cmGrPExtIsEmpty</a>(e))</span>
+<span class="m">#define   </span><a name="cmGrPExtIsNotEmpty"></a><span class="m">cmGrPExtIsNotEmpty</span><span class="m">(e) (!<a href="#cmGrPExtIsEmpty">cmGrPExtIsEmpty</a>(e))</span>
+<span class="m">#define   </span><a name="cmGrPExtIsNotNull"></a><span class="m">cmGrPExtIsNotNull</span><span class="m">(e)  (!<a href="#cmGrPExtIsNull">cmGrPExtIsNull</a>(e))</span>
+<span class="m">#define   </span><a name="cmGrPExtIsNotNullOrEmpty"></a><span class="m">cmGrPExtIsNotNullOrEmpty</span><span class="m">(e) (<a href="#cmGrPExtIsNotNull">cmGrPExtIsNotNull</a>(e)&amp&amp<a href="#cmGrPExtIsNotEmpty">cmGrPExtIsNotEmpty</a>(e))</span>
+
+<span class="m">#define   </span><a name="cmGrPExtIsEqual"></a><span class="m">cmGrPExtIsEqual</span><span class="m">( e0, e1 ) (<a href="#cmGrPPtIsEqual">cmGrPPtIsEqual</a>(&amp(e0)-&gtloc,&amp(e1)-&gtloc) &amp&amp <a href="#cmGrPSzIsEqual">cmGrPSzIsEqual</a>(&amp(e0)-&gtsz, &amp(e1)-&gtsz))</span>
+
+<span class="m">#define   </span><a name="cmGrPExtIsXyInside"></a><span class="m">cmGrPExtIsXyInside</span><span class="m">( e, xx, yy) (<a href="#cmGrPIsXInRange">cmGrPIsXInRange</a>((xx),(e)-&gtloc.x,(e)-&gtsz.w) &amp&amp <a href="#cmGrPIsYInRange">cmGrPIsYInRange</a>((yy), (e)-&gtloc.y, (e)-&gtsz.h) )</span>
+<span class="m">#define   </span><a name="cmGrPExtIsPtInside"></a><span class="m">cmGrPExtIsPtInside</span><span class="m">( e, pt )  (<a href="#cmGrPExtIsXyInside">cmGrPExtIsXyInside</a>((e),(pt)-&gtx,(pt)-&gty))</span>
+<span class="m">#define   </span><a name="cmGrPExtIsExtInside"></a><span class="m">cmGrPExtIsExtInside</span><span class="m">(e0, e1)  (<a href="#cmGrPExtIsPtInside">cmGrPExtIsPtInside</a>((e0),&amp((e1)-&gtloc)) &amp&amp <a href="#cmGrPExtIsXyInside">cmGrPExtIsXyInside</a>((e0), <a href="#cmGrWtoX">cmGrWtoX</a>((e1)-&gtloc.x,(e1)-&gtsz.w), <a href="#cmGrHtoY">cmGrHtoY</a>((e1)-&gtloc.y,(e1)-&gtsz.h)))</span>
+
+<span class="m">#define   </span><a name="cmGrPExtExpand"></a><span class="m">cmGrPExtExpand</span><span class="m">(e,l,t,r,b) do{(e)-&gtloc.x+=(l); (e)-&gtloc.y+=(t); (e)-&gtsz.w+=(abs(l)+abs(r)); (e)-&gtsz.h+=(abs(t)+abs(b));}while(0)</span>
+
+<span class="m">#define   </span><a name="cmGrPExtRpt"></a><span class="m">cmGrPExtRpt</span><span class="m">(e,rpt) <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a>(rpt,"x:%i y:%i w:%i h:%i",(e)-&gtloc.x,(e)-&gtloc.y,(e)-&gtsz.w,(e)-&gtsz.h)</span>
+<span class="m">#define   </span><a name="cmGrPExtPrint"></a><span class="m">cmGrPExtPrint</span><span class="m">(lbl,e) printf("%s %i %i %i %i\n",lbl,(e)-&gtloc.x,(e)-&gtloc.y,(e)-&gtsz.w,(e)-&gtsz.h)</span>
+
+<span class="k">void</span>      <a name="cmGrPExtIntersect"></a><span class="f">cmGrPExtIntersect</span><span class="p">(</span> <a href="#cmGrPExt_t">cmGrPExt_t</a><span class="p">*</span> <span class="i">r</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrPExt_t">cmGrPExt_t</a><span class="p">*</span> <span class="i">e0</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrPExt_t">cmGrPExt_t</a><span class="p">*</span> <span class="i">e1</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c"><hr id="hr2"></span> 
+<a name="cmGrVPt_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="#cmGrV_t">cmGrV_t</a> <a name="cmGrVPt_t.x"></a><span class="i">x</span><span class="p">;</span>
+  <a href="#cmGrV_t">cmGrV_t</a> <a name="cmGrVPt_t.y"></a><span class="i">y</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmGrVPt_t">cmGrVPt_t</a></span><span class="p">;</span>
+
+<span class="m">#define </span><a name="cmGrVPtSet"></a><span class="m">cmGrVPtSet</span><span class="m">( p, xx, yy ) do{ (p)-&gtx=(xx); (p)-&gty=(yy); }while(0)</span>
+<span class="m">#define </span><a name="cmGrVPtIsEqual"></a><span class="m">cmGrVPtIsEqual</span><span class="m">(p0,p1) ((p0)-&gtx==(p1)-&gtx &amp&amp (p0)-&gty==(p1)-&gty)</span>
+<span class="m">#define </span><a name="cmGrVPtIsNotEqual"></a><span class="m">cmGrVPtIsNotEqual</span><span class="m">(p0,p1) (!<a href="#cmGrVPtIsEqual">cmGrVPtIsEqual</a>(p0,p1))</span>
+
+<span class="c"><hr id="hr2"></span> <a name="cmGrVSz_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="#cmGrV_t">cmGrV_t</a> <a name="cmGrVSz_t.w"></a><span class="i">w</span><span class="p">;</span>
+  <a href="#cmGrV_t">cmGrV_t</a> <a name="cmGrVSz_t.h"></a><span class="i">h</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmGrVSz_t">cmGrVSz_t</a></span><span class="p">;</span>
+
+<span class="m">#define   </span><a name="cmGrVSzSet"></a><span class="m">cmGrVSzSet</span><span class="m">(      s, ww, hh )          do{ (s)-&gtw=(ww); (s)-&gth=(hh);}while(0)</span>
+<span class="m">#define   </span><a name="cmGrVSzSetD"></a><span class="m">cmGrVSzSetD</span><span class="m">(     s, x0, y0, x1, y1 )  <a href="#cmGrVSzSet">cmGrVSzSet</a>((x1)-(x0),(y1)-(y0))</span>
+
+<span class="m">#define   </span><a name="cmGrVSzSetEmpty"></a><span class="m">cmGrVSzSetEmpty</span><span class="m">( s ) ((s)-&gtw = (s)-&gth =  0)</span>
+<span class="m">#define   </span><a name="cmGrVSzSetNull"></a><span class="m">cmGrVSzSetNull</span><span class="m">(  s ) ((s)-&gtw = (s)-&gth = -1)</span>
+<span class="m">#define   </span><a name="cmGrVSzIsEmpty"></a><span class="m">cmGrVSzIsEmpty</span><span class="m">(  s ) ((s)-&gtw== 0 &amp&amp (s)-&gth== 0)</span>
+<span class="m">#define   </span><a name="cmGrVSzIsNull"></a><span class="m">cmGrVSzIsNull</span><span class="m">(   s ) ((s)-&gtw==-1 || (s)-&gth==-1)</span>
+<span class="m">#define   </span><a name="cmGrVSzIsEqual"></a><span class="m">cmGrVSzIsEqual</span><span class="m">(s0,s1) ((s0)-&gtw==(s1)-&gtw &amp&amp (s0)-&gth==(s1)-&gth)</span>
+
+<span class="c"><hr id="hr2"></span> <a name="cmGrVExt_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="#cmGrVPt_t">cmGrVPt_t</a> <a name="cmGrVExt_t.loc"></a><span class="i">loc</span><span class="p">;</span>  
+  <a href="#cmGrVSz_t">cmGrVSz_t</a> <a name="cmGrVExt_t.sz"></a><span class="i">sz</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmGrVExt_t">cmGrVExt_t</a></span><span class="p">;</span>
+
+<span class="m">#define   </span><a name="cmGrVExtIsNorm"></a><span class="m">cmGrVExtIsNorm</span><span class="m">( e )             ((e)-&gtsz.w&gt=0 &amp&amp (e)-&gtsz.h&gt=0)</span>
+<span class="m">#define   </span><a name="cmGrVExtNorm"></a><span class="m">cmGrVExtNorm</span><span class="m">(   e )             do{ if( <a href="#cmGrVExtIsNotNull">cmGrVExtIsNotNull</a>(e) ){ if((e)-&gtsz.w&lt0){(e)-&gtloc.x += (e)-&gtsz.w; (e)-&gtsz.w*=-1;} if((e)-&gtsz.h&lt0){(e)-&gtloc.y += (e)-&gtsz.h; (e)-&gtsz.h*=-1;}} }while(0)</span>
+<span class="m">#define   </span><a name="cmGrVExtSet"></a><span class="m">cmGrVExtSet</span><span class="m">( e, x, y, w, h )    do{ <a href="#cmGrVPtSet">cmGrVPtSet</a>(&amp(e)-&gtloc,(x),(y)); <a href="#cmGrVSzSet">cmGrVSzSet</a>(&amp(e)-&gtsz,(w),(h)); <a href="#cmGrVExtNorm">cmGrVExtNorm</a>(e); }while(0)</span>
+<span class="m">#define   </span><a name="cmGrVExtSetD"></a><span class="m">cmGrVExtSetD</span><span class="m">(e, x0, y0, x1, y1) <a href="#cmGrVExtSet">cmGrVExtSet</a>((e),(x0),(y0),(x1)-(x0),(y1)-(y0))</span>
+
+<span class="c">// 
+//  l,t      minx,maxy   
+//      r,b            maxx,miny
+//</span>
+<span class="m">#define   </span><a name="cmGrVExtMinX"></a><span class="m">cmGrVExtMinX</span><span class="m">(e) ((e)-&gtloc.x)</span>
+<span class="m">#define   </span><a name="cmGrVExtMinY"></a><span class="m">cmGrVExtMinY</span><span class="m">(e) ((e)-&gtloc.y)</span>
+<span class="m">#define   </span><a name="cmGrVExtMaxX"></a><span class="m">cmGrVExtMaxX</span><span class="m">(e) ((e)-&gtloc.x + (e)-&gtsz.w)</span>
+<span class="m">#define   </span><a name="cmGrVExtMaxY"></a><span class="m">cmGrVExtMaxY</span><span class="m">(e) ((e)-&gtloc.y + (e)-&gtsz.h)</span>
+<span class="m">#define   </span><a name="cmGrVExtW"></a><span class="m">cmGrVExtW</span><span class="m">(e) ((e)-&gtsz.w)</span>
+<span class="m">#define   </span><a name="cmGrVExtH"></a><span class="m">cmGrVExtH</span><span class="m">(e) ((e)-&gtsz.h)</span>
+
+<span class="m">#define   </span><a name="cmGrVExtSetMinX"></a><span class="m">cmGrVExtSetMinX</span><span class="m">(e,v) ((e)-&gtloc.x = (v))</span>
+<span class="m">#define   </span><a name="cmGrVExtSetMinY"></a><span class="m">cmGrVExtSetMinY</span><span class="m">(e,v) ((e)-&gtloc.y = (v))</span>
+
+<span class="c">// Beware: setting maxx and maxy depends on the current value of minx and miny.
+// If both minx and maxx are being changed then be sure to set minx first.
+// If both miny and maxy are being changed then be sure to set miny first.</span>
+<span class="m">#define   </span><a name="cmGrVExtSetMaxX"></a><span class="m">cmGrVExtSetMaxX</span><span class="m">(e,v) ((e)-&gtsz.w  = (v) - <a href="#cmGrVExtMinX">cmGrVExtMinX</a>(e))</span>
+<span class="m">#define   </span><a name="cmGrVExtSetMaxY"></a><span class="m">cmGrVExtSetMaxY</span><span class="m">(e,v) ((e)-&gtsz.h  = (v) - <a href="#cmGrVExtMinY">cmGrVExtMinY</a>(e))</span>
+<span class="m">#define   </span><a name="cmGrVExtSetW"></a><span class="m">cmGrVExtSetW</span><span class="m">(e,v)    ((e)-&gtsz.w  = (v))</span>
+<span class="m">#define   </span><a name="cmGrVExtSetH"></a><span class="m">cmGrVExtSetH</span><span class="m">(e,v)    ((e)-&gtsz.h  = (v))</span>
+
+<span class="m">#define   </span><a name="cmGrVExtSetEmpty"></a><span class="m">cmGrVExtSetEmpty</span><span class="m">( e )       do{ <a href="#cmGrVSzSetEmpty">cmGrVSzSetEmpty</a>(&amp(e)-&gtsz); <a href="#cmGrVPtSet">cmGrVPtSet</a>(&amp(e)-&gtloc,0,0); }while(0)</span>
+<span class="m">#define   </span><a name="cmGrVExtSetNull"></a><span class="m">cmGrVExtSetNull</span><span class="m">(  e )       do{ <a href="#cmGrVSzSetNull">cmGrVSzSetNull</a>(&amp(e)-&gtsz);  <a href="#cmGrVPtSet">cmGrVPtSet</a>(&amp(e)-&gtloc,0,0); }while(0)</span>
+<span class="m">#define   </span><a name="cmGrVExtIsEmpty"></a><span class="m">cmGrVExtIsEmpty</span><span class="m">(  e )       <a href="#cmGrVSzIsEmpty">cmGrVSzIsEmpty</a>(&amp(e)-&gtsz)</span>
+<span class="m">#define   </span><a name="cmGrVExtIsNull"></a><span class="m">cmGrVExtIsNull</span><span class="m">(   e )       <a href="#cmGrVSzIsNull">cmGrVSzIsNull</a>( &amp(e)-&gtsz)</span>
+<span class="m">#define   </span><a name="cmGrVExtIsNullOrEmpty"></a><span class="m">cmGrVExtIsNullOrEmpty</span><span class="m">(e)    (<a href="#cmGrVExtIsNull">cmGrVExtIsNull</a>(e)||<a href="#cmGrVExtIsEmpty">cmGrVExtIsEmpty</a>(e))</span>
+<span class="m">#define   </span><a name="cmGrVExtIsNotEmpty"></a><span class="m">cmGrVExtIsNotEmpty</span><span class="m">(e)       (!<a href="#cmGrVExtIsEmpty">cmGrVExtIsEmpty</a>(e))</span>
+<span class="m">#define   </span><a name="cmGrVExtIsNotNull"></a><span class="m">cmGrVExtIsNotNull</span><span class="m">(e)        (!<a href="#cmGrVExtIsNull">cmGrVExtIsNull</a>(e))</span>
+<span class="m">#define   </span><a name="cmGrVExtIsNotNullOrEmpty"></a><span class="m">cmGrVExtIsNotNullOrEmpty</span><span class="m">(e) (<a href="#cmGrVExtIsNotNull">cmGrVExtIsNotNull</a>(e)&amp&amp<a href="#cmGrVExtIsNotEmpty">cmGrVExtIsNotEmpty</a>(e))</span>
+<span class="m">#define   </span><a name="cmGrVExtIsEqual"></a><span class="m">cmGrVExtIsEqual</span><span class="m">( e0, e1 )   (<a href="#cmGrVPtIsEqual">cmGrVPtIsEqual</a>(&amp(e0)-&gtloc,&amp(e1)-&gtloc) &amp&amp <a href="#cmGrVSzIsEqual">cmGrVSzIsEqual</a>(&amp(e0)-&gtsz, &amp(e1)-&gtsz))</span>
+
+
+<span class="m">#define   </span><a name="cmGrVExtIsXyInside"></a><span class="m">cmGrVExtIsXyInside</span><span class="m">( e, xx, yy) (<a href="#cmGrVIsXInRange">cmGrVIsXInRange</a>((xx),(e)-&gtloc.x,(e)-&gtsz.w) &amp&amp <a href="#cmGrVIsYInRange">cmGrVIsYInRange</a>((yy),(e)-&gtloc.y,(e)-&gtsz.h))</span>
+<span class="m">#define   </span><a name="cmGrVExtIsPtInside"></a><span class="m">cmGrVExtIsPtInside</span><span class="m">( e, pt )    (<a href="#cmGrVExtIsXyInside">cmGrVExtIsXyInside</a>((e),(pt)-&gtx,(pt)-&gty))</span>
+
+<span class="c">// e1 is inside e0</span>
+<span class="m">#define   </span><a name="cmGrVExtIsExtInside"></a><span class="m">cmGrVExtIsExtInside</span><span class="m">(e0, e1)    (<a href="#cmGrVExtIsXyInside">cmGrVExtIsXyInside</a>((e0),<a href="#cmGrVExtMinX">cmGrVExtMinX</a>(e1),<a href="#cmGrVExtMinY">cmGrVExtMinY</a>(e1)) &amp&amp <a href="#cmGrVExtIsXyInside">cmGrVExtIsXyInside</a>((e0), <a href="#cmGrVExtMaxX">cmGrVExtMaxX</a>(e1), <a href="#cmGrVExtMaxY">cmGrVExtMaxY</a>(e1)))</span>
+
+<span class="m">#define   </span><a name="cmGrVExtRpt"></a><span class="m">cmGrVExtRpt</span><span class="m">(e,rpt) <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a>(rpt,"x:%f y:%f w:%f h:%f",(e)-&gtloc.x,(e)-&gtloc.y,(e)-&gtsz.w,(e)-&gtsz.h)</span>
+<span class="m">#define   </span><a name="cmGrVExtPrint"></a><span class="m">cmGrVExtPrint</span><span class="m">(lbl,e) printf("%s %f %f %f %f\n",lbl,(e)-&gtloc.x,(e)-&gtloc.y,(e)-&gtsz.w,(e)-&gtsz.h)</span>
+
+
+<span class="c">// Shift and expand e0 to contain e1.  Return true if e0 actually changes.</span>
+<span class="k">bool</span>    <a name="cmGrVExtExpandToContain"></a><span class="f">cmGrVExtExpandToContain</span><span class="p">(</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">e0</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">e1</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Force e1 to be contained by e0 by shifting e1's location. This function
+// will never change the width or height of e1. Return true if e1 is changed.</span>
+<span class="k">bool</span>    <a name="cmGrVExtContain"></a><span class="f">cmGrVExtContain</span><span class="p">(</span> <span class="k">const</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">e0</span><span class="p">,</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">e1</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the intersection of 'e0' with 'e1' in 'r'. </span>
+<span class="k">void</span>    <a name="cmGrVExtIntersect"></a><span class="f">cmGrVExtIntersect</span><span class="p">(</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">r</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">e0</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">e1</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr2"></span> 
+
+<span class="m">#define </span><a name="cmGrRgbToColor"></a><span class="m">cmGrRgbToColor</span><span class="m">( r, g, b )  (((r) &lt&lt 16) + ((g) &lt&lt 8) + (b))</span>
+<span class="m">#define </span><a name="cmGrColorToR"></a><span class="m">cmGrColorToR</span><span class="m">(   c )        (((c) &gt&gt 16) &amp 0x000000ff) </span>
+<span class="m">#define </span><a name="cmGrColorToG"></a><span class="m">cmGrColorToG</span><span class="m">(   c )        (((c) &gt&gt  8) &amp 0x000000ff) </span>
+<span class="m">#define </span><a name="cmGrColorToB"></a><span class="m">cmGrColorToB</span><span class="m">(   c )        (((c)      ) &amp 0x000000ff) </span>
+
+<span class="k">typedef</span> <span class="k">unsigned</span> <a name="cmGrColor_t"></a><span class="t">cmGrColor_t</span><span class="p">;</span>
+<span class="k">enum</span> <span class="p">{</span> <a name="kGrDefaultColorMapIdx"></a><span class="e">kGrDefaultColorMapIdx</span> <span class="p">=</span> <span class="l">0</span><span class="p">,</span> <a name="kGrDefaultColorMapId"></a><span class="e">kGrDefaultColorMapId</span><span class="p">=</span><span class="l">0</span> <span class="p">}</span><span class="p">;</span>
+
+<span class="k">unsigned</span>        <a name="cmGrColorMapCount"></a><span class="f">cmGrColorMapCount</span><span class="p">(</span>    <a href="#cmGrH_t">cmGrH_t</a> <span class="i">grH</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>        <a name="cmGrColorMapId"></a><span class="f">cmGrColorMapId</span><span class="p">(</span>       <a href="#cmGrH_t">cmGrH_t</a> <span class="i">grH</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">mapIdx</span> <span class="p">)</span><span class="p">;</span>  
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmGrColorMapLabel"></a><span class="f">cmGrColorMapLabel</span><span class="p">(</span>    <a href="#cmGrH_t">cmGrH_t</a> <span class="i">grH</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>        <a name="cmGrColorMapRegister"></a><span class="f">cmGrColorMapRegister</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">grH</span><span class="p">,</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">label</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrColor_t">cmGrColor_t</a><span class="p">*</span> <span class="i">array</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">cnt</span> <span class="p">)</span><span class="p">;</span>     
+<a href="#cmGrColor_t">cmGrColor_t</a><span class="p">*</span>    <a name="cmGrColorMap"></a><span class="f">cmGrColorMap</span><span class="p">(</span>         <a href="#cmGrH_t">cmGrH_t</a> <span class="i">grH</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">mapId</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>        <a name="cmGrColorMapEleCount"></a><span class="f">cmGrColorMapEleCount</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">grH</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">mapId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr2"></span> <a name="cmGrObjFuncArgs_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span>   <a name="cmGrObjFuncArgs_t.ctx"></a><span class="i">ctx</span><span class="p">;</span>          <span class="c"> // application context</span>
+  <a href="#cmGrH_t">cmGrH_t</a>    <a name="cmGrObjFuncArgs_t.grH"></a><span class="i">grH</span><span class="p">;</span>          <span class="c"> // graphics system handle to which this graphic object belongs</span>
+  <a href="#cmGrObjH_t">cmGrObjH_t</a> <a name="cmGrObjFuncArgs_t.objH"></a><span class="i">objH</span><span class="p">;</span>         <span class="c"> // this graphics object handle</span>
+  <span class="k">void</span><span class="p">*</span>      <a name="cmGrObjFuncArgs_t.cbArg"></a><span class="i">cbArg</span><span class="p">;</span>        <span class="c"> // user callback arg</span>
+  
+  <a href="#cmGrPPt_t">cmGrPPt_t</a>  <a name="cmGrObjFuncArgs_t.msDnPPt"></a><span class="i">msDnPPt</span><span class="p">;</span>      <span class="c"> // mouse down phys point</span>
+  <a href="#cmGrVPt_t">cmGrVPt_t</a>  <a name="cmGrObjFuncArgs_t.msDnVPt"></a><span class="i">msDnVPt</span><span class="p">;</span>      <span class="c"> // mouse down virt point inside op-&ampgtparent-&ampgtwext</span>
+  <a href="#cmGrVSz_t">cmGrVSz_t</a>  <a name="cmGrObjFuncArgs_t.msDnVOffs"></a><span class="i">msDnVOffs</span><span class="p">;</span>    <span class="c"> // virtual offset from mouse down point to msDnObj-&ampgtvext</span>
+  <a href="#cmGrObjH_t">cmGrObjH_t</a> <a name="cmGrObjFuncArgs_t.msDnObjH"></a><span class="i">msDnObjH</span><span class="p">;</span>     <span class="c"> // handle of object which recv'd mouse down</span>
+  <a href="#cmGrVPt_t">cmGrVPt_t</a>  <a name="cmGrObjFuncArgs_t.msVPt"></a><span class="i">msVPt</span><span class="p">;</span>        <span class="c"> // cur ms virtual point</span>
+  
+<span class="p">}</span> <span class="t"><a href="#cmGrObjFuncArgs_t">cmGrObjFuncArgs_t</a></span><span class="p">;</span>
+
+
+<span class="k">typedef</span> <a href="#cmGrRC_t">cmGrRC_t</a> <span class="p">(</span><span class="p">*</span><a name="cmGrCreateObjCb_t"></a><span class="t">cmGrCreateObjCb_t</span><span class="p">)</span><span class="p">(</span>   <a href="#cmGrObjFuncArgs_t">cmGrObjFuncArgs_t</a><span class="p">*</span> <span class="i">args</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">typedef</span> <span class="k">void</span>     <span class="p">(</span><span class="p">*</span><a name="cmGrDestroyObjCb_t"></a><span class="t">cmGrDestroyObjCb_t</span><span class="p">)</span><span class="p">(</span>  <a href="#cmGrObjFuncArgs_t">cmGrObjFuncArgs_t</a><span class="p">*</span> <span class="i">args</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">typedef</span> <span class="k">bool</span>     <span class="p">(</span><span class="p">*</span><a name="cmGrRenderObjCb_t"></a><span class="t">cmGrRenderObjCb_t</span><span class="p">)</span><span class="p">(</span>   <a href="#cmGrObjFuncArgs_t">cmGrObjFuncArgs_t</a><span class="p">*</span> <span class="i">args</span><span class="p">,</span> <a href="#cmGrDcH_t">cmGrDcH_t</a> <span class="i">dcH</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">typedef</span> <span class="k">int</span>      <span class="p">(</span><span class="p">*</span><a name="cmGrDistanceObjCb_t"></a><span class="t">cmGrDistanceObjCb_t</span><span class="p">)</span><span class="p">(</span> <a href="#cmGrObjFuncArgs_t">cmGrObjFuncArgs_t</a><span class="p">*</span> <span class="i">args</span><span class="p">,</span> <span class="k">int</span> <span class="i">x</span><span class="p">,</span> <span class="k">int</span> <span class="i">y</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">typedef</span> <span class="k">bool</span>     <span class="p">(</span><span class="p">*</span><a name="cmGrEventObjCb_t"></a><span class="t">cmGrEventObjCb_t</span><span class="p">)</span><span class="p">(</span>    <a href="#cmGrObjFuncArgs_t">cmGrObjFuncArgs_t</a><span class="p">*</span> <span class="i">args</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">key</span><span class="p">,</span> <span class="k">int</span> <span class="i">px</span><span class="p">,</span> <span class="k">int</span> <span class="i">py</span>  <span class="p">)</span><span class="p">;</span>  
+<span class="k">typedef</span> <span class="k">void</span>     <span class="p">(</span><span class="p">*</span><a name="cmGrVExtObjCb_t"></a><span class="t">cmGrVExtObjCb_t</span><span class="p">)</span><span class="p">(</span>     <a href="#cmGrObjFuncArgs_t">cmGrObjFuncArgs_t</a><span class="p">*</span> <span class="i">args</span><span class="p">,</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">vext</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">typedef</span> <span class="k">bool</span>     <span class="p">(</span><span class="p">*</span><a name="cmGrIsInsideObjCb_t"></a><span class="t">cmGrIsInsideObjCb_t</span><span class="p">)</span><span class="p">(</span> <a href="#cmGrObjFuncArgs_t">cmGrObjFuncArgs_t</a><span class="p">*</span> <span class="i">args</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">evtFlags</span><span class="p">,</span> <span class="k">int</span> <span class="i">px</span><span class="p">,</span> <span class="k">int</span> <span class="i">py</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">vx</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">vy</span> <span class="p">)</span><span class="p">;</span>
+
+<a name="cmGrObjFunc_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmGrObjFunc_str"></a>cmGrObjFunc_str
+<span class="p">{</span>
+  <span class="c">// User defined constructor.</span>
+  <a href="#cmGrCreateObjCb_t">cmGrCreateObjCb_t</a>  <a name="cmGrObjFunc_t.createCbFunc"></a><span class="i">createCbFunc</span><span class="p">;</span>
+  <span class="k">void</span><span class="p">*</span>              <a name="cmGrObjFunc_t.createCbArg"></a><span class="i">createCbArg</span><span class="p">;</span>
+  
+  <span class="c">// User defined destructor.</span>
+  <a href="#cmGrDestroyObjCb_t">cmGrDestroyObjCb_t</a> <a name="cmGrObjFunc_t.destroyCbFunc"></a><span class="i">destroyCbFunc</span><span class="p">;</span>
+  <span class="k">void</span><span class="p">*</span>              <a name="cmGrObjFunc_t.destroyCbArg"></a><span class="i">destroyCbArg</span><span class="p">;</span>
+  
+  <span class="c">// Draw the object by calling back to the cmGrDrawXXX() functions</span>
+  <a href="#cmGrRenderObjCb_t">cmGrRenderObjCb_t</a>  <a name="cmGrObjFunc_t.renderCbFunc"></a><span class="i">renderCbFunc</span><span class="p">;</span>
+  <span class="k">void</span><span class="p">*</span>              <a name="cmGrObjFunc_t.renderCbArg"></a><span class="i">renderCbArg</span><span class="p">;</span>
+  
+  <span class="c">// Return the physical distance from a physical view location to the object.
+  // (NOT USED)</span>  
+  <a href="#cmGrDistanceObjCb_t">cmGrDistanceObjCb_t</a> <a name="cmGrObjFunc_t.distanceCbFunc"></a><span class="i">distanceCbFunc</span><span class="p">;</span>
+  <span class="k">void</span><span class="p">*</span>               <a name="cmGrObjFunc_t.distanceCbArg"></a><span class="i">distanceCbArg</span><span class="p">;</span>
+  
+  <span class="c">// Handle an event. gx,gy are in the same coord's as args.objH.vext (they are inside args.objH.parent.wext).
+  // Return true if the event objects dirty flag should be set.</span>  
+  <a href="#cmGrEventObjCb_t">cmGrEventObjCb_t</a>    <a name="cmGrObjFunc_t.eventCbFunc"></a><span class="i">eventCbFunc</span><span class="p">;</span>
+  <span class="k">void</span><span class="p">*</span>               <a name="cmGrObjFunc_t.eventCbArg"></a><span class="i">eventCbArg</span><span class="p">;</span>
+  
+  <span class="c">// Return the objects location and size inside op-&ampgtparent-&ampgtwext</span>
+  <a href="#cmGrVExtObjCb_t">cmGrVExtObjCb_t</a>     <a name="cmGrObjFunc_t.vextCbFunc"></a><span class="i">vextCbFunc</span><span class="p">;</span>
+  <span class="k">void</span><span class="p">*</span>               <a name="cmGrObjFunc_t.vextCbArg"></a><span class="i">vextCbArg</span><span class="p">;</span>
+  
+  <span class="c">// Called to determine which object is under the mouse and whether the event can
+  // handle the event as described by the 'evtFlags' args.
+  // Return true if the point is inside this obj.  vx,vy is in the the same coord's 
+  // as op-&ampgtvext (i.e. vx,vy is inside op-&ampgtparent-&ampgtwext) and the object will accept
+  // the event implied by the 'evtFlags' argument.  
+  // The simple answer to this call is <a href="#cmGrVExtIsXyInside">cmGrVExtIsXyInside</a>( *vext, vx, vy ).</span>  
+  <a href="#cmGrIsInsideObjCb_t">cmGrIsInsideObjCb_t</a> <a name="cmGrObjFunc_t.isInsideCbFunc"></a><span class="i">isInsideCbFunc</span><span class="p">;</span>
+  <span class="k">void</span><span class="p">*</span>               <a name="cmGrObjFunc_t.isInsideCbArg"></a><span class="i">isInsideCbArg</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmGrObjFunc_t">cmGrObjFunc_t</a></span><span class="p">;</span>
+
+
+<span class="c">// Create a graphic object. This function calls the user defined (*create)() function.
+// ('flags' is not used)</span>
+<a href="#cmGrRC_t">cmGrRC_t</a>   <a name="cmGrObjCreate"></a><span class="f">cmGrObjCreate</span><span class="p">(</span>     <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">parentH</span><span class="p">,</span> <a href="#cmGrObjFunc_t">cmGrObjFunc_t</a><span class="p">*</span> <span class="i">f</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">wext</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Destroy a graphic object and all of it's children. 
+// This function calls the user defined (*destroy)() function.</span>
+<a href="#cmGrRC_t">cmGrRC_t</a>   <a name="cmGrObjDestroy"></a><span class="f">cmGrObjDestroy</span><span class="p">(</span>    <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return true if 'oh' is a valid handle.</span>
+<a href="#cmGrRC_t">cmGrRC_t</a>   <a name="cmGrObjIsValid"></a><span class="f">cmGrObjIsValid</span><span class="p">(</span>    <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a>  <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the user id associated with this object.</span>
+<span class="k">unsigned</span>   <a name="cmGrObjId"></a><span class="f">cmGrObjId</span><span class="p">(</span>        <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>       <a name="cmGrObjSetId"></a><span class="f">cmGrObjSetId</span><span class="p">(</span>     <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the handle to the parent object.</span>
+<a href="#cmGrObjH_t">cmGrObjH_t</a> <a name="cmGrObjParent"></a><span class="f">cmGrObjParent</span><span class="p">(</span>    <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// An object world coord's are used to place child objects.</span>
+<a href="#cmGrRC_t">cmGrRC_t</a>   <a name="cmGrObjSetWorldExt"></a><span class="f">cmGrObjSetWorldExt</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">vext</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>       <a name="cmGrObjWorldExt"></a><span class="f">cmGrObjWorldExt</span><span class="p">(</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">vext</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmGrRC_t">cmGrRC_t</a>   <a name="cmGrObjSetWorldLimitExt"></a><span class="f">cmGrObjSetWorldLimitExt</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">vext</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">limitFlags</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>       <a name="cmGrObjWorldLimitExt"></a><span class="f">cmGrObjWorldLimitExt</span><span class="p">(</span>  <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">vext</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">limitFlags</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>                <a name="cmGrObjSetCreateCb"></a><span class="f">cmGrObjSetCreateCb</span><span class="p">(</span>   <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrCreateObjCb_t">cmGrCreateObjCb_t</a>   <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>                <a name="cmGrObjSetDestroyCb"></a><span class="f">cmGrObjSetDestroyCb</span><span class="p">(</span>  <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrDestroyObjCb_t">cmGrDestroyObjCb_t</a>  <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>                <a name="cmGrObjSetRenderCb"></a><span class="f">cmGrObjSetRenderCb</span><span class="p">(</span>   <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrRenderObjCb_t">cmGrRenderObjCb_t</a>   <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>                <a name="cmGrObjSetDistanceCb"></a><span class="f">cmGrObjSetDistanceCb</span><span class="p">(</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrDistanceObjCb_t">cmGrDistanceObjCb_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>                <a name="cmGrObjSetEventCb"></a><span class="f">cmGrObjSetEventCb</span><span class="p">(</span>    <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrEventObjCb_t">cmGrEventObjCb_t</a>    <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>                <a name="cmGrObjSetVExtCb"></a><span class="f">cmGrObjSetVExtCb</span><span class="p">(</span>     <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrVExtObjCb_t">cmGrVExtObjCb_t</a>     <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>                <a name="cmGrObjSetIsInsideCb"></a><span class="f">cmGrObjSetIsInsideCb</span><span class="p">(</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrIsInsideObjCb_t">cmGrIsInsideObjCb_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmGrCreateObjCb_t">cmGrCreateObjCb_t</a>   <a name="cmGrObjCreateCbFunc"></a><span class="f">cmGrObjCreateCbFunc</span><span class="p">(</span>   <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmGrDestroyObjCb_t">cmGrDestroyObjCb_t</a>  <a name="cmGrObjDestroyCbFunc"></a><span class="f">cmGrObjDestroyCbFunc</span><span class="p">(</span>  <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmGrRenderObjCb_t">cmGrRenderObjCb_t</a>   <a name="cmGrObjRenderCbFunc"></a><span class="f">cmGrObjRenderCbFunc</span><span class="p">(</span>   <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmGrDistanceObjCb_t">cmGrDistanceObjCb_t</a> <a name="cmGrObjDistanceCbFunc"></a><span class="f">cmGrObjDistanceCbFunc</span><span class="p">(</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmGrEventObjCb_t">cmGrEventObjCb_t</a>    <a name="cmGrObjEventCbFunc"></a><span class="f">cmGrObjEventCbFunc</span><span class="p">(</span>    <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmGrVExtObjCb_t">cmGrVExtObjCb_t</a>     <a name="cmGrObjVExtCbFunc"></a><span class="f">cmGrObjVExtCbFunc</span><span class="p">(</span>     <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmGrIsInsideObjCb_t">cmGrIsInsideObjCb_t</a> <a name="cmGrObjIsInsideCbFunc"></a><span class="f">cmGrObjIsInsideCbFunc</span><span class="p">(</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span><span class="p">*</span>               <a name="cmGrObjCreateCbArg"></a><span class="f">cmGrObjCreateCbArg</span><span class="p">(</span>   <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span><span class="p">*</span>               <a name="cmGrObjDestroyCbArg"></a><span class="f">cmGrObjDestroyCbArg</span><span class="p">(</span>  <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span><span class="p">*</span>               <a name="cmGrObjRenderCbArg"></a><span class="f">cmGrObjRenderCbArg</span><span class="p">(</span>   <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span><span class="p">*</span>               <a name="cmGrObjDistanceCbArg"></a><span class="f">cmGrObjDistanceCbArg</span><span class="p">(</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span><span class="p">*</span>               <a name="cmGrObjEventCbArg"></a><span class="f">cmGrObjEventCbArg</span><span class="p">(</span>    <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span><span class="p">*</span>               <a name="cmGrObjVExtCbArg"></a><span class="f">cmGrObjVExtCbArg</span><span class="p">(</span>     <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span><span class="p">*</span>               <a name="cmGrObjIsInsideCbArg"></a><span class="f">cmGrObjIsInsideCbArg</span><span class="p">(</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">// Same as call to user defined (*vect)(). </span>
+<span class="k">void</span>       <a name="cmGrObjLocalVExt"></a><span class="f">cmGrObjLocalVExt</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">vext</span> <span class="p">)</span><span class="p">;</span>  
+
+<span class="c">// Given an objects id return it's handle.</span>
+<a href="#cmGrObjH_t">cmGrObjH_t</a> <a name="cmGrObjIdToHandle"></a><span class="f">cmGrObjIdToHandle</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Move 'aoH' such that it is drawn above 'boH' in the z-order.
+// This means that 'boH' will be drawn before 'aoH'.</span>
+<span class="k">void</span>       <a name="cmGrObjDrawAbove"></a><span class="f">cmGrObjDrawAbove</span><span class="p">(</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">boH</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">aoH</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>       <a name="cmGrObjReport"></a><span class="f">cmGrObjReport</span><span class="p">(</span>     <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span> 
+<span class="k">void</span>       <a name="cmGrObjReportR"></a><span class="f">cmGrObjReportR</span><span class="p">(</span>    <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span> <span class="c"> // <a href="cmMain_c_0.html#print">print</a> children</span>
+
+
+<span class="c"><hr id="hr2">// Drawing Functions - called by objects to draw themselves</span> 
+<span class="k">int</span>      <a name="cmGrX_VtoP"></a><span class="f">cmGrX_VtoP</span><span class="p">(</span>     <a href="#cmGrH_t">cmGrH_t</a> <span class="i">hh</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">y</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">int</span>      <a name="cmGrY_VtoP"></a><span class="f">cmGrY_VtoP</span><span class="p">(</span>     <a href="#cmGrH_t">cmGrH_t</a> <span class="i">hh</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">x</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>     <a name="cmGrXY_VtoP"></a><span class="f">cmGrXY_VtoP</span><span class="p">(</span>    <a href="#cmGrH_t">cmGrH_t</a> <span class="i">hh</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">x</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">y</span><span class="p">,</span> <a href="#cmGrPPt_t">cmGrPPt_t</a><span class="p">*</span> <span class="i">rp</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmGrXYWH_VtoP"></a><span class="f">cmGrXYWH_VtoP</span><span class="p">(</span>  <a href="#cmGrH_t">cmGrH_t</a> <span class="i">hh</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">x</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">y</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">w</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrPExt_t">cmGrPExt_t</a><span class="p">*</span> <span class="i">pext</span> <span class="p">)</span><span class="p">;</span> 
+<span class="k">void</span>     <a name="cmGrVExt_VtoP"></a><span class="f">cmGrVExt_VtoP</span><span class="p">(</span>  <a href="#cmGrH_t">cmGrH_t</a> <span class="i">hh</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">vext</span><span class="p">,</span> <a href="#cmGrPExt_t">cmGrPExt_t</a><span class="p">*</span> <span class="i">pext</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>     <a name="cmGrXY_PtoV"></a><span class="f">cmGrXY_PtoV</span><span class="p">(</span>    <a href="#cmGrH_t">cmGrH_t</a> <span class="i">hh</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">int</span> <span class="i">x</span><span class="p">,</span> <span class="k">int</span> <span class="i">y</span><span class="p">,</span> <a href="#cmGrVPt_t">cmGrVPt_t</a><span class="p">*</span> <span class="i">rp</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmGrXYWH_PtoV"></a><span class="f">cmGrXYWH_PtoV</span><span class="p">(</span>  <a href="#cmGrH_t">cmGrH_t</a> <span class="i">hh</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">int</span> <span class="i">x</span><span class="p">,</span> <span class="k">int</span> <span class="i">y</span><span class="p">,</span> <span class="k">int</span> <span class="i">w</span><span class="p">,</span> <span class="k">int</span> <span class="i">h</span><span class="p">,</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">vext</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmGrPExt_PtoV"></a><span class="f">cmGrPExt_PtoV</span><span class="p">(</span>  <a href="#cmGrH_t">cmGrH_t</a> <span class="i">hh</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrPExt_t">cmGrPExt_t</a><span class="p">*</span> <span class="i">pext</span><span class="p">,</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">vext</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>     <a name="cmGrDrawVLine"></a><span class="f">cmGrDrawVLine</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">hh</span><span class="p">,</span> <a href="#cmGrDcH_t">cmGrDcH_t</a> <span class="i">dcH</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">x0</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">y0</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">x1</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">y1</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmGrDrawVRect"></a><span class="f">cmGrDrawVRect</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">hh</span><span class="p">,</span> <a href="#cmGrDcH_t">cmGrDcH_t</a> <span class="i">dcH</span><span class="p">,</span> <a href="#cmGrObjH_t">cmGrObjH_t</a> <span class="i">oh</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">x</span><span class="p">,</span>  <a href="#cmGrV_t">cmGrV_t</a> <span class="i">y</span><span class="p">,</span>  <a href="#cmGrV_t">cmGrV_t</a> <span class="i">w</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr2"></span> 
+<span class="c">// Callback identifiers</span>
+<span class="k">typedef</span> <span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kCreateCbGrId"></a><span class="e">kCreateCbGrId</span><span class="p">,</span>
+  <a name="kDestroyCbGrId"></a><span class="e">kDestroyCbGrId</span><span class="p">,</span>
+  <a name="kLocalPtCbGrId"></a><span class="e">kLocalPtCbGrId</span><span class="p">,</span>
+  <a name="kGlobalPtCbGrId"></a><span class="e">kGlobalPtCbGrId</span><span class="p">,</span>
+  <a name="kPhysExtCbGrId"></a><span class="e">kPhysExtCbGrId</span><span class="p">,</span>
+  <a name="kViewExtCbGrId"></a><span class="e">kViewExtCbGrId</span><span class="p">,</span>
+  <a name="kSelectExtCbGrId"></a><span class="e">kSelectExtCbGrId</span><span class="p">,</span>
+  <a name="kFocusCbGrId"></a><span class="e">kFocusCbGrId</span><span class="p">,</span>
+  <a name="kKeyUpCbGrId"></a><span class="e">kKeyUpCbGrId</span><span class="p">,</span>
+  <a name="kKeyDnCbGrId"></a><span class="e">kKeyDnCbGrId</span>
+<span class="p">}</span> <a name="cmGrCbId_t"></a><span class="t">cmGrCbId_t</span><span class="p">;</span>
+
+<span class="c">// Callback function associated with this canvas.</span>
+<span class="k">typedef</span> <span class="k">void</span> <span class="p">(</span><span class="p">*</span><a name="cmGrCbFunc_t"></a><span class="t">cmGrCbFunc_t</span><span class="p">)</span><span class="p">(</span> <span class="k">void</span><span class="p">*</span> <span class="i">arg</span><span class="p">,</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">grH</span><span class="p">,</span> <a href="#cmGrCbId_t">cmGrCbId_t</a> <span class="i">id</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">evtFlags</span><span class="p">,</span> <a href="#cmGrKeyCodeId_t">cmGrKeyCodeId_t</a> <span class="i">keycode</span> <span class="p">)</span><span class="p">;</span> 
+
+<span class="c">// Configuration Flags</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kExpandViewGrFl"></a><span class="e">kExpandViewGrFl</span> <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span>  <span class="c"> // expand the view to show new objects</span>
+  <a name="kSelectHorzGrFl"></a><span class="e">kSelectHorzGrFl</span> <span class="p">=</span> <span class="l">0x02</span><span class="p">,</span>  <span class="c"> // select along x-axis only</span>
+  <a name="kSelectVertGrFl"></a><span class="e">kSelectVertGrFl</span> <span class="p">=</span> <span class="l">0x04</span>   <span class="c"> // select along y-axis only</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// 'wext' is optional. 
+// 'id' is an arbitrary user definable identifier - although it is used
+// as the view index by cmGrPage().</span>
+<a href="#cmGrRC_t">cmGrRC_t</a> <a name="cmGrCreate"></a>cmGrCreate<span class="p">(</span> 
+<a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span>          <span class="i">ctx</span><span class="p">,</span> 
+<a href="#cmGrH_t">cmGrH_t</a><span class="p">*</span>          <span class="i">hp</span><span class="p">,</span> 
+<span class="k">unsigned</span>          <span class="i">id</span><span class="p">,</span> 
+<span class="k">unsigned</span>          <span class="i">cfgFlags</span><span class="p">,</span> 
+<a href="#cmGrCbFunc_t">cmGrCbFunc_t</a>      <span class="i">cbFunc</span><span class="p">,</span>
+<span class="k">void</span><span class="p">*</span>             <span class="i">cbArg</span><span class="p">,</span>  
+<span class="k">const</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">wext</span>  <span class="p">)</span><span class="p">;</span>   <span class="c"> // Optional internal world extents for this object</span>
+
+<span class="c">// Destroy this canvas.</span>
+<a href="#cmGrRC_t">cmGrRC_t</a> <a name="cmGrDestroy"></a><span class="f">cmGrDestroy</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Remove all objects from the root object and restore the canvas to it's default state.</span>
+<a href="#cmGrRC_t">cmGrRC_t</a> <a name="cmGrClear"></a><span class="f">cmGrClear</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Get the root object handle</span>
+<a href="#cmGrObjH_t">cmGrObjH_t</a> <a name="cmGrRootObjH"></a><span class="f">cmGrRootObjH</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Get and set the configuration flags (e.g. <a href="#kExpandViewGrFl">kExpandViewGrFl</a> | <a href="#kSelectHorzGrFl">kSelectHorzGrFl</a> | kSelectVertHorzGrFl )</span>
+<span class="k">unsigned</span> <a name="cmGrCfgFlags"></a><span class="f">cmGrCfgFlags</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmGrSetCfgFlags"></a><span class="f">cmGrSetCfgFlags</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">cfgFlags</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Draw the objects on the canvas.</span>
+<a href="#cmGrRC_t">cmGrRC_t</a> <a name="cmGrDraw"></a><span class="f">cmGrDraw</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrDcH_t">cmGrDcH_t</a> <span class="i">dcH</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// event flags</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kMsDownGrFl"></a><span class="e">kMsDownGrFl</span> <span class="p">=</span> <span class="l">0x0001</span><span class="p">,</span>
+  <a name="kMsUpGrFl"></a><span class="e">kMsUpGrFl</span>   <span class="p">=</span> <span class="l">0x0002</span><span class="p">,</span>
+  <a name="kMsMoveGrFl"></a><span class="e">kMsMoveGrFl</span> <span class="p">=</span> <span class="l">0x0004</span><span class="p">,</span>
+  <a name="kMsWheelGrFl"></a><span class="e">kMsWheelGrFl</span><span class="p">=</span> <span class="l">0x0008</span><span class="p">,</span>
+  <a name="kMsDragGrFl"></a><span class="e">kMsDragGrFl</span> <span class="p">=</span> <span class="l">0x0010</span><span class="p">,</span>
+  <a name="kMsClickGrFl"></a><span class="e">kMsClickGrFl</span><span class="p">=</span> <span class="l">0x0020</span><span class="p">,</span>
+  <a name="kKeyDnGrFl"></a><span class="e">kKeyDnGrFl</span>  <span class="p">=</span> <span class="l">0x0040</span><span class="p">,</span>
+  <a name="kKeyUpGrFl"></a><span class="e">kKeyUpGrFl</span>  <span class="p">=</span> <span class="l">0x0080</span><span class="p">,</span>
+  
+  <a name="kMsEvtMask"></a><span class="e">kMsEvtMask</span>  <span class="p">=</span> <span class="l">0x02f</span><span class="p">,</span>
+  <a name="kEvtMask"></a><span class="e">kEvtMask</span>    <span class="p">=</span> <span class="l">0x00ff</span><span class="p">,</span>
+  
+  <a name="kMsLBtnGrFl"></a><span class="e">kMsLBtnGrFl</span> <span class="p">=</span> <span class="l">0x0100</span><span class="p">,</span>
+  <a name="kMsCBtnGrFl"></a><span class="e">kMsCBtnGrFl</span> <span class="p">=</span> <span class="l">0x0200</span><span class="p">,</span>
+  <a name="kMsRBtnGrFl"></a><span class="e">kMsRBtnGrFl</span> <span class="p">=</span> <span class="l">0x0400</span><span class="p">,</span>
+  
+  <a name="kShiftKeyGrFl"></a><span class="e">kShiftKeyGrFl</span> <span class="p">=</span> <span class="l">0x0800</span><span class="p">,</span>
+  <a name="kAltKeyGrFl"></a><span class="e">kAltKeyGrFl</span>   <span class="p">=</span> <span class="l">0x1000</span><span class="p">,</span>
+  <a name="kCtlKeyGrFl"></a><span class="e">kCtlKeyGrFl</span>   <span class="p">=</span> <span class="l">0x2000</span><span class="p">,</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// Receive a UI event.</span>
+<span class="k">bool</span>     <a name="cmGrEvent"></a><span class="f">cmGrEvent</span><span class="p">(</span>  <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span><span class="p">,</span> <a href="#cmGrKeyCodeId_t">cmGrKeyCodeId_t</a> <span class="i">key</span><span class="p">,</span> <span class="k">int</span> <span class="i">x</span><span class="p">,</span> <span class="k">int</span> <span class="i">y</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return true if 'h' is valid.</span>
+<span class="k">bool</span>     <a name="cmGrIsValid"></a><span class="f">cmGrIsValid</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the user defined 'id' set in <a href="#cmGrCreate">cmGrCreate</a>()</span>
+<span class="k">unsigned</span> <a name="cmGrId"></a><span class="f">cmGrId</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the last mouse location in root object coordinates.</span>
+<span class="k">const</span> <a href="#cmGrVPt_t">cmGrVPt_t</a><span class="p">*</span> <a name="cmGrGlobalPt"></a><span class="f">cmGrGlobalPt</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the last mouse location in coordinates of the object the mouse was over.</span>
+<span class="k">const</span> <a href="#cmGrVPt_t">cmGrVPt_t</a><span class="p">*</span> <a name="cmGrLocalPt"></a><span class="f">cmGrLocalPt</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">// The new view extents must fit inside the world extents.
+// Return true if the view extents actually changed.</span>
+<span class="k">bool</span>     <a name="cmGrSetViewExtents"></a><span class="f">cmGrSetViewExtents</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">hh</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">minx</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">miny</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">maxx</span><span class="p">,</span> <a href="#cmGrV_t">cmGrV_t</a> <span class="i">maxy</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>     <a name="cmGrSetViewExtentsE"></a><span class="f">cmGrSetViewExtentsE</span><span class="p">(</span><a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span>  <span class="k">const</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">ext</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmGrViewExtents"></a><span class="f">cmGrViewExtents</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">exts</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// View Location
+// Return true if the phys extents actually changed.</span>
+<span class="k">bool</span>     <a name="cmGrSetPhysExtents"></a><span class="f">cmGrSetPhysExtents</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">hh</span><span class="p">,</span> <span class="k">int</span> <span class="i">x</span><span class="p">,</span> <span class="k">int</span> <span class="i">y</span><span class="p">,</span> <span class="k">int</span> <span class="i">w</span><span class="p">,</span> <span class="k">int</span> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>     <a name="cmGrSetPhysExtentsE"></a><span class="f">cmGrSetPhysExtentsE</span><span class="p">(</span><a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrPExt_t">cmGrPExt_t</a><span class="p">*</span> <span class="i">ext</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmGrPhysExtents"></a><span class="f">cmGrPhysExtents</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrPExt_t">cmGrPExt_t</a><span class="p">*</span> <span class="i">exts</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return some scroll bar values for this canvas.
+// tot=world pixels, vis=vis pixels, max=max scroll pos  pos=cur scroll pos
+// All return values are optional.</span>
+<span class="k">void</span>      <a name="cmGrScrollExtents"></a><span class="f">cmGrScrollExtents</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrPSz_t">cmGrPSz_t</a><span class="p">*</span> <span class="i">tot</span><span class="p">,</span> <a href="#cmGrPSz_t">cmGrPSz_t</a><span class="p">*</span> <span class="i">vis</span><span class="p">,</span> <a href="#cmGrPSz_t">cmGrPSz_t</a><span class="p">*</span> <span class="i">max</span><span class="p">,</span> <a href="#cmGrPPt_t">cmGrPPt_t</a><span class="p">*</span> <span class="i">pos</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return true if the view location actually changed.</span>
+<span class="k">bool</span>      <a name="cmGrSetScrollH"></a><span class="f">cmGrSetScrollH</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">int</span> <span class="i">x</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">int</span>       <a name="cmGrScrollH"></a><span class="f">cmGrScrollH</span><span class="p">(</span>    <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>      <a name="cmGrSetScrollV"></a><span class="f">cmGrSetScrollV</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">int</span> <span class="i">y</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">int</span>       <a name="cmGrScrollV"></a><span class="f">cmGrScrollV</span><span class="p">(</span>    <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Get the current selection extents.
+// If the selection extents are not valid then the function returns false
+// and sets the return extents to their null state.</span>
+<span class="k">bool</span>      <a name="cmGrSelectExtents"></a><span class="f">cmGrSelectExtents</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrVExt_t">cmGrVExt_t</a><span class="p">*</span> <span class="i">vext</span><span class="p">,</span> <a href="#cmGrPExt_t">cmGrPExt_t</a><span class="p">*</span> <span class="i">pext</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Both pts are optional</span>
+<span class="k">void</span>      <a name="cmGrSetSelectPoints"></a><span class="f">cmGrSetSelectPoints</span><span class="p">(</span><a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrVPt_t">cmGrVPt_t</a><span class="p">*</span> <span class="i">pt0</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGrVPt_t">cmGrVPt_t</a><span class="p">*</span> <span class="i">pt1</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>      <a name="cmGrSelectPoints"></a><span class="f">cmGrSelectPoints</span><span class="p">(</span>   <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrVPt_t">cmGrVPt_t</a><span class="p">*</span> <span class="i">pt0</span><span class="p">,</span> <a href="#cmGrVPt_t">cmGrVPt_t</a><span class="p">*</span> <span class="i">pt1</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">enum</span> <span class="p">{</span> <a name="kZoomInGrFl"></a><span class="e">kZoomInGrFl</span><span class="p">=</span><span class="l">0x01</span><span class="p">,</span> <a name="kXAxisGrFl"></a><span class="e">kXAxisGrFl</span><span class="p">=</span><span class="l">0x02</span><span class="p">,</span> <a name="kYAxisGrFl"></a><span class="e">kYAxisGrFl</span><span class="p">=</span><span class="l">0x04</span><span class="p">,</span> <a name="kSelectGrFl"></a><span class="e">kSelectGrFl</span><span class="p">=</span><span class="l">0x08</span><span class="p">,</span> <a name="kShowAllGrFl"></a><span class="e">kShowAllGrFl</span><span class="p">=</span><span class="l">0x10</span> <span class="p">}</span><span class="p">;</span>
+
+<span class="c">// 1) If <a href="#kSelectGrFl">kSelectGrFl</a> is not set then the center 1/3 of the current view
+// becomes the new view.
+// 2) If <a href="#kSelectGrFl">kSelectGrFl</a> is set then the selection area becomes the view.
+// 3) If <a href="#kSelectGrFl">kSelectGrFl</a> is set but no selection area exists then 
+// option 1) is selected used and using the selection point as center.</span>
+<span class="k">void</span>      <a name="cmGrZoom"></a><span class="f">cmGrZoom</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Synchronize the 'syncGrH'  horz. and/or verical, world,view,select extents to
+// this gr's  extents. Changes to this gr's extents will be automatically
+// applied to 'syncGrH'.
+// If 'syncGrH' was used in a previous call to this function then flags will
+// modify the previously set flags value. 
+// Clear the kHorzSyncFl and kVertSyncFl to disable the synchronization.
+// Set flags to 0 to prevent future sync calls.</span>
+<span class="k">enum</span> <span class="p">{</span> <a name="kWorldSyncGrFl"></a><span class="e">kWorldSyncGrFl</span><span class="p">=</span><span class="l">0x01</span><span class="p">,</span> <a name="kViewSyncGrFl"></a><span class="e">kViewSyncGrFl</span><span class="p">=</span><span class="l">0x02</span><span class="p">,</span> <a name="kSelectSyncGrFl"></a><span class="e">kSelectSyncGrFl</span><span class="p">=</span><span class="l">0x04</span><span class="p">,</span> <a name="kHorzSyncGrFl"></a><span class="e">kHorzSyncGrFl</span><span class="p">=</span><span class="l">0x08</span><span class="p">,</span> <a name="kVertSyncGrFl"></a><span class="e">kVertSyncGrFl</span><span class="p">=</span><span class="l">0x10</span> <span class="p">}</span><span class="p">;</span>
+<span class="k">void</span> <a name="cmGrSetSync"></a><span class="f">cmGrSetSync</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">syncGrH</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="k">void</span>     <a name="cmGrReport"></a><span class="f">cmGrReport</span><span class="p">(</span> <a href="#cmGrH_t">cmGrH_t</a> <span class="i">h</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

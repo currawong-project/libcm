@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmDevCfg.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmDevCfg.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmDevCfg : A class for managing persistent device configuration information.</div><pre><a name="cmDevCfg_h_code_0"></a>
+<span class="c">//
+//    IMPLEMENTATION:
+//    1) A 'cfg' record is a device reference with a 'cfg label'.
+//       There are three kinds of cfg records MIDI,Audio,Net.
+//       The device record identifies a particlar device
+//       end-point or pre-configured setup.  The 'cfg label'
+//       associated with this setup allows an application
+//       to refer to the setup by name.  This relieves the
+//       application from having to handle the details of
+//       forming, storing, and maintaining device configurations.
+//
+//    2) A 'map' record is a record which links an 
+//       application and reference id to a cfg record.
+//
+//       The goal of this is to allow applications to refer to
+//       pre-configured device setups by name and then to 
+//       associate a numeric id with this setup. 
+//       The application can then send data to the device using
+//       only the numeric id. Likewise data arriving from the
+//       device to the application is tagged with 
+//       id of the of the device.
+//
+//    NOTES:
+//    1) usrAppId's must be unique among all app.s'.
+//    2) usrDevId's must be unique among all usrDevId's for particular app.
+//       In other words the same 'usrDevId' may not be used by devices
+//       of different types.
+//    3) The usrAppId's and usrDevIds' are used internally as index
+//       locations. They should therefore be low numbers and 
+//       densely packed.
+//</span>
+<span class="c">//   </span>
+
+
+<span class="k">struct</span> <span class="i"><a href="cmRtSys_h_0.html#cmRtSysArgs_str">cmRtSysArgs_str</a></span><span class="p">;</span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkDcRC"></a><span class="e">kOkDcRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kLHeapFailDcRC"></a><span class="e">kLHeapFailDcRC</span><span class="p">,</span>
+  <a name="kLabelNotFoundDcRC"></a><span class="e">kLabelNotFoundDcRC</span><span class="p">,</span>
+  <a name="kDuplLabelDcRC"></a><span class="e">kDuplLabelDcRC</span><span class="p">,</span>
+  <a name="kBlankLabelDcRC"></a><span class="e">kBlankLabelDcRC</span><span class="p">,</span>
+  <a name="kInvalidUserAppIdRC"></a><span class="e">kInvalidUserAppIdRC</span><span class="p">,</span>
+  <a name="kInvalidUserMapIdRC"></a><span class="e">kInvalidUserMapIdRC</span><span class="p">,</span>
+  <a name="kInvalidArgDcRC"></a><span class="e">kInvalidArgDcRC</span><span class="p">,</span>
+  <a name="kInvalidCfgIdxDcRC"></a><span class="e">kInvalidCfgIdxDcRC</span><span class="p">,</span>
+  <a name="kJsonFailDcRC"></a><span class="e">kJsonFailDcRC</span><span class="p">,</span>
+  <a name="kInvalidFnDcRC"></a><span class="e">kInvalidFnDcRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kInvalidDcmTId"></a><span class="e">kInvalidDcmTId</span><span class="p">,</span> <span class="c"> // <a href="#kInvalidDcmTId">kInvalidDcmTId</a> must be zero</span>
+  <a name="kMidiDcmTId"></a><span class="e">kMidiDcmTId</span><span class="p">,</span>
+  <a name="kAudioDcmTId"></a><span class="e">kAudioDcmTId</span><span class="p">,</span>
+  <span class="c">//kNetDcmTId</span>
+<span class="p">}</span> <a name="cmTypeDcmId_t"></a><span class="t">cmTypeDcmId_t</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmDcRC_t"></a><span class="t">cmDcRC_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmDevCfgH_t"></a><span class="t">cmDevCfgH_t</span><span class="p">;</span>
+
+<a name="cmDcmMidi_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">label</span><span class="p">;</span>    <span class="c"> // cfg label</span>
+  <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmDcmMidi_t.devLabelStr"></a><span class="i">devLabelStr</span><span class="p">;</span>    <span class="c"> // Midi device label.</span>
+  <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmDcmMidi_t.portLabelStr"></a><span class="i">portLabelStr</span><span class="p">;</span>   <span class="c"> // Midi device port label.</span>
+  <span class="k">bool</span>      <a name="cmDcmMidi_t.inputFl"></a><span class="i">inputFl</span><span class="p">;</span>        <span class="c"> // 'True' if this is an input port.</span>
+  <span class="k">unsigned</span>  <a name="cmDcmMidi_t.devIdx"></a><span class="i">devIdx</span><span class="p">;</span>         <span class="c"> // Midi device index.</span>
+  <span class="k">unsigned</span>  <a name="cmDcmMidi_t.portIdx"></a><span class="i">portIdx</span><span class="p">;</span>        <span class="c"> // Midi port index.</span>
+<span class="p">}</span> <span class="t"><a href="#cmDcmMidi_t">cmDcmMidi_t</a></span><span class="p">;</span>
+
+<a name="cmDcmAudio_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">label</span><span class="p">;</span>          <span class="c"> // cfg label</span>
+  <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>       <a name="cmDcmAudio_t.inDevLabelStr"></a><span class="i">inDevLabelStr</span><span class="p">;</span>  <span class="c"> // Input audio device label.</span>
+  <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>       <a name="cmDcmAudio_t.outDevLabelStr"></a><span class="i">outDevLabelStr</span><span class="p">;</span> <span class="c"> // Output audio device label.</span>
+  <a href="cmRtSys_h_0.html#cmRtSysArgs_t">cmRtSysArgs_t</a>   <a name="cmDcmAudio_t.rtSysArgs"></a><span class="i">rtSysArgs</span><span class="p">;</span>      <span class="c"> // RT system cfg recd</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmDcmAudio_t.netNodeLabel"></a><span class="i">netNodeLabel</span><span class="p">;</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmDcmAudio_t.bcastAddr"></a><span class="i">bcastAddr</span><span class="p">;</span>      <span class="c"> // network broadcast address</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmDcmAudio_t.ipAddr"></a><span class="i">ipAddr</span><span class="p">;</span>         <span class="c"> // local network addr or NULL for localhost</span>
+  <a href="cmUdpPort_h_0.html#cmUdpPort_t">cmUdpPort_t</a>     <a name="cmDcmAudio_t.ipPort"></a><span class="i">ipPort</span><span class="p">;</span>         <span class="c"> // local network port</span>
+  <span class="k">bool</span>            <a name="cmDcmAudio_t.activeFl"></a><span class="i">activeFl</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmDcmAudio_t">cmDcmAudio_t</a></span><span class="p">;</span>
+
+<span class="c">//
+//typedef struct              
+//{
+//  const <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a>* label;      // cfg label
+//  <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a>*       sockAddr;   // socket address.
+//  unsigned        portNumber; // socket port number
+//  bool            activeFl;   // this port is active/inactive
+//} cmDcmNet_t;
+//</span>
+<span class="c">//  </span>
+
+<span class="k">extern</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">cmDevCfgNullHandle</span><span class="p">;</span>
+
+<a href="#cmDcRC_t">cmDcRC_t</a> <a name="cmDevCfgAlloc"></a><span class="f">cmDevCfgAlloc</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmDcRC_t">cmDcRC_t</a> <a name="cmDevCfgFree"></a><span class="f">cmDevCfgFree</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>     <a name="cmDevCfgIsValid"></a><span class="f">cmDevCfgIsValid</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the count of cfg records for the given type in the current location.</span>
+<span class="k">unsigned</span> <a name="cmDevCfgCount"></a><span class="f">cmDevCfgCount</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTypeDcmId_t">cmTypeDcmId_t</a> <span class="i">typeId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the label for a each cfg record of a given type in the current location.</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmDevCfgLabel"></a><span class="f">cmDevCfgLabel</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTypeDcmId_t">cmTypeDcmId_t</a> <span class="i">typeId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">index</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the description for a give cfg. record.</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmDevCfgDesc"></a><span class="f">cmDevCfgDesc</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTypeDcmId_t">cmTypeDcmId_t</a> <span class="i">typeId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">index</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the cfg index assoc'd with a given label in the current location.</span>
+<span class="k">unsigned</span> <a name="cmDevCfgLabelToIndex"></a><span class="f">cmDevCfgLabelToIndex</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTypeDcmId_t">cmTypeDcmId_t</a> <span class="i">typeId</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">label</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Delete a cfg record created by <a href="#cmDevCfgNameMidiPort">cmDevCfgNameMidiPort</a>(), <a href="#cmDevCfgNameAudioPort">cmDevCfgNameAudioPort</a>(), etc.</span>
+<a href="#cmDcRC_t">cmDcRC_t</a> <a name="cmDevCfgDeleteCfg"></a><span class="f">cmDevCfgDeleteCfg</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTypeDcmId_t">cmTypeDcmId_t</a> <span class="i">typeId</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">dcLabelStr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Create a map record to associate a app/dev id with a cfg. record.
+// Note that multiple app/dev id's may be assoc'd with the same cfg. record.</span>
+<a href="#cmDcRC_t">cmDcRC_t</a> <a name="cmDevCfgCreateMap"></a><span class="f">cmDevCfgCreateMap</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTypeDcmId_t">cmTypeDcmId_t</a> <span class="i">typeId</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">dcLabelStr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">usrAppId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">usrMapId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Delete a map record created by <a href="#cmDevCfgCreateMap">cmDevCfgCreateMap</a>().</span>
+<a href="#cmDcRC_t">cmDcRC_t</a> <a name="cmDevCfgDeleteMap"></a><span class="f">cmDevCfgDeleteMap</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTypeDcmId_t">cmTypeDcmId_t</a> <span class="i">typeId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">usrAppId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">usrMapId</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">// Create a MIDI cfg. record.</span>
+<a href="#cmDcRC_t">cmDcRC_t</a> <a name="cmDevCfgNameMidiPort"></a>cmDevCfgNameMidiPort<span class="p">(</span> 
+<a href="#cmDevCfgH_t">cmDevCfgH_t</a>     <span class="i">h</span><span class="p">,</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">dcLabelStr</span><span class="p">,</span> 
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">devNameStr</span><span class="p">,</span> 
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">portNameStr</span><span class="p">,</span> 
+<span class="k">bool</span>            <span class="i">inputFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">const</span> <a href="#cmDcmMidi_t">cmDcmMidi_t</a><span class="p">*</span> <a name="cmDevCfgMidiCfg"></a><span class="f">cmDevCfgMidiCfg</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">cfgIdx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <a href="#cmDcmMidi_t">cmDcmMidi_t</a><span class="p">*</span> <a name="cmDevCfgMidiMap"></a><span class="f">cmDevCfgMidiMap</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">usrAppId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">usrMapId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">const</span> <a href="#cmDcmMidi_t">cmDcmMidi_t</a><span class="p">*</span> <a name="cmDevCfgMidiCfgFromLabel"></a><span class="f">cmDevCfgMidiCfgFromLabel</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">cfgLabel</span> <span class="p">)</span><span class="p">;</span>
+
+
+<a href="#cmDcRC_t">cmDcRC_t</a> <a name="cmDevCfgNameAudioPort"></a>cmDevCfgNameAudioPort<span class="p">(</span> 
+<a href="#cmDevCfgH_t">cmDevCfgH_t</a>     <span class="i">h</span><span class="p">,</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">dcLabelStr</span><span class="p">,</span> 
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">inDevNameStr</span><span class="p">,</span> 
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">outDevNameStr</span><span class="p">,</span>
+<span class="k">bool</span>            <span class="i">syncInputFl</span><span class="p">,</span>
+<span class="k">unsigned</span>        <span class="i">msgQueueByteCnt</span><span class="p">,</span>
+<span class="k">unsigned</span>        <span class="i">devFramesPerCycle</span><span class="p">,</span>
+<span class="k">unsigned</span>        <span class="i">dspFramesPerCycle</span><span class="p">,</span>
+<span class="k">unsigned</span>        <span class="i">audioBufCnt</span><span class="p">,</span>
+<span class="k">double</span>          <span class="i">srate</span><span class="p">,</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">netNodeLabel</span><span class="p">,</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">bcastAddr</span><span class="p">,</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">ipAddr</span><span class="p">,</span>
+<a href="cmUdpPort_h_0.html#cmUdpPort_t">cmUdpPort_t</a>     <span class="i">ipPort</span><span class="p">,</span>
+<span class="k">bool</span>            <span class="i">activeFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>                <a name="cmDevCfgAudioIsDeviceActive"></a><span class="f">cmDevCfgAudioIsDeviceActive</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">devNameStr</span><span class="p">,</span> <span class="k">bool</span> <span class="i">inputFl</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>            <a name="cmDevCfgAudioActiveCount"></a><span class="f">cmDevCfgAudioActiveCount</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>     <a name="cmDevCfgAudioActiveLabel"></a><span class="f">cmDevCfgAudioActiveLabel</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">idx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <a href="#cmDcmAudio_t">cmDcmAudio_t</a><span class="p">*</span> <a name="cmDevCfgAudioActiveCfg"></a><span class="f">cmDevCfgAudioActiveCfg</span><span class="p">(</span>   <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">idx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>            <a name="cmDevCfgAudioActiveIndex"></a><span class="f">cmDevCfgAudioActiveIndex</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">cfgLabel</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">const</span> <a href="#cmDcmAudio_t">cmDcmAudio_t</a><span class="p">*</span> <a name="cmDevCfgAudioCfg"></a><span class="f">cmDevCfgAudioCfg</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">cfgIdx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <a href="#cmDcmAudio_t">cmDcmAudio_t</a><span class="p">*</span> <a name="cmDevCfgAudioMap"></a><span class="f">cmDevCfgAudioMap</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">usrAppId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">usrMapId</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="k">const</span> <span class="k">struct</span> <a href="cmRtSys_h_0.html#cmRtSysArgs_str">cmRtSysArgs_str</a><span class="p">*</span> <a name="cmDevCfgRtSysArgs"></a><span class="f">cmDevCfgRtSysArgs</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">usrAppId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">usrMapId</span> <span class="p">)</span><span class="p">;</span>
+<span class="c">//
+//  <a href="#cmDcRC_t">cmDcRC_t</a> cmDevCfgNameNetPort(
+//    <a href="#cmDevCfgH_t">cmDevCfgH_t</a>      h,
+//    const <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a>* dcLabelStr,
+//    const <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a>* sockAddr,
+//    unsigned        portNumber,
+//    bool            activeFl);
+//
+//  unsigned          cmDevCfgNetActiveCount( <a href="#cmDevCfgH_t">cmDevCfgH_t</a> h );
+//  const cmDcmNet_t* cmDevCfgNetActiveCfg( <a href="#cmDevCfgH_t">cmDevCfgH_t</a> h, unsigned idx );
+//
+//  const cmDcmNet_t* cmDevCfgNetCfg( <a href="#cmDevCfgH_t">cmDevCfgH_t</a> h, unsigned cfgIdx );
+//  const cmDcmNet_t* cmDevCfgNetMap( <a href="#cmDevCfgH_t">cmDevCfgH_t</a> h, unsigned usrAppId, unsigned usrMapId );
+//</span>
+<span class="c">//  </span>
+
+<span class="c"><hr id="hr1">// Location Management Functions:
+// Store and recall groups of cfg records.</span> 
+<span class="c">// Return a count of the current number of locations.</span>
+<span class="k">unsigned</span>        <a name="cmDevCfgLocCount"></a><span class="f">cmDevCfgLocCount</span><span class="p">(</span>  <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Given a location index (0 to <a href="#cmDevCfgLocCount">cmDevCfgLocCount</a>()-1) return the locations label.</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmDevCfgLocLabel"></a><span class="f">cmDevCfgLocLabel</span><span class="p">(</span>  <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">locIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// If 'locLabelStr' has already been used then this function does nothing and returns.
+// otherwise the current location is duplicated and the duplicate is named 'locLabelStr'.</span>
+<a href="#cmDcRC_t">cmDcRC_t</a>        <a name="cmDevCfgLocStore"></a><span class="f">cmDevCfgLocStore</span><span class="p">(</span>  <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">locLabelStr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Make the location named 'locLabelStr' the current location.</span>
+<a href="#cmDcRC_t">cmDcRC_t</a>        <a name="cmDevCfgLocRecall"></a><span class="f">cmDevCfgLocRecall</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">locLabelStr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Delete the location named by 'locLabelStr'.</span>
+<a href="#cmDcRC_t">cmDcRC_t</a>        <a name="cmDevCfgLocDelete"></a><span class="f">cmDevCfgLocDelete</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">locLabelStr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the current location index</span>
+<span class="k">unsigned</span>        <a name="cmDevCfgLocCurIndex"></a><span class="f">cmDevCfgLocCurIndex</span><span class="p">(</span>  <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Set 'fn' to NULL to use filename from <a href="#cmDevCfgAlloc">cmDevCfgAlloc</a>()</span>
+<a href="#cmDcRC_t">cmDcRC_t</a> <a name="cmDevCfgWrite"></a><span class="f">cmDevCfgWrite</span><span class="p">(</span> <a href="#cmDevCfgH_t">cmDevCfgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

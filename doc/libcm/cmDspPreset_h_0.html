@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmDspPreset.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmDspPreset.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmDspPreset : 'snap' unit state store/recall implementation.</div><pre><a name="cmDspPreset_h_code_0"></a>
+<a name="_cmDspPresetVar_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="_cmDspPreVar_str"></a>_cmDspPreVar_str
+<span class="p">{</span>
+  <span class="k">unsigned</span>                 <a name="_cmDspPresetVar_t.symId"></a><span class="i">symId</span><span class="p">;</span>
+  <a href="cmDspValue_h_0.html#cmDspValue_t">cmDspValue_t</a>             <a name="_cmDspPresetVar_t.value"></a><span class="i">value</span><span class="p">;</span>
+  <span class="k">struct</span> <a href="#_cmDspPreVar_str">_cmDspPreVar_str</a><span class="p">*</span> <a name="_cmDspPresetVar_t.link"></a><span class="i">link</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#_cmDspPresetVar_t">_cmDspPresetVar_t</a></span><span class="p">;</span>
+
+<a name="_cmDspPresetInst_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="_cmDspPresetInst_str"></a>_cmDspPresetInst_str
+<span class="p">{</span>
+  <span class="k">unsigned</span>                     <a name="_cmDspPresetInst_t.symId"></a><span class="i">symId</span><span class="p">;</span>
+  <span class="k">struct</span> <a href="#_cmDspPresetInst_str">_cmDspPresetInst_str</a><span class="p">*</span> <a name="_cmDspPresetInst_t.link"></a><span class="i">link</span><span class="p">;</span>
+  <a href="#_cmDspPresetVar_t">_cmDspPresetVar_t</a><span class="p">*</span>           <a name="_cmDspPresetInst_t.list"></a><span class="i">list</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#_cmDspPresetInst_t">_cmDspPresetInst_t</a></span><span class="p">;</span>
+
+<a name="_cmDspPresetPre_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="_cmDspPresetPre_str"></a>_cmDspPresetPre_str
+<span class="p">{</span>
+  <span class="k">unsigned</span>                    <a name="_cmDspPresetPre_t.symId"></a><span class="i">symId</span><span class="p">;</span>
+  <span class="k">struct</span> <a href="#_cmDspPresetPre_str">_cmDspPresetPre_str</a><span class="p">*</span> <a name="_cmDspPresetPre_t.link"></a><span class="i">link</span><span class="p">;</span>
+  <a href="#_cmDspPresetInst_t">_cmDspPresetInst_t</a><span class="p">*</span>         <a name="_cmDspPresetPre_t.list"></a><span class="i">list</span><span class="p">;</span>
+  <a href="#_cmDspPresetInst_t">_cmDspPresetInst_t</a><span class="p">*</span>         <a name="_cmDspPresetPre_t.ip"></a><span class="i">ip</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#_cmDspPresetPre_t">_cmDspPresetPre_t</a></span><span class="p">;</span>
+
+<a name="_cmDspPresetGrp_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="_cmDspPresetGrp_str"></a>_cmDspPresetGrp_str
+<span class="p">{</span>
+  <span class="k">unsigned</span>                    <a name="_cmDspPresetGrp_t.symId"></a><span class="i">symId</span><span class="p">;</span>
+  <span class="k">struct</span> <a href="#_cmDspPresetGrp_str">_cmDspPresetGrp_str</a><span class="p">*</span> <a name="_cmDspPresetGrp_t.link"></a><span class="i">link</span><span class="p">;</span>
+  <a href="#_cmDspPresetPre_t">_cmDspPresetPre_t</a><span class="p">*</span>          <a name="_cmDspPresetGrp_t.list"></a><span class="i">list</span><span class="p">;</span>
+  <a href="#_cmDspPresetPre_t">_cmDspPresetPre_t</a><span class="p">*</span>          <a name="_cmDspPresetGrp_t.pp"></a><span class="i">pp</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#_cmDspPresetGrp_t">_cmDspPresetGrp_t</a></span><span class="p">;</span>
+
+<a name="cmDspPresetMgr_t"></a><span class="k">typedef</span> <span class="k">struct</span> 
+<span class="p">{</span>
+  <a href="cmErr_h_0.html#cmErr_t">cmErr_t</a><span class="p">*</span>           <a name="cmDspPresetMgr_t.err"></a><span class="i">err</span><span class="p">;</span>
+  <a href="cmLinkedHeap_h_0.html#cmLHeapH_t">cmLHeapH_t</a>         <a name="cmDspPresetMgr_t.lhH"></a><span class="i">lhH</span><span class="p">;</span>
+  <a href="cmSymTbl_h_0.html#cmSymTblH_t">cmSymTblH_t</a>        <a name="cmDspPresetMgr_t.stH"></a><span class="i">stH</span><span class="p">;</span>    
+  <a href="#_cmDspPresetGrp_t">_cmDspPresetGrp_t</a><span class="p">*</span> <a name="cmDspPresetMgr_t.list"></a><span class="i">list</span><span class="p">;</span>
+  <a href="#_cmDspPresetGrp_t">_cmDspPresetGrp_t</a><span class="p">*</span> <a name="cmDspPresetMgr_t.gp"></a><span class="i">gp</span><span class="p">;</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>    <a name="cmDspPresetMgr_t.dfltPathJsFn"></a><span class="i">dfltPathJsFn</span><span class="p">;</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>    <a name="cmDspPresetMgr_t.dfltPathCsvFn"></a><span class="i">dfltPathCsvFn</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a></span><span class="p">;</span>
+
+<span class="k">void</span>      <a name="_cmDspPresetAlloc"></a><span class="f">_cmDspPresetAlloc</span><span class="p">(</span>  <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="_cmDspPresetLoad"></a><span class="f">_cmDspPresetLoad</span><span class="p">(</span>   <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="cmErr_h_0.html#cmErr_t">cmErr_t</a><span class="p">*</span> <span class="i">err</span><span class="p">,</span> <a href="cmLinkedHeap_h_0.html#cmLHeapH_t">cmLHeapH_t</a> <span class="i">lhH</span><span class="p">,</span> <a href="cmSymTbl_h_0.html#cmSymTblH_t">cmSymTblH_t</a> <span class="i">stH</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fnPrefixStr</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="_cmDspPresetUnload"></a><span class="f">_cmDspPresetUnload</span><span class="p">(</span> <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="_cmDspPresetRead"></a><span class="f">_cmDspPresetRead</span><span class="p">(</span>     <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="_cmDspPresetWrite"></a><span class="f">_cmDspPresetWrite</span><span class="p">(</span>    <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="_cmDspPresetWriteCsv"></a><span class="f">_cmDspPresetWriteCsv</span><span class="p">(</span> <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>        <a name="_cmDspPresetGroupCount"></a><span class="f">_cmDspPresetGroupCount</span><span class="p">(</span> <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>        <a name="_cmDspPresetGroupSymId"></a><span class="f">_cmDspPresetGroupSymId</span><span class="p">(</span> <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">groupIdx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="_cmDspPresetGroupLabel"></a><span class="f">_cmDspPresetGroupLabel</span><span class="p">(</span> <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">groupIdx</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a>       <a name="_cmDspPresetGroupJsonList"></a><span class="f">_cmDspPresetGroupJsonList</span><span class="p">(</span>  <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmJson_h_0.html#cmJsonH_t">cmJsonH_t</a><span class="p">*</span> <span class="i">jsHPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>        <a name="_cmDspPresetPresetCount"></a><span class="f">_cmDspPresetPresetCount</span><span class="p">(</span> <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">groupIdx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>        <a name="_cmDspPresetPresetSymId"></a><span class="f">_cmDspPresetPresetSymId</span><span class="p">(</span> <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">groupIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">presetIdx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="_cmDspPresetPresetLabel"></a><span class="f">_cmDspPresetPresetLabel</span><span class="p">(</span> <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">groupIdx</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">presetIdx</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a>       <a name="_cmDspPresetPresetJsonList"></a><span class="f">_cmDspPresetPresetJsonList</span><span class="p">(</span> <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmJson_h_0.html#cmJsonH_t">cmJsonH_t</a><span class="p">*</span> <span class="i">jsHPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">groupSymId</span> <span class="p">)</span><span class="p">;</span>    
+
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="_cmDspPresetCreatePreset"></a><span class="f">_cmDspPresetCreatePreset</span><span class="p">(</span>    <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">groupLabel</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">presetLabel</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="_cmDspPresetCreateInstance"></a><span class="f">_cmDspPresetCreateInstance</span><span class="p">(</span>  <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">instSymId</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="_cmDspPresetCreateVar"></a><span class="f">_cmDspPresetCreateVar</span><span class="p">(</span>       <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">varSymId</span><span class="p">,</span> <span class="k">const</span> <a href="cmDspValue_h_0.html#cmDspValue_t">cmDspValue_t</a><span class="p">*</span> <span class="i">valPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="_cmDspPresetRecallPreset"></a><span class="f">_cmDspPresetRecallPreset</span><span class="p">(</span>    <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">groupLabel</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">presetLabel</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="_cmDspPresetRecallInstance"></a><span class="f">_cmDspPresetRecallInstance</span><span class="p">(</span>  <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">instSymId</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="_cmDspPresetRecallVar"></a><span class="f">_cmDspPresetRecallVar</span><span class="p">(</span>       <a href="#cmDspPresetMgr_t">cmDspPresetMgr_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">varSymId</span><span class="p">,</span> <a href="cmDspValue_h_0.html#cmDspValue_t">cmDspValue_t</a><span class="p">*</span> <span class="i">valPtr</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

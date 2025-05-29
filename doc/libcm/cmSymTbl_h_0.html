@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmSymTbl.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmSymTbl.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmSymTbl : Symbol table object.</div><pre><a name="cmSymTbl_h_code_0"></a>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmSymTblH_t"></a><span class="t">cmSymTblH_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmSymTblH_t">cmSymTblH_t</a> <span class="i">cmSymTblNullHandle</span><span class="p">;</span>
+
+<span class="c">// Create a new symbol table. 
+// 'parentH' is a parent table embedded in this table and is optional. Set this
+// value to 'cmSymTblNullHandle'. if the table does not have a parent.
+//
+// All symbol searches will include this table however all symbols registered with 
+// this table will be inserted in this table not the parent. 
+//
+// 'baseSymId' is the minimum symbol id used by this table and will be returned
+// as the value of the first symbol registered with this table. Subsequent symbols
+// will increment this value. Internal assertions prevent the symbol id range
+// of this table from overlapping with its parent. </span>
+<a href="#cmSymTblH_t">cmSymTblH_t</a> <a name="cmSymTblCreate"></a><span class="f">cmSymTblCreate</span><span class="p">(</span>  <a href="#cmSymTblH_t">cmSymTblH_t</a> <span class="i">parentH</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">baseSymId</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Destroy and release the resources associated with a symbol table created by
+// an earlier call to <a href="#cmSymTblCreate">cmSymTblCreate</a>().</span>
+<span class="k">void</span>        <a name="cmSymTblDestroy"></a><span class="f">cmSymTblDestroy</span><span class="p">(</span>  <a href="#cmSymTblH_t">cmSymTblH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Register a symbol label. Set 'staticFl' to true if the label is allocated statically.</span>
+<span class="k">unsigned</span>    <a name="cmSymTblRegister"></a><span class="f">cmSymTblRegister</span><span class="p">(</span> <a href="#cmSymTblH_t">cmSymTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">label</span><span class="p">,</span> <span class="k">bool</span> <span class="i">staticFl</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>    <a name="cmSymTblRegisterSymbol"></a><span class="f">cmSymTblRegisterSymbol</span><span class="p">(</span> <a href="#cmSymTblH_t">cmSymTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">label</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>    <a name="cmSymTblRegisterStaticSymbol"></a><span class="f">cmSymTblRegisterStaticSymbol</span><span class="p">(</span> <a href="#cmSymTblH_t">cmSymTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">label</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>    <a name="cmSymTblRegisterVFmt"></a><span class="f">cmSymTblRegisterVFmt</span><span class="p">(</span> <a href="#cmSymTblH_t">cmSymTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fmt</span><span class="p">,</span> va_list <span class="i">vl</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>    <a name="cmSymTblRegisterFmt"></a><span class="f">cmSymTblRegisterFmt</span><span class="p">(</span> <a href="#cmSymTblH_t">cmSymTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fmt</span><span class="p">,</span> <span class="i">...</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>        <a name="cmSymTblRemove"></a><span class="f">cmSymTblRemove</span><span class="p">(</span>    <a href="#cmSymTblH_t">cmSymTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">symId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Given a symbol id return the associated label.</span>
+<span class="k">const</span> <span class="k">char</span><span class="p">*</span> <a name="cmSymTblLabel"></a><span class="f">cmSymTblLabel</span><span class="p">(</span>     <a href="#cmSymTblH_t">cmSymTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span>    <span class="i">symId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Given a symbol label return the associated id or <a href="cmGlobal_h_0.html#cmInvalidId">cmInvalidId</a> if the symbol could not be found.</span>
+<span class="k">unsigned</span>    <a name="cmSymTblId"></a><span class="f">cmSymTblId</span><span class="p">(</span>        <a href="#cmSymTblH_t">cmSymTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">label</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Returns true if the symbol table handle is not valid otherwise returns false.</span>
+<span class="k">bool</span>        <a name="cmSymTblIsValid"></a><span class="f">cmSymTblIsValid</span><span class="p">(</span>   <a href="#cmSymTblH_t">cmSymTblH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Returns true if 'symId' is stored in this symbol table or its parent otherwise returns false.</span>
+<span class="k">bool</span>        <a name="cmSymTblIsValidId"></a><span class="f">cmSymTblIsValidId</span><span class="p">(</span> <a href="#cmSymTblH_t">cmSymTblH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">symId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// <a href="cmVectOpsDocOut_h_0.html#Print">Print</a> thes symbol table (but not its parent).</span>
+<span class="k">void</span>        <a name="cmSymTblReport"></a><span class="f">cmSymTblReport</span><span class="p">(</span>    <a href="#cmSymTblH_t">cmSymTblH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Symbol table test stub.</span>
+<span class="k">void</span>        <a name="cmSymTblTest"></a><span class="f"><a href="cmSymTbl_c_0.html#cmSymTblTest_defn">cmSymTblTest</a></span><span class="p">(</span><a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

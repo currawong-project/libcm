@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmTimeLine.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmTimeLine.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmTimeLine : Manage, save, and restore a time-line containing  MIDI files, Audio files, Audio events, and arbitrary markers .</div><pre><a name="cmTimeLine_h_code_0"></a>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmTlH_t"></a><span class="t">cmTlH_t</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a> <a name="cmTlRC_t"></a><span class="t">cmTlRC_t</span><span class="p">;</span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkTlRC"></a><span class="e">kOkTlRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kLHeapFailTlRC"></a><span class="e">kLHeapFailTlRC</span><span class="p">,</span>
+  <a name="kParseFailTlRC"></a><span class="e">kParseFailTlRC</span><span class="p">,</span>
+  <a name="kJsonFailTlRC"></a><span class="e">kJsonFailTlRC</span><span class="p">,</span>
+  <a name="kDuplNameTlRC"></a><span class="e">kDuplNameTlRC</span><span class="p">,</span>
+  <a name="kRefNotFoundTlRC"></a><span class="e">kRefNotFoundTlRC</span><span class="p">,</span>
+  <a name="kAudioFileFailTlRC"></a><span class="e">kAudioFileFailTlRC</span><span class="p">,</span>
+  <a name="kMidiFileFailTlRC"></a><span class="e">kMidiFileFailTlRC</span><span class="p">,</span>
+  <a name="kTypeCvtFailTlRC"></a><span class="e">kTypeCvtFailTlRC</span><span class="p">,</span>
+  <a name="kUnknownRecdTypeTlRC"></a><span class="e">kUnknownRecdTypeTlRC</span><span class="p">,</span>
+  <a name="kFinalizeFailTlRC"></a><span class="e">kFinalizeFailTlRC</span><span class="p">,</span>
+  <a name="kInvalidSeqIdTlRC"></a><span class="e">kInvalidSeqIdTlRC</span><span class="p">,</span>
+  <a name="kOnsetFailTlRC"></a><span class="e">kOnsetFailTlRC</span><span class="p">,</span>
+  <a name="kAssertFailTlRC"></a><span class="e">kAssertFailTlRC</span><span class="p">,</span>
+  <a name="kRptFileFailTlRC"></a><span class="e">kRptFileFailTlRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kMidiFileTlId"></a><span class="e">kMidiFileTlId</span>  <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span>
+  <a name="kMidiEvtTlId"></a><span class="e">kMidiEvtTlId</span>   <span class="p">=</span> <span class="l">0x02</span><span class="p">,</span>
+  <a name="kAudioFileTlId"></a><span class="e">kAudioFileTlId</span> <span class="p">=</span> <span class="l">0x03</span><span class="p">,</span>
+  <a name="kAudioEvtTlId"></a><span class="e">kAudioEvtTlId</span>  <span class="p">=</span> <span class="l">0x04</span><span class="p">,</span>
+  <a name="kMarkerTlId"></a><span class="e">kMarkerTlId</span>    <span class="p">=</span> <span class="l">0x05</span>
+<span class="p">}</span> <a name="cmTlObjTypeId_t"></a><span class="t">cmTlObjTypeId_t</span><span class="p">;</span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kReservedTlFl"></a><span class="e">kReservedTlFl</span> <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span>
+  <a name="kNoWriteTlFl"></a><span class="e">kNoWriteTlFl</span>  <span class="p">=</span> <span class="l">0x02</span>  <span class="c"> // do not write this object in <a href="#cmTimeLineWrite">cmTimeLineWrite</a>()</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// marker types</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kAudioMarkTlId"></a><span class="e">kAudioMarkTlId</span><span class="p">,</span>
+  <a name="kAudioOnsetMarkTlId"></a><span class="e">kAudioOnsetMarkTlId</span><span class="p">,</span>
+  <a name="kMidiOnsetMarkTlId"></a><span class="e">kMidiOnsetMarkTlId</span>
+<span class="p">}</span><span class="p">;</span> 
+
+<span class="k">typedef</span> <span class="k">void</span> <span class="p">(</span><span class="p">*</span><a name="cmTlCb_t"></a><span class="t">cmTlCb_t</span><span class="p">)</span><span class="p">(</span> <span class="k">void</span><span class="p">*</span> <span class="i">arg</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">data</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<a name="cmTlObj_t"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmTlObj_str"></a>cmTlObj_str
+<span class="p">{</span>
+  <span class="k">void</span><span class="p">*</span>               <a name="cmTlObj_t.reserved"></a><span class="i">reserved</span><span class="p">;</span>    <span class="c"> // pt's to _cmTlObj_t </span>
+  <span class="k">unsigned</span>            <a name="cmTlObj_t.seqId"></a><span class="i">seqId</span><span class="p">;</span>       <span class="c"> // sequence this object is assigned to</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>     <a name="cmTlObj_t.name"></a><span class="i">name</span><span class="p">;</span>        <span class="c"> // text name of this object</span>
+  <span class="k">unsigned</span>            <a name="cmTlObj_t.uid"></a><span class="i">uid</span><span class="p">;</span>         <span class="c"> // generated unique id for this object</span>
+  <a href="#cmTlObjTypeId_t">cmTlObjTypeId_t</a>     <a name="cmTlObj_t.typeId"></a><span class="i">typeId</span><span class="p">;</span>      <span class="c"> // type of the object</span>
+  <span class="k">struct</span> <a href="#cmTlObj_str">cmTlObj_str</a><span class="p">*</span> <a name="cmTlObj_t.ref"></a><span class="i">ref</span><span class="p">;</span>         <span class="c"> // time reference object</span>
+  <span class="k">int</span>                 <a name="cmTlObj_t.begSmpIdx"></a><span class="i">begSmpIdx</span><span class="p">;</span>   <span class="c"> // start time of this object as an offset from the start time of the reference object</span>
+  <span class="k">unsigned</span>            <a name="cmTlObj_t.durSmpCnt"></a><span class="i">durSmpCnt</span><span class="p">;</span>   <span class="c"> // duration of this object</span>
+  <span class="k">int</span>                 <a name="cmTlObj_t.seqSmpIdx"></a><span class="i">seqSmpIdx</span><span class="p">;</span>   <span class="c"> // absolute start time of this object within the sequence</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>     <a name="cmTlObj_t.text"></a><span class="i">text</span><span class="p">;</span>        <span class="c"> // points to text assoc'd with this node (file name for audio/midi file, marker text)</span>
+  <span class="k">unsigned</span>            <a name="cmTlObj_t.flags"></a><span class="i">flags</span><span class="p">;</span>       <span class="c"> // see kXXXTlFl </span>
+  <span class="k">void</span><span class="p">*</span>               <a name="cmTlObj_t.userDataPtr"></a><span class="i">userDataPtr</span><span class="p">;</span> <span class="c"> // user customizable data pointer </span>
+<span class="p">}</span> <span class="t"><a href="#cmTlObj_t">cmTlObj_t</a></span><span class="p">;</span>
+
+<a name="cmTlMidiFile_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="#cmTlObj_t">cmTlObj_t</a>     <a name="cmTlMidiFile_t.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="cmMidiFile_h_0.html#cmMidiFileH_t">cmMidiFileH_t</a> <a name="cmTlMidiFile_t.h"></a><span class="i">h</span><span class="p">;</span>
+  <span class="k">unsigned</span>      <a name="cmTlMidiFile_t.noteOnCnt"></a><span class="i">noteOnCnt</span><span class="p">;</span>
+  <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>     <a name="cmTlMidiFile_t.fn"></a><span class="i">fn</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmTlMidiFile_t">cmTlMidiFile_t</a></span><span class="p">;</span>
+
+<span class="c">// MIDI events generated from MIDI files reference the previous
+// MIDI event and the first event in the file references the 
+// file object. The 'begSmpIdx' is therefore a delta value
+// from the previous event.</span>
+<a name="cmTlMidiEvt_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="#cmTlObj_t">cmTlObj_t</a>               <a name="cmTlMidiEvt_t.obj"></a><span class="i">obj</span><span class="p">;</span> <span class="c"> </span>
+  <span class="k">unsigned</span>                <a name="cmTlMidiEvt_t.midiFileObjId"></a><span class="i">midiFileObjId</span><span class="p">;</span>
+  <span class="k">const</span> <a href="cmMidiFile_h_0.html#cmMidiTrackMsg_t">cmMidiTrackMsg_t</a><span class="p">*</span> <a name="cmTlMidiEvt_t.msg"></a><span class="i">msg</span><span class="p">;</span>       <span class="c"> // w/ dticks converted to samples</span>
+<span class="p">}</span> <span class="t"><a href="#cmTlMidiEvt_t">cmTlMidiEvt_t</a></span><span class="p">;</span>
+
+
+<a name="cmTlAudioFile_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="#cmTlObj_t">cmTlObj_t</a>         <a name="cmTlAudioFile_t.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="cmAudioFile_h_0.html#cmAudioFileH_t">cmAudioFileH_t</a>    <a name="cmTlAudioFile_t.h"></a><span class="i">h</span><span class="p">;</span>
+  <a href="cmAudioFile_h_0.html#cmAudioFileInfo_t">cmAudioFileInfo_t</a> <a name="cmTlAudioFile_t.info"></a><span class="i">info</span><span class="p">;</span>
+  <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>         <a name="cmTlAudioFile_t.fn"></a><span class="i">fn</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmTlAudioFile_t">cmTlAudioFile_t</a></span><span class="p">;</span>
+
+<a name="cmTlAudioEvt_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="#cmTlObj_t">cmTlObj_t</a>       <a name="cmTlAudioEvt_t.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="cmAudioFile_h_0.html#cmAudioFileH_t">cmAudioFileH_t</a>  <a name="cmTlAudioEvt_t.h"></a><span class="i">h</span><span class="p">;</span>
+  <span class="k">unsigned</span>        <a name="cmTlAudioEvt_t.smpIdx"></a><span class="i">smpIdx</span><span class="p">;</span>
+  <span class="k">unsigned</span>        <a name="cmTlAudioEvt_t.smpCnt"></a><span class="i">smpCnt</span><span class="p">;</span>
+  <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>       <a name="cmTlAudioEvt_t.text"></a><span class="i">text</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmTlAudioEvt_t">cmTlAudioEvt_t</a></span><span class="p">;</span>
+
+<a name="cmTlMarker_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="#cmTlObj_t">cmTlObj_t</a>        <a name="cmTlMarker_t.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <span class="k">unsigned</span>         <a name="cmTlMarker_t.typeId"></a><span class="i">typeId</span><span class="p">;</span>         <span class="c"> // marker type see kXXXMarkTlId above.</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>  <a name="cmTlMarker_t.text"></a><span class="i">text</span><span class="p">;</span>
+  <span class="k">unsigned</span>         <a name="cmTlMarker_t.bar"></a><span class="i">bar</span><span class="p">;</span>            <span class="c"> // measure (bar) in which this marker starts</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span>  <a name="cmTlMarker_t.sectionStr"></a><span class="i">sectionStr</span><span class="p">;</span>     <span class="c"> // the section in which this marker starts</span>
+<span class="p">}</span> <span class="t"><a href="#cmTlMarker_t">cmTlMarker_t</a></span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">cmTimeLineNullHandle</span><span class="p">;</span>
+
+<span class="c">// </span>
+<a href="#cmTlRC_t">cmTlRC_t</a>        <a name="cmTimeLineInitialize"></a><span class="f">cmTimeLineInitialize</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmTlH_t">cmTlH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <a href="#cmTlCb_t">cmTlCb_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">prefixPath</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlRC_t">cmTlRC_t</a>        <a name="cmTimeLineInitializeFromFile"></a><span class="f">cmTimeLineInitializeFromFile</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmTlH_t">cmTlH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <a href="#cmTlCb_t">cmTlCb_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">prefixPath</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmTimeLineFileName"></a><span class="f">cmTimeLineFileName</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmTimeLinePrefixPath"></a><span class="f">cmTimeLinePrefixPath</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmTlRC_t">cmTlRC_t</a>        <a name="cmTimeLineFinalize"></a><span class="f">cmTimeLineFinalize</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>            <a name="cmTimeLineIsValid"></a><span class="f">cmTimeLineIsValid</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">double</span>          <a name="cmTimeLineSampleRate"></a><span class="f">cmTimeLineSampleRate</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Convert global (sequence) time to a time relative to an object.</span>
+<span class="k">int</span>             <a name="cmTimeLineSeqToLocalSampleIndex"></a><span class="f">cmTimeLineSeqToLocalSampleIndex</span><span class="p">(</span> <span class="k">int</span> <span class="i">seqSmpIdx</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">localObjPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Given cmTlObj_t.uid return a pointer to the associated record.
+// seqId is optional (dflt:<a href="cmGlobal_h_0.html#cmInvalidId">cmInvalidId</a>)</span>
+<a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span>      <a name="cmTimeLineIdToObj"></a><span class="f">cmTimeLineIdToObj</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">uid</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the object following 'p' assigned to 'seqId'.
+// If 'p' is NULL then return the first object assigned to seqId.
+// If 'seqId' is set to <a href="cmGlobal_h_0.html#cmInvalidId">cmInvalidId</a> then return the next object on any seq.
+// If no objects follow 'p' on the specified sequence then return NULL.</span>
+<a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span>       <a name="cmTimeLineNextObj"></a><span class="f">cmTimeLineNextObj</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Same as <a href="#cmTimeLineNextObj">cmTimeLineNextObj</a>() but returns next object whose type matches 'typeId'.</span>
+<a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span>       <a name="cmTimeLineNextTypeObj"></a><span class="f">cmTimeLineNextTypeObj</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">typeId</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmTlMidiFile_t">cmTlMidiFile_t</a><span class="p">*</span>  <a name="cmTlNextMidiFileObjPtr"></a><span class="f">cmTlNextMidiFileObjPtr</span><span class="p">(</span>  <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlAudioFile_t">cmTlAudioFile_t</a><span class="p">*</span> <a name="cmTlNextAudioFileObjPtr"></a><span class="f">cmTlNextAudioFileObjPtr</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlMidiEvt_t">cmTlMidiEvt_t</a><span class="p">*</span>   <a name="cmTlNextMidiEvtObjPtr"></a><span class="f">cmTlNextMidiEvtObjPtr</span><span class="p">(</span>   <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlAudioEvt_t">cmTlAudioEvt_t</a><span class="p">*</span>  <a name="cmTlNextAudioEvtObjPtr"></a><span class="f">cmTlNextAudioEvtObjPtr</span><span class="p">(</span>  <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlMarker_t">cmTlMarker_t</a><span class="p">*</span>    <a name="cmTlNextMarkerObjPtr"></a><span class="f">cmTlNextMarkerObjPtr</span><span class="p">(</span>    <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span>       <a name="cmTlIdToObjPtr"></a><span class="f">cmTlIdToObjPtr</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">uid</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Cast a genereic <a href="#cmTlObj_t">cmTlObj_t</a> pointer to a specific type.</span>
+<a href="#cmTlMidiFile_t">cmTlMidiFile_t</a><span class="p">*</span>  <a name="cmTimeLineMidiFileObjPtr"></a><span class="f">cmTimeLineMidiFileObjPtr</span><span class="p">(</span>  <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlAudioFile_t">cmTlAudioFile_t</a><span class="p">*</span> <a name="cmTimeLineAudioFileObjPtr"></a><span class="f">cmTimeLineAudioFileObjPtr</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlMidiEvt_t">cmTlMidiEvt_t</a><span class="p">*</span>   <a name="cmTimeLineMidiEvtObjPtr"></a><span class="f">cmTimeLineMidiEvtObjPtr</span><span class="p">(</span>   <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlAudioEvt_t">cmTlAudioEvt_t</a><span class="p">*</span>  <a name="cmTimeLineAudioEvtObjPtr"></a><span class="f">cmTimeLineAudioEvtObjPtr</span><span class="p">(</span>  <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlMarker_t">cmTlMarker_t</a><span class="p">*</span>    <a name="cmTimeLineMarkerObjPtr"></a><span class="f">cmTimeLineMarkerObjPtr</span><span class="p">(</span>    <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Same as cmTimeLineXXXObjPtr() but does not generate an error when
+// 'op' does not point to the correct type. These function quietly
+// return NULL if the requested type does not match or 'op' == NULL.</span>
+<a href="#cmTlMidiFile_t">cmTlMidiFile_t</a><span class="p">*</span>  <a name="cmTlMidiFileObjPtr"></a><span class="f">cmTlMidiFileObjPtr</span><span class="p">(</span>  <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlAudioFile_t">cmTlAudioFile_t</a><span class="p">*</span> <a name="cmTlAudioFileObjPtr"></a><span class="f">cmTlAudioFileObjPtr</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlMidiEvt_t">cmTlMidiEvt_t</a><span class="p">*</span>   <a name="cmTlMidiEvtObjPtr"></a><span class="f">cmTlMidiEvtObjPtr</span><span class="p">(</span>   <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlAudioEvt_t">cmTlAudioEvt_t</a><span class="p">*</span>  <a name="cmTlAudioEvtObjPtr"></a><span class="f">cmTlAudioEvtObjPtr</span><span class="p">(</span>  <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlMarker_t">cmTlMarker_t</a><span class="p">*</span>    <a name="cmTlMarkerObjPtr"></a><span class="f">cmTlMarkerObjPtr</span><span class="p">(</span>    <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmTlObj_t">cmTlObj_t</a><span class="p">*</span> <span class="i">op</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmTlAudioFile_t">cmTlAudioFile_t</a><span class="p">*</span> <a name="cmTimeLineFindAudioFile"></a><span class="f">cmTimeLineFindAudioFile</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlMidiFile_t">cmTlMidiFile_t</a><span class="p">*</span>  <a name="cmTimeLineFindMidiFile"></a><span class="f">cmTimeLineFindMidiFile</span><span class="p">(</span>  <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+
+
+<a href="#cmTlAudioFile_t">cmTlAudioFile_t</a><span class="p">*</span> <a name="cmTimeLineAudioFileAtTime"></a><span class="f"><a href="#cmTimeLineAudioFileAtTime">cmTimeLineAudioFileAtTime</a></span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> h<span class="p">,</span> <span class="k">unsigned</span> seqId<span class="p">,</span> <span class="k">unsigned</span> seqSmpIdx <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlMidiFile_t">cmTlMidiFile_t</a><span class="p">*</span>  <a name="cmTimeLineMidiFileAtTime"></a><span class="f"><a href="#cmTimeLineMidiFileAtTime">cmTimeLineMidiFileAtTime</a></span><span class="p">(</span>  <a href="#cmTlH_t">cmTlH_t</a> h<span class="p">,</span> <span class="k">unsigned</span> seqId<span class="p">,</span> <span class="k">unsigned</span> seqSmpIdx <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlMidiEvt_t">cmTlMidiEvt_t</a><span class="p">*</span>   <a name="cmTimeLineMidiEvtAtTime"></a><span class="f"><a href="#cmTimeLineMidiEvtAtTime">cmTimeLineMidiEvtAtTime</a></span><span class="p">(</span>   <a href="#cmTlH_t">cmTlH_t</a> h<span class="p">,</span> <span class="k">unsigned</span> seqId<span class="p">,</span> <span class="k">unsigned</span> seqSmpIdx <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlMarker_t">cmTlMarker_t</a><span class="p">*</span>    <a name="cmTimeLineMarkerAtTime"></a><span class="f"><a href="#cmTimeLineMarkerAtTime">cmTimeLineMarkerAtTime</a></span><span class="p">(</span>    <a href="#cmTlH_t">cmTlH_t</a> h<span class="p">,</span> <span class="k">unsigned</span> seqId<span class="p">,</span> <span class="k">unsigned</span> seqSmpIdx <span class="p">)</span><span class="p">;</span>
+
+
+<a href="#cmTlAudioFile_t">cmTlAudioFile_t</a><span class="p">*</span> <a name="cmTimeLineAudioFileAtTime"></a><span class="f">cmTimeLineAudioFileAtTime</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqSmpIdx</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlMidiFile_t">cmTlMidiFile_t</a><span class="p">*</span>  <a name="cmTimeLineMidiFileAtTime"></a><span class="f">cmTimeLineMidiFileAtTime</span><span class="p">(</span>  <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqSmpIdx</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlMidiEvt_t">cmTlMidiEvt_t</a><span class="p">*</span>   <a name="cmTimeLineMidiEvtAtTime"></a><span class="f">cmTimeLineMidiEvtAtTime</span><span class="p">(</span>   <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqSmpIdx</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlMarker_t">cmTlMarker_t</a><span class="p">*</span>    <a name="cmTimeLineMarkerAtTime"></a><span class="f">cmTimeLineMarkerAtTime</span><span class="p">(</span>    <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqSmpIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmTlMarker_t">cmTlMarker_t</a><span class="p">*</span>    <a name="cmTimeLineMarkerFind"></a><span class="f">cmTimeLineMarkerFind</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">markText</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// 'typeId' = <a href="#kAudioFileTlId">kAudioFileTlId</a>, kMidiFileTId, kMarkerTlId.
+// 'nameStr' and 'refObjNameStr' may be NULL.</span>
+<a href="#cmTlRC_t">cmTlRC_t</a> <a name="cmTimeLineInsert"></a>cmTimeLineInsert<span class="p">(</span> 
+<a href="#cmTlH_t">cmTlH_t</a>         <span class="i">h</span><span class="p">,</span> 
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">nameStr</span><span class="p">,</span> 
+<span class="k">unsigned</span>        <span class="i">typeId</span><span class="p">,</span> 
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn_or_markerStr</span><span class="p">,</span> 
+<span class="k">int</span>             <span class="i">begSmpIdx</span><span class="p">,</span> 
+<span class="k">unsigned</span>        <span class="i">durSmpCnt</span><span class="p">,</span> 
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">refObjNameStr</span><span class="p">,</span> 
+<span class="k">unsigned</span>        <span class="i">seqId</span> <span class="p">)</span><span class="p">;</span> 
+
+<span class="c">// See src/data/tl0.json for an example JSON file.</span>
+<a href="#cmTlRC_t">cmTlRC_t</a> <a name="cmTimeLineReadJson"></a><span class="f">cmTimeLineReadJson</span><span class="p">(</span>  <a href="#cmTlH_t">cmTlH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">ifn</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return a count of sequences contained within this timeline.</span>
+<span class="k">unsigned</span> <a name="cmTimeLineSeqCount"></a><span class="f">cmTimeLineSeqCount</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Make notifications for all records belonging to the sequence.</span>
+<a href="#cmTlRC_t">cmTlRC_t</a> <a name="cmTimeLineSeqNotify"></a><span class="f">cmTimeLineSeqNotify</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Create and make notification for audio/MIDI onset marks.</span>
+<a href="#cmTlRC_t">cmTlRC_t</a> <a name="cmTimeLineGenOnsetMarks"></a><span class="f">cmTimeLineGenOnsetMarks</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlRC_t">cmTlRC_t</a> <a name="cmTimeLineDeleteOnsetMarks"></a><span class="f">cmTimeLineDeleteOnsetMarks</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">seqId</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmTlRC_t">cmTlRC_t</a> <a name="cmTimeLineWrite"></a><span class="f">cmTimeLineWrite</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmTlRC_t">cmTlRC_t</a> <a name="cmTimeLinePrint"></a><span class="f">cmTimeLinePrint</span><span class="p">(</span> <a href="#cmTlH_t">cmTlH_t</a> <span class="i">h</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlRC_t">cmTlRC_t</a> <a name="cmTimeLinePrintFn"></a><span class="f">cmTimeLinePrintFn</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">tlFn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">prefixPath</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmTlRC_t">cmTlRC_t</a> <a name="cmTimeLineReport"></a><span class="f">cmTimeLineReport</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">tlFn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">prefixPath</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">rptFn</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmTlRC_t">cmTlRC_t</a> <a name="cmTimeLineTest"></a><span class="f">cmTimeLineTest</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">tlFn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">prefixPath</span>  <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// The time-line notifies listeners of initialization and finalization
+// events via calling a cmTlCbFunc_t function.  The argument to this 
+// function is a serialized cmTlUiMsg_t.  The recipient of the callback
+// can extract information from this message using <a href="#cmTimeLineDecode">cmTimeLineDecode</a>()
+// to form a <a href="#cmTlUiMsg_t">cmTlUiMsg_t</a> record. Note that all pointers internal to the
+// <a href="#cmTlUiMsg_t">cmTlUiMsg_t</a> point into the message buffer itself.</span>
+
+<span class="c">// id's used to indicate the type of a serialized object</span>
+<span class="k">typedef</span> <span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kInvalidMsgTlId"></a><span class="e">kInvalidMsgTlId</span><span class="p">,</span>
+  <a name="kInitMsgTlId"></a><span class="e">kInitMsgTlId</span><span class="p">,</span>      <span class="c"> // A a set of time-line objects is about to be transmitted</span>
+  <a name="kFinalMsgTlId"></a><span class="e">kFinalMsgTlId</span><span class="p">,</span>     <span class="c"> // A time-line object is being finalized.</span>
+  <a name="kDoneMsgTlId"></a><span class="e">kDoneMsgTlId</span><span class="p">,</span>      <span class="c"> // All the objects assoc'd with a time line seq-notify have been sent.</span>
+  <a name="kInsertMsgTlId"></a><span class="e">kInsertMsgTlId</span><span class="p">,</span>    <span class="c"> // A time-line object was inserted.</span>
+<span class="p">}</span> <a name="cmTlUiMsgTypeId_t"></a><span class="t">cmTlUiMsgTypeId_t</span><span class="p">;</span>
+
+<a name="cmTlUiMsg_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="#cmTlUiMsgTypeId_t">cmTlUiMsgTypeId_t</a>       <a name="cmTlUiMsg_t.msgId"></a><span class="i">msgId</span><span class="p">;</span>         <span class="c"> // See <a href="#cmTlUiMsgTypeId_t">cmTlUiMsgTypeId_t</a>.</span>
+  <span class="k">unsigned</span>                <a name="cmTlUiMsg_t.objId"></a><span class="i">objId</span><span class="p">;</span>         <span class="c"> // Set to cmTlObj_t.uid</span>
+  <span class="k">unsigned</span>                <a name="cmTlUiMsg_t.seqId"></a><span class="i">seqId</span><span class="p">;</span>         <span class="c"> // Sequence id</span>
+  <span class="k">double</span>                  <a name="cmTlUiMsg_t.srate"></a><span class="i">srate</span><span class="p">;</span>         <span class="c"> // Only valid with <a href="#kInitMsgTlId">kInitMsgTlId</a>.</span>
+  <span class="k">unsigned</span>                <a name="cmTlUiMsg_t.seqCnt"></a><span class="i">seqCnt</span><span class="p">;</span>        <span class="c"> // Only valid with <a href="#kInitMsgTlId">kInitMsgTlId</a>.</span>
+<span class="p">}</span> <span class="t"><a href="#cmTlUiMsg_t">cmTlUiMsg_t</a></span><span class="p">;</span>
+
+<span class="c">// Decode a serialized <a href="#cmTlObj_t">cmTlObj_t</a> as passed to the <a href="#cmTlCb_t">cmTlCb_t</a> listener
+// callback function.</span>
+<a href="#cmTlRC_t">cmTlRC_t</a> <a name="cmTimeLineDecode"></a><span class="f">cmTimeLineDecode</span><span class="p">(</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">msg</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">msgByteCnt</span><span class="p">,</span> <a href="#cmTlUiMsg_t">cmTlUiMsg_t</a><span class="p">*</span> <span class="i">uiMsg</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+
+.cod pre .c { color: firebrick; font-weight: normal; } /* Comment */
+.cod pre .k { color: #008000; font-weight: normal; } /* Keyword.Reserved */
+.cod pre .p { color: #666666 } /* Operator */
+.cod pre .f { color: #000000; font-weight: normal; } /* Function */
+.cod pre .e { color: #000000; font-weight: normal; } /* enum */
+.cod pre .m { color: #008000; font-weight: normal; } /* macro */
+.cod pre .t { color: #008000; font-weight: normal; } /* typedef */
+.cod pre .i { color: #000000; font-weight: normal; } /* ident */
+.cod pre .l { color: #660066 } /* Literal */
+.cod pre .u { color: #000000 }
+
+.cod pre a:link {text-decoration:none; font-weight:500;  } 
+.cod pre a:visited {text-decoration:none; font-weight:500;  } 
+.cod pre a:hover {text-decoration:none; font-weight:700;  } 
+
+/* embedded pandoc comments */
+.cod pre .a {
+    border: 1px dotted gray;
+    background-color: #ececec;
+    color: #1111111;
+    padding: 0.5em;
+}

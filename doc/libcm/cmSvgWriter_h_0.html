@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmSvgWriter.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmSvgWriter.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmSvgWriter : SVG file writer.</div><pre><a name="cmSvgWriter_h_code_0"></a>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkSvgRC"></a><span class="e">kOkSvgRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kFileFailSvgRC"></a><span class="e">kFileFailSvgRC</span><span class="p">,</span>
+  <a name="kPrintFailSvgRC"></a><span class="e">kPrintFailSvgRC</span><span class="p">,</span>
+  <a name="kLHeapFailSvgRC"></a><span class="e">kLHeapFailSvgRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmSvgRC_t"></a><span class="t">cmSvgRC_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmSvgH_t"></a><span class="t">cmSvgH_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmSvgH_t">cmSvgH_t</a> <span class="i">cmSvgNullHandle</span><span class="p">;</span>
+
+<a href="#cmSvgRC_t">cmSvgRC_t</a> <a name="cmSvgWriterAlloc"></a><span class="f">cmSvgWriterAlloc</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmSvgH_t">cmSvgH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmSvgRC_t">cmSvgRC_t</a> <a name="cmSvgWriterFree"></a><span class="f">cmSvgWriterFree</span><span class="p">(</span>    <a href="#cmSvgH_t">cmSvgH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">bool</span>      <a name="cmSvgWriterIsValid"></a><span class="f">cmSvgWriterIsValid</span><span class="p">(</span> <a href="#cmSvgH_t">cmSvgH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmSvgRC_t">cmSvgRC_t</a> <a name="cmSvgWriterRect"></a><span class="f">cmSvgWriterRect</span><span class="p">(</span> <a href="#cmSvgH_t">cmSvgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">double</span>  <span class="i">x</span><span class="p">,</span> <span class="k">double</span> <span class="i">y</span><span class="p">,</span>  <span class="k">double</span> <span class="i">ww</span><span class="p">,</span> <span class="k">double</span> <span class="i">hh</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">cssClassLabel</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmSvgRC_t">cmSvgRC_t</a> <a name="cmSvgWriterLine"></a><span class="f">cmSvgWriterLine</span><span class="p">(</span> <a href="#cmSvgH_t">cmSvgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">double</span> <span class="i">x0</span><span class="p">,</span> <span class="k">double</span> <span class="i">y0</span><span class="p">,</span> <span class="k">double</span> <span class="i">x1</span><span class="p">,</span> <span class="k">double</span> <span class="i">y1</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">cssClassLabel</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmSvgRC_t">cmSvgRC_t</a> <a name="cmSvgWriterText"></a><span class="f">cmSvgWriterText</span><span class="p">(</span> <a href="#cmSvgH_t">cmSvgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">double</span>  <span class="i">x</span><span class="p">,</span> <span class="k">double</span> <span class="i">y</span><span class="p">,</span>  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">text</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">cssClassLabel</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Write the SVG file.  Note that header on this file references the CSS file 'cssFn'
+// and the Javascript file svg-pan-zoom.min.js from https://github.com/ariutta/svg-pan-zoom.
+// Both the CSS file and svg-pan-zoom.min.js should therefore be in the same directory
+// as the output HTML file.</span>
+<a href="#cmSvgRC_t">cmSvgRC_t</a> <a name="cmSvgWriterWrite"></a><span class="f">cmSvgWriterWrite</span><span class="p">(</span> <a href="#cmSvgH_t">cmSvgH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">cssFn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">outFn</span><span class="p">,</span> <span class="k">bool</span> <span class="i">standaloneFl</span><span class="p">,</span> <span class="k">bool</span> <span class="i">panZoomFl</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

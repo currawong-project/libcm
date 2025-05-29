@@ -1,0 +1,44 @@
+% __cdg__ Test Project 0
+% M. I. Name
+% 01/22/2014
+
+
+#Introduction 
+This is a test project for the __cdg__ documentation generator.
+
+The program documented is a simple command line matrix operation
+program named __ts__.
+
+Here's a link to Pandoc.
+
+#Usage  {#usage}
+
+~~~~~
+ts <mtx> <op> <mtx>
+
+where:
+<mtx> i|r rows cols
+<op>  *|+
+~~~~~ 
+
+Matrix Types:
+
+Type Name      Note
+---- --------  ------------------------------------------
+ i   identity  Identity matrix.
+ r   random    Random matrix with values between 0 and 1.
+
+
+#Operations
+
+__ts__ can be used to perform add or multiply matrices.
+
+
+Here's a code snippet which shows how the matrix operations
+tsMtxMult() and tsMtxAdd() may be called explicitely on existing matrices.
+{$mnPerformOpExample}
+
+
+
+
+

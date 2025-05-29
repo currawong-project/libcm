@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmVirtNet.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmVirtNet.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmVirtNet : Wrapper object for cmUdpNet to handle UDP network communications.</div><pre><a name="cmVirtNet_h_code_0"></a><span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkVnRC"></a><span class="e">kOkVnRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kUdpNetFailVnRC"></a><span class="e">kUdpNetFailVnRC</span><span class="p">,</span>
+  <a name="kNodeNotFoundVnRC"></a><span class="e">kNodeNotFoundVnRC</span><span class="p">,</span>
+  <a name="kDuplicateNodeIdVnRC"></a><span class="e">kDuplicateNodeIdVnRC</span><span class="p">,</span>
+  <a name="kDuplicateNodeLabelVnRC"></a><span class="e">kDuplicateNodeLabelVnRC</span><span class="p">,</span>
+  <a name="kQueueFailVnRC"></a><span class="e">kQueueFailVnRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmVnH_t"></a><span class="t">cmVnH_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmVnRC_t"></a><span class="t">cmVnRC_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmVnH_t">cmVnH_t</a> <span class="i">cmVnNullHandle</span><span class="p">;</span>
+
+<span class="c">// </span>
+<span class="k">typedef</span> <a href="#cmVnRC_t">cmVnRC_t</a> <span class="p">(</span><span class="p">*</span><a name="cmVnCb_t"></a><span class="t">cmVnCb_t</span><span class="p">)</span><span class="p">(</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">srcNodeId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">buf</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Create a virtual network with a single node that represents the owner.
+// cbFunc() will be called to receive incoming msg's when the owning thread calls <a href="#cmVnReceive">cmVnReceive</a>().  </span>
+<a href="#cmVnRC_t">cmVnRC_t</a> <a name="cmVnCreate"></a>cmVnCreate<span class="p">(</span> 
+<a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span>        <span class="i">ctx</span><span class="p">,</span> 
+<a href="#cmVnH_t">cmVnH_t</a><span class="p">*</span>        <span class="i">hp</span><span class="p">,</span> 
+<a href="#cmVnCb_t">cmVnCb_t</a>        <span class="i">cbFunc</span><span class="p">,</span>             <span class="c"> // owner msg receive callback function</span>
+<span class="k">void</span><span class="p">*</span>           <span class="i">cbArg</span><span class="p">,</span>              <span class="c"> // owner supplied callback argument for cbFunc</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">ownerNodelabel</span><span class="p">,</span>     <span class="c"> // owners node label (must be unique among all nodes)</span>
+<span class="k">unsigned</span>        <span class="i">ownerNodeId</span><span class="p">,</span>        <span class="c"> // owners node id (must be unique among all nodes) </span>
+<span class="k">unsigned</span>        <span class="i">udpRecvBufByteCnt</span><span class="p">,</span>  <span class="c"> // size of the UDP incoming data buffer </span>
+<span class="k">unsigned</span>        <span class="i">updRecvTimeOutMs</span><span class="p">,</span>   <span class="c"> // UDP time out period while waiting for incoming data</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">ipAddr</span><span class="p">,</span>             <span class="c"> // this machines IP</span>
+<span class="k">unsigned</span>        <span class="i">ipPort</span>  <span class="p">)</span><span class="p">;</span>          <span class="c"> // this nodes port (must be unique among all local nodes)</span>
+
+<span class="c">// Destroy and release any resources held by a virtual net created with <a href="#cmVnCreate">cmVnCreate</a>(). </span>
+<a href="#cmVnRC_t">cmVnRC_t</a> <a name="cmVnDestroy"></a><span class="f">cmVnDestroy</span><span class="p">(</span> <a href="#cmVnH_t">cmVnH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>     <a name="cmVnIsValid"></a><span class="f">cmVnIsValid</span><span class="p">(</span> <a href="#cmVnH_t">cmVnH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Put the network into listening mode.  This function enables and disables
+// the UDP port listening thread.</span>
+<a href="#cmVnRC_t">cmVnRC_t</a> <a name="cmVnEnableListen"></a><span class="f">cmVnEnableListen</span><span class="p">(</span> <a href="#cmVnH_t">cmVnH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">bool</span> <span class="i">enableFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Local nodes are nodes which are in the owners address space but controlled by a different thread.
+// </span>
+<a href="#cmVnRC_t">cmVnRC_t</a> <a name="cmVnCreateLocalNode"></a><span class="f">cmVnCreateLocalNode</span><span class="p">(</span>  <a href="#cmVnH_t">cmVnH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">label</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">nodeId</span><span class="p">,</span> <a href="#cmVnH_t">cmVnH_t</a> <span class="i">localNet</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">queBufByteCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Remote nodes are outside the owners address space and are communicated with via UDP.</span>
+<a href="#cmVnRC_t">cmVnRC_t</a> <a name="cmVnCreateRemoteNode"></a><span class="f">cmVnCreateRemoteNode</span><span class="p">(</span> <a href="#cmVnH_t">cmVnH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">label</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">nodeId</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">ipAddr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">ipPort</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Send a msg from the owner node to another node.</span>
+<a href="#cmVnRC_t">cmVnRC_t</a> <a name="cmVnSendById"></a><span class="f">cmVnSendById</span><span class="p">(</span> <a href="#cmVnH_t">cmVnH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">nodeId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">buf</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmVnRC_t">cmVnRC_t</a> <a name="cmVnSendByLabel"></a><span class="f">cmVnSendByLabel</span><span class="p">(</span> <a href="#cmVnH_t">cmVnH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">nodeLabel</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">buf</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Recv a msg from a local node. This function may be called outside the 'owner' thread.
+// This function stores the incoming msg in a muliple-producer single-consumer queue.</span>
+<a href="#cmVnRC_t">cmVnRC_t</a> <a name="cmVnRecvFromLocal"></a><span class="f">cmVnRecvFromLocal</span><span class="p">(</span> <a href="#cmVnH_t">cmVnH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">srcNodeId</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">buf</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Calling this function results in callback's to the <a href="#cmVnCb_t">cmVnCb_t</a> function.</span>
+<a href="#cmVnRC_t">cmVnRC_t</a> <a name="cmVnReceive"></a><span class="f">cmVnReceive</span><span class="p">(</span> <a href="#cmVnH_t">cmVnH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">msgCntPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmVnRC_t">cmVnRC_t</a> <a name="cmVnTest"></a><span class="f">cmVnTest</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

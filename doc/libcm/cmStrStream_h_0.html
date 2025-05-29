@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmStrStream.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmStrStream.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmStrStream : String stream text sink.</div><pre><a name="cmStrStream_h_code_0"></a>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkSsRC"></a><span class="e">kOkSsRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kLHeapMemFailSsRC"></a><span class="e">kLHeapMemFailSsRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmStrStreamH_t"></a><span class="t">cmStrStreamH_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmSsRC_t"></a><span class="t">cmSsRC_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmStrStreamH_t">cmStrStreamH_t</a> <span class="i">cmStrStreamNullHandle</span><span class="p">;</span>
+
+
+<span class="c">// If 'dfltBlkByteCnt' 'is set to 0 then the dfltBlkByteCnt is internally set to 4096.</span>
+<a href="#cmSsRC_t">cmSsRC_t</a> <a name="cmOStrStreamCreate"></a><span class="f">cmOStrStreamCreate</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmStrStreamH_t">cmStrStreamH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">dfltBlkByteCnt</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmSsRC_t">cmSsRC_t</a> <a name="cmOStrStreamDestroy"></a><span class="f">cmOStrStreamDestroy</span><span class="p">(</span> <a href="#cmStrStreamH_t">cmStrStreamH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>     <a name="cmOStrStreamIsValid"></a><span class="f">cmOStrStreamIsValid</span><span class="p">(</span> <a href="#cmStrStreamH_t">cmStrStreamH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmSsRC_t">cmSsRC_t</a> <a name="cmOStrStreamWrite"></a><span class="f">cmOStrStreamWrite</span><span class="p">(</span>     <a href="#cmStrStreamH_t">cmStrStreamH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">dp</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteCnt</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmSsRC_t">cmSsRC_t</a> <a name="cmOStrStreamWriteStr"></a><span class="f">cmOStrStreamWriteStr</span><span class="p">(</span>  <a href="#cmStrStreamH_t">cmStrStreamH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">str</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmSsRC_t">cmSsRC_t</a> <a name="cmOStrStreamWriteStrN"></a><span class="f">cmOStrStreamWriteStrN</span><span class="p">(</span> <a href="#cmStrStreamH_t">cmStrStreamH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">str</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmSsRC_t">cmSsRC_t</a> <a name="cmOStrStreamVPrintf"></a><span class="f">cmOStrStreamVPrintf</span><span class="p">(</span>   <a href="#cmStrStreamH_t">cmStrStreamH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fmt</span><span class="p">,</span> va_list <span class="i">vl</span> <span class="p">)</span><span class="p">;</span>  
+<a href="#cmSsRC_t">cmSsRC_t</a> <a name="cmOStrStreamPrintf"></a><span class="f">cmOStrStreamPrintf</span><span class="p">(</span>    <a href="#cmStrStreamH_t">cmStrStreamH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fmt</span><span class="p">,</span> <span class="i">...</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>  <a name="cmOStrStreamByteCount"></a><span class="f">cmOStrStreamByteCount</span><span class="p">(</span> <a href="#cmStrStreamH_t">cmStrStreamH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span><span class="p">*</span>     <a name="cmOStrStreamAllocBuf"></a><span class="f">cmOStrStreamAllocBuf</span><span class="p">(</span>  <a href="#cmStrStreamH_t">cmStrStreamH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmOStrStreamAllocText"></a><span class="f">cmOStrStreamAllocText</span><span class="p">(</span> <a href="#cmStrStreamH_t">cmStrStreamH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

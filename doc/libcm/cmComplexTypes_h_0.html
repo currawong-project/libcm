@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmComplexTypes.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmComplexTypes.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmComplexTypes : Constants and functions used for working with complex values.</div><pre><a name="cmComplexTypes_h_code_0"></a>
+#if <a href="cmFloatTypes_h_0.html#CM_FLOAT_SMP">CM_FLOAT_SMP</a> == 1
+
+<span class="m">#define </span><a name="cmCabsS"></a><span class="m">cmCabsS</span><span class="m">  cabsf</span>
+<span class="m">#define </span><a name="cmCatanS"></a><span class="m">cmCatanS</span><span class="m"> catanf</span>
+<span class="m">#define </span><a name="cmCrealS"></a><span class="m">cmCrealS</span><span class="m"> crealf</span>
+<span class="m">#define </span><a name="cmCimagS"></a><span class="m">cmCimagS</span><span class="m"> cimagf </span>
+<span class="m">#define </span><a name="cmCargS"></a><span class="m">cmCargS</span><span class="m">  cargf</span>
+<span class="m">#define </span><a name="cmCconjS"></a><span class="m">cmCconjS</span><span class="m"> conjf</span>
+
+<span class="m">#define </span><a name="cmFftPlanAllocS"></a><span class="m">cmFftPlanAllocS</span><span class="m">   fftwf_plan_dft_r2c_1d</span>
+<span class="m">#define </span><a name="cmFft1dPlanAllocS"></a><span class="m">cmFft1dPlanAllocS</span><span class="m"> fftwf_plan_dft_1d</span>
+<span class="m">#define </span><a name="cmIFftPlanAllocS"></a><span class="m">cmIFftPlanAllocS</span><span class="m">  fftwf_plan_dft_c2r_1d</span>
+<span class="m">#define </span><a name="cmFftPlanFreeS"></a><span class="m">cmFftPlanFreeS</span><span class="m">    fftwf_destroy_plan</span>
+<span class="m">#define </span><a name="cmFftMallocS"></a><span class="m">cmFftMallocS</span><span class="m">      fftwf_malloc</span>
+<span class="m">#define </span><a name="cmFftFreeMemS"></a><span class="m">cmFftFreeMemS</span><span class="m">     fftwf_free</span>
+<span class="m">#define </span><a name="cmFftExecuteS"></a><span class="m">cmFftExecuteS</span><span class="m">     fftwf_execute</span>
+
+<span class="k">typedef</span> fftwf_plan      <a name="cmFftPlanS_t"></a><span class="t">cmFftPlanS_t</span><span class="p">;</span>
+
+#else
+
+<span class="m">#define </span><span class="m"><a href="#cmCabsS">cmCabsS</a></span><span class="m">  cabs</span>
+<span class="m">#define </span><span class="m"><a href="#cmCatanS">cmCatanS</a></span><span class="m"> catan</span>
+<span class="m">#define </span><span class="m"><a href="#cmCrealS">cmCrealS</a></span><span class="m"> creal</span>
+<span class="m">#define </span><span class="m"><a href="#cmCimagS">cmCimagS</a></span><span class="m"> cimag </span>
+<span class="m">#define </span><span class="m"><a href="#cmCargS">cmCargS</a></span><span class="m">  carg</span>
+<span class="m">#define </span><span class="m"><a href="#cmCconjS">cmCconjS</a></span><span class="m"> conj</span>
+
+<span class="m">#define </span><span class="m"><a href="#cmFftPlanAllocS">cmFftPlanAllocS</a></span><span class="m">   fftw_plan_dft_r2c_1d</span>
+<span class="m">#define </span><span class="m"><a href="#cmFft1dPlanAllocS">cmFft1dPlanAllocS</a></span><span class="m"> fftw_plan_dft_1d</span>
+<span class="m">#define </span><span class="m"><a href="#cmIFftPlanAllocS">cmIFftPlanAllocS</a></span><span class="m">  fftw_plan_dft_c2r_1d</span>
+<span class="m">#define </span><span class="m"><a href="#cmFftPlanFreeS">cmFftPlanFreeS</a></span><span class="m">    fftw_destroy_plan</span>
+<span class="m">#define </span><span class="m"><a href="#cmFftMallocS">cmFftMallocS</a></span><span class="m">      fftw_malloc</span>
+<span class="m">#define </span><span class="m"><a href="#cmFftFreeMemS">cmFftFreeMemS</a></span><span class="m">     fftw_free</span>
+<span class="m">#define </span><span class="m"><a href="#cmFftExecuteS">cmFftExecuteS</a></span><span class="m">     fftw_execute</span>
+
+<span class="k">typedef</span> fftw_plan      <span class="t"><a href="#cmFftPlanS_t">cmFftPlanS_t</a></span><span class="p">;</span>
+
+#endif
+
+<span class="c"><hr id="hr1"><hr id="hr1"><hr id="hr1"></span> 
+#if <a href="cmFloatTypes_h_0.html#CM_FLOAT_REAL">CM_FLOAT_REAL</a> == 1
+
+<span class="m">#define </span><a name="cmCabsR"></a><span class="m">cmCabsR</span><span class="m">  cabsf</span>
+<span class="m">#define </span><a name="cmCatanR"></a><span class="m">cmCatanR</span><span class="m"> catanf</span>
+<span class="m">#define </span><a name="cmCrealR"></a><span class="m">cmCrealR</span><span class="m"> crealf</span>
+<span class="m">#define </span><a name="cmCimagR"></a><span class="m">cmCimagR</span><span class="m"> cimagf </span>
+<span class="m">#define </span><a name="cmCargR"></a><span class="m">cmCargR</span><span class="m">  cargf</span>
+<span class="m">#define </span><a name="cmCconjR"></a><span class="m">cmCconjR</span><span class="m"> conjf</span>
+
+<span class="m">#define </span><a name="cmFftPlanAllocR"></a><span class="m">cmFftPlanAllocR</span><span class="m">   fftwf_plan_dft_r2c_1d</span>
+<span class="m">#define </span><a name="cmFft1dPlanAllocR"></a><span class="m">cmFft1dPlanAllocR</span><span class="m"> fftwf_plan_dft_1d</span>
+<span class="m">#define </span><a name="cmIFftPlanAllocR"></a><span class="m">cmIFftPlanAllocR</span><span class="m">  fftwf_plan_dft_c2r_1d</span>
+<span class="m">#define </span><a name="cmFftPlanFreeR"></a><span class="m">cmFftPlanFreeR</span><span class="m">    fftwf_destroy_plan</span>
+<span class="m">#define </span><a name="cmFftMallocR"></a><span class="m">cmFftMallocR</span><span class="m">      fftwf_malloc</span>
+<span class="m">#define </span><a name="cmFftFreeMemR"></a><span class="m">cmFftFreeMemR</span><span class="m">     fftwf_free</span>
+<span class="m">#define </span><a name="cmFftExecuteR"></a><span class="m">cmFftExecuteR</span><span class="m">     fftwf_execute</span>
+
+<span class="k">typedef</span> fftwf_plan     <a name="cmFftPlanR_t"></a><span class="t">cmFftPlanR_t</span><span class="p">;</span>
+
+#else
+
+<span class="m">#define </span><span class="m"><a href="#cmCabsR">cmCabsR</a></span><span class="m">  cabs</span>
+<span class="m">#define </span><span class="m"><a href="#cmCatanR">cmCatanR</a></span><span class="m"> catan</span>
+<span class="m">#define </span><span class="m"><a href="#cmCrealR">cmCrealR</a></span><span class="m"> creal</span>
+<span class="m">#define </span><span class="m"><a href="#cmCimagR">cmCimagR</a></span><span class="m"> cimag </span>
+<span class="m">#define </span><span class="m"><a href="#cmCargR">cmCargR</a></span><span class="m">  carg</span>
+<span class="m">#define </span><span class="m"><a href="#cmCconjR">cmCconjR</a></span><span class="m"> conj</span>
+
+<span class="m">#define </span><span class="m"><a href="#cmFftPlanAllocR">cmFftPlanAllocR</a></span><span class="m">   fftw_plan_dft_r2c_1d</span>
+<span class="m">#define </span><span class="m"><a href="#cmFft1dPlanAllocR">cmFft1dPlanAllocR</a></span><span class="m"> fftw_plan_dft_1d</span>
+<span class="m">#define </span><span class="m"><a href="#cmIFftPlanAllocR">cmIFftPlanAllocR</a></span><span class="m">  fftw_plan_dft_c2r_1d</span>
+<span class="m">#define </span><span class="m"><a href="#cmFftPlanFreeR">cmFftPlanFreeR</a></span><span class="m">    fftw_destroy_plan</span>
+<span class="m">#define </span><span class="m"><a href="#cmFftMallocR">cmFftMallocR</a></span><span class="m">      fftw_malloc</span>
+<span class="m">#define </span><span class="m"><a href="#cmFftFreeMemR">cmFftFreeMemR</a></span><span class="m">     fftw_free</span>
+<span class="m">#define </span><span class="m"><a href="#cmFftExecuteR">cmFftExecuteR</a></span><span class="m">     fftw_execute</span>
+
+<span class="k">typedef</span> fftw_plan       <span class="t"><a href="#cmFftPlanR_t">cmFftPlanR_t</a></span><span class="p">;</span>
+
+#endif
+
+<span class="k">void</span> <a name="cmVOCR_MultVVV"></a><span class="f">cmVOCR_MultVVV</span><span class="p">(</span> <a href="cmFloatTypes_h_0.html#cmComplexR_t">cmComplexR_t</a><span class="p">*</span> <span class="i">y</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmComplexS_t">cmComplexS_t</a><span class="p">*</span> <span class="i">x0</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmComplexR_t">cmComplexR_t</a><span class="p">*</span> <span class="i">x1</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span> <a name="cmVOCR_MultVFV"></a><span class="f">cmVOCR_MultVFV</span><span class="p">(</span>  <a href="cmFloatTypes_h_0.html#cmComplexR_t">cmComplexR_t</a><span class="p">*</span> <span class="i">y</span><span class="p">,</span> <span class="k">const</span> <span class="k">float</span><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span> <a name="cmVOCR_DivVFV"></a><span class="f">cmVOCR_DivVFV</span><span class="p">(</span>   <a href="cmFloatTypes_h_0.html#cmComplexR_t">cmComplexR_t</a><span class="p">*</span> <span class="i">y</span><span class="p">,</span> <span class="k">const</span> float_t<span class="p">*</span> <span class="i">x</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span> <a name="cmVOCR_Abs"></a><span class="f">cmVOCR_Abs</span><span class="p">(</span>     <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>   <span class="i">y</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmComplexR_t">cmComplexR_t</a><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span> <a name="cmVOCR_MultVS"></a><span class="f">cmVOCR_MultVS</span><span class="p">(</span>  <a href="cmFloatTypes_h_0.html#cmComplexR_t">cmComplexR_t</a><span class="p">*</span> <span class="i">y</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">v</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span> <a name="cmVOCR_DivVS"></a><span class="f">cmVOCR_DivVS</span><span class="p">(</span>   <a href="cmFloatTypes_h_0.html#cmComplexR_t">cmComplexR_t</a><span class="p">*</span> <span class="i">y</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">v</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

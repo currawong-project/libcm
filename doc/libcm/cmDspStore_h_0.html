@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmDspStore.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmDspStore.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmDspStore : 'snap' global variable interface used by units for getting and setting global variables.</div><pre><a name="cmDspStore_h_code_0"></a><span class="k">extern</span> <a href="cmDspCtx_h_0.html#cmDspStoreH_t">cmDspStoreH_t</a> <span class="i">cmDspStoreNullHandle</span><span class="p">;</span>
+
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="cmDspStoreAlloc"></a><span class="f">cmDspStoreAlloc</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="cmDspCtx_h_0.html#cmDspStoreH_t">cmDspStoreH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">initStoreCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">growStoreCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="cmDspStoreFree"></a><span class="f">cmDspStoreFree</span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspStoreH_t">cmDspStoreH_t</a> <span class="p">*</span><span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span>      <a name="cmDspStoreIsValid"></a><span class="f">cmDspStoreIsValid</span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspStoreH_t">cmDspStoreH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>  <a name="cmDspStoreSymToId"></a><span class="f">cmDspStoreSymToId</span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspStoreH_t">cmDspStoreH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">symId</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>  <a name="cmDspStoreIdToSym"></a><span class="f">cmDspStoreIdToSym</span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspStoreH_t">cmDspStoreH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <a href="cmDspValue_h_0.html#cmDspValue_t">cmDspValue_t</a><span class="p">*</span>  <a name="cmDspStoreIdToValue"></a><span class="f">cmDspStoreIdToValue</span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspStoreH_t">cmDspStoreH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmDspClass_h_0.html#cmDspRC_t">cmDspRC_t</a> <a name="cmDspStoreSetValueViaId"></a><span class="f">cmDspStoreSetValueViaId</span><span class="p">(</span>  <a href="cmDspCtx_h_0.html#cmDspStoreH_t">cmDspStoreH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span><span class="p">,</span>    <span class="k">const</span> <a href="cmDspValue_h_0.html#cmDspValue_t">cmDspValue_t</a><span class="p">*</span> <span class="i">val</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Sets the variable to the value (and creates it if it does not exist).
+// Returns the 'id' of the variable.</span>
+<span class="k">unsigned</span> <a name="cmDspStoreSetValueViaSym"></a><span class="f">cmDspStoreSetValueViaSym</span><span class="p">(</span> <a href="cmDspCtx_h_0.html#cmDspStoreH_t">cmDspStoreH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">symId</span><span class="p">,</span> <span class="k">const</span> <a href="cmDspValue_h_0.html#cmDspValue_t">cmDspValue_t</a><span class="p">*</span> <span class="i">val</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

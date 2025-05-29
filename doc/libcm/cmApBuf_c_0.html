@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmApBuf.c</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmApBuf.c"></a><!-- Begin nodes -->
+<div class="doc"><a name="cmApBuf_c_doc_0"></a></pre>
+<div class="d"><p><a href="cmApBuf_h_0.html#cmApBufTest">cmApBufTest</a>() demonstrates the audio buffer usage.</p>
+</div>
+<pre>
+<hr>
+</div>
+<div class="cod"><pre><a name="cmApBuf_c_code_1"></a>
+<span class="k">void</span> <a name="cmApBufTest_defn"></a><span class="f"><a href="cmApBuf_h_0.html#cmApBufTest">cmApBufTest</a></span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> rpt <span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span> devIdx         <span class="p">=</span> <span class="l">0</span><span class="p">;</span>
+  <span class="k">unsigned</span> devCnt         <span class="p">=</span> <span class="l">1</span> <span class="p">;</span>
+  <span class="k">unsigned</span> dspFrameCnt    <span class="p">=</span> <span class="l">10</span><span class="p">;</span>
+  <span class="k">unsigned</span> cycleCnt       <span class="p">=</span> <span class="l">3</span><span class="p">;</span>
+  <span class="k">unsigned</span> framesPerCycle <span class="p">=</span> <span class="l">25</span><span class="p">;</span>
+  <span class="k">unsigned</span> inChCnt        <span class="p">=</span> <span class="l">2</span><span class="p">;</span>
+  <span class="k">unsigned</span> outChCnt       <span class="p">=</span> inChCnt<span class="p">;</span>
+  <span class="k">unsigned</span> sigN           <span class="p">=</span> cycleCnt<span class="p">*</span>framesPerCycle<span class="p">*</span>inChCnt<span class="p">;</span>
+  <span class="k">double</span>   srate          <span class="p">=</span> <span class="l">44100.0</span><span class="p">;</span>
+  <span class="k">unsigned</span> meterMs        <span class="p">=</span> <span class="l">50</span><span class="p">;</span>
+  <span class="k">int</span>      srateMult      <span class="p">=</span> <span class="l">1</span><span class="p">;</span>
+  
+  <span class="k">unsigned</span>          bufChCnt<span class="p">=</span> inChCnt<span class="p">;</span>
+  <a href="cmAudioPort_h_0.html#cmApSample_t">cmApSample_t</a><span class="p">*</span>     inBufArray<span class="p">[</span> bufChCnt <span class="p">]</span><span class="p">;</span>
+  <a href="cmAudioPort_h_0.html#cmApSample_t">cmApSample_t</a><span class="p">*</span>     outBufArray<span class="p">[</span> bufChCnt <span class="p">]</span><span class="p">;</span>
+  <a href="cmAudioPort_h_0.html#cmApSample_t">cmApSample_t</a>      iSig<span class="p">[</span> sigN <span class="p">]</span><span class="p">;</span>
+  <a href="cmAudioPort_h_0.html#cmApSample_t">cmApSample_t</a>      oSig<span class="p">[</span> sigN <span class="p">]</span><span class="p">;</span>
+  <a href="cmAudioPort_h_0.html#cmApSample_t">cmApSample_t</a><span class="p">*</span>     os <span class="p">=</span> oSig<span class="p">;</span>
+  <a href="cmAudioPort_h_0.html#cmApAudioPacket_t">cmApAudioPacket_t</a> pkt<span class="p">;</span>
+  <span class="k">int</span>        i<span class="p">,</span>j<span class="p">;</span>
+  
+  <span class="c">// create a simulated signal</span>
+  <span class="k">for</span><span class="p">(</span>i<span class="p">=</span><span class="l">0</span><span class="p">;</span> i<span class="p">&lt</span>sigN<span class="p">;</span> <span class="p">+</span><span class="p">+</span>i<span class="p">)</span>
+  <span class="p">{</span>
+    iSig<span class="p">[</span>i<span class="p">]</span>   <span class="p">=</span> i<span class="p">;</span>
+    oSig<span class="p">[</span>i<span class="p">]</span> <span class="p">=</span> <span class="l">0</span><span class="p">;</span>
+  <span class="p">}</span>
+  
+  pkt<span class="p">.</span>devIdx         <span class="p">=</span> <span class="l">0</span><span class="p">;</span>
+  pkt<span class="p">.</span>begChIdx       <span class="p">=</span> <span class="l">0</span><span class="p">;</span>
+  pkt<span class="p">.</span>chCnt          <span class="p">=</span> inChCnt<span class="p">;</span>
+  pkt<span class="p">.</span>audioFramesCnt <span class="p">=</span> framesPerCycle<span class="p">;</span>
+  pkt<span class="p">.</span>bitsPerSample  <span class="p">=</span> <span class="l">32</span><span class="p">;</span>
+  pkt<span class="p">.</span>flags          <span class="p">=</span> <span class="l">0</span><span class="p">;</span>
+  
+  
+  <span class="c">// initialize a the audio buffer </span>
+  <a href="cmApBuf_h_0.html#cmApBufInitialize">cmApBufInitialize</a><span class="p">(</span>devCnt<span class="p">,</span>meterMs<span class="p">)</span><span class="p">;</span>
+  
+  <span class="c">// setup the buffer with the specific parameters to by used by the host audio ports</span>
+  <a href="cmApBuf_h_0.html#cmApBufSetup">cmApBufSetup</a><span class="p">(</span>devIdx<span class="p">,</span>srate<span class="p">,</span>dspFrameCnt<span class="p">,</span>cycleCnt<span class="p">,</span>inChCnt<span class="p">,</span>framesPerCycle<span class="p">,</span>outChCnt<span class="p">,</span>framesPerCycle<span class="p">,</span> srateMult<span class="p">)</span><span class="p">;</span>
+  
+  <span class="c">// simulate cylcing through sigN buffer transactions</span>
+  <span class="k">for</span><span class="p">(</span>i<span class="p">=</span><span class="l">0</span><span class="p">;</span> i<span class="p">&lt</span>sigN<span class="p">;</span> i<span class="p">+</span><span class="p">=</span>framesPerCycle<span class="p">*</span>inChCnt<span class="p">)</span>
+  <span class="p">{</span>
+    <span class="c">// setup an incoming audio packet</span>
+    pkt<span class="p">.</span>audioFramesCnt <span class="p">=</span> framesPerCycle<span class="p">;</span>
+    pkt<span class="p">.</span>audioBytesPtr  <span class="p">=</span> iSig<span class="p">+</span>i<span class="p">;</span>
+    
+    <span class="c">// simulate a call from the audio port with incoming samples 
+    // (fill the audio buffers internal input buffers)</span>    
+    <a href="cmApBuf_h_0.html#cmApBufUpdate">cmApBufUpdate</a><span class="p">(</span><span class="p">&amp</span>pkt<span class="p">,</span><span class="l">1</span><span class="p">,</span>NULL<span class="p">,</span><span class="l">0</span><span class="p">)</span><span class="p">;</span>
+    
+    <span class="c">// if all devices need to be serviced</span>
+    <span class="k">while</span><span class="p">(</span> <a href="cmApBuf_h_0.html#cmApBufIsDeviceReady">cmApBufIsDeviceReady</a><span class="p">(</span> devIdx<span class="p">,</span> <a href="cmApBuf_h_0.html#kInApFl">kInApFl</a> <span class="p">|</span> <a href="cmApBuf_h_0.html#kOutApFl">kOutApFl</a> <span class="p">)</span><span class="p">)</span>
+    <span class="p">{</span>
+      <span class="c">// get pointers to full internal input buffers</span>
+      <a href="cmApBuf_h_0.html#cmApBufGet">cmApBufGet</a><span class="p">(</span>devIdx<span class="p">,</span> <a href="cmApBuf_h_0.html#kInApFl">kInApFl</a><span class="p">,</span> inBufArray<span class="p">,</span> bufChCnt <span class="p">)</span><span class="p">;</span>
+      
+      <span class="c">// get pointers to empty internal output buffers</span>
+      <a href="cmApBuf_h_0.html#cmApBufGet">cmApBufGet</a><span class="p">(</span>devIdx<span class="p">,</span> <a href="cmApBuf_h_0.html#kOutApFl">kOutApFl</a><span class="p">,</span> outBufArray<span class="p">,</span> bufChCnt <span class="p">)</span><span class="p">;</span>
+      
+      <span class="c">// Warning: pointers to disabled channels will be set to NULL.</span>
+      
+      <span class="c">// simulate a play through by copying the incoming samples to the outgoing buffers.</span>
+      <span class="k">for</span><span class="p">(</span>j<span class="p">=</span><span class="l">0</span><span class="p">;</span> j<span class="p">&lt</span>bufChCnt<span class="p">;</span> <span class="p">+</span><span class="p">+</span>j<span class="p">)</span>
+        <span class="k">if</span><span class="p">(</span> outBufArray<span class="p">[</span>j<span class="p">]</span> <span class="p">!</span><span class="p">=</span> NULL <span class="p">)</span>
+      <span class="p">{</span>
+        <span class="c">// if the input is disabled - but the output is not then zero the output buffer</span>
+        <span class="k">if</span><span class="p">(</span> inBufArray<span class="p">[</span>j<span class="p">]</span> <span class="p">=</span><span class="p">=</span> NULL <span class="p">)</span>
+          memset<span class="p">(</span> outBufArray<span class="p">[</span>j<span class="p">]</span><span class="p">,</span> <span class="l">0</span><span class="p">,</span> dspFrameCnt<span class="p">*</span><span class="k">sizeof</span><span class="p">(</span><a href="cmAudioPort_h_0.html#cmApSample_t">cmApSample_t</a><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+        <span class="k">else</span>
+          <span class="c">// copy the input to the output</span>
+        memcpy<span class="p">(</span> outBufArray<span class="p">[</span>j<span class="p">]</span><span class="p">,</span> inBufArray<span class="p">[</span>j<span class="p">]</span><span class="p">,</span> dspFrameCnt<span class="p">*</span><span class="k">sizeof</span><span class="p">(</span><a href="cmAudioPort_h_0.html#cmApSample_t">cmApSample_t</a><span class="p">)</span><span class="p">)</span><span class="p">;</span>
+      <span class="p">}</span>
+      
+      <span class="c">// signal the buffer that this cycle is complete.
+      // (marks current internal input/output buffer empty/full)</span>      
+      <a href="cmApBuf_h_0.html#cmApBufAdvance">cmApBufAdvance</a><span class="p">(</span> devIdx<span class="p">,</span> <a href="cmApBuf_h_0.html#kInApFl">kInApFl</a> <span class="p">|</span> <a href="cmApBuf_h_0.html#kOutApFl">kOutApFl</a> <span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+    
+    pkt<span class="p">.</span>audioBytesPtr <span class="p">=</span> os<span class="p">;</span>
+    
+    <span class="c">// simulate a call from the audio port picking up outgoing samples
+    // (empties the audio buffers internal output buffers)</span>    
+    <a href="cmApBuf_h_0.html#cmApBufUpdate">cmApBufUpdate</a><span class="p">(</span>NULL<span class="p">,</span><span class="l">0</span><span class="p">,</span><span class="p">&amp</span>pkt<span class="p">,</span><span class="l">1</span><span class="p">)</span><span class="p">;</span>
+    
+    os <span class="p">+</span><span class="p">=</span> pkt<span class="p">.</span>audioFramesCnt <span class="p">*</span> pkt<span class="p">.</span>chCnt<span class="p">;</span>
+  <span class="p">}</span>
+  
+  <span class="k">for</span><span class="p">(</span>i<span class="p">=</span><span class="l">0</span><span class="p">;</span> i<span class="p">&lt</span>sigN<span class="p">;</span> <span class="p">+</span><span class="p">+</span>i<span class="p">)</span>
+    <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a><span class="p">(</span>rpt<span class="p">,</span><span class="l">&quot%f &quot</span><span class="p">,</span>oSig<span class="p">[</span>i<span class="p">]</span><span class="p">)</span><span class="p">;</span>
+  <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a><span class="p">(</span>rpt<span class="p">,</span><span class="l">&quot\n&quot</span><span class="p">)</span><span class="p">;</span>
+  
+  <a href="cmApBuf_h_0.html#cmApBufFinalize">cmApBufFinalize</a><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+<span class="p">}</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

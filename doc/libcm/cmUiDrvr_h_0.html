@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmUiDrvr.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmUiDrvr.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmUiDrvr : UI independent driver used by an rtSys application to communicate with the UI.</div><pre><a name="cmUiDrvr_h_code_0"></a>
+<span class="k">typedef</span> <span class="k">unsigned</span> <a name="cmUiRC_t"></a><span class="t">cmUiRC_t</span><span class="p">;</span>
+
+<span class="c">// cmUi result codes</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkUiRC"></a><span class="e">kOkUiRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kAppNotFoundUiRC"></a><span class="e">kAppNotFoundUiRC</span><span class="p">,</span>
+  <a name="kCtlNotFoundUiRC"></a><span class="e">kCtlNotFoundUiRC</span><span class="p">,</span>
+  <a name="kPanelNotFoundUiRC"></a><span class="e">kPanelNotFoundUiRC</span><span class="p">,</span>
+  <a name="kInvalidAppIdUiRC"></a><span class="e">kInvalidAppIdUiRC</span><span class="p">,</span>
+  <a name="kPanelFullUiRC"></a><span class="e">kPanelFullUiRC</span><span class="p">,</span>
+  <a name="kDrvrErrUiRC"></a><span class="e">kDrvrErrUiRC</span><span class="p">,</span>    
+  <a name="kInvalidCtlOpUiRC"></a><span class="e">kInvalidCtlOpUiRC</span><span class="p">,</span>
+  <a name="kInvalidColRowUiRC"></a><span class="e">kInvalidColRowUiRC</span><span class="p">,</span>
+  <a name="kInvalidIdUiRC"></a><span class="e">kInvalidIdUiRC</span><span class="p">,</span>
+  <a name="kSubSysFailUiRC"></a><span class="e">kSubSysFailUiRC</span><span class="p">,</span>
+  <a name="kBufTooSmallUiRC"></a><span class="e">kBufTooSmallUiRC</span><span class="p">,</span>
+  <a name="kBufCorruptUiRC"></a><span class="e">kBufCorruptUiRC</span><span class="p">,</span>
+  <a name="kNotImplementedUiRC"></a><span class="e">kNotImplementedUiRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// Built-in control types.</span>
+<span class="k">typedef</span> <span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kInvalidUiCId"></a><span class="e">kInvalidUiCId</span><span class="p">,</span>
+  <a name="kPanelUiCId"></a><span class="e">kPanelUiCId</span><span class="p">,</span>
+  <a name="kBtnUiCId"></a><span class="e">kBtnUiCId</span><span class="p">,</span>
+  <a name="kCheckUiCId"></a><span class="e">kCheckUiCId</span><span class="p">,</span>
+  <a name="kMenuBtnUiCId"></a><span class="e">kMenuBtnUiCId</span><span class="p">,</span>
+  <a name="kListUiCId"></a><span class="e">kListUiCId</span><span class="p">,</span>
+  <a name="kLabelUiCId"></a><span class="e">kLabelUiCId</span><span class="p">,</span>
+  <a name="kStringUiCId"></a><span class="e">kStringUiCId</span><span class="p">,</span>
+  <a name="kConsoleUiCId"></a><span class="e">kConsoleUiCId</span><span class="p">,</span>
+  <a name="kNumberUiCId"></a><span class="e">kNumberUiCId</span><span class="p">,</span>
+  <a name="kSliderUiCId"></a><span class="e">kSliderUiCId</span><span class="p">,</span>
+  <a name="kProgressUiCId"></a><span class="e">kProgressUiCId</span><span class="p">,</span>
+  <a name="kMeterUiCId"></a><span class="e">kMeterUiCId</span><span class="p">,</span>
+  <a name="kFilenameUiCId"></a><span class="e">kFilenameUiCId</span><span class="p">,</span>
+  <a name="kDirUiCId"></a><span class="e">kDirUiCId</span><span class="p">,</span>
+  <a name="kMaxUiCId"></a><span class="e">kMaxUiCId</span>
+<span class="p">}</span> <a name="cmUiCId_t"></a><span class="t">cmUiCId_t</span><span class="p">;</span>
+
+<span class="c">// Control selector id's</span>
+<span class="k">typedef</span> <span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kInvalidDId"></a><span class="e">kInvalidDId</span><span class="p">,</span>
+  <a name="kCreateCtlDId"></a><span class="e">kCreateCtlDId</span><span class="p">,</span>
+  <a name="kDestroyCtlDId"></a><span class="e">kDestroyCtlDId</span><span class="p">,</span>
+  <a name="kSetValDId"></a><span class="e">kSetValDId</span><span class="p">,</span>
+  <a name="kEnableDId"></a><span class="e">kEnableDId</span><span class="p">,</span>       <span class="c"> // ival holds new enable state</span>
+  <a name="kMaxDId"></a><span class="e">kMaxDId</span>
+<span class="p">}</span> <a name="cmUiDId_t"></a><span class="t">cmUiDId_t</span><span class="p">;</span>
+
+<span class="c">// Control flags.</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <span class="c">// All controls recognize <a href="#kValUiFl">kValUiFl</a> and <a href="#kLblUiFl">kLblUiFl</a></span>
+  <a name="kValUiFl"></a><span class="e">kValUiFl</span>       <span class="p">=</span> <span class="l">0x00000001</span><span class="p">,</span>
+  <a name="kLblUiFl"></a><span class="e">kLblUiFl</span>       <span class="p">=</span> <span class="l">0x00000002</span><span class="p">,</span>
+  
+  <span class="c">// Flags for Number,Progress,Meter</span>
+  <a name="kMinUiFl"></a><span class="e">kMinUiFl</span>       <span class="p">=</span> <span class="l">0x00000004</span><span class="p">,</span>
+  <a name="kMaxUiFl"></a><span class="e">kMaxUiFl</span>       <span class="p">=</span> <span class="l">0x00000010</span><span class="p">,</span>
+  <a name="kIncUiFl"></a><span class="e">kIncUiFl</span>       <span class="p">=</span> <span class="l">0x00000020</span><span class="p">,</span>
+  <a name="kNumMask"></a><span class="e">kNumMask</span>       <span class="p">=</span> <a href="#kValUiFl">kValUiFl</a> <span class="p">|</span> <a href="#kMinUiFl">kMinUiFl</a> <span class="p">|</span> <a href="#kMaxUiFl">kMaxUiFl</a> <span class="p">|</span> <a href="#kIncUiFl">kIncUiFl</a><span class="p">,</span>
+  
+  <a name="kHorzUiFl"></a><span class="e">kHorzUiFl</span>      <span class="p">=</span> <span class="l">0x00000040</span><span class="p">,</span>
+  <a name="kVertUiFl"></a><span class="e">kVertUiFl</span>      <span class="p">=</span> <span class="l">0x00000080</span><span class="p">,</span>
+  
+  <span class="c">// Flags for Filename and Dir</span>
+  <a name="kFnPatUiFl"></a><span class="e">kFnPatUiFl</span>     <span class="p">=</span> <span class="l">0x00000100</span><span class="p">,</span> <span class="c"> // file pattern string</span>
+  <a name="kFnDirUiFl"></a><span class="e">kFnDirUiFl</span>     <span class="p">=</span> <span class="l">0x00000200</span><span class="p">,</span> <span class="c"> // toggle file btn type </span>
+  <a name="kFnMask"></a><span class="e">kFnMask</span>        <span class="p">=</span> <a href="#kFnPatUiFl">kFnPatUiFl</a> <span class="p">|</span> <a href="#kFnDirUiFl">kFnDirUiFl</a><span class="p">,</span>
+  
+  <span class="c">// Append list or menu element.</span>
+  <a name="kAppendUiFl"></a><span class="e">kAppendUiFl</span>    <span class="p">=</span> <span class="l">0x00000400</span><span class="p">,</span>
+  <a name="kPrependUiFl"></a><span class="e">kPrependUiFl</span>   <span class="p">=</span> <span class="l">0x00000800</span><span class="p">,</span>
+  <a name="kClearUiFl"></a><span class="e">kClearUiFl</span>     <span class="p">=</span> <span class="l">0x00001000</span><span class="p">,</span> <span class="c"> // clear all ele' from a list or menu</span>
+  
+  <span class="c">// Alignment flags</span>
+  <a name="kLeftUiFl"></a><span class="e">kLeftUiFl</span>      <span class="p">=</span> <span class="l">0x00002000</span><span class="p">,</span>
+  <a name="kTopUiFl"></a><span class="e">kTopUiFl</span>       <span class="p">=</span> <span class="l">0x00004000</span><span class="p">,</span>
+  <a name="kRightUiFl"></a><span class="e">kRightUiFl</span>     <span class="p">=</span> <span class="l">0x00008000</span><span class="p">,</span>
+  <a name="kBottomUiFl"></a><span class="e">kBottomUiFl</span>    <span class="p">=</span> <span class="l">0x00010000</span><span class="p">,</span>
+  <a name="kHCtrUiFl"></a><span class="e">kHCtrUiFl</span>      <span class="p">=</span> <span class="l">0x00020000</span><span class="p">,</span>
+  <a name="kVCtrUiFl"></a><span class="e">kVCtrUiFl</span>      <span class="p">=</span> <span class="l">0x00040000</span><span class="p">,</span>
+  <a name="kInsideUiFl"></a><span class="e">kInsideUiFl</span>    <span class="p">=</span> <span class="l">0x00080000</span><span class="p">,</span>
+  
+  <span class="c">// Value flags indicate which value fields are valid</span>
+  <a name="kIvalUiFl"></a><span class="e">kIvalUiFl</span>      <span class="p">=</span> <span class="l">0x00100000</span><span class="p">,</span>
+  <a name="kFvalUiFl"></a><span class="e">kFvalUiFl</span>      <span class="p">=</span> <span class="l">0x00200000</span><span class="p">,</span>
+  <a name="kSvalUiFl"></a><span class="e">kSvalUiFl</span>      <span class="p">=</span> <span class="l">0x00400000</span><span class="p">,</span>
+  
+  <a name="kNoReflectUiFl"></a><span class="e">kNoReflectUiFl</span> <span class="p">=</span> <span class="l">0x01000000</span><span class="p">,</span> <span class="c"> // do not reflect event to the client</span>
+  
+  <span class="c">// When to send text fields</span>
+  <a name="kSendChangeFl"></a><span class="e">kSendChangeFl</span>  <span class="p">=</span> <span class="l">0x10000000</span><span class="p">,</span> <span class="c"> // whenever text changes</span>
+  <a name="kSendEnterFl"></a><span class="e">kSendEnterFl</span>   <span class="p">=</span> <span class="l">0x20000000</span><span class="p">,</span> <span class="c"> // when enter key is pressed (and changed or not-changed)</span>
+  <a name="kSendFocusFl"></a><span class="e">kSendFocusFl</span>   <span class="p">=</span> <span class="l">0x40000000</span><span class="p">,</span> <span class="c"> // when ctl loses focus</span>
+  <a name="kSendNoChangeFl"></a><span class="e">kSendNoChangeFl</span><span class="p">=</span> <span class="l">0x80000000</span>  <span class="c"> // on enter even if no-change </span>
+<span class="p">}</span><span class="p">;</span>
+
+
+<span class="c">// A control can be uniquely idenfied by 
+// appId and usrId (appId's are unique among app's)
+// (usrId's are unique among ctl's on an app)
+// appId's and usrId's should be zero based low numbers
+// because they are used internally as indexes.</span>
+<a name="cmUiDriverArg_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmRtSysMsg_h_0.html#cmRtSysMsgHdr_t">cmRtSysMsgHdr_t</a> <a name="cmUiDriverArg_t.hdr"></a><span class="i">hdr</span><span class="p">;</span>
+  <a href="#cmUiDId_t">cmUiDId_t</a>       <a name="cmUiDriverArg_t.dId"></a><span class="i">dId</span><span class="p">;</span>        <span class="c"> // function selector id</span>
+  <span class="k">unsigned</span>        <a name="cmUiDriverArg_t.appId"></a><span class="i">appId</span><span class="p">;</span>      <span class="c"> // app id (plug-in instance id)</span>
+  <span class="k">unsigned</span>        <a name="cmUiDriverArg_t.usrId"></a><span class="i">usrId</span><span class="p">;</span>      <span class="c"> // ctl id</span>
+  <span class="k">unsigned</span>        <a name="cmUiDriverArg_t.panelId"></a><span class="i">panelId</span><span class="p">;</span>    <span class="c"> // parent panel id </span>
+  <a href="#cmUiCId_t">cmUiCId_t</a>       <a name="cmUiDriverArg_t.cId"></a><span class="i">cId</span><span class="p">;</span>        <span class="c"> // UI control type </span>
+  <span class="k">unsigned</span>        <a name="cmUiDriverArg_t.flags"></a><span class="i">flags</span><span class="p">;</span>      <span class="c"> // See kXXXUiFl above.</span>
+  <span class="k">int</span>             <a name="cmUiDriverArg_t.ival"></a><span class="i">ival</span><span class="p">;</span>       <span class="c"> // Valid if <a href="#kIvalUiFl">kIvalUiFl</a> is set.</span>
+  <span class="k">double</span>          <a name="cmUiDriverArg_t.fval"></a><span class="i">fval</span><span class="p">;</span>       <span class="c"> // Valid if <a href="#kFvalUiFl">kFvalUiFl</a> is set.</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmUiDriverArg_t.sval"></a><span class="i">sval</span><span class="p">;</span>       <span class="c"> // Valid if <a href="#kSvalUiFl">kSvalUiFl</a> is set.</span>
+  <span class="k">int</span>             <a name="cmUiDriverArg_t.x"></a><span class="i">x</span><span class="p">;</span> 
+  <span class="k">int</span>             <a name="cmUiDriverArg_t.y"></a><span class="i">y</span><span class="p">;</span> 
+  <span class="k">int</span>             <a name="cmUiDriverArg_t.w"></a><span class="i">w</span><span class="p">;</span> 
+  <span class="k">int</span>             <a name="cmUiDriverArg_t.h"></a><span class="i">h</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmUiDriverArg_t">cmUiDriverArg_t</a></span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="#cmUiRC_t">cmUiRC_t</a> <span class="p">(</span><span class="p">*</span><a name="cmUiDriverFunc_t"></a><span class="t">cmUiDriverFunc_t</span><span class="p">)</span><span class="p">(</span> <span class="k">void</span><span class="p">*</span> <span class="i">arg</span><span class="p">,</span> <span class="k">const</span> <a href="#cmUiDriverArg_t">cmUiDriverArg_t</a><span class="p">*</span> <span class="i">a</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span> <a name="cmUiDriverArgSetup"></a>cmUiDriverArgSetup<span class="p">(</span> <a href="#cmUiDriverArg_t">cmUiDriverArg_t</a><span class="p">*</span> <span class="i">a</span><span class="p">,</span> 
+<span class="k">unsigned</span>  <span class="i">rtSubIdx</span><span class="p">,</span>
+<span class="k">unsigned</span>  <span class="i">selId</span><span class="p">,</span>
+<a href="#cmUiDId_t">cmUiDId_t</a> <span class="i">dId</span><span class="p">,</span>
+<span class="k">unsigned</span>  <span class="i">appId</span><span class="p">,</span>
+<span class="k">unsigned</span>  <span class="i">usrId</span><span class="p">,</span>
+<span class="k">unsigned</span>  <span class="i">panelId</span><span class="p">,</span>
+<a href="#cmUiCId_t">cmUiCId_t</a> <span class="i">cId</span><span class="p">,</span>
+<span class="k">unsigned</span>  <span class="i">flags</span><span class="p">,</span>
+<span class="k">int</span>       <span class="i">ival</span><span class="p">,</span>
+<span class="k">double</span>    <span class="i">fval</span><span class="p">,</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">sval</span><span class="p">,</span>
+<span class="k">int</span>       <span class="i">x</span><span class="p">,</span>
+<span class="k">int</span>       <span class="i">y</span><span class="p">,</span>
+<span class="k">int</span>       <span class="i">w</span><span class="p">,</span>
+<span class="k">int</span>       <span class="i">h</span>
+<span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span> <a name="cmUiDriverArgSerializeBufByteCount"></a><span class="f">cmUiDriverArgSerializeBufByteCount</span><span class="p">(</span> <span class="k">const</span> <a href="#cmUiDriverArg_t">cmUiDriverArg_t</a><span class="p">*</span> <span class="i">a</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Returns <a href="#kBufTooSmallUiRC">kBufTooSmallUiRC</a> if the buffer is too small otherwise returns kOkUiRC.
+// This function does not call <a href="cmErr_h_0.html#cmErrMsg">cmErrMsg</a>() on error
+// the caller is therefore responsible for generating errors.</span>
+<a href="#cmUiRC_t">cmUiRC_t</a> <a name="cmUiDriverArgSerialize"></a><span class="f">cmUiDriverArgSerialize</span><span class="p">(</span> <span class="k">const</span> <a href="#cmUiDriverArg_t">cmUiDriverArg_t</a><span class="p">*</span> <span class="i">a</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bufByteCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return <a href="#kBufTooSmallUiRC">kBufTooSmallUiRC</a> or <a href="#kBufCorruptUiRC">kBufCorruptUiRC</a> if buffer corruption is detected 
+// otherwise returns kOkUiRC.  This function does not call <a href="cmErr_h_0.html#cmErrMsg">cmErrMsg</a>() on error
+// the caller is therefore responsible for generating errors.</span>
+<a href="#cmUiRC_t">cmUiRC_t</a> <a name="cmUiDriverArgDeserialize"></a><span class="f">cmUiDriverArgDeserialize</span><span class="p">(</span> <a href="#cmUiDriverArg_t">cmUiDriverArg_t</a><span class="p">*</span> <span class="i">a</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bufByteCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return an arg. value converted to the requiested type.
+// Note that numeric values will be automatically converted but
+// values will not be converted between string and numeric values.</span>
+<span class="k">int</span>             <a name="cmUiDriverArgGetInt"></a><span class="f">cmUiDriverArgGetInt</span><span class="p">(</span>    <span class="k">const</span> <a href="#cmUiDriverArg_t">cmUiDriverArg_t</a><span class="p">*</span> <span class="i">a</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">double</span>          <a name="cmUiDriverArgGetDouble"></a><span class="f">cmUiDriverArgGetDouble</span><span class="p">(</span> <span class="k">const</span> <a href="#cmUiDriverArg_t">cmUiDriverArg_t</a><span class="p">*</span> <span class="i">a</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmUiDriverArgGetString"></a><span class="f">cmUiDriverArgGetString</span><span class="p">(</span> <span class="k">const</span> <a href="#cmUiDriverArg_t">cmUiDriverArg_t</a><span class="p">*</span> <span class="i">a</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>
