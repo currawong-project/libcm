@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmMain.c</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmMain.c"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmMain : Template 'main.c' for 'libcm' based program</div><pre><a name="cmMain_c_code_0"></a>
+<span class="m">#include &quot<a href="cmGlobal_h_0.html#cmGlobal.h">cmGlobal.h</a>&quot</span>
+<span class="m">#include &quot<a href="cmRpt_h_0.html#cmRpt.h">cmRpt.h</a>&quot</span>
+<span class="m">#include &quot<a href="cmMem_h_0.html#cmMem.h">cmMem.h</a>&quot</span>
+<span class="m">#include &quot<a href="cmMallocDebug_h_0.html#cmMallocDebug.h">cmMallocDebug.h</a>&quot</span>
+<span class="m">#include &quot<a href="cmLinkedHeap_h_0.html#cmLinkedHeap.h">cmLinkedHeap.h</a>&quot</span>
+
+<span class="k">void</span> <a name="print_defn"></a><a name="print"></a><span class="f">print</span><span class="p">(</span><span class="k">void</span><span class="p">*</span> cmRptUserPtr<span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> text<span class="p">)</span>
+<span class="p">{</span> printf<span class="p">(</span>text<span class="p">)</span><span class="p">;</span> <span class="p">}</span>
+
+
+<span class="k">int</span> <a name="main_defn"></a><a name="main"></a><span class="f">main</span><span class="p">(</span><span class="k">int</span> argc<span class="p">,</span> <span class="k">char</span><span class="p">*</span> argv<span class="p">[</span><span class="p">]</span> <span class="p">)</span>
+<span class="p">{</span>
+  
+  <span class="c">// initialize the heap check library</span>
+  <span class="k">bool</span>       memDebugFl          <span class="p">=</span> true<span class="p">;</span>
+  <span class="k">unsigned</span>   memPadByteCnt       <span class="p">=</span> memDebugFl <span class="p">?</span> <span class="l">8</span> <span class="p">:</span> <span class="l">0</span><span class="p">;</span>
+  <span class="k">unsigned</span>   memAlignByteCnt     <span class="p">=</span> <span class="l">16</span><span class="p">;</span>
+  <span class="k">unsigned</span>   memFlags            <span class="p">=</span> memDebugFl <span class="p">?</span> <a href="cmMem_h_0.html#kTrackMmFl">kTrackMmFl</a> <span class="p">|</span> <a href="cmMem_h_0.html#kDeferFreeMmFl">kDeferFreeMmFl</a> <span class="p">|</span> <a href="cmMem_h_0.html#kFillUninitMmFl">kFillUninitMmFl</a> <span class="p">:</span> <span class="l">0</span><span class="p">;</span>
+  
+  <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a>    rpt<span class="p">;</span>
+  <a href="cmRpt_h_0.html#cmRptSetup">cmRptSetup</a><span class="p">(</span><span class="p">&amp</span>rpt<span class="p">,</span><a href="#print">print</a><span class="p">,</span><a href="#print">print</a><span class="p">,</span>NULL<span class="p">)</span><span class="p">;</span>
+  
+  <span class="c">//<a href="cmMallocDebug_h_0.html#cmMdTest">cmMdTest</a>(&ampamprpt);
+  //return 0;</span>  
+  
+  <a href="cmMallocDebug_h_0.html#cmMdInitialize">cmMdInitialize</a><span class="p">(</span> memPadByteCnt<span class="p">,</span> memAlignByteCnt<span class="p">,</span> memFlags<span class="p">,</span> <span class="p">&amp</span>rpt <span class="p">)</span><span class="p">;</span>
+  
+  <a href="cmLinkedHeap_h_0.html#cmLHeapTest">cmLHeapTest</a><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+  
+  <a href="cmMallocDebug_h_0.html#cmMdReport">cmMdReport</a><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+  <a href="cmMallocDebug_h_0.html#cmMdFinalize">cmMdFinalize</a><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+  <span class="k">return</span> <span class="l">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

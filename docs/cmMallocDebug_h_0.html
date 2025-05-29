@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmMallocDebug.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmMallocDebug.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmMallocDebug : Implements an extended memory allocation and tracking manager.</div><pre><a name="cmMallocDebug_h_code_0"></a><span class="c">//
+// cmMallocDebug is a wrapper to <a href="cmMem_h_0.html#cmMem.h">cmMem.h</a> for calls to malloc() and free().
+// Most of the cmMdXXX() calls are directly associated with same named 
+// functions in cmMem.h. In effect this library is an implementation of the
+// cmMm object where malloc() and free() are the callback functions 
+// provided to <a href="cmMem_h_0.html#cmMmInitialize">cmMmInitialize</a>().
+// 
+//</span>
+
+<span class="c">// Initialize the malloc debug manager. guardByteCnt, alignByteeCnt, flags, and rpt
+// are used to initialize an internal cmMm object.  See cmMm for their semantics.</span>
+<a href="cmMem_h_0.html#cmMmRC_t">cmMmRC_t</a>  <a name="cmMdInitialize"></a><span class="f">cmMdInitialize</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">guardByteCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">alignByteCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rptPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Finalize the malloc debug manager which was previously iniitalized via 
+// a call to <a href="#cmMdInitialize">cmMdInitialize</a>(). </span>
+<a href="cmMem_h_0.html#cmMmRC_t">cmMmRC_t</a>  <a name="cmMdFinalize"></a><span class="f">cmMdFinalize</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Returns true if the malloc debug manager has been initialized.</span>
+<span class="k">bool</span>      <a name="cmMdIsValid"></a><span class="f">cmMdIsValid</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+
+<span class="k">unsigned</span>  <a name="cmMdGuardByteCount"></a><span class="f">cmMdGuardByteCount</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>  <span class="c"> // Guard byte count set in <a href="#cmMdInitialize">cmMdInitialize</a>().</span>
+<span class="k">unsigned</span>  <a name="cmMdAlignByteCount"></a><span class="f">cmMdAlignByteCount</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>  <span class="c"> // Byte alignment set in <a href="#cmMdInitialize">cmMdInitialize</a>().</span>
+<span class="k">unsigned</span>  <a name="cmMdInitializeFlags"></a><span class="f">cmMdInitializeFlags</span><span class="p">(</span><span class="p">)</span><span class="p">;</span> <span class="c"> // <a href="#cmMdInitialize">cmMdInitialize</a>() configuration flags.</span>
+
+<span class="c">// Allocate a block of memory in release compile mode. This function is generally called
+// via one of the cmMemXXX() macros.</span>
+<span class="k">void</span><span class="p">*</span>    <a name="cmMdAllocate"></a><span class="f">cmMdAllocate</span><span class="p">(</span>      <span class="k">void</span> <span class="p">*</span><span class="i">orgDataPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">eleCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">eleByteCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Allocate a block of memory in debug compile mode. This function is generally called 
+// via one of the cmMmXXX() macros.</span>
+<span class="k">void</span><span class="p">*</span>    <a name="cmMdAllocateDebug"></a><span class="f">cmMdAllocateDebug</span><span class="p">(</span> <span class="k">void</span><span class="p">*</span> <span class="i">orgDataPtr</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">eleCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">eleByteCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">func</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">line</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Free a block of memory allocated through <a href="#cmMdAllocate">cmMdAllocate</a>().</span>
+<span class="k">void</span>     <a name="cmMdFree"></a><span class="f">cmMdFree</span><span class="p">(</span>     <span class="k">void</span><span class="p">*</span>  <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Free a block of memory allocated through <a href="#cmMdAllocateDebug">cmMdAllocateDebug</a>().</span>
+<span class="k">void</span>     <a name="cmMdFreeDebug"></a><span class="f">cmMdFreeDebug</span><span class="p">(</span><span class="k">void</span><span class="p">*</span>  <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">func</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">line</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Free a block of memory allocated through cmMdAllocateI() and set the 
+// pointer variable to NULL.  This function combines the act of releasing memory
+// and then setting the memory variable to NULL in order to indicate that the 
+// variable no longer points to a valid data area.
+//
+// The following two function calls <a href="#cmMdFree">cmMdFree</a>/Debug(p) internally and then
+// set *p=NULL. In almost all cases this is what we want to do when freeing
+// allocated memory since it will prevent the pointer from being accidently
+// reused.
+//
+// <a href="#cmMdFreePtr">cmMdFreePtr</a>( void* p ) would ideally be written as 
+// <a href="#cmMdFreePtr">cmMdFreePtr</a>( void** p ) because it is really taking a pointer to a pointer.
+// void** however produces compiler warning because while any pointer will be
+// automatically cast to void* the same is not true of void** (because void**
+// is naturally more restrictive - asking for a pointer to the specific type void).</span>
+<span class="k">void</span>     <a name="cmMdFreePtr"></a><span class="f">cmMdFreePtr</span><span class="p">(</span>     <span class="k">void</span><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>  
+<span class="k">void</span>     <a name="cmMdFreePtrDebug"></a><span class="f">cmMdFreePtrDebug</span><span class="p">(</span><span class="k">void</span><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">func</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">line</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// void  <a href="#cmMdFreePtr">cmMdFreePtr</a>( void** p )
+// void  <a href="#cmMdFreePtrDebug">cmMdFreePtrDebug</a>( void** p, ... )</span>
+
+<span class="c">// Allocate a block of memory and then copy a string into it. This function is generally 
+// called by the release compile mode version of the cmMemXXXStr() macros.</span>
+<a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmMdAllocStr"></a><span class="f">cmMdAllocStr</span><span class="p">(</span>      <span class="k">void</span><span class="p">*</span> <span class="i">orgStrPtr</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">str</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">strCharCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Allocate a block of memory and then copy a string into it. This function is generally
+// called by the debug compile mode version of the cmMemXXXStr() macros.</span>
+<a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmMdAllocStrDebug"></a><span class="f">cmMdAllocStrDebug</span><span class="p">(</span> <span class="k">void</span><span class="p">*</span> <span class="i">orgStrPtr</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">str</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">strCharCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">func</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">line</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Check if the guard bytes associated with a specified memory block are corrupt.
+// This call is implemented as a direct call the <a href="cmMem_h_0.html#cmMmIsGuardCorrupt">cmMmIsGuardCorrupt</a>().</span>
+<a href="cmMem_h_0.html#cmMmRC_t">cmMmRC_t</a> <a name="cmMdIsGuardCorrupt"></a><span class="f">cmMdIsGuardCorrupt</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Check if any of the currently allocated blocks contain corrupt guard bytes.
+// This call is implemented as a direct call the <a href="cmMem_h_0.html#cmMmCheckAllGuards">cmMmCheckAllGuards</a>().</span>
+<a href="cmMem_h_0.html#cmMmRC_t">cmMmRC_t</a> <a name="cmMdCheckAllGuards"></a><span class="f">cmMdCheckAllGuards</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the unique id associated with a address returned from cmMdAllocateXXX().</span>
+<span class="k">unsigned</span> <a name="cmMdDebugId"></a><span class="f">cmMdDebugId</span><span class="p">(</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">dataPtr</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Report the status of the memory manager and all blocks. 
+// This call is implemented as a direct call to <a href="cmMem_h_0.html#cmMmReport">cmMmReport</a>().</span>
+<a href="cmMem_h_0.html#cmMmRC_t">cmMmRC_t</a> <a name="cmMdReport"></a><span class="f">cmMdReport</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">mmFlags</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// An example and test function for the cmMallocDebug manager.</span>
+<span class="k">void</span>     <a name="cmMdTest"></a><span class="f">cmMdTest</span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+
+
+#if <a href="cmGlobal_h_0.html#cmDEBUG_FL">cmDEBUG_FL</a> == 0
+
+<span class="c">// Memory Allocation and Release Macros:
+// Release compile mode memory macros generally used in place of direct calls 
+// to <a href="#cmMdAllocate">cmMdAllocate</a>() or <a href="#cmMdFree">cmMdFree</a>().
+//</span>
+
+<span class="m">#define </span><a name="cmMemAllocate"></a><span class="m">cmMemAllocate</span><span class="m">( type, p, eleCnt, fl ) ((type*)<a href="#cmMdAllocate">cmMdAllocate</a>( p, eleCnt, sizeof(type), fl )) </span>
+<span class="m">#define </span><a name="cmMemMalloc"></a><span class="m">cmMemMalloc</span><span class="m">(   byteCnt )                 <a href="#cmMdAllocate">cmMdAllocate</a>( NULL, byteCnt,           1,     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a>) </span>
+<span class="m">#define </span><a name="cmMemMallocZ"></a><span class="m">cmMemMallocZ</span><span class="m">(  byteCnt )                 <a href="#cmMdAllocate">cmMdAllocate</a>( NULL, byteCnt,           1,     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> | <a href="cmMem_h_0.html#kZeroMmFl">kZeroMmFl</a>) </span>
+<span class="m">#define </span><a name="cmMemAlloc"></a><span class="m">cmMemAlloc</span><span class="m">(    type, eleCnt )    ((type*)<a href="#cmMdAllocate">cmMdAllocate</a>( NULL, eleCnt, sizeof(type),     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a>))</span>
+<span class="m">#define </span><a name="cmMemAllocZ"></a><span class="m">cmMemAllocZ</span><span class="m">(   type, eleCnt )    ((type*)<a href="#cmMdAllocate">cmMdAllocate</a>( NULL, eleCnt, sizeof(type),     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> | <a href="cmMem_h_0.html#kZeroMmFl">kZeroMmFl</a>))</span>
+<span class="m">#define </span><a name="cmMemAllocStr"></a><span class="m">cmMemAllocStr</span><span class="m">(  str )                    <a href="#cmMdAllocStr">cmMdAllocStr</a>( NULL, str,    <a href="cmGlobal_h_0.html#cmStringLen">cmStringLen</a>(str), <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> )</span>
+<span class="m">#define </span><a name="cmMemAllocStrN"></a><span class="m">cmMemAllocStrN</span><span class="m">( str, charCnt )           <a href="#cmMdAllocStr">cmMdAllocStr</a>( NULL, str,    charCnt,          <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> )</span>
+<span class="m">#define </span><a name="cmMemResizeStr"></a><span class="m">cmMemResizeStr</span><span class="m">( p, str )                 <a href="#cmMdAllocStr">cmMdAllocStr</a>( p,    str,    <a href="cmGlobal_h_0.html#cmStringLen">cmStringLen</a>(str), <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> )</span>
+<span class="m">#define </span><a name="cmMemResizeStrN"></a><span class="m">cmMemResizeStrN</span><span class="m">(p, str, charCnt )       <a href="#cmMdAllocStr">cmMdAllocStr</a>( p,    str,    charCnt,           <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> )</span>
+<span class="m">#define </span><a name="cmMemResizeN"></a><span class="m">cmMemResizeN</span><span class="m">(   n, p, eleCnt )          (<a href="#cmMdAllocate">cmMdAllocate</a>( p,    eleCnt, n,                <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a>))</span>
+<span class="m">#define </span><a name="cmMemResizeNZ"></a><span class="m">cmMemResizeNZ</span><span class="m">(  n, p, eleCnt )          (<a href="#cmMdAllocate">cmMdAllocate</a>( p,    eleCnt, n,                <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> | <a href="cmMem_h_0.html#kZeroMmFl">kZeroMmFl</a> ))</span>
+<span class="m">#define </span><a name="cmMemResize"></a><span class="m">cmMemResize</span><span class="m">(   type, p, eleCnt ) ((type*)<a href="#cmMdAllocate">cmMdAllocate</a>( p,    eleCnt, sizeof(type),     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a>))</span>
+<span class="m">#define </span><a name="cmMemResizeZ"></a><span class="m">cmMemResizeZ</span><span class="m">(  type, p, eleCnt ) ((type*)<a href="#cmMdAllocate">cmMdAllocate</a>( p,    eleCnt, sizeof(type),     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> | <a href="cmMem_h_0.html#kZeroMmFl">kZeroMmFl</a>))</span>
+<span class="m">#define </span><a name="cmMemResizeP"></a><span class="m">cmMemResizeP</span><span class="m">(  type, p, eleCnt ) ((type*)<a href="#cmMdAllocate">cmMdAllocate</a>( p,    eleCnt, sizeof(type),     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> | <a href="cmMem_h_0.html#kPreserveMmFl">kPreserveMmFl</a>))</span>
+<span class="m">#define </span><a name="cmMemResizePZ"></a><span class="m">cmMemResizePZ</span><span class="m">( type, p, eleCnt ) ((type*)<a href="#cmMdAllocate">cmMdAllocate</a>( p,    eleCnt, sizeof(type),     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> | <a href="cmMem_h_0.html#kZeroMmFl">kZeroMmFl</a> | <a href="cmMem_h_0.html#kPreserveMmFl">kPreserveMmFl</a>))</span>
+<span class="m">#define </span><a name="cmMemFree"></a><span class="m">cmMemFree</span><span class="m">(     ptr )                     <a href="#cmMdFree">cmMdFree</a>( ptr )</span>
+<span class="m">#define </span><a name="cmMemPtrFree"></a><span class="m">cmMemPtrFree</span><span class="m">(  ptrPtr )                  <a href="#cmMdFreePtr">cmMdFreePtr</a>(ptrPtr);</span>
+
+
+<span class="m">#define </span><a name="cmIsPadCorrupt"></a><span class="m">cmIsPadCorrupt</span><span class="m">( id ) (<a href="cmMem_h_0.html#kOkMmRC">kOkMmRC</a>)</span>
+
+
+#else 
+
+<span class="c">// Memory Allocation and Release Macros:
+// These are debug compile mode memory allocation macros generally used in place of 
+// direct calls to <a href="#cmMdAllocateDebug">cmMdAllocateDebug</a>() or <a href="#cmMdFree">cmMdFree</a>().
+//
+//</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemAllocate">cmMemAllocate</a></span><span class="m">( type, p, eleCnt, pre, fl ) ((type*)<a href="#cmMdAllocateDebug">cmMdAllocateDebug</a>( p, eleCnt, sizeof(type), fl, __FUNCTION__, __FILE__, __LINE__ ))</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemMalloc">cmMemMalloc</a></span><span class="m">(   byteCnt )                 <a href="#cmMdAllocateDebug">cmMdAllocateDebug</a>( NULL, 1,      byteCnt,          <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a>,             __FUNCTION__, __FILE__, __LINE__ )</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemMallocZ">cmMemMallocZ</a></span><span class="m">(  byteCnt )                 <a href="#cmMdAllocateDebug">cmMdAllocateDebug</a>( NULL, 1,      byteCnt,          <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> | <a href="cmMem_h_0.html#kZeroMmFl">kZeroMmFl</a>, __FUNCTION__, __FILE__, __LINE__ )</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemAlloc">cmMemAlloc</a></span><span class="m">(    type, eleCnt )    ((type*)<a href="#cmMdAllocateDebug">cmMdAllocateDebug</a>( NULL, eleCnt, sizeof(type),     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a>,             __FUNCTION__, __FILE__, __LINE__ ))</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemAllocZ">cmMemAllocZ</a></span><span class="m">(   type, eleCnt )    ((type*)<a href="#cmMdAllocateDebug">cmMdAllocateDebug</a>( NULL, eleCnt, sizeof(type),     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> | <a href="cmMem_h_0.html#kZeroMmFl">kZeroMmFl</a>, __FUNCTION__, __FILE__, __LINE__ ))</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemAllocStr">cmMemAllocStr</a></span><span class="m">( str )                    (<a href="#cmMdAllocStrDebug">cmMdAllocStrDebug</a>( NULL, str,    <a href="cmGlobal_h_0.html#cmStringLen">cmStringLen</a>(str), <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a>,             __FUNCTION__, __FILE__, __LINE__ ))</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemAllocStrN">cmMemAllocStrN</a></span><span class="m">(str, charCnt )           (<a href="#cmMdAllocStrDebug">cmMdAllocStrDebug</a>( NULL, str,    charCnt,          <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a>,             __FUNCTION__, __FILE__, __LINE__ ))</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemResizeStr">cmMemResizeStr</a></span><span class="m">(p, str )                 (<a href="#cmMdAllocStrDebug">cmMdAllocStrDebug</a>( p,    str,    <a href="cmGlobal_h_0.html#cmStringLen">cmStringLen</a>(str), <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a>,             __FUNCTION__, __FILE__, __LINE__ ))</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemResizeStrN">cmMemResizeStrN</a></span><span class="m">(p, str, charCnt )       (<a href="#cmMdAllocStrDebug">cmMdAllocStrDebug</a>( p,    str,    charCnt,          <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a>,             __FUNCTION__, __FILE__, __LINE__ ))</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemResizeN">cmMemResizeN</a></span><span class="m">(  n,    p, eleCnt )        (<a href="#cmMdAllocateDebug">cmMdAllocateDebug</a>( p,    eleCnt, n,                <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> | <a href="cmMem_h_0.html#kZeroMmFl">kZeroMmFl</a>, __FUNCTION__, __FILE__, __LINE__ ))</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemResizeNZ">cmMemResizeNZ</a></span><span class="m">( n,    p, eleCnt )        (<a href="#cmMdAllocateDebug">cmMdAllocateDebug</a>( p,    eleCnt, n,                <a href="cmMem_h_0.html#kZeroMmFl">kZeroMmFl</a>,              __FUNCTION__, __FILE__, __LINE__ ))      </span>
+<span class="m">#define </span><span class="m"><a href="#cmMemResize">cmMemResize</a></span><span class="m">(   type, p, eleCnt ) ((type*)<a href="#cmMdAllocateDebug">cmMdAllocateDebug</a>( p,    eleCnt, sizeof(type),     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a>,             __FUNCTION__, __FILE__, __LINE__ )) </span>
+<span class="m">#define </span><span class="m"><a href="#cmMemResizeZ">cmMemResizeZ</a></span><span class="m">(  type, p, eleCnt ) ((type*)<a href="#cmMdAllocateDebug">cmMdAllocateDebug</a>( p,    eleCnt, sizeof(type),     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> | <a href="cmMem_h_0.html#kZeroMmFl">kZeroMmFl</a>, __FUNCTION__, __FILE__, __LINE__ ))</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemResizeP">cmMemResizeP</a></span><span class="m">(  type, p, eleCnt ) ((type*)<a href="#cmMdAllocateDebug">cmMdAllocateDebug</a>( p,    eleCnt, sizeof(type),     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> | <a href="cmMem_h_0.html#kPreserveMmFl">kPreserveMmFl</a>,             __FUNCTION__, __FILE__, __LINE__ )) </span>
+<span class="m">#define </span><span class="m"><a href="#cmMemResizePZ">cmMemResizePZ</a></span><span class="m">( type, p, eleCnt ) ((type*)<a href="#cmMdAllocateDebug">cmMdAllocateDebug</a>( p,    eleCnt, sizeof(type),     <a href="cmMem_h_0.html#kAlignMmFl">kAlignMmFl</a> | <a href="cmMem_h_0.html#kZeroMmFl">kZeroMmFl</a> | <a href="cmMem_h_0.html#kPreserveMmFl">kPreserveMmFl</a>, __FUNCTION__, __FILE__, __LINE__ ))</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemFree">cmMemFree</a></span><span class="m">(     ptr )                     <a href="#cmMdFreeDebug">cmMdFreeDebug</a>( ptr,                                                                  __FUNCTION__, __FILE__, __LINE__ )</span>
+<span class="m">#define </span><span class="m"><a href="#cmMemPtrFree">cmMemPtrFree</a></span><span class="m">(  ptrPtr )                  <a href="#cmMdFreePtrDebug">cmMdFreePtrDebug</a>( (void**)ptrPtr,                                                    __FUNCTION__, __FILE__, __LINE__ )</span>
+
+<span class="m">#define </span><span class="m"><a href="#cmIsPadCorrupt">cmIsPadCorrupt</a></span><span class="m">( id )                     cmMdIsPadCorrupt(id)</span>
+
+<span class="c">// Reports corrupt blocks and returns false if any corrupt blocks are found</span>
+<span class="m">#define </span><a name="cmCheckAllPads"></a><span class="m">cmCheckAllPads</span><span class="m">( file )                   cmMdCheckAllPads(file)</span>
+
+#endif
+
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

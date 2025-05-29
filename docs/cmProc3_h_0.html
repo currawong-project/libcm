@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmProc3.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmProc3.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmPitchShift : Time-domain pitch shifter based on sample rate conversion.</div><pre><a name="cmPitchShift"></a>
+<a name="cmPitchShiftOsc_t"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">double</span>      <a name="cmPitchShiftOsc_t.wi"></a><span class="i">wi</span><span class="p">;</span>
+  <span class="k">double</span>      <a name="cmPitchShiftOsc_t.xi"></a><span class="i">xi</span><span class="p">;</span>
+  <span class="k">int</span>         <a name="cmPitchShiftOsc_t.yn"></a><span class="i">yn</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <a name="cmPitchShiftOsc_t.y"></a><span class="i">y</span><span class="p">;</span>
+  <span class="k">int</span>         <a name="cmPitchShiftOsc_t.yii"></a><span class="i">yii</span><span class="p">;</span>
+  <span class="k">int</span>         <a name="cmPitchShiftOsc_t.yoi"></a><span class="i">yoi</span><span class="p">;</span>
+  <span class="k">int</span>         <a name="cmPitchShiftOsc_t.ynn"></a><span class="i">ynn</span><span class="p">;</span>
+  
+<span class="p">}</span> <span class="t"><a href="#cmPitchShiftOsc_t">cmPitchShiftOsc_t</a></span><span class="p">;</span>
+
+
+<a name="cmPitchShift"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>       <a name="cmPitchShift.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <span class="k">unsigned</span>    <a name="cmPitchShift.procSmpCnt"></a><span class="i">procSmpCnt</span><span class="p">;</span>
+  <span class="k">double</span>      <a name="cmPitchShift.srate"></a><span class="i">srate</span><span class="p">;</span>
+  
+  <span class="k">int</span>               <a name="cmPitchShift.outN"></a><span class="i">outN</span><span class="p">;</span>       <span class="c"> // procSmpCnt</span>
+  <span class="k">int</span>               <a name="cmPitchShift.wn"></a><span class="i">wn</span><span class="p">;</span>         <span class="c"> </span>
+  <span class="k">int</span>               <a name="cmPitchShift.xn"></a><span class="i">xn</span><span class="p">;</span>         <span class="c"> </span>
+  <span class="k">int</span>               <a name="cmPitchShift.bn"></a><span class="i">bn</span><span class="p">;</span>         <span class="c"> </span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>       <a name="cmPitchShift.b"></a><span class="i">b</span><span class="p">;</span>          <span class="c"> // b[bn]</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>       <a name="cmPitchShift.x"></a><span class="i">x</span><span class="p">;</span>          <span class="c"> // x[xn] </span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>       <a name="cmPitchShift.wnd"></a><span class="i">wnd</span><span class="p">;</span>        <span class="c"> // wnd[wn]</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>       <a name="cmPitchShift.outV"></a><span class="i">outV</span><span class="p">;</span>       <span class="c"> // outV[outN];</span>
+  <span class="k">int</span>               <a name="cmPitchShift.xni"></a><span class="i">xni</span><span class="p">;</span>        <span class="c"> </span>
+  <span class="k">bool</span>              <a name="cmPitchShift.cubeFl"></a><span class="i">cubeFl</span><span class="p">;</span>     <span class="c"> </span>
+  <a href="#cmPitchShiftOsc_t">cmPitchShiftOsc_t</a> <a name="cmPitchShift.osc"></a><span class="i">osc</span><span class="p">[</span><span class="l">2</span><span class="p">]</span><span class="p">;</span>     <span class="c"> </span>
+  
+  
+<span class="p">}</span> <span class="t"><a href="#cmPitchShift">cmPitchShift</a></span><span class="p">;</span>
+
+<a href="#cmPitchShift">cmPitchShift</a><span class="p">*</span> <a name="cmPitchShiftAlloc"></a><span class="f">cmPitchShiftAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmPitchShift">cmPitchShift</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>        <a name="cmPitchShiftFree"></a><span class="f">cmPitchShiftFree</span><span class="p">(</span> <a href="#cmPitchShift">cmPitchShift</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>        <a name="cmPitchShiftInit"></a><span class="f">cmPitchShiftInit</span><span class="p">(</span> <a href="#cmPitchShift">cmPitchShift</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>        <a name="cmPitchShiftFinal"></a><span class="f">cmPitchShiftFinal</span><span class="p">(</span><a href="#cmPitchShift">cmPitchShift</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>        <a name="cmPitchShiftExec"></a><span class="f">cmPitchShiftExec</span><span class="p">(</span> <a href="#cmPitchShift">cmPitchShift</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">y</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span><span class="p">,</span> <span class="k">double</span> <span class="i">shiftRatio</span><span class="p">,</span> <span class="k">bool</span> <span class="i">bypassFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmLoopRecord : Audio interactive loop recorder.</div><pre><a name="cmLoopRecord"></a>
+<a name="cmLoopRecdOsc"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">double</span>     <a name="cmLoopRecdOsc.xi"></a><span class="i">xi</span><span class="p">;</span>  <span class="c"> // index into xV[]</span>
+  <span class="k">double</span>     <a name="cmLoopRecdOsc.wi"></a><span class="i">wi</span><span class="p">;</span>  <span class="c"> // index into wV[]</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a> <a name="cmLoopRecdOsc.u"></a><span class="i">u</span><span class="p">;</span>   <span class="c"> // cross-fade window polarity </span>
+<span class="p">}</span> <span class="t"><a href="#cmLoopRecdOsc">cmLoopRecdOsc</a></span><span class="p">;</span>
+
+<a name="cmLoopRecdBuf"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="#cmLoopRecdOsc">cmLoopRecdOsc</a> <a name="cmLoopRecdBuf.osc"></a><span class="i">osc</span><span class="p">[</span><span class="l">2</span><span class="p">]</span><span class="p">;</span>       <span class="c"> </span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>   <a name="cmLoopRecdBuf.xV"></a><span class="i">xV</span><span class="p">;</span>           <span class="c"> // xV[ xN ]</span>
+  <span class="k">int</span>           <a name="cmLoopRecdBuf.xN"></a><span class="i">xN</span><span class="p">;</span>           <span class="c"> // maxRecdSmpCnt</span>
+  <span class="k">int</span>           <a name="cmLoopRecdBuf.xfN"></a><span class="i">xfN</span><span class="p">;</span>          <span class="c"> // cross-fade sample count</span>
+  <span class="k">int</span>           <a name="cmLoopRecdBuf.xii"></a><span class="i">xii</span><span class="p">;</span>          <span class="c"> // xV[] recording input index</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>   <a name="cmLoopRecdBuf.wV"></a><span class="i">wV</span><span class="p">;</span>           <span class="c"> // wV[ xN ] window function (actually contains xii values after recording)</span>
+<span class="p">}</span> <span class="t"><a href="#cmLoopRecdBuf">cmLoopRecdBuf</a></span><span class="p">;</span>
+
+<a name="cmLoopRecord"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>          <a name="cmLoopRecord.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>    <a name="cmLoopRecord.bufMem"></a><span class="i">bufMem</span><span class="p">;</span>
+  <span class="k">unsigned</span>       <a name="cmLoopRecord.maxRecdSmpCnt"></a><span class="i">maxRecdSmpCnt</span><span class="p">;</span>
+  <a href="#cmLoopRecdBuf">cmLoopRecdBuf</a><span class="p">*</span> <a name="cmLoopRecord.bufArray"></a><span class="i">bufArray</span><span class="p">;</span>
+  <span class="k">unsigned</span>       <a name="cmLoopRecord.bufArrayCnt"></a><span class="i">bufArrayCnt</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>    <a name="cmLoopRecord.outV"></a><span class="i">outV</span><span class="p">;</span>
+  <span class="k">unsigned</span>       <a name="cmLoopRecord.outN"></a><span class="i">outN</span><span class="p">;</span>
+  <span class="k">unsigned</span>       <a name="cmLoopRecord.procSmpCnt"></a><span class="i">procSmpCnt</span><span class="p">;</span>
+  <span class="k">unsigned</span>       <a name="cmLoopRecord.xfadeSmpCnt"></a><span class="i">xfadeSmpCnt</span><span class="p">;</span>
+  <span class="k">unsigned</span>       <a name="cmLoopRecord.recdBufIdx"></a><span class="i">recdBufIdx</span><span class="p">;</span>
+  <span class="k">unsigned</span>       <a name="cmLoopRecord.playBufIdx"></a><span class="i">playBufIdx</span><span class="p">;</span>
+  <span class="k">bool</span>           <a name="cmLoopRecord.recdFl"></a><span class="i">recdFl</span><span class="p">;</span>
+  <span class="k">bool</span>           <a name="cmLoopRecord.playFl"></a><span class="i">playFl</span><span class="p">;</span>
+  
+<span class="p">}</span> <span class="t"><a href="#cmLoopRecord">cmLoopRecord</a></span><span class="p">;</span>
+
+<a href="#cmLoopRecord">cmLoopRecord</a><span class="p">*</span> <a name="cmLoopRecordAlloc"></a><span class="f">cmLoopRecordAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmLoopRecord">cmLoopRecord</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">maxRecdSmpCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">xfadeSmpCnt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>        <a name="cmLoopRecordFree"></a><span class="f">cmLoopRecordFree</span><span class="p">(</span> <a href="#cmLoopRecord">cmLoopRecord</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>        <a name="cmLoopRecordInit"></a><span class="f">cmLoopRecordInit</span><span class="p">(</span> <a href="#cmLoopRecord">cmLoopRecord</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">maxRecdSmpCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">xfadeSmpCnt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>        <a name="cmLoopRecordFinal"></a><span class="f">cmLoopRecordFinal</span><span class="p">(</span> <a href="#cmLoopRecord">cmLoopRecord</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<span class="c">// rgain=recorder output gain, pgain=pass through gain</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>        <a name="cmLoopRecordExec"></a><span class="f">cmLoopRecordExec</span><span class="p">(</span> <a href="#cmLoopRecord">cmLoopRecord</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">y</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">xn</span><span class="p">,</span> <span class="k">bool</span> <span class="i">bypassFl</span><span class="p">,</span> <span class="k">bool</span> <span class="i">recdFl</span><span class="p">,</span> <span class="k">bool</span> <span class="i">playFl</span><span class="p">,</span> <span class="k">double</span> <span class="i">ratio</span><span class="p">,</span> <span class="k">double</span> <span class="i">pgain</span><span class="p">,</span> <span class="k">double</span> <span class="i">rgain</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmGateDetector : Detect when a signal onsets and offsets.</div><pre><a name="cmGateDetector"></a><a name="cmGateDetect"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>       <a name="cmGateDetect.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <span class="k">unsigned</span>    <a name="cmGateDetect.rmsN"></a><span class="i">rmsN</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <a name="cmGateDetect.rmsV"></a><span class="i">rmsV</span><span class="p">;</span>          <span class="c"> // rmsV[rmsN] previous rmsN values. rmsV[rmsN-1] == rms </span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a>  <a name="cmGateDetect.rms"></a><span class="i">rms</span><span class="p">;</span>           <span class="c"> // RMS of last procSmpCnt samples</span>
+  <span class="k">unsigned</span>    <a name="cmGateDetect.wndN"></a><span class="i">wndN</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <a name="cmGateDetect.wndV"></a><span class="i">wndV</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a>  <a name="cmGateDetect.mean"></a><span class="i">mean</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a>  <a name="cmGateDetect.d0"></a><span class="i">d0</span><span class="p">;</span>
+  <span class="k">unsigned</span>    <a name="cmGateDetect.durSmpCnt"></a><span class="i">durSmpCnt</span><span class="p">;</span>     <span class="c"> // duration of the current gate polarity in samples</span>
+  <span class="k">bool</span>        <a name="cmGateDetect.gateFl"></a><span class="i">gateFl</span><span class="p">;</span>
+  <span class="k">bool</span>        <a name="cmGateDetect.deltaFl"></a><span class="i">deltaFl</span><span class="p">;</span>  
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmGateDetect.onThreshPct"></a><span class="i">onThreshPct</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmGateDetect.onThreshDb"></a><span class="i">onThreshDb</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmGateDetect.offThreshDb"></a><span class="i">offThreshDb</span><span class="p">;</span>   <span class="c"> </span>
+<span class="p">}</span> <span class="t"><a href="#cmGateDetect">cmGateDetect</a></span><span class="p">;</span>
+
+<a href="#cmGateDetect">cmGateDetect</a><span class="p">*</span> <a name="cmGateDetectAlloc"></a><span class="f">cmGateDetectAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmGateDetect">cmGateDetect</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">onThreshPct</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">onThreshDb</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">offThreshDb</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmGateDetectFree"></a><span class="f">cmGateDetectFree</span><span class="p">(</span> <a href="#cmGateDetect">cmGateDetect</a><span class="p">*</span><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmGateDetectInit"></a><span class="f">cmGateDetectInit</span><span class="p">(</span> <a href="#cmGateDetect">cmGateDetect</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">onThreshPct</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">onThreshDb</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">offThreshDb</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmGateDetectFinal"></a><span class="f">cmGateDetectFinal</span><span class="p">(</span><a href="#cmGateDetect">cmGateDetect</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmGateDetectExec"></a><span class="f">cmGateDetectExec</span><span class="p">(</span> <a href="#cmGateDetect">cmGateDetect</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">xn</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmGateDetector2 : Improved gate detector to detect when a signal onsets and offsets.</div><pre><a name="cmGateDetector2"></a><a name="cmGateDetectParams"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span> <a name="cmGateDetectParams.medCnt"></a><span class="i">medCnt</span><span class="p">;</span>       <span class="c"> // length of the median filter</span>
+  <span class="k">unsigned</span> <a name="cmGateDetectParams.avgCnt"></a><span class="i">avgCnt</span><span class="p">;</span>       <span class="c"> // length of the (rms - med) moving avg. filter</span>
+  <span class="k">unsigned</span> <a name="cmGateDetectParams.suprCnt"></a><span class="i">suprCnt</span><span class="p">;</span>      <span class="c"> // length of the supression window</span>
+  <span class="k">unsigned</span> <a name="cmGateDetectParams.offCnt"></a><span class="i">offCnt</span><span class="p">;</span>       <span class="c"> // length of the offset detection window</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmGateDetectParams.suprCoeff"></a><span class="i">suprCoeff</span><span class="p">;</span>    <span class="c"> // supression signal shape coeff</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmGateDetectParams.onThreshDb"></a><span class="i">onThreshDb</span><span class="p">;</span>   <span class="c"> // onset threshold</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmGateDetectParams.offThreshDb"></a><span class="i">offThreshDb</span><span class="p">;</span>  <span class="c"> // offset threshold</span>
+<span class="p">}</span> <span class="t"><a href="#cmGateDetectParams">cmGateDetectParams</a></span><span class="p">;</span>
+
+<a name="cmGateDetect2"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>              <a name="cmGateDetect2.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="#cmGateDetectParams">cmGateDetectParams</a> <a name="cmGateDetect2.args"></a><span class="i">args</span><span class="p">;</span>
+  
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>        <a name="cmGateDetect2.medV"></a><span class="i">medV</span><span class="p">;</span>   <span class="c"> // medV[medCnt] </span>
+  <span class="k">unsigned</span>           <a name="cmGateDetect2.medIdx"></a><span class="i">medIdx</span><span class="p">;</span> 
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>        <a name="cmGateDetect2.avgV"></a><span class="i">avgV</span><span class="p">;</span>   <span class="c"> // avgV[avgCnt]</span>
+  <span class="k">unsigned</span>           <a name="cmGateDetect2.avgIdx"></a><span class="i">avgIdx</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>        <a name="cmGateDetect2.fcofV"></a><span class="i">fcofV</span><span class="p">;</span>  <span class="c"> // fcofV[medCnt]</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>        <a name="cmGateDetect2.fdlyV"></a><span class="i">fdlyV</span><span class="p">;</span>  <span class="c"> // fdlyV[medCnt]</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>        <a name="cmGateDetect2.suprV"></a><span class="i">suprV</span><span class="p">;</span>  <span class="c"> // suprV[suprCnt]</span>
+  <span class="k">unsigned</span>           <a name="cmGateDetect2.suprIdx"></a><span class="i">suprIdx</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>        <a name="cmGateDetect2.pkV"></a><span class="i">pkV</span><span class="p">;</span>    <span class="c"> // pkV[3]</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span>        <a name="cmGateDetect2.offV"></a><span class="i">offV</span><span class="p">;</span>   <span class="c"> // offV[offCnt]</span>
+  <span class="k">unsigned</span>           <a name="cmGateDetect2.offIdx"></a><span class="i">offIdx</span><span class="p">;</span>
+  
+  <span class="k">unsigned</span>           <a name="cmGateDetect2.pkFl"></a><span class="i">pkFl</span><span class="p">;</span>     <span class="c"> </span>
+  <span class="k">bool</span>               <a name="cmGateDetect2.gateFl"></a><span class="i">gateFl</span><span class="p">;</span>   <span class="c"> // set by onset, cleared by offset</span>
+  <span class="k">bool</span>               <a name="cmGateDetect2.onFl"></a><span class="i">onFl</span><span class="p">;</span>     <span class="c"> // set if an onset was detected</span>
+  <span class="k">bool</span>               <a name="cmGateDetect2.offFl"></a><span class="i">offFl</span><span class="p">;</span>    <span class="c"> // set if an offset was detected</span>
+  
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>           <a name="cmGateDetect2.onThresh"></a><span class="i">onThresh</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>           <a name="cmGateDetect2.offThresh"></a><span class="i">offThresh</span><span class="p">;</span>
+  
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a>         <a name="cmGateDetect2.rms"></a><span class="i">rms</span><span class="p">;</span>   <span class="c"> // RMS</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a>         <a name="cmGateDetect2.med"></a><span class="i">med</span><span class="p">;</span>   <span class="c"> // median RMS over last medCnt exec's</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a>         <a name="cmGateDetect2.dif"></a><span class="i">dif</span><span class="p">;</span>   <span class="c"> // max(0, RMS - median_RMS)</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a>         <a name="cmGateDetect2.avg"></a><span class="i">avg</span><span class="p">;</span>   <span class="c"> // avg dif's over last avgCnt exec's</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a>         <a name="cmGateDetect2.ons"></a><span class="i">ons</span><span class="p">;</span>   <span class="c"> // dif - avg</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a>         <a name="cmGateDetect2.flt"></a><span class="i">flt</span><span class="p">;</span>   <span class="c"> // filtered(ons)</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a>         <a name="cmGateDetect2.sup"></a><span class="i">sup</span><span class="p">;</span>   <span class="c"> // flt w/ suppression</span>
+<span class="p">}</span> <span class="t"><a href="#cmGateDetect2">cmGateDetect2</a></span><span class="p">;</span>
+
+
+<a href="#cmGateDetect2">cmGateDetect2</a><span class="p">*</span> <a name="cmGateDetectAlloc2"></a><span class="f">cmGateDetectAlloc2</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmGateDetect2">cmGateDetect2</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGateDetectParams">cmGateDetectParams</a><span class="p">*</span> <span class="i">args</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmGateDetectFree2"></a><span class="f">cmGateDetectFree2</span><span class="p">(</span> <a href="#cmGateDetect2">cmGateDetect2</a><span class="p">*</span><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmGateDetectInit2"></a><span class="f">cmGateDetectInit2</span><span class="p">(</span> <a href="#cmGateDetect2">cmGateDetect2</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGateDetectParams">cmGateDetectParams</a><span class="p">*</span> <span class="i">args</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmGateDetectFinal2"></a><span class="f">cmGateDetectFinal2</span><span class="p">(</span><a href="#cmGateDetect2">cmGateDetect2</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmGateDetectExec2"></a><span class="f">cmGateDetectExec2</span><span class="p">(</span> <a href="#cmGateDetect2">cmGateDetect2</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">xn</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>           <a name="cmGateDetectSetOnThreshDb2"></a><span class="f">cmGateDetectSetOnThreshDb2</span><span class="p">(</span> <a href="#cmGateDetect2">cmGateDetect2</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">db</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>           <a name="cmGateDetectSetOffThreshDb2"></a><span class="f">cmGateDetectSetOffThreshDb2</span><span class="p">(</span> <a href="#cmGateDetect2">cmGateDetect2</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">db</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmAutoGain : Automatically balance a set of audio signals by adjusting their level.</div><pre><a name="cmAutoGain"></a>
+<span class="c">//
+// Calculate a set of automatic gain adjustments for a set of audio channels.
+//
+// 1)  Call <a href="#cmAutoGainInit">cmAutoGainInit</a>() to reset the object.
+// 2)  Call  <a href="#cmAutoGainStartCh">cmAutoGainStartCh</a>() and provide an id to identify the channel.
+// 3)  Call  <a href="#cmAutoGainProcCh">cmAutoGainProcCh</a>() with audio from the channel identified in 2)
+// 4)  Repeat 2) and 3) for for all channels.  
+// 5)  Call <a href="#cmAutoGainCalcGains">cmAutoGainCalcGains</a>() to set the value of cmAutoGainCh.gain.
+// 
+// The gain coefficents are set to balance the overall gain. 
+// (i.e. Loud channels are decreased and quiet channels are increased.)</span>
+
+<a name="cmAutoGainCh"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span> <a name="cmAutoGainCh.id"></a><span class="i">id</span><span class="p">;</span>         <span class="c"> // channel id</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAutoGainCh.gain"></a><span class="i">gain</span><span class="p">;</span>       <span class="c"> // gain adjustment coefficient</span>
+  <span class="k">unsigned</span> <a name="cmAutoGainCh.onCnt"></a><span class="i">onCnt</span><span class="p">;</span>      <span class="c"> // count of onsets detected </span>
+  <span class="k">unsigned</span> <a name="cmAutoGainCh.offCnt"></a><span class="i">offCnt</span><span class="p">;</span>     <span class="c"> // count of offsets detected</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAutoGainCh.gateMaxAvg"></a><span class="i">gateMaxAvg</span><span class="p">;</span> <span class="c"> // average of the max values for each detected event</span>
+<span class="p">}</span> <span class="t"><a href="#cmAutoGainCh">cmAutoGainCh</a></span><span class="p">;</span>
+
+<a name="cmAutoGain"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>          <a name="cmAutoGain.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="cmProc_h_0.html#cmShiftBuf">cmShiftBuf</a><span class="p">*</span>    <a name="cmAutoGain.sbp"></a><span class="i">sbp</span><span class="p">;</span>
+  <a href="#cmGateDetect2">cmGateDetect2</a><span class="p">*</span> <a name="cmAutoGain.gdp"></a><span class="i">gdp</span><span class="p">;</span>
+  <a href="#cmAutoGainCh">cmAutoGainCh</a><span class="p">*</span>  <a name="cmAutoGain.chArray"></a><span class="i">chArray</span><span class="p">;</span> <span class="c"> </span>
+  <span class="k">unsigned</span>       <a name="cmAutoGain.chCnt"></a><span class="i">chCnt</span><span class="p">;</span>
+  
+  
+  <a href="#cmAutoGainCh">cmAutoGainCh</a><span class="p">*</span> <a name="cmAutoGain.chp"></a><span class="i">chp</span><span class="p">;</span>
+  <span class="k">unsigned</span>      <a name="cmAutoGain.gateCnt"></a><span class="i">gateCnt</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>      <a name="cmAutoGain.gateSum"></a><span class="i">gateSum</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>      <a name="cmAutoGain.gateMax"></a><span class="i">gateMax</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>      <a name="cmAutoGain.minRms"></a><span class="i">minRms</span><span class="p">;</span>
+  
+<span class="p">}</span> <span class="t"><a href="#cmAutoGain">cmAutoGain</a></span><span class="p">;</span>
+
+<a href="#cmAutoGain">cmAutoGain</a><span class="p">*</span> <a name="cmAutoGainAlloc"></a><span class="f">cmAutoGainAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmAutoGain">cmAutoGain</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">hopMs</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGateDetectParams">cmGateDetectParams</a><span class="p">*</span> <span class="i">gd_args</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmAutoGainFree"></a><span class="f">cmAutoGainFree</span><span class="p">(</span> <a href="#cmAutoGain">cmAutoGain</a><span class="p">*</span><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmAutoGainInit"></a><span class="f">cmAutoGainInit</span><span class="p">(</span> <a href="#cmAutoGain">cmAutoGain</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">hopMs</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">const</span> <a href="#cmGateDetectParams">cmGateDetectParams</a><span class="p">*</span> <span class="i">gd_args</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmAutoGainFinal"></a><span class="f">cmAutoGainFinal</span><span class="p">(</span> <a href="#cmAutoGain">cmAutoGain</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Notify the object that the following calls to <a href="#cmAutoGainProcCh">cmAutoGainProcCh</a>()
+// should be associed with the channel 'id'.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmAutoGainStartCh"></a><span class="f">cmAutoGainStartCh</span><span class="p">(</span> <a href="#cmAutoGain">cmAutoGain</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Examine the signal arriving from the channel specified in the previous
+// call to <a href="#cmAutoGainProcCh">cmAutoGainProcCh</a>() and determine the max RMS value for each 
+// event contained in the signal. </span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmAutoGainProcCh"></a><span class="f">cmAutoGainProcCh</span><span class="p">(</span> <a href="#cmAutoGain">cmAutoGain</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">xn</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Calculate the cmAutoGainCh.gain coefficient for each channel.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmAutoGainCalcGains"></a><span class="f">cmAutoGainCalcGains</span><span class="p">(</span> <a href="#cmAutoGain">cmAutoGain</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>        <a name="cmAutoGainPrint"></a><span class="f">cmAutoGainPrint</span><span class="p">(</span> <a href="#cmAutoGain">cmAutoGain</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmChCfg : Configure a 'fluxo' pickup channel.</div><pre><a name="cmChCfg"></a><a name="cmChCfgCh"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span>        <a name="cmChCfgCh.ch"></a><span class="i">ch</span><span class="p">;</span>
+  <span class="k">unsigned</span>        <a name="cmChCfgCh.ssi"></a><span class="i">ssi</span><span class="p">;</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmChCfgCh.pitchStr"></a><span class="i">pitchStr</span><span class="p">;</span>
+  <span class="k">unsigned</span>        <a name="cmChCfgCh.midi"></a><span class="i">midi</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>        <a name="cmChCfgCh.gain"></a><span class="i">gain</span><span class="p">;</span>
+  <span class="k">bool</span>            <a name="cmChCfgCh.nsFl"></a><span class="i">nsFl</span><span class="p">;</span>  <span class="c"> // noise shaper channel</span>
+  <span class="k">bool</span>            <a name="cmChCfgCh.cdFl"></a><span class="i">cdFl</span><span class="p">;</span>  <span class="c"> // chord detector channel</span>
+<span class="p">}</span> <span class="t"><a href="#cmChCfgCh">cmChCfgCh</a></span><span class="p">;</span>
+
+<a name="cmChCfg"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>           <a name="cmChCfg.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="#cmChCfgCh">cmChCfgCh</a><span class="p">*</span>      <a name="cmChCfg.chArray"></a><span class="i">chArray</span><span class="p">;</span>
+  <span class="k">unsigned</span>        <a name="cmChCfg.chCnt"></a><span class="i">chCnt</span><span class="p">;</span>
+  <span class="k">unsigned</span>        <a name="cmChCfg.nsChCnt"></a><span class="i">nsChCnt</span><span class="p">;</span> <span class="c"> // count of noise-shaper channels</span>
+  <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmChCfg.fn"></a><span class="i">fn</span><span class="p">;</span>
+  <a href="cmJson_h_0.html#cmJsonH_t">cmJsonH_t</a>       <a name="cmChCfg.jsH"></a><span class="i">jsH</span><span class="p">;</span>
+  <a href="cmJson_h_0.html#cmJsonNode_t">cmJsonNode_t</a><span class="p">*</span>   <a name="cmChCfg.cap"></a><span class="i">cap</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmChCfg">cmChCfg</a></span><span class="p">;</span>
+
+<a href="#cmChCfg">cmChCfg</a><span class="p">*</span> <a name="cmChCfgAlloc"></a><span class="f">cmChCfgAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmChCfg">cmChCfg</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>   <a name="cmChCfgFree"></a><span class="f">cmChCfgFree</span><span class="p">(</span>  <a href="#cmChCfg">cmChCfg</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>   <a name="cmChCfgInit"></a><span class="f">cmChCfgInit</span><span class="p">(</span>  <a href="#cmChCfg">cmChCfg</a><span class="p">*</span>  <span class="i">p</span><span class="p">,</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>   <a name="cmChCfgFinal"></a><span class="f">cmChCfgFinal</span><span class="p">(</span> <a href="#cmChCfg">cmChCfg</a><span class="p">*</span>  <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>   <a name="cmChCfgWrite"></a><span class="f">cmChCfgWrite</span><span class="p">(</span> <a href="#cmChCfg">cmChCfg</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>     <a name="cmChCfgPrint"></a><span class="f">cmChCfgPrint</span><span class="p">(</span> <a href="#cmChCfg">cmChCfg</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmChCfgChannelCount"></a><span class="f">cmChCfgChannelCount</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">nsChCntPtr</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmChCfgChannelIndex"></a><span class="f">cmChCfgChannelIndex</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmChordDetector : Chord detector based on evaluating signals from cmGateDetector2.</div><pre><a name="cmChordDetector"></a>
+<a name="cmChordDetectCh"></a><span class="k">typedef</span> <span class="k">struct</span> 
+<span class="p">{</span>
+  <span class="k">bool</span>     <a name="cmChordDetectCh.readyFl"></a><span class="i">readyFl</span><span class="p">;</span>     <span class="c"> // This channel has received an offset since it was last a candidate.</span>
+  <span class="k">bool</span>     <a name="cmChordDetectCh.candFl"></a><span class="i">candFl</span><span class="p">;</span>      <span class="c"> // This channel is a chord candidate</span>
+  <span class="k">unsigned</span> <a name="cmChordDetectCh.candSmpTime"></a><span class="i">candSmpTime</span><span class="p">;</span> <span class="c"> // Time that this channel became a candidate</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmChordDetectCh.candRMS"></a><span class="i">candRMS</span><span class="p">;</span>     <span class="c"> // RMS when this channel became a candidate</span>
+  <span class="k">bool</span>     <a name="cmChordDetectCh.chordFl"></a><span class="i">chordFl</span><span class="p">;</span>     <span class="c"> // This channel is part of the current chord</span>
+  <span class="k">bool</span>     <a name="cmChordDetectCh.gateFl"></a><span class="i">gateFl</span><span class="p">;</span>      <span class="c"> // Previous gate state</span>
+<span class="p">}</span> <span class="t"><a href="#cmChordDetectCh">cmChordDetectCh</a></span><span class="p">;</span>
+
+<a name="cmChordDetect"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>            <a name="cmChordDetect.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <span class="k">unsigned</span>         <a name="cmChordDetect.maxTimeSpanSmpCnt"></a><span class="i">maxTimeSpanSmpCnt</span><span class="p">;</span> <span class="c"> // maximum time between onsets of first and last note of chord</span>
+  <span class="k">unsigned</span>         <a name="cmChordDetect.minNotesPerChord"></a><span class="i">minNotesPerChord</span><span class="p">;</span>  <span class="c"> // the min. number of notes required to form a chord</span>
+  <span class="k">unsigned</span>         <a name="cmChordDetect.chCnt"></a><span class="i">chCnt</span><span class="p">;</span>             <span class="c"> // count of channels</span>
+  <a href="#cmChordDetectCh">cmChordDetectCh</a><span class="p">*</span> <a name="cmChordDetect.chArray"></a><span class="i">chArray</span><span class="p">;</span>           <span class="c"> // channel state array</span>
+  <span class="k">bool</span>             <a name="cmChordDetect.detectFl"></a><span class="i">detectFl</span><span class="p">;</span>          <span class="c"> // true when a new chord has been detected</span>
+  <span class="k">unsigned</span>         <a name="cmChordDetect.timeSmp"></a><span class="i">timeSmp</span><span class="p">;</span>           <span class="c"> // current time</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>         <a name="cmChordDetect.srate"></a><span class="i">srate</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmChordDetect">cmChordDetect</a></span><span class="p">;</span>
+
+<a href="#cmChordDetect">cmChordDetect</a><span class="p">*</span> <a name="cmChordDetectAlloc"></a><span class="f">cmChordDetectAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span><span class="i">c</span><span class="p">,</span> <a href="#cmChordDetect">cmChordDetect</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">maxTimeSpanMs</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">minNotesPerChord</span>  <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmChordDetectFree"></a><span class="f">cmChordDetectFree</span><span class="p">(</span>  <a href="#cmChordDetect">cmChordDetect</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmChordDetectInit"></a><span class="f">cmChordDetectInit</span><span class="p">(</span>  <a href="#cmChordDetect">cmChordDetect</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">maxTimeSpanMs</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">minNotesPerChord</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmChordDetectFinal"></a><span class="f">cmChordDetectFinal</span><span class="p">(</span> <a href="#cmChordDetect">cmChordDetect</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmChordDetectExec"></a><span class="f">cmChordDetectExec</span><span class="p">(</span>  <a href="#cmChordDetect">cmChordDetect</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <span class="k">const</span> <span class="k">bool</span><span class="p">*</span> <span class="i">gateV</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <span class="i">rmsV</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>         <a name="cmChordDetectSetSpanMs"></a><span class="f">cmChordDetectSetSpanMs</span><span class="p">(</span> <a href="#cmChordDetect">cmChordDetect</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">maxTimeSpanMs</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmXfader : Audio cross fade controller.</div><pre><a name="cmXfader"></a><span class="c">// This object is not really a cross-fader.  It is really just a multichannel
+// fader - which just calculates the fade gain but does not actually apply it
+// to the audio signal - unless you use <a href="#cmXfaderExecAudio">cmXfaderExecAudio</a>()</span>
+<a name="cmXfaderCh"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmXfaderCh.ep_gain"></a><span class="i">ep_gain</span><span class="p">;</span> <span class="c"> // equal power xfade gain</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmXfaderCh.gain"></a><span class="i">gain</span><span class="p">;</span>    <span class="c"> // linear gain</span>
+  <span class="k">bool</span>     <a name="cmXfaderCh.gateFl"></a><span class="i">gateFl</span><span class="p">;</span> <span class="c"> // true if channel is on</span>
+  <span class="k">bool</span>     <a name="cmXfaderCh.onFl"></a><span class="i">onFl</span><span class="p">;</span>   <span class="c"> // true if gateFl transitioned to true on this cycle </span>
+  <span class="k">bool</span>     <a name="cmXfaderCh.offFl"></a><span class="i">offFl</span><span class="p">;</span>  <span class="c"> // true if gateFl transitioned to false on this cycle</span>
+<span class="p">}</span> <span class="t"><a href="#cmXfaderCh">cmXfaderCh</a></span><span class="p">;</span>
+
+<a name="cmXfader"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>       <a name="cmXfader.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <span class="k">unsigned</span>    <a name="cmXfader.chCnt"></a><span class="i">chCnt</span><span class="p">;</span>
+  <a href="#cmXfaderCh">cmXfaderCh</a><span class="p">*</span> <a name="cmXfader.chArray"></a><span class="i">chArray</span><span class="p">;</span>
+  <span class="k">unsigned</span>    <a name="cmXfader.fadeSmpCnt"></a><span class="i">fadeSmpCnt</span><span class="p">;</span>  
+  <span class="k">unsigned</span>    <a name="cmXfader.fadeInSmpCnt"></a><span class="i">fadeInSmpCnt</span><span class="p">;</span>
+  <span class="k">unsigned</span>    <a name="cmXfader.fadeOutSmpCnt"></a><span class="i">fadeOutSmpCnt</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmXfader.srate"></a><span class="i">srate</span><span class="p">;</span>
+  <span class="k">bool</span>        <a name="cmXfader.gateFl"></a><span class="i">gateFl</span><span class="p">;</span>  <span class="c"> // true if any channels are on</span>
+  <span class="k">bool</span>        <a name="cmXfader.onFl"></a><span class="i">onFl</span><span class="p">;</span>    <span class="c"> // true on cycle where gate transitions to 'on'.</span>
+  <span class="k">bool</span>        <a name="cmXfader.offFl"></a><span class="i">offFl</span><span class="p">;</span>   <span class="c"> // true on cycle where gate transitions to 'off'.</span>
+<span class="p">}</span> <span class="t"><a href="#cmXfader">cmXfader</a></span><span class="p">;</span>
+
+<a href="#cmXfader">cmXfader</a><span class="p">*</span> <a name="cmXfaderAlloc"></a><span class="f">cmXfaderAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span><span class="i">c</span><span class="p">,</span> <a href="#cmXfader">cmXfader</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">fadeTimeMs</span>  <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmXfaderFree"></a><span class="f">cmXfaderFree</span><span class="p">(</span>  <a href="#cmXfader">cmXfader</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmXfaderInit"></a><span class="f">cmXfaderInit</span><span class="p">(</span>  <a href="#cmXfader">cmXfader</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">fadeTimeMs</span>  <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmXfaderFinal"></a><span class="f">cmXfaderFinal</span><span class="p">(</span>  <a href="#cmXfader">cmXfader</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmXfaderExec"></a><span class="f">cmXfaderExec</span><span class="p">(</span>  <a href="#cmXfader">cmXfader</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <span class="k">const</span> <span class="k">bool</span><span class="p">*</span> <span class="i">gateV</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmXfaderExecAudio"></a><span class="f">cmXfaderExecAudio</span><span class="p">(</span> <a href="#cmXfader">cmXfader</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <span class="k">const</span> <span class="k">bool</span><span class="p">*</span> <span class="i">gateV</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> x<span class="p">[</span><span class="i">]</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">y</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>      <a name="cmXfaderSetXfadeTime"></a><span class="f">cmXfaderSetXfadeTime</span><span class="p">(</span> <a href="#cmXfader">cmXfader</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">fadeTimeMs</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>      <a name="cmXfaderSetXfadeInTime"></a><span class="f">cmXfaderSetXfadeInTime</span><span class="p">(</span> <a href="#cmXfader">cmXfader</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">fadeTimeMs</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>      <a name="cmXfaderSetXfadeOutTime"></a><span class="f">cmXfaderSetXfadeOutTime</span><span class="p">(</span> <a href="#cmXfader">cmXfader</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">fadeTimeMs</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Set all gates to false except chIdx.</span>
+<span class="k">void</span>      <a name="cmXfaderSelectOne"></a><span class="f">cmXfaderSelectOne</span><span class="p">(</span> <a href="#cmXfader">cmXfader</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>      <a name="cmXfaderAllOff"></a><span class="f">cmXfaderAllOff</span><span class="p">(</span> <a href="#cmXfader">cmXfader</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>      <a name="cmXfaderJumpToDestinationGain"></a><span class="f">cmXfaderJumpToDestinationGain</span><span class="p">(</span> <a href="#cmXfader">cmXfader</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span> <span class="c"> // jump to dest. gain based on gate state</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmFader : Fade in/out an audio signal based on the state of a gate control signal.</div><pre><a name="cmFader"></a><span class="c">// This fader object accepts a gate signal. When the gate is high it increments
+// the gain until it reaches 1.0. When the gate is low it decrements the gain
+// until it reaches 0.0.  The fade time is the lenght of time the gain will take
+// to transition from 0.0 to 1.0 or 1.0 to 0.0.</span>
+<a name="cmFader"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>       <a name="cmFader.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <span class="k">unsigned</span>    <a name="cmFader.fadeSmpCnt"></a><span class="i">fadeSmpCnt</span><span class="p">;</span>  <span class="c"> // time to fade from 0-&ampgt1 or 1-&ampgt0 </span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmFader.srate"></a><span class="i">srate</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmFader.gain"></a><span class="i">gain</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmFader">cmFader</a></span><span class="p">;</span>
+
+<a href="#cmFader">cmFader</a><span class="p">*</span>  <a name="cmFaderAlloc"></a><span class="f">cmFaderAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span><span class="i">c</span><span class="p">,</span> <a href="#cmFader">cmFader</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">fadeTimeMs</span>  <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmFaderFree"></a><span class="f">cmFaderFree</span><span class="p">(</span>  <a href="#cmFader">cmFader</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmFaderInit"></a><span class="f">cmFaderInit</span><span class="p">(</span>  <a href="#cmFader">cmFader</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">fadeTimeMs</span>  <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmFaderFinal"></a><span class="f">cmFaderFinal</span><span class="p">(</span> <a href="#cmFader">cmFader</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmFaderExec"></a><span class="f">cmFaderExec</span><span class="p">(</span>  <a href="#cmFader">cmFader</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <span class="k">bool</span> <span class="i">gateFl</span><span class="p">,</span> <span class="k">bool</span> <span class="i">mixFl</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">y</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>      <a name="cmFaderSetFadeTime"></a><span class="f">cmFaderSetFadeTime</span><span class="p">(</span> <a href="#cmFader">cmFader</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">fadeTimeMs</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmCombFilt : Comb and Inverse Comb filter algorithm with a variable fractional delay.</div><pre><a name="cmCombFilt"></a><span class="k">struct</span> <span class="i"><a href="#cmIDelay_str">cmIDelay_str</a></span><span class="p">;</span>
+<a name="cmCombFilt"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>     <a name="cmCombFilt.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>  <a name="cmCombFilt.srate"></a><span class="i">srate</span><span class="p">;</span>         <span class="c"> // system sample rate</span>
+  <span class="k">bool</span>      <a name="cmCombFilt.feedbackFl"></a><span class="i">feedbackFl</span><span class="p">;</span>    <span class="c"> // set if this is a feedback comb filter</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>  <a name="cmCombFilt.minHz"></a><span class="i">minHz</span><span class="p">;</span>         <span class="c"> // lowest comb frequency this comb filter can support</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>  <a name="cmCombFilt.hz"></a><span class="i">hz</span><span class="p">;</span>            <span class="c"> // location of first comb</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>  <a name="cmCombFilt.alpha"></a><span class="i">alpha</span><span class="p">;</span>         <span class="c"> // filter coeff.</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>  <a name="cmCombFilt.dN"></a><span class="i">dN</span><span class="p">;</span>            <span class="c"> // max length of the the cf delay line</span>
+  <span class="k">unsigned</span>  <a name="cmCombFilt.dn"></a><span class="i">dn</span><span class="p">;</span>            <span class="c"> // current length of cf delay line</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <a name="cmCombFilt.d"></a><span class="i">d</span><span class="p">;</span>             <span class="c"> // d[dn] filter delay line</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <a name="cmCombFilt.b"></a><span class="i">b</span><span class="p">;</span>             <span class="c"> // b[dn] feedforward coeff's</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <a name="cmCombFilt.a"></a><span class="i">a</span><span class="p">;</span>             <span class="c"> // a[dn] feedback coeff's</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>  <a name="cmCombFilt.b0"></a><span class="i">b0</span><span class="p">;</span>            <span class="c"> // feedforward coeff 0</span>
+  <span class="k">bool</span>      <a name="cmCombFilt.bypassFl"></a><span class="i">bypassFl</span><span class="p">;</span>      <span class="c"> // bypass enable flag</span>
+  <span class="k">struct</span> <a href="#cmIDelay_str">cmIDelay_str</a><span class="p">*</span> <a name="cmCombFilt.idp"></a><span class="i">idp</span><span class="p">;</span>
+  
+<span class="p">}</span> <span class="t"><a href="#cmCombFilt">cmCombFilt</a></span><span class="p">;</span>
+
+<a href="#cmCombFilt">cmCombFilt</a><span class="p">*</span> <a name="cmCombFiltAlloc"></a><span class="f">cmCombFiltAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmCombFilt">cmCombFilt</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">bool</span> <span class="i">feedbackFl</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">minHz</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">alpha</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">hz</span><span class="p">,</span> <span class="k">bool</span> <span class="i">bypassFl</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmCombFiltFree"></a><span class="f">cmCombFiltFree</span><span class="p">(</span>  <a href="#cmCombFilt">cmCombFilt</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span><span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmCombFiltInit"></a><span class="f">cmCombFiltInit</span><span class="p">(</span>  <a href="#cmCombFilt">cmCombFilt</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">bool</span> <span class="i">feedbackFl</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">minHz</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">alpha</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">hz</span><span class="p">,</span> <span class="k">bool</span> <span class="i">bypassFl</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmCombFiltFinal"></a><span class="f">cmCombFiltFinal</span><span class="p">(</span> <a href="#cmCombFilt">cmCombFilt</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmCombFiltExec"></a><span class="f">cmCombFiltExec</span><span class="p">(</span>  <a href="#cmCombFilt">cmCombFilt</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">y</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>        <a name="cmCombFiltSetAlpha"></a><span class="f">cmCombFiltSetAlpha</span><span class="p">(</span> <a href="#cmCombFilt">cmCombFilt</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">alpha</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmCombFiltSetHz"></a><span class="f">cmCombFiltSetHz</span><span class="p">(</span> <a href="#cmCombFilt">cmCombFilt</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">hz</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmDcFilt : DC Filter algorithm.</div><pre><a name="cmDcFilt"></a>
+<a name="cmDcFilt"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>    <a name="cmDcFilt.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmDcFilt.d"></a><span class="i">d</span><span class="p">[</span><span class="l">2</span><span class="p">]</span><span class="p">;</span> <span class="c"> </span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmDcFilt.b"></a><span class="i">b</span><span class="p">[</span><span class="l">1</span><span class="p">]</span><span class="p">;</span> <span class="c"> </span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmDcFilt.a"></a><span class="i">a</span><span class="p">[</span><span class="l">1</span><span class="p">]</span><span class="p">;</span> <span class="c"> // a[dn] feedback coeff's</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmDcFilt.b0"></a><span class="i">b0</span><span class="p">;</span>                 <span class="c"> // feedforward coeff 0</span>
+  <span class="k">bool</span>     <a name="cmDcFilt.bypassFl"></a><span class="i">bypassFl</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmDcFilt">cmDcFilt</a></span><span class="p">;</span>
+
+<a href="#cmDcFilt">cmDcFilt</a><span class="p">*</span> <a name="cmDcFiltAlloc"></a><span class="f">cmDcFiltAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmDcFilt">cmDcFilt</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">bool</span> <span class="i">bypassFl</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmDcFiltFree"></a><span class="f">cmDcFiltFree</span><span class="p">(</span>  <a href="#cmDcFilt">cmDcFilt</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span><span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmDcFiltInit"></a><span class="f">cmDcFiltInit</span><span class="p">(</span>  <a href="#cmDcFilt">cmDcFilt</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">bool</span> <span class="i">bypassFl</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmDcFiltFinal"></a><span class="f">cmDcFiltFinal</span><span class="p">(</span> <a href="#cmDcFilt">cmDcFilt</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmDcFiltExec"></a><span class="f">cmDcFiltExec</span><span class="p">(</span>  <a href="#cmDcFilt">cmDcFilt</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">y</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmIDelay : Variable interpolating fractional audio delay line.</div><pre><a name="cmIDelay"></a>
+<a name="cmIDelay"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmIDelay_str"></a>cmIDelay_str
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>       <a name="cmIDelay.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <a name="cmIDelay.d"></a><span class="i">d</span><span class="p">;</span>  <span class="c"> // d[dn] delay line</span>
+  <span class="k">int</span>         <a name="cmIDelay.dn"></a><span class="i">dn</span><span class="p">;</span> <span class="c"> // sizeo of delay </span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <a name="cmIDelay.m"></a><span class="i">m</span><span class="p">;</span>  <span class="c"> // memory buffer</span>
+  <span class="k">int</span>         <a name="cmIDelay.mn"></a><span class="i">mn</span><span class="p">;</span> <span class="c"> // size of memory bufer (dn+3) </span>
+  <span class="k">int</span>         <a name="cmIDelay.ii"></a><span class="i">ii</span><span class="p">;</span> <span class="c"> // input index</span>
+  <span class="k">unsigned</span>    <a name="cmIDelay.tn"></a><span class="i">tn</span><span class="p">;</span> <span class="c"> // count of taps </span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span>   <a name="cmIDelay.ti"></a><span class="i">ti</span><span class="p">;</span> <span class="c"> // ti[tn] tap locations (fractional delay from t-&ampgtii)</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span>   <a name="cmIDelay.tff"></a><span class="i">tff</span><span class="p">;</span> <span class="c"> // tg[tn] tap out gain</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span>   <a name="cmIDelay.tfb"></a><span class="i">tfb</span><span class="p">;</span><span class="c"> // tfb[tn] tap feedback gain</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmIDelay.srate"></a><span class="i">srate</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmIDelay">cmIDelay</a></span><span class="p">;</span>
+
+<a href="#cmIDelay">cmIDelay</a><span class="p">*</span> <a name="cmIDelayAlloc"></a><span class="f">cmIDelayAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmIDelay">cmIDelay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">maxDelayMs</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <span class="i">tapMs</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <span class="i">tapFfGain</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <span class="i">tapFbGain</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">tapCnt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmIDelayFree"></a><span class="f">cmIDelayFree</span><span class="p">(</span> <a href="#cmIDelay">cmIDelay</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmIDelayInit"></a><span class="f">cmIDelayInit</span><span class="p">(</span> <a href="#cmIDelay">cmIDelay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">maxDelayMs</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <span class="i">tapMs</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <span class="i">tapFfGain</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a><span class="p">*</span> <span class="i">tapFbGain</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">tapCnt</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmIDelayFinal"></a><span class="f">cmIDelayFinal</span><span class="p">(</span><a href="#cmIDelay">cmIDelay</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmIDelayExec"></a><span class="f">cmIDelayExec</span><span class="p">(</span> <a href="#cmIDelay">cmIDelay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">y</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmIDelaySetTapMs"></a><span class="f">cmIDelaySetTapMs</span><span class="p">(</span> <a href="#cmIDelay">cmIDelay</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">tapIdx</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">tapMs</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmGroupSel : Assign channel to dynamic groups under gate control.</div><pre><a name="cmGroupSel"></a>
+<span class="c">// This object sequentially assigns channels to groups when their gates go high.
+// 'chsPerGroup' channels will be assigned to each group.  No channel will be
+// assigned to any group unless there are at least 'chsPerGroup' available
+// (unassigned) channels.
+// Channels are released from groups when one of the member channels gates goes low.
+//</span>
+
+<a name="cmGroupSelCh"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmGroupSelCh.rms"></a><span class="i">rms</span><span class="p">;</span>       <span class="c"> // current rms of this input channel</span>
+  <span class="k">bool</span>     <a name="cmGroupSelCh.gateFl"></a><span class="i">gateFl</span><span class="p">;</span>    <span class="c"> // current gate state of this input channel</span>
+  <span class="k">bool</span>     <a name="cmGroupSelCh.readyFl"></a><span class="i">readyFl</span><span class="p">;</span>   <span class="c"> // this channel is available to be assigned to a group</span>
+  <span class="k">bool</span>     <a name="cmGroupSelCh.offsetFl"></a><span class="i">offsetFl</span><span class="p">;</span>  <span class="c"> // the gate went low during this cycle (cleared on exec)</span>
+  <span class="k">unsigned</span> <a name="cmGroupSelCh.groupIdx"></a><span class="i">groupIdx</span><span class="p">;</span>  <span class="c"> // group this channel is assigned to or <a href="cmGlobal_h_0.html#cmInvalidIdx">cmInvalidIdx</a> if it is not assigned to any group </span>
+<span class="p">}</span> <span class="t"><a href="#cmGroupSelCh">cmGroupSelCh</a></span><span class="p">;</span>
+
+<a name="cmGroupSelGrp"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span><span class="p">*</span> <a name="cmGroupSelGrp.chIdxArray"></a><span class="i">chIdxArray</span><span class="p">;</span> <span class="c"> // chIdxArray[p-&ampgtchCnt] array of indexes to channels assigned to this group</span>
+  <span class="k">unsigned</span>  <a name="cmGroupSelGrp.chIdxCnt"></a><span class="i">chIdxCnt</span><span class="p">;</span>   <span class="c"> // count indexes in chIdxArray[] or 0 if the channel is not in use</span>
+  <span class="k">bool</span>      <a name="cmGroupSelGrp.releaseFl"></a><span class="i">releaseFl</span><span class="p">;</span>  <span class="c"> // true during the cycle that this group was released on</span>
+  <span class="k">bool</span>      <a name="cmGroupSelGrp.createFl"></a><span class="i">createFl</span><span class="p">;</span>   <span class="c"> // true during the cycle that this group was created on</span>
+<span class="p">}</span> <span class="t"><a href="#cmGroupSelGrp">cmGroupSelGrp</a></span><span class="p">;</span>
+
+<a name="cmGroupSel"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a> <a name="cmGroupSel.obj"></a><span class="i">obj</span><span class="p">;</span>
+  
+  
+  <a href="#cmGroupSelCh">cmGroupSelCh</a><span class="p">*</span>  <a name="cmGroupSel.chArray"></a><span class="i">chArray</span><span class="p">;</span>     <span class="c"> // chArray[chCnt]</span>
+  <span class="k">unsigned</span>       <a name="cmGroupSel.chCnt"></a><span class="i">chCnt</span><span class="p">;</span>       <span class="c"> // count of channels</span>
+  <a href="#cmGroupSelGrp">cmGroupSelGrp</a><span class="p">*</span> <a name="cmGroupSel.groupArray"></a><span class="i">groupArray</span><span class="p">;</span>  <span class="c"> // groupArray[groupCnt]</span>
+  <span class="k">unsigned</span>       <a name="cmGroupSel.groupCnt"></a><span class="i">groupCnt</span><span class="p">;</span>    <span class="c"> // count of groups - must be &amplt= chCnt - can be changed at any time </span>
+  <span class="k">unsigned</span>       <a name="cmGroupSel.chsPerGroup"></a><span class="i">chsPerGroup</span><span class="p">;</span> <span class="c"> // channels per group</span>
+  <span class="k">bool</span>           <a name="cmGroupSel.updateFl"></a><span class="i">updateFl</span><span class="p">;</span>    <span class="c"> // set during exec if channels were assigned or released </span>
+  
+<span class="p">}</span> <span class="t"><a href="#cmGroupSel">cmGroupSel</a></span><span class="p">;</span>
+
+<a href="#cmGroupSel">cmGroupSel</a><span class="p">*</span> <a name="cmGroupSelAlloc"></a><span class="f">cmGroupSelAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmGroupSel">cmGroupSel</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">groupCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chsPerGroup</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmGroupSelFree"></a><span class="f">cmGroupSelFree</span><span class="p">(</span> <a href="#cmGroupSel">cmGroupSel</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmGroupSelInit"></a><span class="f">cmGroupSelInit</span><span class="p">(</span> <a href="#cmGroupSel">cmGroupSel</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">groupCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chsPerGroup</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmGroupSelFinal"></a><span class="f">cmGroupSelFinal</span><span class="p">(</span> <a href="#cmGroupSel">cmGroupSel</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmGroupSetChannelGate"></a><span class="f">cmGroupSetChannelGate</span><span class="p">(</span> <a href="#cmGroupSel">cmGroupSel</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <span class="k">bool</span> <span class="i">gateFl</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmGroupSetChannelRMS"></a><span class="f">cmGroupSetChannelRMS</span><span class="p">(</span>  <a href="#cmGroupSel">cmGroupSel</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">chIdx</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">rms</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// After exec if the p-&ampgtupdateFl is set then iterate through
+// p-&ampgtgroupArray[]. Groups that have been created will have their 'createFl' set
+// and groups that will be removed on the next cycle have their 'releaseFl' set.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmGroupSelExec"></a><span class="f">cmGroupSelExec</span><span class="p">(</span> <a href="#cmGroupSel">cmGroupSel</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmAudioNofM : Route N of M possible input channels to N output channels under gate control.</div><pre><a name="cmAudioNofM"></a>
+<span class="c">// Route N of M input channels to N output channels.
+// The N channels are selected from the first N gates to go high.</span>
+
+<a name="cmAudioNofM_In"></a><span class="k">typedef</span> <span class="k">struct</span> <a name="cmAudioNofM_In_str"></a>cmAudioNofM_In_str
+<span class="p">{</span>
+  <span class="k">bool</span>        <a name="cmAudioNofM_In.gateFl"></a><span class="i">gateFl</span><span class="p">;</span>
+  <span class="k">bool</span>        <a name="cmAudioNofM_In.onsetFl"></a><span class="i">onsetFl</span><span class="p">;</span>
+  <span class="k">bool</span>        <a name="cmAudioNofM_In.offsetFl"></a><span class="i">offsetFl</span><span class="p">;</span>
+  <span class="k">unsigned</span>    <a name="cmAudioNofM_In.outChIdx"></a><span class="i">outChIdx</span><span class="p">;</span>
+  <a href="#cmFader">cmFader</a><span class="p">*</span>    <a name="cmAudioNofM_In.fader"></a><span class="i">fader</span><span class="p">;</span>
+  <span class="k">struct</span> <a href="#cmAudioNofM_In_str">cmAudioNofM_In_str</a><span class="p">*</span> <a name="cmAudioNofM_In.link"></a><span class="i">link</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmAudioNofM_In">cmAudioNofM_In</a></span><span class="p">;</span>
+
+<a name="cmAudioNofM_Out"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">struct</span> <a href="#cmAudioNofM_In_str">cmAudioNofM_In_str</a><span class="p">*</span> <a name="cmAudioNofM_Out.list"></a><span class="i">list</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmAudioNofM_Out">cmAudioNofM_Out</a></span><span class="p">;</span>
+
+<a name="cmAudioNofM"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>            <a name="cmAudioNofM.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <span class="k">unsigned</span>         <a name="cmAudioNofM.iChCnt"></a><span class="i">iChCnt</span><span class="p">;</span>      <span class="c"> // (M) input channel count </span>
+  <a href="#cmAudioNofM_In">cmAudioNofM_In</a><span class="p">*</span>  <a name="cmAudioNofM.inArray"></a><span class="i">inArray</span><span class="p">;</span>     <span class="c"> // chArray[ M ] - input channel array</span>
+  <span class="k">unsigned</span>         <a name="cmAudioNofM.oChCnt"></a><span class="i">oChCnt</span><span class="p">;</span>      <span class="c"> // (N) output channel count</span>
+  <a href="#cmAudioNofM_Out">cmAudioNofM_Out</a><span class="p">*</span> <a name="cmAudioNofM.outArray"></a><span class="i">outArray</span><span class="p">;</span>    <span class="c"> // outArray[N] - output channel array</span>
+  <span class="k">unsigned</span>         <a name="cmAudioNofM.nxtOutChIdx"></a><span class="i">nxtOutChIdx</span><span class="p">;</span> <span class="c"> // ch assoc;d with the next onset gate will be assined to this output channel</span>
+<span class="p">}</span> <span class="t"><a href="#cmAudioNofM">cmAudioNofM</a></span><span class="p">;</span>
+
+<a href="#cmAudioNofM">cmAudioNofM</a><span class="p">*</span> <a name="cmAudioNofMAlloc"></a><span class="f">cmAudioNofMAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmAudioNofM">cmAudioNofM</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">iChCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">oChCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">fadeTimeMs</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmAudioNofMFree"></a><span class="f">cmAudioNofMFree</span><span class="p">(</span> <a href="#cmAudioNofM">cmAudioNofM</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmAudioNofMInit"></a><span class="f">cmAudioNofMInit</span><span class="p">(</span> <a href="#cmAudioNofM">cmAudioNofM</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">iChCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">oChCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">fadeTimeMs</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmAudioNofMFinal"></a><span class="f">cmAudioNofMFinal</span><span class="p">(</span> <a href="#cmAudioNofM">cmAudioNofM</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmAudioNofMSetChannelGate"></a><span class="f">cmAudioNofMSetChannelGate</span><span class="p">(</span> <a href="#cmAudioNofM">cmAudioNofM</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">inChIdx</span><span class="p">,</span> <span class="k">bool</span> <span class="i">gateFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Sum the audio contained in x[inChCnt][n] into y[outChCnt][n] according 
+// to the state of the object.
+// Notes
+// 1) y[n] should be zeroed by the caller as the output is summed into this buffer.
+// 2) inChCnt should equal p-&ampgtiChCnt and outChCnt should equal p-&ampgtoChCnt</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmAudioNofMExec"></a><span class="f">cmAudioNofMExec</span><span class="p">(</span> <a href="#cmAudioNofM">cmAudioNofM</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> x<span class="p">[</span><span class="i">]</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">inChCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> y<span class="p">[</span><span class="i">]</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">outChCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>       <a name="cmAudioNofMSetFadeMs"></a><span class="f">cmAudioNofMSetFadeMs</span><span class="p">(</span> <a href="#cmAudioNofM">cmAudioNofM</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">fadeTimeMs</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmAdsr : ADSR audio evelope generator.</div><pre><a name="cmAdsr"></a>
+<span class="k">enum</span> <span class="p">{</span> <a name="kDlyAdsrId"></a><span class="e">kDlyAdsrId</span><span class="p">,</span> <a name="kAtkAdsrId"></a><span class="e">kAtkAdsrId</span><span class="p">,</span> <a name="kDcyAdsrId"></a><span class="e">kDcyAdsrId</span><span class="p">,</span> <a name="kSusAdsrId"></a><span class="e">kSusAdsrId</span><span class="p">,</span> <a name="kRlsAdsrId"></a><span class="e">kRlsAdsrId</span><span class="p">,</span> <a name="kDoneAdsrId"></a><span class="e">kDoneAdsrId</span> <span class="p">}</span><span class="p">;</span>
+
+<a name="cmAdsr"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>    <a name="cmAdsr.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAdsr.srate"></a><span class="i">srate</span><span class="p">;</span>
+  <span class="k">bool</span>     <a name="cmAdsr.trigModeFl"></a><span class="i">trigModeFl</span><span class="p">;</span> <span class="c"> // gate on triggers start, gate-off ignored</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAdsr.levelMin"></a><span class="i">levelMin</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAdsr.scaleDur"></a><span class="i">scaleDur</span><span class="p">;</span>   <span class="c"> </span>
+  
+  <span class="k">int</span>      <a name="cmAdsr.dlySmp"></a><span class="i">dlySmp</span><span class="p">;</span>
+  <span class="k">int</span>      <a name="cmAdsr.atkSmp"></a><span class="i">atkSmp</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAdsr.atkLevel"></a><span class="i">atkLevel</span><span class="p">;</span>
+  <span class="k">int</span>      <a name="cmAdsr.dcySmp"></a><span class="i">dcySmp</span><span class="p">;</span>
+  <span class="k">int</span>      <a name="cmAdsr.susSmp"></a><span class="i">susSmp</span><span class="p">;</span>            <span class="c"> // only used in trigger mode</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAdsr.susLevel"></a><span class="i">susLevel</span><span class="p">;</span>
+  <span class="k">int</span>      <a name="cmAdsr.rlsSmp"></a><span class="i">rlsSmp</span><span class="p">;</span>
+  
+  <span class="k">unsigned</span> <a name="cmAdsr.state"></a><span class="i">state</span><span class="p">;</span>             <span class="c"> // current state</span>
+  <span class="k">int</span>      <a name="cmAdsr.durSmp"></a><span class="i">durSmp</span><span class="p">;</span>            <span class="c"> // time in current state</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAdsr.level"></a><span class="i">level</span><span class="p">;</span>             <span class="c"> // current level </span>
+  <span class="k">bool</span>     <a name="cmAdsr.gateFl"></a><span class="i">gateFl</span><span class="p">;</span>            <span class="c"> // last gate state</span>
+  
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAdsr.atkBegLevel"></a><span class="i">atkBegLevel</span><span class="p">;</span>       <span class="c"> // attack starting level</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAdsr.atkDurSmp"></a><span class="i">atkDurSmp</span><span class="p">;</span>         <span class="c"> // attack duration </span>
+  
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAdsr.rlsLevel"></a><span class="i">rlsLevel</span><span class="p">;</span>          <span class="c"> // release starting level</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAdsr.rlsDurSmp"></a><span class="i">rlsDurSmp</span><span class="p">;</span>         <span class="c"> // release duration </span>
+  
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAdsr.actAtkLevel"></a><span class="i">actAtkLevel</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmAdsr.actSusLevel"></a><span class="i">actSusLevel</span><span class="p">;</span>
+  
+  
+<span class="p">}</span> <span class="t"><a href="#cmAdsr">cmAdsr</a></span><span class="p">;</span>
+
+<a href="#cmAdsr">cmAdsr</a><span class="p">*</span>   <a name="cmAdsrAlloc"></a><span class="f">cmAdsrAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmAdsr">cmAdsr</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">bool</span> <span class="i">trigFl</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">minL</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">dlyMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">atkMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">atkL</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">dcyMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">susMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">susL</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">rlsMs</span> <span class="p">)</span><span class="p">;</span> 
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmAdsrFree"></a><span class="f">cmAdsrFree</span><span class="p">(</span>  <a href="#cmAdsr">cmAdsr</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmAdsrInit"></a><span class="f">cmAdsrInit</span><span class="p">(</span> <a href="#cmAdsr">cmAdsr</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">bool</span> <span class="i">trigFl</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">minL</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">dlyMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">atkMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">atkL</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">dcyMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">susMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">susL</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">rlsMs</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmAdsrFinal"></a><span class="f">cmAdsrFinal</span><span class="p">(</span> <a href="#cmAdsr">cmAdsr</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>  <a name="cmAdsrExec"></a><span class="f">cmAdsrExec</span><span class="p">(</span> <a href="#cmAdsr">cmAdsr</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <span class="k">bool</span> <span class="i">gateFl</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">tscale</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">ascale</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>      <a name="cmAdsrSetTime"></a><span class="f">cmAdsrSetTime</span><span class="p">(</span> <a href="#cmAdsr">cmAdsr</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">ms</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>      <a name="cmAdsrSetLevel"></a><span class="f">cmAdsrSetLevel</span><span class="p">(</span> <a href="#cmAdsr">cmAdsr</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">level</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>      <a name="cmAdsrReport"></a><span class="f">cmAdsrReport</span><span class="p">(</span> <a href="#cmAdsr">cmAdsr</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmCompressor : Audio dynamics compressor algorithm.</div><pre><a name="cmCompressor"></a><span class="k">enum</span> <span class="p">{</span> <a name="kAtkCompId"></a><span class="e">kAtkCompId</span><span class="p">,</span> <a name="kRlsCompId"></a><span class="e">kRlsCompId</span> <span class="p">}</span><span class="p">;</span>
+
+<a name="cmCompressor"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>       <a name="cmCompressor.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmCompressor.srate"></a><span class="i">srate</span><span class="p">;</span>          <span class="c"> // system sample rate</span>
+  <span class="k">unsigned</span>    <a name="cmCompressor.procSmpCnt"></a><span class="i">procSmpCnt</span><span class="p">;</span>     <span class="c"> // samples per exec cycle</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmCompressor.inGain"></a><span class="i">inGain</span><span class="p">;</span>         <span class="c"> // input gain</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmCompressor.threshDb"></a><span class="i">threshDb</span><span class="p">;</span>       <span class="c"> // threshold in dB (max:100 min:0) </span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmCompressor.ratio_num"></a><span class="i">ratio_num</span><span class="p">;</span>      <span class="c"> // numerator of the ratio</span>
+  <span class="k">unsigned</span>    <a name="cmCompressor.atkSmp"></a><span class="i">atkSmp</span><span class="p">;</span>         <span class="c"> // time to reduce the signal by 10.0 db</span>
+  <span class="k">unsigned</span>    <a name="cmCompressor.rlsSmp"></a><span class="i">rlsSmp</span><span class="p">;</span>         <span class="c"> // time to increase the signal by 10.0 db</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmCompressor.outGain"></a><span class="i">outGain</span><span class="p">;</span>        <span class="c"> // makeup gain</span>
+  <span class="k">bool</span>        <a name="cmCompressor.bypassFl"></a><span class="i">bypassFl</span><span class="p">;</span>       <span class="c"> // bypass enable</span>
+  
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <a name="cmCompressor.rmsWnd"></a><span class="i">rmsWnd</span><span class="p">;</span>         <span class="c"> // rmsWnd[rmsWndAllocCnt]</span>
+  <span class="k">unsigned</span>    <a name="cmCompressor.rmsWndAllocCnt"></a><span class="i">rmsWndAllocCnt</span><span class="p">;</span> <span class="c"> </span>
+  <span class="k">unsigned</span>    <a name="cmCompressor.rmsWndCnt"></a><span class="i">rmsWndCnt</span><span class="p">;</span>      <span class="c"> // current RMS window size (rmsWndCnt must be &amplt= rmsWndAllocCnt)</span>
+  <span class="k">unsigned</span>    <a name="cmCompressor.rmsWndIdx"></a><span class="i">rmsWndIdx</span><span class="p">;</span>      <span class="c"> // next RMS window input index</span>
+  
+  <span class="k">unsigned</span>    <a name="cmCompressor.state"></a><span class="i">state</span><span class="p">;</span>          <span class="c"> // env. state</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmCompressor.rmsDb"></a><span class="i">rmsDb</span><span class="p">;</span>          <span class="c"> // current incoming signal RMS (max:100 min:0)</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmCompressor.gain"></a><span class="i">gain</span><span class="p">;</span>           <span class="c"> // current compressor gain</span>
+  
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmCompressor.timeConstDb"></a><span class="i">timeConstDb</span><span class="p">;</span>    <span class="c"> // the atk/rls will incr/decr by 'timeConstDb' per atkMs/rlsMs.</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmCompressor.pkDb"></a><span class="i">pkDb</span><span class="p">;</span>           <span class="c"> </span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>    <a name="cmCompressor.accumDb"></a><span class="i">accumDb</span><span class="p">;</span>        <span class="c"> </span>
+  
+<span class="p">}</span> <span class="t"><a href="#cmCompressor">cmCompressor</a></span><span class="p">;</span>
+
+<a href="#cmCompressor">cmCompressor</a><span class="p">*</span> <a name="cmCompressorAlloc"></a><span class="f">cmCompressorAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmCompressor">cmCompressor</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">inGain</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">rmsWndMaxMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">rmsWndMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">threshDb</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">ratio</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">atkMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">rlsMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">outGain</span><span class="p">,</span> <span class="k">bool</span> <span class="i">bypassFl</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>  <a name="cmCompressorFree"></a><span class="f">cmCompressorFree</span><span class="p">(</span> <a href="#cmCompressor">cmCompressor</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>  <a name="cmCompressorInit"></a><span class="f">cmCompressorInit</span><span class="p">(</span> <a href="#cmCompressor">cmCompressor</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">procSmpCnt</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">inGain</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">rmsWndMaxMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">rmsWndMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">threshDb</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">ratio</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">atkMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">rlsMs</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">outGain</span><span class="p">,</span> <span class="k">bool</span> <span class="i">bypassFl</span> <span class="p">)</span><span class="p">;</span>  
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>  <a name="cmCompressorFinal"></a><span class="f">cmCompressorFinal</span><span class="p">(</span> <a href="#cmCompressor">cmCompressor</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>  <a name="cmCompressorExec"></a><span class="f">cmCompressorExec</span><span class="p">(</span> <a href="#cmCompressor">cmCompressor</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">y</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>    <a name="cmCompressorSetAttackMs"></a><span class="f">cmCompressorSetAttackMs</span><span class="p">(</span> <a href="#cmCompressor">cmCompressor</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">ms</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>    <a name="cmCompressorSetReleaseMs"></a><span class="f">cmCompressorSetReleaseMs</span><span class="p">(</span> <a href="#cmCompressor">cmCompressor</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">ms</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>    <a name="cmCompressorSetThreshDb"></a><span class="f">cmCompressorSetThreshDb</span><span class="p">(</span>  <a href="#cmCompressor">cmCompressor</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">thresh</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>    <a name="cmCompressorSetRmsWndMs"></a><span class="f">cmCompressorSetRmsWndMs</span><span class="p">(</span> <a href="#cmCompressor">cmCompressor</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">ms</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmBiQuad : General purpose Biquad filter algorithm.</div><pre><a name="cmBiQuad"></a>
+<span class="c">// BiQuad Audio Eq's based on Robert Bristow-Johnson's recipes.
+// http://www.musicdsp.org/files/Audio-EQ-Cookbook.txt
+// See filter_rbj.m for equivalent octave code.</span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kLpfBqId"></a><span class="e">kLpfBqId</span><span class="p">,</span>
+  <a name="kHpFBqId"></a><span class="e">kHpFBqId</span><span class="p">,</span>
+  <a name="kBpfBqId"></a><span class="e">kBpfBqId</span><span class="p">,</span>
+  <a name="kNotchBqId"></a><span class="e">kNotchBqId</span><span class="p">,</span>
+  <a name="kAllpassBqId"></a><span class="e">kAllpassBqId</span><span class="p">,</span>
+  <a name="kPeakBqId"></a><span class="e">kPeakBqId</span><span class="p">,</span>
+  <a name="kLowShelfBqId"></a><span class="e">kLowShelfBqId</span><span class="p">,</span>
+  <a name="kHighShelfBqId"></a><span class="e">kHighShelfBqId</span>
+<span class="p">}</span><span class="p">;</span>
+
+<a name="cmBiQuadEq"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a> <a name="cmBiQuadEq.obj"></a><span class="i">obj</span><span class="p">;</span>
+  
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmBiQuadEq.srate"></a><span class="i">srate</span><span class="p">;</span>
+  <span class="k">unsigned</span> <a name="cmBiQuadEq.mode"></a><span class="i">mode</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmBiQuadEq.f0Hz"></a><span class="i">f0Hz</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmBiQuadEq.Q"></a><span class="i">Q</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmBiQuadEq.gainDb"></a><span class="i">gainDb</span><span class="p">;</span>
+  
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmBiQuadEq.d"></a><span class="i">d</span><span class="p">[</span><span class="l">4</span><span class="p">]</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmBiQuadEq.b"></a><span class="i">b</span><span class="p">[</span><span class="l">3</span><span class="p">]</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <a name="cmBiQuadEq.a"></a><span class="i">a</span><span class="p">[</span><span class="l">3</span><span class="p">]</span><span class="p">;</span>
+  
+  <span class="k">bool</span> <a name="cmBiQuadEq.bypassFl"></a><span class="i">bypassFl</span><span class="p">;</span>
+  
+<span class="p">}</span> <span class="t"><a href="#cmBiQuadEq">cmBiQuadEq</a></span><span class="p">;</span>
+
+<a href="#cmBiQuadEq">cmBiQuadEq</a><span class="p">*</span> <a name="cmBiQuadEqAlloc"></a><span class="f">cmBiQuadEqAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmBiQuadEq">cmBiQuadEq</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">mode</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">f0Hz</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">Q</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">gainDb</span><span class="p">,</span> <span class="k">bool</span> <span class="i">bypassFl</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmBiQuadEqFree"></a><span class="f">cmBiQuadEqFree</span><span class="p">(</span> <a href="#cmBiQuadEq">cmBiQuadEq</a><span class="p">*</span><span class="p">*</span> <span class="i">pp</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmBiQuadEqInit"></a><span class="f">cmBiQuadEqInit</span><span class="p">(</span> <a href="#cmBiQuadEq">cmBiQuadEq</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">mode</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">f0Hz</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">Q</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">gainDb</span><span class="p">,</span> <span class="k">bool</span> <span class="i">bypassFl</span> <span class="p">)</span><span class="p">;</span>  
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmBiQuadEqFinal"></a><span class="f">cmBiQuadEqFinal</span><span class="p">(</span> <a href="#cmBiQuadEq">cmBiQuadEq</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>      <a name="cmBiQuadEqExec"></a><span class="f">cmBiQuadEqExec</span><span class="p">(</span> <a href="#cmBiQuadEq">cmBiQuadEq</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">y</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>        <a name="cmBiQuadEqSet"></a><span class="f">cmBiQuadEqSet</span><span class="p">(</span> <a href="#cmBiQuadEq">cmBiQuadEq</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">mode</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">f0Hz</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">Q</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">gainDb</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<div class="cod"><div class="blk_title">cmDistDs : Guitar style distortion effect.</div><pre><a name="cmDistDs"></a><a name="cmDistDs"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <a href="cmProcObj_h_0.html#cmObj">cmObj</a>      <a name="cmDistDs.obj"></a><span class="i">obj</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>   <a name="cmDistDs.srate"></a><span class="i">srate</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>   <a name="cmDistDs.downSrate"></a><span class="i">downSrate</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>   <a name="cmDistDs.bits"></a><span class="i">bits</span><span class="p">;</span>
+  <span class="k">bool</span>       <a name="cmDistDs.rectFl"></a><span class="i">rectFl</span><span class="p">;</span>
+  <span class="k">bool</span>       <a name="cmDistDs.fullFl"></a><span class="i">fullFl</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>   <a name="cmDistDs.clipDb"></a><span class="i">clipDb</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>   <a name="cmDistDs.inGain"></a><span class="i">inGain</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a>   <a name="cmDistDs.outGain"></a><span class="i">outGain</span><span class="p">;</span>
+  <span class="k">bool</span>       <a name="cmDistDs.bypassFl"></a><span class="i">bypassFl</span><span class="p">;</span>
+  
+  <span class="k">double</span>     <a name="cmDistDs.fracIdx"></a><span class="i">fracIdx</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a> <a name="cmDistDs.lastVal"></a><span class="i">lastVal</span><span class="p">;</span>
+  
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a> <a name="cmDistDs.lastY"></a><span class="i">lastY</span><span class="p">;</span>
+  <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a> <a name="cmDistDs.lastX"></a><span class="i">lastX</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmDistDs">cmDistDs</a></span><span class="p">;</span>
+
+<a href="#cmDistDs">cmDistDs</a><span class="p">*</span> <a name="cmDistDsAlloc"></a><span class="f">cmDistDsAlloc</span><span class="p">(</span> <a href="cmProcObj_h_0.html#cmCtx">cmCtx</a><span class="p">*</span> <span class="i">c</span><span class="p">,</span> <a href="#cmDistDs">cmDistDs</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">inGain</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">downSrate</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">bits</span><span class="p">,</span> <span class="k">bool</span> <span class="i">rectFl</span><span class="p">,</span> <span class="k">bool</span> <span class="i">fullFl</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">clipDb</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">outGain</span><span class="p">,</span> <span class="k">bool</span> <span class="i">bypassFl</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmDistDsFree"></a><span class="f">cmDistDsFree</span><span class="p">(</span> <a href="#cmDistDs">cmDistDs</a><span class="p">*</span><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmDistDsInit"></a><span class="f">cmDistDsInit</span><span class="p">(</span> <a href="#cmDistDs">cmDistDs</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">srate</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">inGain</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">downSrate</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">bits</span><span class="p">,</span> <span class="k">bool</span> <span class="i">rectFl</span><span class="p">,</span> <span class="k">bool</span> <span class="i">fullFl</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">clipDb</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmReal_t">cmReal_t</a> <span class="i">outGain</span><span class="p">,</span> <span class="k">bool</span> <span class="i">bypassFl</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmDistDsFinal"></a><span class="f">cmDistDsFinal</span><span class="p">(</span> <a href="#cmDistDs">cmDistDs</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>    <a name="cmDistDsExec"></a><span class="f">cmDistDsExec</span><span class="p">(</span>  <a href="#cmDistDs">cmDistDs</a><span class="p">*</span> <span class="i">p</span><span class="p">,</span> <span class="k">const</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">x</span><span class="p">,</span> <a href="cmFloatTypes_h_0.html#cmSample_t">cmSample_t</a><span class="p">*</span> <span class="i">y</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">n</span> <span class="p">)</span><span class="p">;</span>
+<span class="c"><hr id="hr1"></span></pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

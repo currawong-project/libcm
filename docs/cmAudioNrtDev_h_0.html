@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmAudioNrtDev.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmAudioNrtDev.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmAudioNrtDev : Audio device driver which generates the callbacks to run cmAudioPort in a non-real time mode.</div><pre><a name="cmAudioNrtDev_h_code_0"></a>
+<a href="cmAudioPort_h_0.html#cmApRC_t">cmApRC_t</a> <a name="cmApNrtAllocate"></a><span class="f">cmApNrtAllocate</span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmAudioPort_h_0.html#cmApRC_t">cmApRC_t</a> <a name="cmApNrtFree"></a><span class="f">cmApNrtFree</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+
+<a href="cmAudioPort_h_0.html#cmApRC_t">cmApRC_t</a> <a name="cmApNrtCreateDevice"></a>cmApNrtCreateDevice<span class="p">(</span> 
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">label</span><span class="p">,</span>
+<span class="k">double</span>          <span class="i">srate</span><span class="p">,</span>
+<span class="k">unsigned</span>        <span class="i">iChCnt</span><span class="p">,</span>
+<span class="k">unsigned</span>        <span class="i">oChCnt</span><span class="p">,</span>
+<span class="k">unsigned</span>        <span class="i">cbPeriodMs</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">/// Setup the audio port management object for this machine.</span>
+<a href="cmAudioPort_h_0.html#cmApRC_t">cmApRC_t</a>      <a name="cmApNrtInitialize"></a><span class="f">cmApNrtInitialize</span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">baseApDevIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Stop all audio devices and release any resources held 
+/// by the audio port management object.</span>
+<a href="cmAudioPort_h_0.html#cmApRC_t">cmApRC_t</a>      <a name="cmApNrtFinalize"></a><span class="f">cmApNrtFinalize</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Return the count of audio devices attached to this machine.</span>
+<span class="k">unsigned</span>      <a name="cmApNrtDeviceCount"></a><span class="f">cmApNrtDeviceCount</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Get a textual description of the device at index 'devIdx'.</span>
+<span class="k">const</span> <span class="k">char</span><span class="p">*</span>   <a name="cmApNrtDeviceLabel"></a><span class="f">cmApNrtDeviceLabel</span><span class="p">(</span>          <span class="k">unsigned</span> <span class="i">devIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Get the count of audio input or output channesl on device at index 'devIdx'.</span>
+<span class="k">unsigned</span>      <a name="cmApNrtDeviceChannelCount"></a><span class="f">cmApNrtDeviceChannelCount</span><span class="p">(</span>   <span class="k">unsigned</span> <span class="i">devIdx</span><span class="p">,</span> <span class="k">bool</span> <span class="i">inputFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Get the current sample rate of a device.  Note that if the device has both
+/// input and output capability then the sample rate is the same for both.</span>
+<span class="k">double</span>        <a name="cmApNrtDeviceSampleRate"></a><span class="f">cmApNrtDeviceSampleRate</span><span class="p">(</span>     <span class="k">unsigned</span> <span class="i">devIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Get the count of samples per callback for the input or output for this device.</span>
+<span class="k">unsigned</span>      <a name="cmApNrtDeviceFramesPerCycle"></a><span class="f">cmApNrtDeviceFramesPerCycle</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">devIdx</span><span class="p">,</span> <span class="k">bool</span> <span class="i">inputFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Configure a device.  </span>
+<a href="cmAudioPort_h_0.html#cmApRC_t">cmApRC_t</a>      <a name="cmApNrtDeviceSetup"></a>cmApNrtDeviceSetup<span class="p">(</span>          
+<span class="k">unsigned</span>          <span class="i">devIdx</span><span class="p">,</span> 
+<span class="k">double</span>            <span class="i">srate</span><span class="p">,</span> 
+<span class="k">unsigned</span>          <span class="i">framesPerCycle</span><span class="p">,</span> 
+<a href="cmAudioPort_h_0.html#cmApCallbackPtr_t">cmApCallbackPtr_t</a> <span class="i">callbackPtr</span><span class="p">,</span>
+<span class="k">void</span><span class="p">*</span>             <span class="i">userCbPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Start a device. Note that the callback may be made prior to this function returning.</span>
+<a href="cmAudioPort_h_0.html#cmApRC_t">cmApRC_t</a>      <a name="cmApNrtDeviceStart"></a><span class="f">cmApNrtDeviceStart</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">devIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Stop a device.</span>
+<a href="cmAudioPort_h_0.html#cmApRC_t">cmApRC_t</a>      <a name="cmApNrtDeviceStop"></a><span class="f">cmApNrtDeviceStop</span><span class="p">(</span>  <span class="k">unsigned</span> <span class="i">devIdx</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">/// Return true if the device is currently started.</span>
+<span class="k">bool</span>          <a name="cmApNrtDeviceIsStarted"></a><span class="f">cmApNrtDeviceIsStarted</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">devIdx</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

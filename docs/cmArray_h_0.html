@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmArray.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmArray.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmArray : Dynamic array container class.</div><pre><a name="cmArray_h_code_0"></a>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkArRC"></a><span class="e">kOkArRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kUnderflowArRC"></a><span class="e">kUnderflowArRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmArRC_t"></a><span class="t">cmArRC_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmArrayH_t"></a><span class="t">cmArrayH_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmArrayH_t">cmArrayH_t</a> <span class="i">cmArrayNullHandle</span><span class="p">;</span>
+
+<a href="#cmArRC_t">cmArRC_t</a>    <a name="cmArrayAlloc0"></a><span class="f">cmArrayAlloc0</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmArrayH_t">cmArrayH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">eleByteCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">initCnt</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">expandCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Defaults initCnt and expandCnt to 10.</span>
+<a href="#cmArRC_t">cmArRC_t</a>    <a name="cmArrayAlloc"></a><span class="f">cmArrayAlloc</span><span class="p">(</span>    <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> ctx<span class="p">,</span> <a href="#cmArrayH_t">cmArrayH_t</a><span class="p">*</span> hp<span class="p">,</span> <span class="k">unsigned</span> eleByteCnt <span class="p">)</span><span class="p">;</span>
+<a href="#cmArRC_t">cmArRC_t</a>    <a name="cmArrayRelease"></a><span class="f">cmArrayRelease</span><span class="p">(</span><a href="#cmArrayH_t">cmArrayH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmArRC_t">cmArRC_t</a>    <a name="cmArrayIsValid"></a><span class="f">cmArrayIsValid</span><span class="p">(</span><a href="#cmArrayH_t">cmArrayH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>        <a name="cmArraySetExpandCount"></a><span class="f">cmArraySetExpandCount</span><span class="p">(</span> <a href="#cmArrayH_t">cmArrayH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">expandCnt</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>    <a name="cmArrayExpandCount"></a><span class="f">cmArrayExpandCount</span><span class="p">(</span> <a href="#cmArrayH_t">cmArrayH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>    <a name="cmArrayCount"></a><span class="f">cmArrayCount</span><span class="p">(</span>  <a href="#cmArrayH_t">cmArrayH_t</a> h <span class="p">)</span><span class="p">;</span>
+<a href="#cmArRC_t">cmArRC_t</a>    <a name="cmArrayClear"></a><span class="f">cmArrayClear</span><span class="p">(</span>  <a href="#cmArrayH_t">cmArrayH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">bool</span> <span class="i">releaseFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Returns a pointer to the first pushed element.
+// Set 'data' to NULL to create 'dataEleCnt' new zeroed elements.</span>
+<span class="k">void</span><span class="p">*</span>       <a name="cmArrayPush"></a><span class="f">cmArrayPush</span><span class="p">(</span>   <a href="#cmArrayH_t">cmArrayH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">data</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">dataEleCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Decreaese the array count by 'eleCnt'.</span>
+<a href="#cmArRC_t">cmArRC_t</a>    <a name="cmArrayPop"></a><span class="f">cmArrayPop</span><span class="p">(</span>    <a href="#cmArrayH_t">cmArrayH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">eleCnt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// If 'data' is NULL then array[idx:idx+dataEleCnt] is zeroed.
+// Returns a ptr to the first set element.</span>
+<span class="k">void</span><span class="p">*</span>       <a name="cmArraySet"></a><span class="f">cmArraySet</span><span class="p">(</span>    <a href="#cmArrayH_t">cmArrayH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">index</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">data</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">dataEleCnt</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <span class="k">void</span><span class="p">*</span> <a name="cmArrayGet"></a><span class="f">cmArrayGet</span><span class="p">(</span>    <a href="#cmArrayH_t">cmArrayH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">index</span> <span class="p">)</span><span class="p">;</span>
+
+
+
+<span class="m">#define </span><span class="m"><a href="cmProc2_h_0.html#cmArrayPtr">cmArrayPtr</a></span><span class="m">(t,h,i)     ((t*)<a href="#cmArrayGet">cmArrayGet</a>(h,i))</span>
+
+<span class="c">// Return a ptr to the base of the array.</span>
+<span class="m">#define </span><a name="cmArrayBase"></a><span class="m">cmArrayBase</span><span class="m">(t,h)     ((t*)<a href="#cmArrayGet">cmArrayGet</a>(h,0))</span>
+
+<span class="c">// Return a ptr to the ith element</span>
+<span class="m">#define </span><a name="cmArrayEle"></a><span class="m">cmArrayEle</span><span class="m">(t,h,i)    (*(t*)<a href="#cmArrayGet">cmArrayGet</a>(h,i))</span>
+
+<span class="c">// Zero the ith element</span>
+<span class="m">#define </span><a name="cmArrayClr"></a><span class="m">cmArrayClr</span><span class="m">(t,h,i)    ((t*)<a href="#cmArraySet">cmArraySet</a>(h,i,NULL,1))</span>
+
+<span class="c">// Zero elements i:i+n-1</span>
+<span class="m">#define </span><a name="cmArrayClrN"></a><span class="m">cmArrayClrN</span><span class="m">(t,h,i,n) ((t*)<a href="#cmArraySet">cmArraySet</a>(h,i,NULL,n))</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

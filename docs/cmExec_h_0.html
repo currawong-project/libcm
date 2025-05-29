@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmExec.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmExec.h"></a><!-- Begin nodes -->
+<div class="cod"><pre><a name="cmExec_h_code_0"></a><span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkExRC"></a><span class="e">kOkExRC</span><span class="p">,</span>
+  <a name="kInvalidPgmFnExRC"></a><span class="e">kInvalidPgmFnExRC</span><span class="p">,</span> <span class="c"> // pgmFn was NULL</span>
+  <a name="kForkFailExRC"></a><span class="e">kForkFailExRC</span><span class="p">,</span>     <span class="c"> // internal fork() failed</span>
+  <a name="kExecFailExRC"></a><span class="e">kExecFailExRC</span><span class="p">,</span>     <span class="c"> // internal exec() failed.</span>
+  <a name="kPgmFailExRC"></a><span class="e">kPgmFailExRC</span><span class="p">,</span>      <span class="c"> // pgm returned a non-zero exit status</span>
+  <a name="kWaitFailExRC"></a><span class="e">kWaitFailExRC</span>      <span class="c"> // internal waitpid() failed</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">unsigned</span> <a name="cmExRC_t"></a><span class="t">cmExRC_t</span><span class="p">;</span>
+
+<span class="c">// If returnValRef is non-NULL *returnValRef is set to the program return value.</span>
+<a href="#cmExRC_t">cmExRC_t</a> <a name="cmExecV"></a><span class="f">cmExecV</span><span class="p">(</span> <a href="cmErr_h_0.html#cmErr_t">cmErr_t</a><span class="p">*</span> <span class="i">err</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span> <span class="i">returnValRef</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">pgmFn</span><span class="p">,</span> va_list <span class="i">vl</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmExRC_t">cmExRC_t</a> <a name="cmExec"></a><span class="f">cmExec</span><span class="p">(</span>  <a href="cmErr_h_0.html#cmErr_t">cmErr_t</a><span class="p">*</span> <span class="i">err</span><span class="p">,</span> <span class="k">int</span><span class="p">*</span> <span class="i">returnValRef</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">pgmFn</span><span class="p">,</span> <span class="i">...</span> <span class="p">)</span><span class="p">;</span>  
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

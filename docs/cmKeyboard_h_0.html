@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmKeyboard.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmKeyboard.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmKeyboard : Query and get keypresses directly from the console.</div><pre><a name="cmKeyboard_h_code_0"></a>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kInvalidKId"></a><span class="e">kInvalidKId</span><span class="p">,</span>
+  <a name="kAsciiKId"></a><span class="e">kAsciiKId</span><span class="p">,</span>
+  <a name="kLeftArrowKId"></a><span class="e">kLeftArrowKId</span><span class="p">,</span>
+  <a name="kRightArrowKId"></a><span class="e">kRightArrowKId</span><span class="p">,</span>
+  <a name="kUpArrowKId"></a><span class="e">kUpArrowKId</span><span class="p">,</span>
+  <a name="kDownArrowKId"></a><span class="e">kDownArrowKId</span><span class="p">,</span>
+  <a name="kHomeKId"></a><span class="e">kHomeKId</span><span class="p">,</span>
+  <a name="kEndKId"></a><span class="e">kEndKId</span><span class="p">,</span>
+  <a name="kPgUpKId"></a><span class="e">kPgUpKId</span><span class="p">,</span>
+  <a name="kPgDownKId"></a><span class="e">kPgDownKId</span><span class="p">,</span>
+  <a name="kInsertKId"></a><span class="e">kInsertKId</span><span class="p">,</span>
+  <a name="kDeleteKId"></a><span class="e">kDeleteKId</span><span class="p">,</span>
+  
+<span class="p">}</span><span class="p">;</span>
+
+<a name="cmKbRecd"></a><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span> <a name="cmKbRecd.code"></a><span class="i">code</span><span class="p">;</span>
+  <span class="k">char</span>     <a name="cmKbRecd.ch"></a><span class="i">ch</span><span class="p">;</span>
+  <span class="k">bool</span>     <a name="cmKbRecd.ctlFl"></a><span class="i">ctlFl</span><span class="p">;</span>
+  <span class="k">bool</span>     <a name="cmKbRecd.altFl"></a><span class="i">altFl</span><span class="p">;</span>
+<span class="p">}</span> <span class="t"><a href="#cmKbRecd">cmKbRecd</a></span><span class="p">;</span>
+
+<span class="c">// Set 'p' to NULL if the value of the key is not required.</span>
+<span class="k">void</span> <a name="cmKeyPress"></a><span class="f">cmKeyPress</span><span class="p">(</span> <a href="#cmKbRecd">cmKbRecd</a><span class="p">*</span> <span class="i">p</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">// Return non-zero if a key is waiting to be read otherwise return 0.
+// Use getchar() to pick up the key.
+// 
+// Example:
+// while( 1 )
+// {
+//    if( <a href="#cmIsKeyWaiting">cmIsKeyWaiting</a>() == 0 )
+//       usleep(20000);
+//    else
+//    {
+//      char c = getchar();
+//      switch(c)
+//      {
+//        ....
+//      } 
+//    }
+//
+// }
+//
+// TODO: Note that this function turns off line-buffering on stdin.
+// It should be changed to a three function sequence.
+// bool org_state =  cmSetStdinLineBuffering(false);
+// ....
+// <a href="#cmIsKeyWaiting">cmIsKeyWaiting</a>()
+// ....
+// cmSetStdinLineBuffering(org_state)</span>
+<span class="k">int</span> <a name="cmIsKeyWaiting"></a><span class="f">cmIsKeyWaiting</span><span class="p">(</span><span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

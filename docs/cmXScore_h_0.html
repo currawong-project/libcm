@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmXScore.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmXScore.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmXScore : Process a Music XML score in a variety of ways.</div><pre><a name="cmXScore_h_code_0"></a>
+</pre>
+<div class="a"><p><a href="cmScore_h_0.html#cmScoreTest">cmScoreTest</a>() performs a the following functions: - Parses Music XML files into a text (edit) file. - The ‘edit’ file can then be manually edited to modify and add information to the score. - The modified ‘edit’ file can then be used to generate a CSV file suitable for use with cmScore(), a MIDI file which can render the modified score, and a SVG file which will display the score as a piano roll.</p>
+</div>
+<pre>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkXsRC"></a><span class="e">kOkXsRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kXmlFailXsRC"></a><span class="e">kXmlFailXsRC</span><span class="p">,</span>
+  <a name="kLHeapFailXsRC"></a><span class="e">kLHeapFailXsRC</span><span class="p">,</span>
+  <a name="kSyntaxErrorXsRC"></a><span class="e">kSyntaxErrorXsRC</span><span class="p">,</span>
+  <a name="kCsvFailXsRC"></a><span class="e">kCsvFailXsRC</span><span class="p">,</span>
+  <a name="kUnterminatedTieXsRC"></a><span class="e">kUnterminatedTieXsRC</span><span class="p">,</span>
+  <a name="kUnterminatedSlurXsRC"></a><span class="e">kUnterminatedSlurXsRC</span><span class="p">,</span>
+  <a name="kUnterminatedOctaveShiftXsrRC"></a><span class="e">kUnterminatedOctaveShiftXsrRC</span><span class="p">,</span>
+  <a name="kPedalStateErrorXsRc"></a><span class="e">kPedalStateErrorXsRc</span><span class="p">,</span>
+  <a name="kMidiFailXsRC"></a><span class="e">kMidiFailXsRC</span><span class="p">,</span>
+  <a name="kFileFailXsRC"></a><span class="e">kFileFailXsRC</span><span class="p">,</span>
+  <a name="kSvgFailXsRC"></a><span class="e">kSvgFailXsRC</span><span class="p">,</span>
+  <a name="kOverlapWarnXsRC"></a><span class="e">kOverlapWarnXsRC</span><span class="p">,</span>
+  <a name="kZeroLengthEventXsRC"></a><span class="e">kZeroLengthEventXsRC</span><span class="p">,</span>
+  <a name="kEventNotFoundXsRC"></a><span class="e">kEventNotFoundXsRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmXsRC_t"></a><span class="t">cmXsRC_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmXsH_t"></a><span class="t">cmXsH_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmXsH_t">cmXsH_t</a> <span class="i">cmXsNullHandle</span><span class="p">;</span>
+
+<span class="c">// Prepare the MusicXML file:
+//
+// 1) Convert XML to UTF-8:
+//       a. Change: encoding           = 'UTF-16' to encoding='UTF-8'</span>
+
+
+<span class="c">//       b. Emacs C-x &ampltRET&ampgt f utf-8 &ampltRET&ampgt
+//       c. Change: &amplt?xml ... encoding = 'UTF-16' to encoding='UTF-8' ...?&ampgt
+//
+// 2) Replace &ampquotDoletSibelius Unknown Symbol Index &ampquot with &ampquotDoletSibelius unknownSymIdx=&ampquot
+//
+// Steps 1) and 2) can be automated by in emacs by:
+//
+// M-x load-file ~/src/emacs/proc_music_xml.el
+//</span>
+
+<span class="c">// Initialize an cmXScore object from a Sibelius generated MusicXML file.
+// 'editFn' is used to add additional information to the score.
+// See <a href="#cmXScoreGenEditFile">cmXScoreGenEditFile</a>()</span>
+<a href="#cmXsRC_t">cmXsRC_t</a> <a name="cmXScoreInitialize"></a><span class="f">cmXScoreInitialize</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmXsH_t">cmXsH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">xmlFn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">editFn</span><span class="p">,</span> <span class="k">bool</span> <span class="i">damperRptFl</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmXsRC_t">cmXsRC_t</a> <a name="cmXScoreFinalize"></a><span class="f">cmXScoreFinalize</span><span class="p">(</span> <a href="#cmXsH_t">cmXsH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="k">bool</span>     <a name="cmXScoreIsValid"></a><span class="f">cmXScoreIsValid</span><span class="p">(</span> <a href="#cmXsH_t">cmXsH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmXsRC_t">cmXsRC_t</a> <a name="cmXScoreWriteCsv"></a><span class="f">cmXScoreWriteCsv</span><span class="p">(</span> <a href="#cmXsH_t">cmXsH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">int</span> <span class="i">beginMeasNumb</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">csvFn</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">void</span>     <a name="cmXScoreReport"></a><span class="f">cmXScoreReport</span><span class="p">(</span> <a href="#cmXsH_t">cmXsH_t</a> <span class="i">h</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span><span class="p">,</span> <span class="k">bool</span> <span class="i">sortFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Generate a template 'edit file'. This file can be edited by hand to included additional
+// information in the score. See the 'editFn' argument to <a href="#cmXScoreInitialize">cmXScoreInitialize</a>() for where
+// this file is used.</span>
+<a href="#cmXsRC_t">cmXsRC_t</a> <a name="cmXScoreGenEditFile"></a><span class="f">cmXScoreGenEditFile</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">xmlFn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">outFn</span><span class="p">,</span> <span class="k">bool</span> <span class="i">damperRptFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Generate the CSV file suitable for use by cmScore.
+//
+// If the file referenced by 'reorderFn' exists then it is used to attach additional
+// score information.  If it does not then a new edit file is created via an
+// internal call to <a href="#cmXScoreGenEditFile">cmXScoreGenEditFile</a>().  This file can then be edited
+// to include the additional score file information and passed back by a later
+// call to this same function.
+// Set reportFl to true to <a href="cmMain_c_0.html#print">print</a> a report of the score following processing.
+// Set begMeasNumb to the first measure the to be written to the output csv, MIDI and SVG files.
+// Set begBPM to 0 to use the tempo from the score otherwise set it to the tempo at begMeasNumb.</span>
+<a href="#cmXsRC_t">cmXsRC_t</a> <a name="cmXScoreTest"></a><span class="f">cmXScoreTest</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">xmlFn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">reorderFn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">csvOutFn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">midiOutFn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">svgOutFn</span><span class="p">,</span> <span class="k">bool</span> <span class="i">reportFl</span><span class="p">,</span> <span class="k">int</span> <span class="i">begMeasNumb</span><span class="p">,</span> <span class="k">int</span> <span class="i">begBPM</span><span class="p">,</span> <span class="k">bool</span> <span class="i">svgStandAloneFl</span><span class="p">,</span> <span class="k">bool</span> <span class="i">svgPanZoomFl</span><span class="p">,</span> <span class="k">bool</span> <span class="i">damperRptFl</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmXsRC_t">cmXsRC_t</a> <a name="cmXScoreMergeEditFiles"></a><span class="f">cmXScoreMergeEditFiles</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">xmlFn</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">refEditFn</span><span class="p">,</span>  <span class="k">unsigned</span> <span class="i">refBegMeasNumb</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">editFn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">keyMeasNumb</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">outFn</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

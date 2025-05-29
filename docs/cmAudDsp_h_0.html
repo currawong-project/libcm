@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmAudDsp.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmAudDsp.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmAudDsp : Supports a serialized interface to an internal instance of  cmAudioSys and cmDspSys.</div><pre><a name="cmAudDsp_h_code_0"></a>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkAdRC"></a><span class="e">kOkAdRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kAudioPortFailAdRC"></a><span class="e">kAudioPortFailAdRC</span><span class="p">,</span>
+  <a name="kAudioSysFailAdRC"></a><span class="e">kAudioSysFailAdRC</span><span class="p">,</span>
+  <a name="kMidiSysFailAdRC"></a><span class="e">kMidiSysFailAdRC</span><span class="p">,</span>
+  <a name="kSerialPortFailAdRC"></a><span class="e">kSerialPortFailAdRC</span><span class="p">,</span>
+  <a name="kDspSysFailAdRC"></a><span class="e">kDspSysFailAdRC</span><span class="p">,</span>
+  <a name="kFileSysFailAdRC"></a><span class="e">kFileSysFailAdRC</span><span class="p">,</span>
+  <a name="kJsonFailAdRC"></a><span class="e">kJsonFailAdRC</span><span class="p">,</span>
+  <a name="kSendMsgFailAdRC"></a><span class="e">kSendMsgFailAdRC</span><span class="p">,</span>
+  <a name="kInvalidCfgIdxAdRC"></a><span class="e">kInvalidCfgIdxAdRC</span><span class="p">,</span>
+  <a name="kNoPgmLoadedAdRC"></a><span class="e">kNoPgmLoadedAdRC</span><span class="p">,</span>
+  <a name="kInvalidSubSysIdxAdRC"></a><span class="e">kInvalidSubSysIdxAdRC</span><span class="p">,</span>
+  <a name="kUnknownMsgTypeAdRC"></a><span class="e">kUnknownMsgTypeAdRC</span><span class="p">,</span>
+  <a name="kSerialDevCreateFailAdRC"></a><span class="e">kSerialDevCreateFailAdRC</span><span class="p">,</span>
+  <a name="kAggDevSysFailAdRC"></a><span class="e">kAggDevSysFailAdRC</span><span class="p">,</span>
+  <a name="kAggDevCreateFailAdRC"></a><span class="e">kAggDevCreateFailAdRC</span><span class="p">,</span>
+  <a name="kNrtDevSysFailAdRC"></a><span class="e">kNrtDevSysFailAdRC</span><span class="p">,</span>
+  <a name="kAfpDevSysFailAdRC"></a><span class="e">kAfpDevSysFailAdRC</span><span class="p">,</span>
+  <a name="kNetSysFailAdRC"></a><span class="e">kNetSysFailAdRC</span><span class="p">,</span>
+  <a name="kInvalidAudioDevIdxAdRC"></a><span class="e">kInvalidAudioDevIdxAdRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>     <a name="cmAdRC_t"></a><span class="t">cmAdRC_t</span><span class="p">;</span>
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmAdH_t"></a><span class="t">cmAdH_t</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmAdH_t">cmAdH_t</a> <span class="i">cmAdNullHandle</span><span class="p">;</span>
+
+<span class="c">// Create a audio dsp engine and send device and program information to the 
+// host application.  
+// cbPtr provides a function used by cmAudDsp to send messages to the client.</span>
+<a href="#cmAdRC_t">cmAdRC_t</a> <a name="cmAudDspAlloc"></a><span class="f">cmAudDspAlloc</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmAdH_t">cmAdH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <a href="cmMsgProtocol_h_0.html#cmMsgSendFuncPtr_t">cmMsgSendFuncPtr_t</a> <span class="i">cbPtr</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbDataPtr</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmAdRC_t">cmAdRC_t</a> <a name="cmAudDspFree"></a><span class="f">cmAudDspFree</span><span class="p">(</span>  <a href="#cmAdH_t">cmAdH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Send the setup to the UI (device list,system cfg list, DSP programs)</span>
+<a href="#cmAdRC_t">cmAdRC_t</a> <a name="cmAudDspSendSetup"></a><span class="f">cmAudDspSendSetup</span><span class="p">(</span> <a href="#cmAdH_t">cmAdH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span> <a name="cmAudDspIsValid"></a><span class="f">cmAudDspIsValid</span><span class="p">(</span> <a href="#cmAdH_t">cmAdH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// This function provides the primary interface for communication from the
+// client program to the aud_dsp system.</span>
+<a href="#cmAdRC_t">cmAdRC_t</a> <a name="cmAudDspReceiveClientMsg"></a><span class="f">cmAudDspReceiveClientMsg</span><span class="p">(</span> <a href="#cmAdH_t">cmAdH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">msgBytecnt</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">msg</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

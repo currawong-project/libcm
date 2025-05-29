@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmSerialPort.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmSerialPort.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmSerialPort : Serial port interface.</div><pre><a name="cmSerialPort_h_code_0"></a>
+<span class="k">typedef</span> <span class="k">unsigned</span> <a name="cmSeRC_t"></a><span class="t">cmSeRC_t</span><span class="p">;</span>
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkSeRC"></a><span class="e">kOkSeRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kFlushFailSeRC"></a><span class="e">kFlushFailSeRC</span><span class="p">,</span>
+  <a name="kSetAttrFailSeRC"></a><span class="e">kSetAttrFailSeRC</span><span class="p">,</span>
+  <a name="kCloseFailSeRC"></a><span class="e">kCloseFailSeRC</span><span class="p">,</span>
+  <a name="kOpenFailSeRC"></a><span class="e">kOpenFailSeRC</span><span class="p">,</span>
+  <a name="kResourceNotAvailableSeRC"></a><span class="e">kResourceNotAvailableSeRC</span><span class="p">,</span>
+  <a name="kGetAttrFailSeRC"></a><span class="e">kGetAttrFailSeRC</span><span class="p">,</span>
+  <a name="kWriteFailSeRC"></a><span class="e">kWriteFailSeRC</span><span class="p">,</span>
+  <a name="kReadFailSeRC"></a><span class="e">kReadFailSeRC</span><span class="p">,</span>
+  <a name="kTimeOutSeRC"></a><span class="e">kTimeOutSeRC</span><span class="p">,</span>
+  <a name="kThreadErrSeRC"></a><span class="e">kThreadErrSeRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  kDataBits5SeFl 	<span class="p">=</span> <span class="l">0x0001</span><span class="p">,</span>
+  kDataBits6SeFl 	<span class="p">=</span> <span class="l">0x0002</span><span class="p">,</span>
+  kDataBits7SeFl 	<span class="p">=</span> <span class="l">0x0004</span><span class="p">,</span>
+  kDataBits8SeFl 	<span class="p">=</span> <span class="l">0x0008</span><span class="p">,</span>
+  kDataBitsSeMask	<span class="p">=</span> <span class="l">0x000f</span><span class="p">,</span>
+  
+  k1StopBitSeFl		<span class="p">=</span> <span class="l">0x0010</span><span class="p">,</span>
+  k2StopBitSeFl 	  <span class="p">=</span> <span class="l">0x0020</span><span class="p">,</span>
+  
+  kEvenParitySeFl	<span class="p">=</span> <span class="l">0x0040</span><span class="p">,</span>
+  kOddParitySeFl	  <span class="p">=</span> <span class="l">0x0080</span><span class="p">,</span>
+  kNoParitySeFl		<span class="p">=</span> <span class="l">0x0000</span><span class="p">,</span>
+  
+  <a name="kDefaultCfgSeFlags"></a><span class="e">kDefaultCfgSeFlags</span> <span class="p">=</span> kDataBits8SeFl <span class="p">|</span> k1StopBitSeFl <span class="p">|</span> kNoParitySeFl
+<span class="p">}</span><span class="p">;</span>
+
+
+
+
+<span class="k">typedef</span> <span class="k">void</span> <span class="p">(</span><span class="p">*</span><a name="cmSeCallbackFunc_t"></a><span class="t">cmSeCallbackFunc_t</span><span class="p">)</span><span class="p">(</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">byteA</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteN</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmSeH_t"></a><span class="t">cmSeH_t</span><span class="p">;</span>
+
+<a href="#cmSeH_t">cmSeH_t</a>   <a name="cmSeCreate"></a><span class="f">cmSeCreate</span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span> <a href="#cmSeH_t">cmSeH_t</a><span class="p">*</span> <span class="i">hp</span><span class="p">,</span> <span class="k">const</span> <span class="k">char</span><span class="p">*</span> <span class="i">device</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">baudRate</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">cfgFlags</span><span class="p">,</span> <a href="#cmSeCallbackFunc_t">cmSeCallbackFunc_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">pollPeriodMs</span> <span class="p">)</span><span class="p">;</span>
+<a href="#cmSeRC_t">cmSeRC_t</a>  <a name="cmSeDestroy"></a><span class="f">cmSeDestroy</span><span class="p">(</span><a href="#cmSeH_t">cmSeH_t</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="#cmSeRC_t">cmSeRC_t</a>  <a name="cmSeSetCallback"></a><span class="f">cmSeSetCallback</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span><span class="p">,</span> <a href="#cmSeCallbackFunc_t">cmSeCallbackFunc_t</a> <span class="i">cbFunc</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">cbArg</span>  <span class="p">)</span><span class="p">;</span>
+<a href="#cmSeRC_t">cmSeRC_t</a>  <a name="cmSeStart"></a><span class="f">cmSeStart</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">bool</span> <a name="cmSeIsOpen"></a><span class="f">cmSeIsOpen</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span><span class="p">)</span><span class="p">;</span>
+
+<a href="#cmSeRC_t">cmSeRC_t</a> <a name="cmSeSend"></a><span class="f">cmSeSend</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <span class="k">void</span><span class="p">*</span> <span class="i">byteA</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">byteN</span> <span class="p">)</span><span class="p">;</span>
+
+
+<span class="c">// Make callback to listener with result of read - Non-blocking</span>
+<a href="#cmSeRC_t">cmSeRC_t</a> <a name="cmSeReceiveCbNb"></a><span class="f">cmSeReceiveCbNb</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">readN_Ref</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Make callback to listener with result of read - Block for up to timeOutMs.</span>
+<a href="#cmSeRC_t">cmSeRC_t</a> <a name="cmSeReceiveCbTimeOut"></a><span class="f">cmSeReceiveCbTimeOut</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">timeOutMs</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">readN_Ref</span><span class="p">)</span><span class="p">;</span> 
+
+<span class="c">// Return result of read in buf[bufByteN] - Non-blocking.</span>
+<a href="#cmSeRC_t">cmSeRC_t</a> <a name="cmSeReceiveNb"></a><span class="f">cmSeReceiveNb</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bufByteN</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">readN_Ref</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return result of read in buf[bufByteN] - Block for up to timeOutMs.</span>
+<a href="#cmSeRC_t">cmSeRC_t</a> <a name="cmSeReceive"></a><span class="f">cmSeReceive</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span><span class="p">,</span> <span class="k">void</span><span class="p">*</span> <span class="i">buf</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">bufByteN</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">timeOutMs</span><span class="p">,</span> <span class="k">unsigned</span><span class="p">*</span> <span class="i">readN_Ref</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="k">const</span> <span class="k">char</span><span class="p">*</span> <a name="cmSeDevice"></a><span class="f">cmSeDevice</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Get the baud rate and cfgFlags used to initialize the port</span>
+<span class="k">unsigned</span>    <a name="cmSeBaudRate"></a><span class="f">cmSeBaudRate</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span><span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span>    <a name="cmSeCfgFlags"></a><span class="f">cmSeCfgFlags</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Get the baud rate and cfg flags by reading the device.
+// Note the the returned buad rate is a system id rather than the actual baud rate,
+// however the cfgFlags are converted to the same kXXXFl defined in this class.</span>
+<span class="k">unsigned</span> <a name="cmSeReadInBaudRate"></a><span class="f">cmSeReadInBaudRate</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmSeReadOutBaudRate"></a><span class="f">cmSeReadOutBaudRate</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span><span class="p">)</span><span class="p">;</span>
+<span class="k">unsigned</span> <a name="cmSeReadCfgFlags"></a><span class="f">cmSeReadCfgFlags</span><span class="p">(</span> <a href="#cmSeH_t">cmSeH_t</a> <span class="i">h</span><span class="p">)</span><span class="p">;</span>
+
+<a href="#cmSeRC_t">cmSeRC_t</a> <a name="cmSePortTest"></a><span class="f">cmSePortTest</span><span class="p">(</span><a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

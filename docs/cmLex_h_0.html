@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmLex.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmLex.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmLex : User configurable lexer for tokenizing text files.</div><pre><a name="cmLex_h_code_0"></a>
+
+<span class="c">// Predefined Lexer Id's</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kErrorLexTId"></a><span class="e">kErrorLexTId</span><span class="p">,</span>    <span class="c"> // 0 the lexer was unable to identify the current token</span>
+  <a name="kUnknownLexTId"></a><span class="e">kUnknownLexTId</span><span class="p">,</span>  <span class="c"> // 1 the token is of an unknown type (only used when <a href="#kReturnUnknownLexFl">kReturnUnknownLexFl</a> is set)</span>
+  <a name="kEofLexTId"></a><span class="e">kEofLexTId</span><span class="p">,</span>      <span class="c"> // 2 the lexer reached the end of input</span>
+  <a name="kSpaceLexTId"></a><span class="e">kSpaceLexTId</span><span class="p">,</span>    <span class="c"> // 3 white space</span>
+  <a name="kRealLexTId"></a><span class="e">kRealLexTId</span><span class="p">,</span>     <span class="c"> // 4 real number (contains a decimal point or is in scientific notation) </span>
+  <a name="kIntLexTId"></a><span class="e">kIntLexTId</span><span class="p">,</span>      <span class="c"> // 5 decimal integer</span>
+  <a name="kHexLexTId"></a><span class="e">kHexLexTId</span><span class="p">,</span>      <span class="c"> // 6 hexidecimal integer</span>
+  <a name="kIdentLexTId"></a><span class="e">kIdentLexTId</span><span class="p">,</span>    <span class="c"> // 7 identifier</span>
+  <a name="kQStrLexTId"></a><span class="e">kQStrLexTId</span><span class="p">,</span>     <span class="c"> // 8 quoted string</span>
+  <a name="kQCharLexTId"></a><span class="e">kQCharLexTId</span><span class="p">,</span>    <span class="c"> // 9 quoted char</span>
+  <a name="kBlockCmtLexTId"></a><span class="e">kBlockCmtLexTId</span><span class="p">,</span> <span class="c"> // 10 block comment</span>
+  <a name="kLineCmtLexTId"></a><span class="e">kLineCmtLexTId</span><span class="p">,</span>  <span class="c"> // 11 line comment</span>
+  <a name="kUserLexTId"></a><span class="e">kUserLexTId</span>      <span class="c"> // 12 user registered token (See <a href="#cmLexRegisterToken">cmLexRegisterToken</a>().)</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// Lexer control flags used with <a href="#cmLexInit">cmLexInit</a>().</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kReturnSpaceLexFl"></a><span class="e">kReturnSpaceLexFl</span>    <span class="p">=</span> <span class="l">0x01</span><span class="p">,</span> <span class="c"> // Return space tokens</span>
+  <a name="kReturnCommentsLexFl"></a><span class="e">kReturnCommentsLexFl</span> <span class="p">=</span> <span class="l">0x02</span><span class="p">,</span> <span class="c"> // Return comment tokens</span>
+  <a name="kReturnUnknownLexFl"></a><span class="e">kReturnUnknownLexFl</span>  <span class="p">=</span> <span class="l">0x04</span><span class="p">,</span> <span class="c"> // Return unknown tokens</span>
+  <a name="kReturnQCharLexFl"></a><span class="e">kReturnQCharLexFl</span>    <span class="p">=</span> <span class="l">0x08</span><span class="p">,</span> <span class="c"> // Return quoted characters</span>
+  <a name="kUserDefPriorityLexFl"></a><span class="e">kUserDefPriorityLexFl</span><span class="p">=</span> <span class="l">0x10</span>  <span class="c"> // User defined tokens take priority even if a <a href="#kIdentLexTId">kIdentLexTId</a> token has a longer match</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="c">// cmLex result codes.</span>
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkLexRC"></a><span class="e">kOkLexRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>       <span class="c"> // 0 No error. The operation completed successfully </span>
+  <a name="kDuplicateTokenLexRC"></a><span class="e">kDuplicateTokenLexRC</span><span class="p">,</span>    <span class="c"> // 1 The text or id passed as a user token is already in use by another token</span>
+  <a name="kMissingCmtEndLexRC"></a><span class="e">kMissingCmtEndLexRC</span><span class="p">,</span>     <span class="c"> // 2 The end of a block comment could not be found. </span>
+  <a name="kMissingEndQuoteLexRC"></a><span class="e">kMissingEndQuoteLexRC</span><span class="p">,</span>   <span class="c"> // 3 The end of a quoted string could not be found.</span>
+  <a name="kNoMatchLexRC"></a><span class="e">kNoMatchLexRC</span><span class="p">,</span>           <span class="c"> // 4 The lexer encountered a string which could not be classified.</span>
+  <a name="kFileOpenErrLexRC"></a><span class="e">kFileOpenErrLexRC</span><span class="p">,</span>       <span class="c"> // 5 File open failed on <a href="#cmLexSetFile">cmLexSetFile</a>()</span>
+  <a name="kFileSeekErrLexRC"></a><span class="e">kFileSeekErrLexRC</span><span class="p">,</span>       <span class="c"> // 6 File seek failed on <a href="#cmLexSetFile">cmLexSetFile</a>()</span>
+  <a name="kFileTellErrLexRC"></a><span class="e">kFileTellErrLexRC</span><span class="p">,</span>       <span class="c"> // 7 File tell failed on <a href="#cmLexSetFile">cmLexSetFile</a>()</span>
+  <a name="kFileReadErrLexRC"></a><span class="e">kFileReadErrLexRC</span><span class="p">,</span>       <span class="c"> // 8 File read failed on <a href="#cmLexSetFile">cmLexSetFile</a>()</span>
+  <a name="kFileCloseErrLexRC"></a><span class="e">kFileCloseErrLexRC</span><span class="p">,</span>      <span class="c"> // 9 File close failed on <a href="#cmLexSetFile">cmLexSetFile</a>()</span>
+  <a name="kMemAllocErrLexRC"></a><span class="e">kMemAllocErrLexRC</span><span class="p">,</span>       <span class="c"> // 10 An attempted memory allocation failed</span>
+  <a name="kEofRC"></a><span class="e">kEofRC</span><span class="p">,</span>                  <span class="c"> // 11 The end of the input text was encountered (this is a normal condition not an error)</span>
+  <a name="kInvalidLexTIdLexRC"></a><span class="e">kInvalidLexTIdLexRC</span><span class="p">,</span>     <span class="c"> // 12 An invalid lex token id was encountered.</span>
+  <a name="kSignErrorLexRC"></a><span class="e">kSignErrorLexRC</span><span class="p">,</span>         <span class="c"> // 13 An signed integer has a 'u' or 'U' suffix.&ampquot</span>
+  <a name="kInvalidLexRC"></a><span class="e">kInvalidLexRC</span>            <span class="c"> // 1r Sentinal value.</span>
+  
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmHandle_t">cmHandle_t</a> <a name="cmLexH"></a><span class="t">cmLexH</span><span class="p">;</span>
+
+<span class="k">extern</span> <a href="#cmLexH">cmLexH</a> <span class="i">cmLexNullH</span><span class="p">;</span>
+
+
+<span class="c">// Iniitalize the lexer and receive a lexer handle in return.
+// Set cp to NULL if the buffer will be later via <a href="#cmLexSetTextBuffer">cmLexSetTextBuffer</a>();
+// See the kXXXLexFl enum's above for possible flag values.</span>
+<a href="#cmLexH">cmLexH</a>             <a name="cmLexInit"></a><span class="f">cmLexInit</span><span class="p">(</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">cp</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">cn</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span><span class="p">,</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Finalize a lexer created by an earlier call to <a href="#cmLexInit">cmLexInit</a>()</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>             <a name="cmLexFinal"></a><span class="f">cmLexFinal</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a><span class="p">*</span> <span class="i">hp</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Rewind the lexer to the begining of the buffer (the same as post initialize state)</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>             <a name="cmLexReset"></a><span class="f">cmLexReset</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Verify that a lexer handle is valid</span>
+<span class="k">bool</span>               <a name="cmLexIsValid"></a><span class="f">cmLexIsValid</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Set a new text buffer and reset the lexer to the post initialize state.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>             <a name="cmLexSetTextBuffer"></a><span class="f">cmLexSetTextBuffer</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">cp</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">cn</span> <span class="p">)</span><span class="p">;</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>             <a name="cmLexSetFile"></a><span class="f">cmLexSetFile</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">fn</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Register a user defined token. The id of the first user defined token should be
+// <a href="#kUserLexTId">kUserLexTId</a>+1.  Neither the id or token text can be used by a previously registered
+// or built-in token. </span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>             <a name="cmLexRegisterToken"></a><span class="f">cmLexRegisterToken</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span><span class="p">,</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">token</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Register a user defined token recognition function.  This function should return the count
+// of initial, consecutive, characters in 'cp[cn]' which match its token pattern.</span>
+<span class="k">typedef</span> <span class="k">unsigned</span> <span class="p">(</span><span class="p">*</span><a name="cmLexUserMatcherPtr_t"></a><span class="t">cmLexUserMatcherPtr_t</span><span class="p">)</span><span class="p">(</span> <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">cp</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">cn</span> <span class="p">)</span><span class="p">;</span>
+
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>             <a name="cmLexRegisterMatcher"></a><span class="f">cmLexRegisterMatcher</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span><span class="p">,</span> <a href="#cmLexUserMatcherPtr_t">cmLexUserMatcherPtr_t</a> <span class="i">funcPtr</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Enable or disable the specified token type.</span>
+<a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a>             <a name="cmLexEnableToken"></a><span class="f">cmLexEnableToken</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">id</span><span class="p">,</span> <span class="k">bool</span> <span class="i">enableFl</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Get and set the lexer filter flags kReturnXXXLexFl.
+// These flags can be safely enabled and disabled between
+// calls to <a href="#cmLexGetNextToken">cmLexGetNextToken</a>().</span>
+<span class="k">unsigned</span>           <a name="cmLexFilterFlags"></a><span class="f">cmLexFilterFlags</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+<span class="k">void</span>               <a name="cmLexSetFilterFlags"></a><span class="f">cmLexSetFilterFlags</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">flags</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the type id of the current token and advances to the next token</span>
+<span class="k">unsigned</span>           <a name="cmLexGetNextToken"></a><span class="f">cmLexGetNextToken</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the type id associated with the current token. This is the same value
+// returned by the previous call to <a href="#cmLexGetNextToken">cmLexGetNextToken</a>().</span>
+<span class="k">unsigned</span>           <a name="cmLexTokenId"></a><span class="f">cmLexTokenId</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span> 
+
+<span class="c">// Return a pointer to the first character of text associated with the 
+// current token. The returned pointer directly references the text contained
+// in the buffer given to the lexer in the call to <a href="#cmLexInit">cmLexInit</a>().  The string
+// is therefore not zero terminated. Use <a href="#cmLexTokenCharCount">cmLexTokenCharCount</a>() to get the 
+// length of the token string.</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmLexTokenText"></a><span class="f">cmLexTokenText</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the count of characters in the text associated with the current token.
+// This is the only way to get this count since the string returned by 
+// <a href="#cmLexTokenText">cmLexTokenText</a>() is not zero terminated.</span>
+<span class="k">unsigned</span>           <a name="cmLexTokenCharCount"></a><span class="f">cmLexTokenCharCount</span><span class="p">(</span>  <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the value of the current token as an integer.</span>
+<span class="k">int</span>                <a name="cmLexTokenInt"></a><span class="f">cmLexTokenInt</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the value of the current token as an unsigned integer.</span>
+<span class="k">unsigned</span>           <a name="cmLexTokenUInt"></a><span class="f">cmLexTokenUInt</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the value of the current token as a float.</span>
+<span class="k">float</span>              <a name="cmLexTokenFloat"></a><span class="f">cmLexTokenFloat</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the value of the current token as a double.</span>
+<span class="k">double</span>             <a name="cmLexTokenDouble"></a><span class="f">cmLexTokenDouble</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return true if the current token is an int and it was suffixed
+// with 'u' to indicate that it is unsigned.</span>
+<span class="k">bool</span>               <a name="cmLexTokenIsUnsigned"></a><span class="f">cmLexTokenIsUnsigned</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return true if the current token is a real and it was suffexed 
+// with 'f' to indicate that it is a single precision float.</span>
+<span class="k">bool</span>               <a name="cmLexTokenIsSinglePrecision"></a><span class="f">cmLexTokenIsSinglePrecision</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the line number associated with the current token </span>
+<span class="k">unsigned</span>           <a name="cmLexCurrentLineNumber"></a><span class="f">cmLexCurrentLineNumber</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the starting column of the current token</span>
+<span class="k">unsigned</span>           <a name="cmLexCurrentColumnNumber"></a><span class="f">cmLexCurrentColumnNumber</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span> 
+
+<span class="c">// Return the RC code associated with the last error</span>
+<span class="k">unsigned</span>           <a name="cmLexErrorRC"></a><span class="f">cmLexErrorRC</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the label associated with a token id</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmLexIdToLabel"></a><span class="f">cmLexIdToLabel</span><span class="p">(</span> <a href="#cmLexH">cmLexH</a> <span class="i">h</span><span class="p">,</span> <span class="k">unsigned</span> <span class="i">typeId</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Return the text message associated with a return code. </span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <a name="cmLexRcToMsg"></a><span class="f">cmLexRcToMsg</span><span class="p">(</span> <span class="k">unsigned</span> <span class="i">rc</span> <span class="p">)</span><span class="p">;</span>
+
+<span class="c">// Lexer testing stub.</span>
+<span class="k">void</span> <a name="cmLexTest"></a><span class="f"><a href="cmLex_c_0.html#cmLexTest_defn">cmLexTest</a></span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> <span class="i">rpt</span> <span class="p">)</span><span class="p">;</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

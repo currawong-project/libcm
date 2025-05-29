@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmLex.c</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmLex.c"></a><!-- Begin nodes -->
+<div class="cod"><pre><a name="cmLexEx"></a><span class="c">//
+// <a href="cmLex_h_0.html#cmLexTest">cmLexTest</a>() gives a simple cmLex example.
+//</span>
+<span class="k">void</span> <a name="cmLexTest_defn"></a><span class="f"><a href="cmLex_h_0.html#cmLexTest">cmLexTest</a></span><span class="p">(</span> <a href="cmRpt_h_0.html#cmRpt_t">cmRpt_t</a><span class="p">*</span> rpt<span class="p">)</span>
+<span class="p">{</span>
+  <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a> buf<span class="p">[</span><span class="p">]</span> <span class="p">=</span>
+  <span class="l">&quot123ident0\n 123.456\nident0\n&quot</span>
+  <span class="l">&quot0xa12+.2\n&quot</span>
+  <span class="l">&quot// comment \n&quot</span>
+  <span class="l">&quot/* block \n&quot</span>
+  <span class="l">&quotcomment */&quot</span>
+  <span class="l">&quot\&quotquoted string\&quot&quot</span>
+  <span class="l">&quotident1&quot</span>
+  <span class="l">&quot// last line comment&quot</span><span class="p">;</span>
+  
+  <span class="c">// initialize a lexer with a buffer of text</span>
+  <a href="cmLex_h_0.html#cmLexH">cmLexH</a> h <span class="p">=</span> <a href="cmLex_h_0.html#cmLexInit">cmLexInit</a><span class="p">(</span>buf<span class="p">,</span>strlen<span class="p">(</span>buf<span class="p">)</span><span class="p">,</span>
+  <a href="cmLex_h_0.html#kReturnSpaceLexFl">kReturnSpaceLexFl</a> <span class="p">|</span> <a href="cmLex_h_0.html#kReturnCommentsLexFl">kReturnCommentsLexFl</a><span class="p">,</span>rpt<span class="p">)</span><span class="p">;</span>
+  
+  <span class="c">// verify that the lexer initialization succeded.</span>
+  <span class="k">if</span><span class="p">(</span> <a href="cmLex_h_0.html#cmLexIsValid">cmLexIsValid</a><span class="p">(</span>h<span class="p">)</span> <span class="p">=</span><span class="p">=</span> false <span class="p">)</span>
+  <span class="p">{</span>
+    <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a><span class="p">(</span>rpt<span class="p">,</span><span class="l">&quotLexer initialization failed.&quot</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">return</span><span class="p">;</span>
+  <span class="p">}</span>
+  
+  <span class="c">// register some additional recoginizers</span>
+  <a href="cmLex_h_0.html#cmLexRegisterToken">cmLexRegisterToken</a><span class="p">(</span>h<span class="p">,</span><a href="cmLex_h_0.html#kUserLexTId">kUserLexTId</a><span class="p">+</span><span class="l">1</span><span class="p">,</span><span class="l">&quot+&quot</span><span class="p">)</span><span class="p">;</span>
+  <a href="cmLex_h_0.html#cmLexRegisterToken">cmLexRegisterToken</a><span class="p">(</span>h<span class="p">,</span><a href="cmLex_h_0.html#kUserLexTId">kUserLexTId</a><span class="p">+</span><span class="l">2</span><span class="p">,</span><span class="l">&quot-&quot</span><span class="p">)</span><span class="p">;</span>
+  
+  <span class="k">unsigned</span> tid<span class="p">;</span>
+  
+  <span class="c">// ask for token id's </span>
+  <span class="k">while</span><span class="p">(</span> <span class="p">(</span>tid <span class="p">=</span> <a href="cmLex_h_0.html#cmLexGetNextToken">cmLexGetNextToken</a><span class="p">(</span>h<span class="p">)</span><span class="p">)</span> <span class="p">!</span><span class="p">=</span> <a href="cmLex_h_0.html#kEofLexTId">kEofLexTId</a> <span class="p">)</span>
+  <span class="p">{</span>
+    <span class="c">// <a href="cmMain_c_0.html#print">print</a> information about each token</span>
+    <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a><span class="p">(</span>rpt<span class="p">,</span><span class="l">&quot%i %i %s '%.*s' (%i) &quot</span><span class="p">,</span> 
+    <a href="cmLex_h_0.html#cmLexCurrentLineNumber">cmLexCurrentLineNumber</a><span class="p">(</span>h<span class="p">)</span><span class="p">,</span> 
+    <a href="cmLex_h_0.html#cmLexCurrentColumnNumber">cmLexCurrentColumnNumber</a><span class="p">(</span>h<span class="p">)</span><span class="p">,</span> 
+    <a href="cmLex_h_0.html#cmLexIdToLabel">cmLexIdToLabel</a><span class="p">(</span>h<span class="p">,</span>tid<span class="p">)</span><span class="p">,</span> 
+    <a href="cmLex_h_0.html#cmLexTokenCharCount">cmLexTokenCharCount</a><span class="p">(</span>h<span class="p">)</span><span class="p">,</span> 
+    <a href="cmLex_h_0.html#cmLexTokenText">cmLexTokenText</a><span class="p">(</span>h<span class="p">)</span> <span class="p">,</span> 
+    <a href="cmLex_h_0.html#cmLexTokenCharCount">cmLexTokenCharCount</a><span class="p">(</span>h<span class="p">)</span><span class="p">)</span><span class="p">;</span>
+    
+    <span class="c">// if the token is a number ...</span>
+    <span class="k">if</span><span class="p">(</span> tid<span class="p">=</span><span class="p">=</span><a href="cmLex_h_0.html#kIntLexTId">kIntLexTId</a> <span class="p">|</span><span class="p">|</span> tid<span class="p">=</span><span class="p">=</span><a href="cmLex_h_0.html#kRealLexTId">kRealLexTId</a> <span class="p">|</span><span class="p">|</span> tid<span class="p">=</span><span class="p">=</span><a href="cmLex_h_0.html#kHexLexTId">kHexLexTId</a> <span class="p">)</span>
+    <span class="p">{</span>
+      <span class="c">// ... then request the numbers value</span>
+      <span class="k">int</span>    iv <span class="p">=</span> <a href="cmLex_h_0.html#cmLexTokenInt">cmLexTokenInt</a><span class="p">(</span>h<span class="p">)</span><span class="p">;</span>
+      <span class="k">double</span> dv <span class="p">=</span> <a href="cmLex_h_0.html#cmLexTokenDouble">cmLexTokenDouble</a><span class="p">(</span>h<span class="p">)</span><span class="p">;</span>
+      
+      <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a><span class="p">(</span>rpt<span class="p">,</span><span class="l">&quot%i %f&quot</span><span class="p">,</span>iv<span class="p">,</span>dv<span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+    
+    <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a><span class="p">(</span>rpt<span class="p">,</span><span class="l">&quot\n&quot</span><span class="p">)</span><span class="p">;</span>
+    
+    <span class="c">// handle errors</span>
+    <span class="k">if</span><span class="p">(</span> tid <span class="p">=</span><span class="p">=</span> <a href="cmLex_h_0.html#kErrorLexTId">kErrorLexTId</a> <span class="p">)</span>
+    <span class="p">{</span>
+      <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a><span class="p">(</span>rpt<span class="p">,</span><span class="l">&quotError:%i\n&quot</span><span class="p">,</span> <a href="cmLex_h_0.html#cmLexErrorRC">cmLexErrorRC</a><span class="p">(</span>h<span class="p">)</span><span class="p">)</span><span class="p">;</span>
+      <span class="k">break</span><span class="p">;</span>
+    <span class="p">}</span>
+    
+  <span class="p">}</span>
+  
+  <span class="c">// finalize the lexer </span>
+  <a href="cmLex_h_0.html#cmLexFinal">cmLexFinal</a><span class="p">(</span><span class="p">&amp</span>h<span class="p">)</span><span class="p">;</span>
+  
+<span class="p">}</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

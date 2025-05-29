@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmMidiScoreFollow.h</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmMidiScoreFollow.h"></a><!-- Begin nodes -->
+<div class="cod"><div class="blk_title">cmMidiScoreFollow : Score follow a MIDI files.</div><pre><a name="cmMidiScoreFollow_h_code_0"></a><span class="c">//
+// This function uses a CSV score file generated from <a href="cmXScore_h_0.html#cmXScoreTest">cmXScoreTest</a>() to score follow a MIDI file.
+// Output filesL
+// - MIDI file with velocities from the score applied to the associated notes in the MIDI file.
+// - A text file, for use with cmTimeLine, which describes the bar positions as absolute times into the score.
+// - An SVG file which shows the score match results over time for each note in the score.
+// - A report file which lists the score match status over time.</span>
+
+
+
+<span class="k">enum</span>
+<span class="p">{</span>
+  <a name="kOkMsfRC"></a><span class="e">kOkMsfRC</span> <span class="p">=</span> <a href="cmGlobal_h_0.html#cmOkRC">cmOkRC</a><span class="p">,</span>
+  <a name="kFailMsfRC"></a><span class="e">kFailMsfRC</span>
+<span class="p">}</span><span class="p">;</span>
+
+<span class="k">typedef</span> <a href="cmGlobal_h_0.html#cmRC_t">cmRC_t</a> <a name="cmMsfRC_t"></a><span class="t">cmMsfRC_t</span><span class="p">;</span>
+
+
+<a href="#cmMsfRC_t">cmMsfRC_t</a> <a name="cmMidiScoreFollowMain"></a>cmMidiScoreFollowMain<span class="p">(</span>
+<a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> <span class="i">ctx</span><span class="p">,</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">scoreCsvFn</span><span class="p">,</span>      <span class="c"> // score CSV file as generated from <a href="cmXScore_h_0.html#cmXScoreTest">cmXScoreTest</a>().</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">midiFn</span><span class="p">,</span>          <span class="c"> // MIDI file to track</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">matchRptOutFn</span><span class="p">,</span>   <span class="c"> // Score follow status report </span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">matchSvgOutFn</span><span class="p">,</span>   <span class="c"> // Score follow graphic report</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">midiOutFn</span><span class="p">,</span>       <span class="c"> // (optional) midiFn with apply sostenuto and velocities from the score to the MIDI file</span>
+<span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> <span class="i">tlBarOutFn</span>       <span class="c"> // (optional) bar positions sutiable for use in a cmTimeLine description file.</span>
+<span class="p">)</span><span class="p">;</span></pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

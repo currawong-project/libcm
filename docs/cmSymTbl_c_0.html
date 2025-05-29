@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmSymTbl.c</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmSymTbl.c"></a><!-- Begin nodes -->
+<div class="cod"><pre><a name="cmSymTblEx"></a><span class="c">//
+//  <a href="cmSymTbl_h_0.html#cmSymTblTest">cmSymTblTest</a>() gives a usage example for the symbol table component.
+//</span>
+
+<span class="k">void</span> <a name="cmSymTblTest_defn"></a><span class="f"><a href="cmSymTbl_h_0.html#cmSymTblTest">cmSymTblTest</a></span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> ctx <span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span>    baseSymId <span class="p">=</span> <span class="l">100</span><span class="p">;</span>
+  <span class="k">unsigned</span>    i<span class="p">;</span>
+  <span class="k">unsigned</span>    n <span class="p">=</span> <span class="l">10</span><span class="p">;</span>
+  <span class="k">unsigned</span>    idArray<span class="p">[</span>n<span class="p">]</span><span class="p">;</span>
+  
+  <span class="c">// create a symbol table</span>
+  <a href="cmSymTbl_h_0.html#cmSymTblH_t">cmSymTblH_t</a> h <span class="p">=</span> <a href="cmSymTbl_h_0.html#cmSymTblCreate">cmSymTblCreate</a><span class="p">(</span> cmSymTblNullHandle<span class="p">,</span> baseSymId<span class="p">,</span> ctx <span class="p">)</span><span class="p">;</span>
+  
+  <span class="k">if</span><span class="p">(</span> <a href="cmSymTbl_h_0.html#cmSymTblIsValid">cmSymTblIsValid</a><span class="p">(</span>h<span class="p">)</span> <span class="p">=</span><span class="p">=</span> false <span class="p">)</span>
+  <span class="p">{</span>
+    <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a><span class="p">(</span><span class="p">&amp</span>ctx<span class="p">-</span><span class="p">&gt</span>rpt<span class="p">,</span><span class="l">&quotSymbol table creation failed.&quot</span><span class="p">)</span><span class="p">;</span>
+    <span class="k">return</span><span class="p">;</span>
+  <span class="p">}</span>
+  
+  <span class="c">// generate and register some symbols</span>
+  <span class="k">for</span><span class="p">(</span>i<span class="p">=</span><span class="l">0</span><span class="p">;</span> i<span class="p">&lt</span>n<span class="p">;</span> <span class="p">+</span><span class="p">+</span>i<span class="p">)</span>
+  <span class="p">{</span>
+    <span class="k">bool</span> staticFl <span class="p">=</span> false<span class="p">;</span>
+    <span class="k">char</span> str<span class="p">[</span><span class="l">10</span><span class="p">]</span><span class="p">;</span>
+    snprintf<span class="p">(</span>str<span class="p">,</span><span class="l">9</span><span class="p">,</span><span class="l">&quotsym%i&quot</span><span class="p">,</span>i<span class="p">)</span><span class="p">;</span>
+    idArray<span class="p">[</span>i<span class="p">]</span> <span class="p">=</span> <a href="cmSymTbl_h_0.html#cmSymTblRegister">cmSymTblRegister</a><span class="p">(</span> h<span class="p">,</span> str<span class="p">,</span> staticFl <span class="p">)</span><span class="p">;</span>    
+  <span class="p">}</span>
+  
+  <span class="c">// remove  the fourth symbol generated</span>
+  <a href="cmSymTbl_h_0.html#cmSymTblRemove">cmSymTblRemove</a><span class="p">(</span> h<span class="p">,</span> baseSymId<span class="p">+</span><span class="l">3</span> <span class="p">)</span><span class="p">;</span>
+  
+  <span class="c">// <a href="cmMain_c_0.html#print">print</a> the symbol table</span>
+  <a href="cmSymTbl_h_0.html#cmSymTblReport">cmSymTblReport</a><span class="p">(</span>h<span class="p">)</span><span class="p">;</span>
+  
+  <span class="c">// iterate through the symbol table</span>
+  <span class="k">for</span><span class="p">(</span>i<span class="p">=</span><span class="l">0</span><span class="p">;</span> i<span class="p">&lt</span>n<span class="p">;</span> <span class="p">+</span><span class="p">+</span>i<span class="p">)</span>
+  <span class="p">{</span>
+    <span class="k">const</span> <a href="cmGlobal_h_0.html#cmChar_t">cmChar_t</a><span class="p">*</span> lbl <span class="p">=</span> <a href="cmSymTbl_h_0.html#cmSymTblLabel">cmSymTblLabel</a><span class="p">(</span>h<span class="p">,</span>idArray<span class="p">[</span>i<span class="p">]</span><span class="p">)</span><span class="p">;</span>
+    
+    <span class="k">if</span><span class="p">(</span> lbl <span class="p">=</span><span class="p">=</span> NULL <span class="p">)</span>
+      <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a><span class="p">(</span><span class="p">&amp</span>ctx<span class="p">-</span><span class="p">&gt</span>rpt<span class="p">,</span><span class="l">&quot%i &ltremoved&gt\n&quot</span><span class="p">,</span>i<span class="p">)</span><span class="p">;</span>
+    <span class="k">else</span>
+      <a href="cmRpt_h_0.html#cmRptPrintf">cmRptPrintf</a><span class="p">(</span><span class="p">&amp</span>ctx<span class="p">-</span><span class="p">&gt</span>rpt<span class="p">,</span><span class="l">&quot%i %i==%i %s \n&quot</span><span class="p">,</span>i<span class="p">,</span>idArray<span class="p">[</span>i<span class="p">]</span><span class="p">,</span><a href="cmSymTbl_h_0.html#cmSymTblId">cmSymTblId</a><span class="p">(</span>h<span class="p">,</span>lbl<span class="p">)</span><span class="p">,</span>lbl<span class="p">)</span><span class="p">;</span>
+  <span class="p">}</span>
+  
+  <span class="c">// release the symbol table</span>
+  <a href="cmSymTbl_h_0.html#cmSymTblDestroy">cmSymTblDestroy</a><span class="p">(</span><span class="p">&amp</span>h<span class="p">)</span><span class="p">;</span>
+  
+  <span class="k">return</span><span class="p">;</span>
+<span class="p">}</span></pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>

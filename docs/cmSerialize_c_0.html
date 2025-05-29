@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta name="keywords" content="" />
+    <meta name="description" content="" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>cmSerialize.c</title>
+    <link href="cdg_code.css"    rel="stylesheet" type="text/css" media="screen" />
+  </head>
+  <body>
+    <div class="highlight">
+
+      <div class="license">
+	<p>
+	  Copyright (C) Kevin Larke 2009-2020
+	</p>
+
+	<p>
+	  This file is part of libcm.
+	</p>
+
+	<p>
+	  libcm is free software: you can redistribute it and/or modify it under
+	  the terms of the GNU General Public License as published by the Free
+	  Software Foundation, either version 3 of the License, or (at your
+	  option) any later version.
+	</p>
+
+	<p>
+	  libcm is distributed in the hope that it will be useful, but WITHOUT
+	  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+	  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+	  for more details.
+	</p>
+
+	<p>
+	  See the GNU General Public License distributed with the libcm
+	  package or look here: <https://www.gnu.org/licenses/>.
+	</p>
+
+
+      </div>
+
+      <hr>
+<a name="cmSerialize.c"></a><!-- Begin nodes -->
+<div class="cod"><pre><a name="cmSerializeEx"></a><span class="c">//
+// <a href="cmSerialize_h_0.html#cmSrTest">cmSrTest</a>() is a serializer example function.
+//</span>
+<a href="cmSerialize_h_0.html#cmSrRC_t">cmSrRC_t</a> <a name="cmSrTest_defn"></a><span class="f"><a href="cmSerialize_h_0.html#cmSrTest">cmSrTest</a></span><span class="p">(</span> <a href="cmCtx_h_0.html#cmCtx_t">cmCtx_t</a><span class="p">*</span> ctx <span class="p">)</span>
+<span class="p">{</span>
+  <span class="k">unsigned</span> i<span class="p">,</span>j<span class="p">,</span>k<span class="p">;</span>
+  <a href="cmSerialize_h_0.html#cmSrRC_t">cmSrRC_t</a> rc <span class="p">=</span> <a href="cmSerialize_h_0.html#kOkSrRC">kOkSrRC</a><span class="p">;</span>
+  <a href="cmSerialize_h_0.html#cmSrH_t">cmSrH_t</a> h<span class="p">;</span>
+  <span class="k">unsigned</span>    bufByteCnt<span class="p">;</span>
+  <span class="k">const</span> <span class="k">void</span><span class="p">*</span> bufPtr<span class="p">;</span>
+  
+  
+  <span class="k">enum</span>
+  <span class="p">{</span>
+    kVectSrId <span class="p">=</span> <a href="cmSerialize_h_0.html#kStructSrId">kStructSrId</a><span class="p">,</span>   <span class="c"> // nested structure id</span>
+    kVectArrSrId               <span class="c"> // outer structure id</span>
+  <span class="p">}</span><span class="p">;</span>
+  <span class="c">//
+  //  // nested structure
+  //  typedef struct
+  //  {
+  //    float*   data;
+  //    unsigned cnt;
+  //  } vect;
+  //
+  //  // outer structure
+  //  typedef struct
+  //  {
+  //    unsigned cnt;
+  //    vect*    vectArray;
+  //  } vectArray;
+  //</span>  
+  <span class="c">//  </span>
+  <span class="k">float</span> vd0<span class="p">[</span><span class="p">]</span>  <span class="p">=</span> <span class="p">{</span> <span class="l">0</span><span class="p">,</span> <span class="l">1</span><span class="p">,</span> <span class="l">2</span><span class="p">,</span> <span class="l">3</span><span class="p">,</span> <span class="l">4</span><span class="p">}</span><span class="p">;</span>
+  <span class="k">float</span> vd1<span class="p">[</span><span class="p">]</span>  <span class="p">=</span> <span class="p">{</span> <span class="l">10</span><span class="p">,</span> <span class="l">11</span><span class="p">,</span> <span class="l">12</span> <span class="p">}</span><span class="p">;</span>
+  <span class="k">unsigned</span>  vn <span class="p">=</span> <span class="l">2</span><span class="p">;</span>
+  vect v<span class="p">[</span><span class="p">]</span>     <span class="p">=</span> <span class="p">{</span> <span class="p">{</span>vd0<span class="p">,</span><span class="l">5</span><span class="p">}</span><span class="p">,</span> <span class="p">{</span>vd1<span class="p">,</span><span class="l">3</span><span class="p">}</span> <span class="p">}</span><span class="p">;</span>
+  vectArray va <span class="p">=</span> <span class="p">{</span> vn<span class="p">,</span> v <span class="p">}</span><span class="p">;</span>
+  
+  <span class="k">if</span><span class="p">(</span><span class="p">(</span> rc <span class="p">=</span> <a href="cmSerialize_h_0.html#cmSrAlloc">cmSrAlloc</a><span class="p">(</span> <span class="p">&amp</span>h<span class="p">,</span> ctx <span class="p">)</span><span class="p">)</span> <span class="p">!</span><span class="p">=</span> <a href="cmSerialize_h_0.html#kOkSrRC">kOkSrRC</a> <span class="p">)</span>
+    goto errLabel<span class="p">;</span>
+  
+  <span class="c">// repeat format processes to test cmSrFormatReset()</span>
+  <span class="k">for</span><span class="p">(</span>k<span class="p">=</span><span class="l">0</span><span class="p">;</span> k<span class="p">&lt</span><span class="l">2</span><span class="p">;</span> <span class="p">+</span><span class="p">+</span>k<span class="p">)</span>
+  <span class="p">{</span>
+    <a href="cmSerialize_h_0.html#cmSrFmtReset">cmSrFmtReset</a><span class="p">(</span>h<span class="p">)</span><span class="p">;</span>
+    
+    <span class="c">// Define the format of nested structures first
+    //
+    // Long Form:
+    //   <a href="cmSerialize_h_0.html#cmSrFmtDefineStruct">cmSrFmtDefineStruct</a>(h,kVectSrId);
+    //   <a href="cmSerialize_h_0.html#cmSrFmtFloatV">cmSrFmtFloatV</a>(h  );
+    //   <a href="cmSerialize_h_0.html#cmSrFmtUInt">cmSrFmtUInt</a>(h );
+    //
+    // Short Form:</span>    
+    <a href="cmSerialize_h_0.html#cmSrDefFmt">cmSrDefFmt</a><span class="p">(</span>h<span class="p">,</span> kVectSrId<span class="p">,</span> <a href="cmSerialize_h_0.html#kFloatVSrId">kFloatVSrId</a><span class="p">,</span> <a href="cmSerialize_h_0.html#kUIntSrId">kUIntSrId</a><span class="p">,</span> <a href="cmSerialize_h_0.html#kInvalidSrId">kInvalidSrId</a> <span class="p">)</span><span class="p">;</span>
+    
+    <span class="c">// Define the format of the outer structure last
+    //
+    // Long Form:
+    //   <a href="cmSerialize_h_0.html#cmSrFmtDefineStruct">cmSrFmtDefineStruct</a>(h,kVectArrSrId);
+    //   <a href="cmSerialize_h_0.html#cmSrFmtUInt">cmSrFmtUInt</a>(h );
+    //   <a href="cmSerialize_h_0.html#cmSrFmtStructV">cmSrFmtStructV</a>(h, kVectSrId );
+    //
+    // Short Form:</span>    
+    <a href="cmSerialize_h_0.html#cmSrDefFmt">cmSrDefFmt</a><span class="p">(</span>h<span class="p">,</span> kVectArrSrId<span class="p">,</span> <a href="cmSerialize_h_0.html#kUIntSrId">kUIntSrId</a><span class="p">,</span> kVectSrId <span class="p">|</span> <a href="cmSerialize_h_0.html#kArraySrFl">kArraySrFl</a><span class="p">,</span> <a href="cmSerialize_h_0.html#kInvalidSrId">kInvalidSrId</a> <span class="p">)</span><span class="p">;</span>
+    
+    <a href="cmSerialize_h_0.html#cmSrFmtPrint">cmSrFmtPrint</a><span class="p">(</span>h<span class="p">)</span><span class="p">;</span>
+    
+    <span class="c">// repeat write process to test <a href="cmSerialize_h_0.html#cmSrWrReset">cmSrWrReset</a>()</span>
+    <span class="k">for</span><span class="p">(</span>j<span class="p">=</span><span class="l">0</span><span class="p">;</span> j<span class="p">&lt</span><span class="l">2</span><span class="p">;</span> <span class="p">+</span><span class="p">+</span>j<span class="p">)</span>
+    <span class="p">{</span>
+      <a href="cmSerialize_h_0.html#cmSrWrReset">cmSrWrReset</a><span class="p">(</span>h<span class="p">)</span><span class="p">;</span>
+      
+      <a href="cmSerialize_h_0.html#cmSrWrStructBegin">cmSrWrStructBegin</a><span class="p">(</span> h<span class="p">,</span> kVectArrSrId <span class="p">)</span><span class="p">;</span>
+      <a href="cmSerialize_h_0.html#cmSrWrUInt">cmSrWrUInt</a><span class="p">(</span>    h<span class="p">,</span> vn <span class="p">)</span><span class="p">;</span>
+      <a href="cmSerialize_h_0.html#cmSrWrStruct">cmSrWrStruct</a><span class="p">(</span>  h<span class="p">,</span> kVectSrId<span class="p">,</span> vn <span class="p">)</span><span class="p">;</span>
+      
+      <span class="k">for</span><span class="p">(</span>i<span class="p">=</span><span class="l">0</span><span class="p">;</span> i<span class="p">&lt</span>vn<span class="p">;</span> <span class="p">+</span><span class="p">+</span>i<span class="p">)</span>
+      <span class="p">{</span>
+        <a href="cmSerialize_h_0.html#cmSrWrStructBegin">cmSrWrStructBegin</a><span class="p">(</span> h<span class="p">,</span> kVectSrId <span class="p">)</span><span class="p">;</span>
+        <a href="cmSerialize_h_0.html#cmSrWrFloatV">cmSrWrFloatV</a><span class="p">(</span>      h<span class="p">,</span>  va<span class="p">.</span>vectArray<span class="p">[</span>i<span class="p">]</span><span class="p">.</span>data<span class="p">,</span> va<span class="p">.</span>vectArray<span class="p">[</span>i<span class="p">]</span><span class="p">.</span>cnt <span class="p">)</span><span class="p">;</span>
+        <a href="cmSerialize_h_0.html#cmSrWrUInt">cmSrWrUInt</a><span class="p">(</span>        h<span class="p">,</span>  va<span class="p">.</span>vectArray<span class="p">[</span>i<span class="p">]</span><span class="p">.</span>cnt <span class="p">)</span><span class="p">;</span>
+        <a href="cmSerialize_h_0.html#cmSrWrStructEnd">cmSrWrStructEnd</a><span class="p">(</span>h<span class="p">)</span><span class="p">;</span>
+      <span class="p">}</span>
+      
+      <a href="cmSerialize_h_0.html#cmSrWrStructEnd">cmSrWrStructEnd</a><span class="p">(</span>h<span class="p">)</span><span class="p">;</span>
+      
+      bufByteCnt <span class="p">=</span> <span class="l">0</span><span class="p">;</span>
+      bufPtr     <span class="p">=</span> <a href="cmSerialize_h_0.html#cmSrWrAllocBuf">cmSrWrAllocBuf</a><span class="p">(</span> h<span class="p">,</span> <span class="p">&amp</span>bufByteCnt <span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+    
+    <span class="c">// The serialized buffer has the following format:
+    // Words Bytes   
+    // ----- ----- -----------------------------------------
+    //   1    4   [ uint (2) ]
+    //   2    8   [ id  (11) ][ cnt (2) ]
+    //   6   24   [ cnt  (5) ][0.0][1.0][2.0][3.0][4.0]
+    //   1    4   [ uint (5) ]
+    //   4   16   [ cnt  (3) ][10.][11.][12.]
+    //   1    4   [ uint (3) ]
+    // ----- ----
+    //  14   60
+    //</span>    
+    
+    <span class="k">unsigned</span>    n0<span class="p">,</span>n1<span class="p">,</span>n2<span class="p">,</span>n3<span class="p">;</span>
+    <span class="k">const</span> <span class="k">float</span><span class="p">*</span> fArr<span class="p">;</span>
+    
+    <a href="cmSerialize_h_0.html#cmSrRdProcessBuffer">cmSrRdProcessBuffer</a><span class="p">(</span>h<span class="p">,</span> <span class="p">(</span><span class="k">void</span><span class="p">*</span><span class="p">)</span>bufPtr<span class="p">,</span> bufByteCnt <span class="p">)</span><span class="p">;</span>
+    <a href="cmSerialize_h_0.html#cmSrRdSetup">cmSrRdSetup</a><span class="p">(</span> h<span class="p">,</span> bufPtr<span class="p">,</span> bufByteCnt <span class="p">)</span><span class="p">;</span>
+    
+    <a href="cmSerialize_h_0.html#cmSrRdStructBegin">cmSrRdStructBegin</a><span class="p">(</span> h<span class="p">,</span> kVectArrSrId <span class="p">)</span><span class="p">;</span>
+    <a href="cmSerialize_h_0.html#cmSrReadUInt">cmSrReadUInt</a><span class="p">(</span> h<span class="p">,</span> <span class="p">&amp</span>n0 <span class="p">)</span><span class="p">;</span>
+    <a href="cmSerialize_h_0.html#cmSrReadStruct">cmSrReadStruct</a><span class="p">(</span> h<span class="p">,</span> kVectSrId<span class="p">,</span> <span class="p">&amp</span>n1 <span class="p">)</span><span class="p">;</span>
+    <span class="k">for</span><span class="p">(</span>i<span class="p">=</span><span class="l">0</span><span class="p">;</span> i<span class="p">&lt</span>n1<span class="p">;</span> <span class="p">+</span><span class="p">+</span>i<span class="p">)</span>
+    <span class="p">{</span>
+      <a href="cmSerialize_h_0.html#cmSrRdStructBegin">cmSrRdStructBegin</a><span class="p">(</span> h<span class="p">,</span> kVectSrId <span class="p">)</span><span class="p">;</span>
+      <a href="cmSerialize_h_0.html#cmSrReadFloatCV">cmSrReadFloatCV</a><span class="p">(</span> h<span class="p">,</span> <span class="p">&amp</span>fArr<span class="p">,</span> <span class="p">&amp</span>n2 <span class="p">)</span><span class="p">;</span> 
+      <a href="cmSerialize_h_0.html#cmSrReadUInt">cmSrReadUInt</a><span class="p">(</span> h<span class="p">,</span>  <span class="p">&amp</span>n3 <span class="p">)</span><span class="p">;</span>
+      <a href="cmSerialize_h_0.html#cmSrRdStructEnd">cmSrRdStructEnd</a><span class="p">(</span> h <span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+    
+    
+    <a href="cmSerialize_h_0.html#cmSrRdSetup">cmSrRdSetup</a><span class="p">(</span> h<span class="p">,</span> bufPtr<span class="p">,</span> bufByteCnt <span class="p">)</span><span class="p">;</span>
+    
+    <a href="cmSerialize_h_0.html#cmSrRdStructBegin">cmSrRdStructBegin</a><span class="p">(</span> h<span class="p">,</span> kVectArrSrId <span class="p">)</span><span class="p">;</span>
+    n0 <span class="p">=</span> <a href="cmSerialize_h_0.html#cmSrRdUInt">cmSrRdUInt</a><span class="p">(</span> h <span class="p">)</span><span class="p">;</span>
+    n1 <span class="p">=</span> <a href="cmSerialize_h_0.html#cmSrRdStruct">cmSrRdStruct</a><span class="p">(</span> h<span class="p">,</span> kVectSrId <span class="p">)</span><span class="p">;</span>
+    <span class="k">for</span><span class="p">(</span>i<span class="p">=</span><span class="l">0</span><span class="p">;</span> i<span class="p">&lt</span>n1<span class="p">;</span> <span class="p">+</span><span class="p">+</span>i<span class="p">)</span>
+    <span class="p">{</span>
+      <a href="cmSerialize_h_0.html#cmSrRdStructBegin">cmSrRdStructBegin</a><span class="p">(</span> h<span class="p">,</span> kVectSrId <span class="p">)</span><span class="p">;</span>
+      fArr <span class="p">=</span> <a href="cmSerialize_h_0.html#cmSrRdFloatV">cmSrRdFloatV</a><span class="p">(</span> h<span class="p">,</span> <span class="p">&amp</span>n2 <span class="p">)</span><span class="p">;</span> 
+      n3   <span class="p">=</span> <a href="cmSerialize_h_0.html#cmSrRdUInt">cmSrRdUInt</a><span class="p">(</span> h <span class="p">)</span><span class="p">;</span>
+      <a href="cmSerialize_h_0.html#cmSrRdStructEnd">cmSrRdStructEnd</a><span class="p">(</span> h <span class="p">)</span><span class="p">;</span>
+      
+      <span class="k">for</span><span class="p">(</span>j<span class="p">=</span><span class="l">0</span><span class="p">;</span> j<span class="p">&lt</span>n2<span class="p">;</span> <span class="p">+</span><span class="p">+</span>j<span class="p">)</span>
+        printf<span class="p">(</span><span class="l">&quot%f &quot</span><span class="p">,</span>fArr<span class="p">[</span>j<span class="p">]</span><span class="p">)</span><span class="p">;</span>
+      printf<span class="p">(</span><span class="l">&quot\n&quot</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+  
+  errLabel<span class="p">:</span>
+  <a href="cmSerialize_h_0.html#cmSrFree">cmSrFree</a><span class="p">(</span><span class="p">&amp</span>h<span class="p">)</span><span class="p">;</span>
+  
+  <span class="k">return</span> rc<span class="p">;</span>
+<span class="p">}</span>
+</pre>
+</div>
+<!-- End nodes -->
+</div>
+</body>
+</html>
