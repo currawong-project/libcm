@@ -12,7 +12,7 @@ Some of its features are:
 * file readers and writers for WAV,AIFF,MIDI,CSV,MusicXML,XML among others
 
 _libcm_ is big. The best way to get a sense of what is in it
-is to [browse the documentation files here](doc/libcm/libcm.html).
+is to [browse the documentation files here](docs/libcm.html).
 
 
 
